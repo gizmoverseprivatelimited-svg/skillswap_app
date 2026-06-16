@@ -1,0 +1,387 @@
+import url from '@/constants/backurl';
+import { User, Skill, SkillWithUser, ResourceMeta } from '@/types';
+
+const API_URL = url;
+
+console.log("Hey Hey", API_URL);
+
+
+async function apiGet<T>(endpoint: string): Promise<T> {
+  const res = await fetch(`${API_URL}${endpoint}`);
+  if (!res.ok) throw new Error('API error');
+  let data = await res.json();
+  // console.log("Hey", data);
+
+  return data
+};
+
+// export const mockUsers = apiGet<User[]>('/users');
+// apiGet<ResourceMeta[]>('/resources');
+
+
+// console.log("Hii",apiGet<SkillWithUser[]>('/skills/with-users'));
+
+
+export const getSkillsWithUsers = async (): Promise<SkillWithUser[]> => {
+  return apiGet<SkillWithUser[]>('/skills/with-users');
+};
+
+export const getUsers = async (): Promise<User[]> => {
+  return apiGet<User[]>('/users');
+};
+
+// export const getResources = async (): Promise<ResourceMeta[]> => {
+//   return apiGet<ResourceMeta[]>('/resources');
+// };
+
+// console.log(getUsers);
+
+
+
+
+
+export const mockUsers: User[] = [
+  {
+    id: '1',
+    name: 'Priya Sharma',
+    avatarUrl: 'https://i.pravatar.cc/150?img=1',
+    bio: 'Passionate photographer and yoga instructor. Love connecting with people and learning new things!',
+    location: 'Mumbai, Maharashtra',
+    skillsOffered: [],
+    skillsWanted: ['Cooking', 'Hindi', 'Guitar'],
+    rating: 4.9,
+    totalSwaps: 23,
+    joinedDate: '2024-01-15',
+    credits: 50,
+    premiumTier: 'premium',
+    premiumExpiresAt: '2025-03-15',
+  },
+  {
+    id: '2',
+    name: 'Rahul Verma',
+    avatarUrl: 'https://i.pravatar.cc/150?img=12',
+    bio: 'Software engineer by day, chef by night. Always eager to share my coding knowledge!',
+    location: 'Bengaluru, Karnataka',
+    skillsOffered: [],
+    skillsWanted: ['Photography', 'Yoga', 'Piano'],
+    rating: 4.8,
+    totalSwaps: 18,
+    joinedDate: '2024-02-10',
+    credits: 25,
+    premiumTier: 'free',
+  },
+  {
+    id: '3',
+    name: 'Ananya Reddy',
+    avatarUrl: 'https://i.pravatar.cc/150?img=5',
+    bio: 'Language enthusiast and guitar player. Teaching Telugu and Hindi for 5+ years!',
+    location: 'Hyderabad, Telangana',
+    skillsOffered: [],
+    skillsWanted: ['Web Development', 'Painting', 'Photography'],
+    rating: 5.0,
+    totalSwaps: 31,
+    joinedDate: '2023-11-05',
+    credits: 120,
+    premiumTier: 'elite',
+    premiumExpiresAt: '2026-11-05',
+  },
+  {
+    id: '4',
+    name: 'Arjun Mehta',
+    avatarUrl: 'https://i.pravatar.cc/150?img=13',
+    bio: 'Piano teacher and fitness coach. Music is life!',
+    location: 'Delhi NCR',
+    skillsOffered: [],
+    skillsWanted: ['Graphic Design', 'French', 'Cooking'],
+    rating: 4.7,
+    totalSwaps: 15,
+    joinedDate: '2024-03-20',
+    credits: 10,
+    premiumTier: 'free',
+  },
+  {
+    id: '5',
+    name: 'Kavya Nair',
+    avatarUrl: 'https://i.pravatar.cc/150?img=9',
+    bio: 'Digital artist and designer. Love teaching creative skills!',
+    location: 'Chennai, Tamil Nadu',
+    skillsOffered: [],
+    skillsWanted: ['Yoga', 'Tamil', 'Piano'],
+    rating: 4.9,
+    totalSwaps: 27,
+    joinedDate: '2023-12-08',
+    credits: 75,
+    premiumTier: 'basic',
+    premiumExpiresAt: '2025-02-08',
+  },
+  {
+    id: '6',
+    name: 'Vikram Singh',
+    avatarUrl: 'https://i.pravatar.cc/150?img=14',
+    bio: 'Web developer and tech enthusiast. Happy to help anyone learn to code!',
+    location: 'Pune, Maharashtra',
+    skillsOffered: [],
+    skillsWanted: ['Guitar', 'Cooking', 'Photography'],
+    rating: 4.8,
+    totalSwaps: 20,
+    joinedDate: '2024-01-28',
+    credits: 15,
+    premiumTier: 'free',
+  },
+];
+
+export const mockSkills: Skill[] = [
+  {
+    id: '1',
+    title: 'Portrait Photography',
+    category: 'Photography',
+    description: 'Learn the art of capturing stunning portraits with natural lighting and composition techniques. Perfect for beginners looking to improve their photography skills.',
+    level: 'Intermediate',
+    userId: '1',
+    imageUrl: 'https://images.unsplash.com/photo-1554048612-b6a482bc67e5?w=800',
+  },
+  {
+    id: '2',
+    title: 'Hatha Yoga',
+    category: 'Fitness & Wellness',
+    description: 'Traditional yoga practice focusing on physical postures and breathing. Great for flexibility, stress relief, and overall wellness.',
+    level: 'Beginner',
+    userId: '1',
+    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800',
+  },
+  {
+    id: '3',
+    title: 'Web Development (React)',
+    category: 'Technology',
+    description: 'Build modern web applications using React, JavaScript, and TypeScript. Learn components, hooks, and best practices from a professional developer.',
+    level: 'Intermediate',
+    userId: '2',
+    imageUrl: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800',
+  },
+  {
+    id: '4',
+    title: 'Indian Regional Cooking',
+    category: 'Cooking',
+    description: 'Master authentic Indian recipes from biryani to dosas. Learn traditional techniques from various regions including North Indian, South Indian, and street food.',
+    level: 'Beginner',
+    userId: '2',
+    imageUrl: 'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=800',
+  },
+  {
+    id: '5',
+    title: 'Hindi Conversation',
+    category: 'Languages',
+    description: 'Improve your Hindi speaking skills through engaging conversations. Focus on practical vocabulary, everyday expressions, and Devanagari script.',
+    level: 'Intermediate',
+    userId: '3',
+    imageUrl: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800',
+  },
+  {
+    id: '6',
+    title: 'Acoustic Guitar',
+    category: 'Music',
+    description: 'Learn to play your favorite songs on acoustic guitar. Covers chords, strumming patterns, and basic music theory.',
+    level: 'Beginner',
+    userId: '3',
+    imageUrl: 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=800',
+  },
+  {
+    id: '7',
+    title: 'Piano Fundamentals',
+    category: 'Music',
+    description: 'Start your musical journey with piano basics. Learn to read music, proper technique, and play simple melodies.',
+    level: 'Beginner',
+    userId: '4',
+    imageUrl: 'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=800',
+  },
+  {
+    id: '8',
+    title: 'HIIT Training',
+    category: 'Fitness & Wellness',
+    description: 'High-intensity interval training for maximum results. Get fit with efficient 30-minute workouts you can do anywhere.',
+    level: 'Intermediate',
+    userId: '4',
+    imageUrl: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800',
+  },
+  {
+    id: '9',
+    title: 'Digital Illustration',
+    category: 'Arts & Crafts',
+    description: 'Create beautiful digital artwork using Procreate or Photoshop. Learn color theory, composition, and digital techniques.',
+    level: 'Advanced',
+    userId: '5',
+    imageUrl: 'https://images.unsplash.com/photo-1596548438137-d51ea5c83ca4?w=800',
+  },
+  {
+    id: '10',
+    title: 'UI/UX Design',
+    category: 'Technology',
+    description: 'Design beautiful and functional user interfaces. Learn design principles, prototyping, and user research methods.',
+    level: 'Intermediate',
+    userId: '5',
+    imageUrl: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800',
+  },
+  {
+    id: '11',
+    title: 'Full-Stack Development',
+    category: 'Technology',
+    description: 'Build complete web applications from front to back. Learn Node.js, databases, APIs, and deployment strategies.',
+    level: 'Advanced',
+    userId: '6',
+    imageUrl: 'https://images.unsplash.com/photo-1537432376769-00f5c2f4c8d2?w=800',
+  },
+  {
+    id: '12',
+    title: 'Business Strategy',
+    category: 'Business',
+    description: 'Learn how to develop effective business strategies and grow your venture. Perfect for entrepreneurs and small business owners.',
+    level: 'Intermediate',
+    userId: '6',
+    imageUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800',
+  },
+];
+
+mockUsers.forEach(user => {
+  user.skillsOffered = mockSkills.filter(skill => skill.userId === user.id);
+});
+
+// export const getSkillsWithUsers = (): SkillWithUser[] => {
+//   return mockSkills.map(skill => {
+//     const user = mockUsers.find(u => u.id === skill.userId);
+//     if (!user) throw new Error('User not found');
+//     return { ...skill, user };
+//   });
+// };
+
+export const categories = [
+  'All',
+  'Arts & Crafts',
+  'Technology',
+  'Fitness & Wellness',
+  'Languages',
+  'Music',
+  'Cooking',
+  'Business',
+  'Photography',
+  'Classical Arts',
+  'Competitive Exams',
+];
+
+export const mockResources: ResourceMeta[] = [
+  {
+    id: 'res-1',
+    title: 'Portrait Lighting Fundamentals',
+    description: 'Master three-point lighting setups and natural light tricks for cinematic portraits.',
+    type: 'Article',
+    url: 'https://fstoppers.com/lighting/ultimate-guide-portrait-lighting-2024-654321',
+    coverImageUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=900',
+    categories: ['Photography'],
+    contributorId: '1',
+    contributorName: 'Priya Sharma',
+    contributorAvatarUrl: 'https://i.pravatar.cc/150?img=1',
+    difficulty: 'Intermediate',
+    durationMinutes: 18,
+    formatBadge: 'Deep Dive',
+    publishedAt: '2024-07-03T09:00:00Z',
+    endorsements: 42,
+    saves: 126,
+    tags: ['Lighting', 'Portraits', 'Studio'],
+  },
+  {
+    id: 'res-2',
+    title: 'React Hooks for Designers Workshop',
+    description: 'Interactive video lesson blending UI thinking with practical React patterns.',
+    type: 'Video',
+    url: 'https://www.youtube.com/watch?v=OxFcbx6QyBc',
+    coverImageUrl: 'https://images.unsplash.com/photo-1523475472560-d2df97ec485c?w=900',
+    categories: ['Technology', 'Arts & Crafts'],
+    contributorId: '2',
+    contributorName: 'Rahul Verma',
+    contributorAvatarUrl: 'https://i.pravatar.cc/150?img=12',
+    difficulty: 'Intermediate',
+    durationMinutes: 42,
+    formatBadge: 'Live Replay',
+    publishedAt: '2024-08-19T15:30:00Z',
+    endorsements: 58,
+    saves: 201,
+    tags: ['React', 'UX', 'Hooks'],
+  },
+  {
+    id: 'res-3',
+    title: 'Spanish Immersion Conversation Deck',
+    description: 'Printable prompts and cultural scenarios to stay fluent between sessions.',
+    type: 'Document',
+    url: 'https://drive.google.com/file/d/spanish-deck',
+    coverImageUrl: 'https://images.unsplash.com/photo-1529158062015-cad636e69505?w=900',
+    categories: ['Languages'],
+    contributorId: '3',
+    contributorName: 'Ananya Reddy',
+    contributorAvatarUrl: 'https://i.pravatar.cc/150?img=5',
+    difficulty: 'All Levels',
+    formatBadge: 'Printable PDF',
+    publishedAt: '2024-06-11T12:05:00Z',
+    endorsements: 67,
+    saves: 174,
+    tags: ['Spanish', 'Conversation', 'Culture'],
+  },
+  {
+    id: 'res-4',
+    title: 'Morning Mobility Micro-Routines',
+    description: 'Five 10-minute guided flows to unlock stubborn joints before workouts.',
+    type: 'Collection',
+    url: 'https://notion.so/mobility-primer',
+    coverImageUrl: 'https://images.unsplash.com/photo-1599058917212-d750089bc07e?w=900',
+    categories: ['Fitness & Wellness'],
+    contributorId: '4',
+    contributorName: 'Arjun Mehta',
+    contributorAvatarUrl: 'https://i.pravatar.cc/150?img=13',
+    difficulty: 'Beginner',
+    durationMinutes: 50,
+    formatBadge: 'Routine Pack',
+    publishedAt: '2024-10-02T07:40:00Z',
+    endorsements: 33,
+    saves: 119,
+    tags: ['Mobility', 'Stretching', 'Morning'],
+  },
+  {
+    id: 'res-5',
+    title: 'Figma Components Starter Vault',
+    description: 'Curated UI kit with responsive components ready for your next app build.',
+    type: 'Document',
+    url: 'https://www.figma.com/community/file/123456789',
+    coverImageUrl: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=900',
+    categories: ['Technology'],
+    contributorId: '5',
+    contributorName: 'Kavya Nair',
+    contributorAvatarUrl: 'https://i.pravatar.cc/150?img=9',
+    difficulty: 'Advanced',
+    formatBadge: 'Figma Kit',
+    publishedAt: '2024-09-14T21:10:00Z',
+    endorsements: 81,
+    saves: 264,
+    tags: ['Design Systems', 'Product Design', 'Figma'],
+  },
+  {
+    id: 'res-6',
+    title: 'Full-Stack Interview Cheat Codes',
+    description: 'Annotated resource stack to prepare for system design and live coding swaps.',
+    type: 'Article',
+    url: 'https://stackshare.io/fullstack-cheats',
+    coverImageUrl: 'https://images.unsplash.com/photo-1526378722391-8da5af53655a?w=900',
+    categories: ['Technology', 'Business'],
+    contributorId: '6',
+    contributorName: 'Vikram Singh',
+    contributorAvatarUrl: 'https://i.pravatar.cc/150?img=14',
+    difficulty: 'Advanced',
+    durationMinutes: 26,
+    formatBadge: 'Playbook',
+    publishedAt: '2024-11-01T18:22:00Z',
+    endorsements: 76,
+    saves: 198,
+    tags: ['Interviews', 'Full-Stack', 'Systems'],
+  },
+];
+
+export const getResources = (): ResourceMeta[] => {
+  return mockResources;
+};
