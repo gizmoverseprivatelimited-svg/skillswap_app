@@ -290,7 +290,17 @@ export default function LoginScreen() {
       // const clientId =
       //   '1031049540017-jjdl98e04dqstrtebkbq7a3bbfgjok7u.apps.googleusercontent.com';
 
-      const clientId = '970764551115-8dlu2u02n0h1icsbvu7bv91disgi2qjr.apps.googleusercontent.com'
+      const clientId = Platform.select({
+        ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_ID,
+        android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_ID,
+        web: process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
+        default: process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
+      });
+
+      if (!clientId) {
+        showAlert('Configuration Error', 'Google OAuth is not configured');
+        return;
+      }
 
       const authUrl =
         `https://accounts.google.com/o/oauth2/v2/auth` +
