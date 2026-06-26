@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MapPin, Star, Calendar, Sparkles, TrendingUp, Award, LogOut, Coins, Crown, ShoppingBag, ShieldCheck, RefreshCw, Settings, Plus } from 'lucide-react-native';
+import { MapPin, Star, Calendar, Sparkles, TrendingUp, Award, LogOut, Coins, Crown, ShoppingBag, ShieldCheck, RefreshCw, Settings, Plus, HelpCircle, FileText, Lock, MessageSquare, Info } from 'lucide-react-native';
 import { useAuth } from '@/providers/auth';
 import { useOnboarding } from '@/providers/onboarding';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -277,6 +277,62 @@ export default function ProfileScreen() {
             <RefreshCw size={18} color={Colors.light.primary} />
             <Text style={styles.restartOnboardingText}>Restart Onboarding</Text>
           </TouchableOpacity>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Support & Info</Text>
+            <View style={styles.supportGrid}>
+              <TouchableOpacity
+                style={styles.supportCard}
+                onPress={() => router.push('/help' as any)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.supportIcon, { backgroundColor: Colors.light.primaryLight + '20' }]}>
+                  <HelpCircle size={22} color={Colors.light.primary} />
+                </View>
+                <Text style={styles.supportLabel}>Help & Support</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.supportCard}
+                onPress={() => router.push('/contact' as any)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.supportIcon, { backgroundColor: Colors.light.secondary + '20' }]}>
+                  <MessageSquare size={22} color={Colors.light.secondary} />
+                </View>
+                <Text style={styles.supportLabel}>Contact Us</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.supportCard}
+                onPress={() => router.push('/about' as any)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.supportIcon, { backgroundColor: Colors.light.accentLight + '40' }]}>
+                  <Info size={22} color={Colors.light.accent} />
+                </View>
+                <Text style={styles.supportLabel}>About Us</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.supportCard}
+                onPress={() => router.push('/terms' as any)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.supportIcon, { backgroundColor: Colors.light.backgroundTertiary }]}>
+                  <FileText size={22} color={Colors.light.textSecondary} />
+                </View>
+                <Text style={styles.supportLabel}>Terms</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.supportCard}
+                onPress={() => router.push('/privacy' as any)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.supportIcon, { backgroundColor: Colors.light.backgroundTertiary }]}>
+                  <Lock size={22} color={Colors.light.textSecondary} />
+                </View>
+                <Text style={styles.supportLabel}>Privacy</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>About</Text>
@@ -842,6 +898,41 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600' as const,
     color: Colors.light.primary,
+  },
+  supportGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  supportCard: {
+    width: '30%',
+    flexGrow: 1,
+    flexBasis: '30%',
+    backgroundColor: Colors.light.card,
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  supportIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  supportLabel: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
+    textAlign: 'center',
   },
   bottomSpacer: {
     height: 40,

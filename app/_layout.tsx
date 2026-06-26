@@ -79,9 +79,85 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="add-skill"
+        options={{
+          headerShown: true,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
         name="verification"
         options={{
           headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="admin/index"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="admin/users"
+        options={{
+          headerShown: true,
+          title: 'User Management',
+        }}
+      />
+      <Stack.Screen
+        name="admin/reviews"
+        options={{
+          headerShown: true,
+          title: 'Review Moderation',
+        }}
+      />
+      <Stack.Screen
+        name="admin/swaps"
+        options={{
+          headerShown: true,
+          title: 'Swap Oversight',
+        }}
+      />
+      <Stack.Screen
+        name="admin/verifications"
+        options={{
+          headerShown: true,
+          title: 'Verifications',
+        }}
+      />
+      <Stack.Screen
+        name="help"
+        options={{
+          headerShown: true,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="terms"
+        options={{
+          headerShown: true,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="privacy"
+        options={{
+          headerShown: true,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="contact"
+        options={{
+          headerShown: true,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="about"
+        options={{
+          headerShown: true,
+          presentation: 'card',
         }}
       />
     </Stack>

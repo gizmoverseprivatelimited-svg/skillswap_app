@@ -7,10 +7,9 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.skillswap-community-90mlx56",
+      "bundleIdentifier": "com.skillswap-community-90mlx56",
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSCalendarsUsageDescription": "Allow $(PRODUCT_NAME) to access your calendar",
@@ -22,16 +21,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.skillswap_community_90mlx56",
-      "permissions": [
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.SCHEDULE_EXACT_ALARM",
-        "android.permission.REQUEST_INSTALL_PACKAGES",
-        "READ_CALENDAR",
-        "WRITE_CALENDAR",
-        "android.permission.READ_CALENDAR",
-        "android.permission.WRITE_CALENDAR"
-      ]
+      "package": "com.skillswap_community_90mlx56"
     },
     "web": {
       "bundler": "metro",
@@ -61,6 +51,13 @@
         "expo-calendar",
         {
           "calendarPermission": "The app needs to access your calendar."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you set a profile avatar.",
+          "cameraPermission": "The app accesses your camera to let you take a profile photo."
         }
       ],
       "expo-font",
