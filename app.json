@@ -29,6 +29,14 @@
     },
     "plugins": [
       [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      [
         "expo-router",
         {
           "origin": "https://rork.com/"

@@ -47,9 +47,9 @@ const VALUES: ValueItem[] = [
 ];
 
 const STATS = [
-  { value: '10,000+', label: 'Active Learners', icon: <Users size={20} color={Colors.light.primary} /> },
-  { value: '50+', label: 'Skill Categories', icon: <Sparkles size={20} color={Colors.light.accent} /> },
-  { value: '95%', label: 'Satisfaction Rate', icon: <TrendingUp size={20} color={Colors.light.secondary} /> },
+  { value: 'Growing', label: 'Active Learners', icon: <Users size={20} color={Colors.light.primary} /> },
+  { value: 'Diverse', label: 'Skill Categories', icon: <Sparkles size={20} color={Colors.light.accent} /> },
+  { value: 'High', label: 'Satisfaction Rate', icon: <TrendingUp size={20} color={Colors.light.secondary} /> },
 ];
 
 export default function AboutScreen() {
@@ -112,9 +112,8 @@ export default function AboutScreen() {
                 Swap makes it happen.
               </Text>
               <Text style={styles.storyText}>
-                Today, we're proud to facilitate thousands of skill exchanges every month
-                across the globe, proving that the best things in life — like learning — really
-                can be free.
+                Today, we're proud to facilitate skill exchanges across the globe, proving
+                that the best things in life — like learning — really can be free.
               </Text>
             </View>
           </View>
