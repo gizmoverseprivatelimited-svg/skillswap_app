@@ -54,3 +54,7 @@ Thumbs.db
 coverage/
 tests/
 __tests__/
+
+# Native folders (let EAS Build run prebuild on the cloud)
+android/
+ios/
