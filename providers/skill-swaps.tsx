@@ -61,7 +61,8 @@ interface SkillSwapsContextValue {
   completeSwap: (requestId: string) => void;
   getSwapById: (requestId: string) => SkillSwapRequest | undefined;
   setCalendarEventId: (requestId: string, eventId: string) => void;
-  fetchSwaps: any
+  fetchSwaps: any;
+  loading: boolean;
 }
 
 const buildMessage = (authorId: string, body: string, isSystem?: boolean): SwapMessage => {
@@ -199,22 +200,22 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
   const [loading, setLoading] = useState(true);
 
   const fetchAllSwaps = async () => {
+    const fullUrl = `${url}/swaps/all`;
     try {
       setLoading(true);
-
-      const response = await fetch(
-        `${url}/swaps/all`
-      );
-
-
+      console.log(`[SkillSwaps] Fetching: ${fullUrl}`);
+      const response = await fetch(fullUrl);
       if (!response.ok) {
-        throw new Error('Failed to fetch swaps');
+        throw new Error(`Failed to fetch swaps (${response.status})`);
       }
-
-      const data = await response.json();
-      // console.log("All swaps", data);
-
-      // console.log("yeah Data", data);
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error(`[SkillSwaps] JSON Parse failed for ${fullUrl}. Response snippet:`, text.substring(0, 200));
+        throw parseErr;
+      }
       const normalizeSwap = data.map((swap: any): SkillSwapRequest => ({
         ...swap,
         id: swap._id,
@@ -229,23 +230,23 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
 
   const fetchSwaps = async () => {
     if (!currentUser?.id) return;
+    const fullUrl = `${url}/swaps?userId=${currentUser?.id}`;
     try {
       setLoading(true);
+      console.log(`[SkillSwaps] Fetching: ${fullUrl}`);
       console.log("Yeah Current", currentUser);
-
-      const response = await fetch(
-        `${url}/swaps?userId=${currentUser?.id}`
-      );
-
-
+      const response = await fetch(fullUrl);
       if (!response.ok) {
-        throw new Error('Failed to fetch swaps');
+        throw new Error(`Failed to fetch swaps (${response.status})`);
       }
-
-      const data = await response.json();
-      // console.log(data);
-
-      // console.log("yeah Data", data);
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error(`[SkillSwaps] JSON Parse failed for ${fullUrl}. Response snippet:`, text.substring(0, 200));
+        throw parseErr;
+      }
       const normalizeSwap = data.map((swap: any): SkillSwapRequest => ({
         ...swap,
         id: swap._id,
@@ -1051,6 +1052,7 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
       completeSwap,
       getSwapById,
       setCalendarEventId,
+      loading,
     };
   }, [
     fetchSwaps,
@@ -1070,6 +1072,7 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
     completeSwap,
     getSwapById,
     setCalendarEventId,
+    loading,
   ]);
 
   return value;

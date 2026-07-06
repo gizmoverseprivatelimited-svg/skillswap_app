@@ -9,6 +9,7 @@ import {
   TextInput,
   Modal,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import {
@@ -27,12 +28,13 @@ import {
 } from 'lucide-react-native';
 import { useAdmin, BanStatus } from '../../providers/admin';
 import { useAlert } from '@/providers/alert';
-import url from '@/constants/backurl';
+import { resolveImageUrl } from '@/lib/resolveImageUrl';
+import Colors from '@/constants/colors';
 
 type FilterType = 'all' | 'active' | 'banned' | 'suspended';
 
 export default function UserManagement() {
-  const { users, banUser, unbanUser, suspendUser, updateUserCredits } = useAdmin();
+  const { users, banUser, unbanUser, suspendUser, updateUserCredits, isLoading } = useAdmin();
   const { showAlert } = useAlert();
   const [search, setSearch] = useState<string>('');
   const [filter, setFilter] = useState<FilterType>('all');
@@ -135,6 +137,14 @@ export default function UserManagement() {
     { label: 'Suspended', value: 'suspended' },
   ];
 
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.light.primary} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'User Management', headerStyle: { backgroundColor: '#0F172A' }, headerTintColor: '#F8FAFC' }} />
@@ -173,7 +183,7 @@ export default function UserManagement() {
         {filteredUsers.map(user => (
           <View key={user.id} style={styles.userCard}>
             <View style={styles.userHeader}>
-              <Image source={{ uri: user.avatarUrl? user.avatarUrl.startsWith('/uploads') ? `${url}${user.avatarUrl}` : user.avatarUrl: 'https://i.pravatar.cc/150?img=5' }} style={styles.avatar} />
+              <Image source={{ uri: resolveImageUrl(user.avatarUrl, 'https://i.pravatar.cc/150?img=5') }} style={styles.avatar} />
               <View style={styles.userInfo}>
                 <View style={styles.nameRow}>
                   <Text style={styles.userName} numberOfLines={1}>{user.name }</Text>
@@ -620,5 +630,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600' as const,
     color: '#94A3B8',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
   },
 });

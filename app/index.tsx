@@ -1,11 +1,13 @@
-import { Redirect } from 'expo-router';
+import { Redirect, useSegments, usePathname } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import { useOnboarding } from '@/providers/onboarding';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 
 export default function Index() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { hasCompletedOnboarding, isChecking } = useOnboarding();
+  const segments = useSegments();
+  const pathname = usePathname();
 
   const isLoading = authLoading || isChecking;
 
@@ -15,6 +17,11 @@ export default function Index() {
         <ActivityIndicator size="large" />
       </View>
     );
+  }
+
+  // If we are deep-linked or directly loading a subpath (e.g. /admin), index should not redirect
+  if (pathname !== '/' && pathname !== '/index') {
+    return null;
   }
 
   if (!isAuthenticated) {

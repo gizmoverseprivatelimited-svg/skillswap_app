@@ -7,12 +7,20 @@ console.log("Hey Hey", API_URL);
 
 
 async function apiGet<T>(endpoint: string): Promise<T> {
-  const res = await fetch(`${API_URL}${endpoint}`);
-  if (!res.ok) throw new Error('API error');
-  let data = await res.json();
-  // console.log("Hey", data);
-
-  return data
+  const fullUrl = `${API_URL}${endpoint}`;
+  console.log(`[apiGet] Fetching: ${fullUrl}`);
+  const res = await fetch(fullUrl);
+  if (!res.ok) {
+    console.error(`[apiGet] Response not OK (${res.status}) for ${fullUrl}`);
+    throw new Error(`API error: ${res.status}`);
+  }
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as T;
+  } catch (err) {
+    console.error(`[apiGet] JSON Parse failed for ${fullUrl}. Response snippet:`, text.substring(0, 200));
+    throw err;
+  }
 };
 
 // export const mockUsers = apiGet<User[]>('/users');

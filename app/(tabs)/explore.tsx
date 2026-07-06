@@ -10,13 +10,15 @@ import {
   Animated,
   Easing,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronDown, Search, SlidersHorizontal, Star, X } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { getSkillsWithUsers, categories } from '@/mocks/data';
 import type { SkillLevel, SkillWithUser } from '@/types';
-import url from '@/constants/backurl';
+import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
 type SortBy = 'Relevance' | 'Rating' | 'Swaps' | 'Newest';
 
@@ -32,17 +34,26 @@ const SORT_OPTIONS: SortBy[] = ['Relevance', 'Rating', 'Swaps', 'Newest'];
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   const [filters, setFilters] = useState<FiltersState>({ level: 'Any', minRating: 0, sortBy: 'Relevance' });
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const [skillsWithUsers, setSkillsWithUsers] = useState<SkillWithUser[]>([])
+  const [skillsWithUsers, setSkillsWithUsers] = useState<SkillWithUser[]>([]);
+  const [isSkillsLoading, setIsSkillsLoading] = useState(true);
 
   useEffect(() => {
     async function getskill() {
-      const any = await getSkillsWithUsers();
-      setSkillsWithUsers(any)
+      try {
+        setIsSkillsLoading(true);
+        const any = await getSkillsWithUsers();
+        setSkillsWithUsers(any);
+      } catch (err) {
+        console.error('[Explore] Failed to fetch skills:', err);
+      } finally {
+        setIsSkillsLoading(false);
+      }
     }
     getskill()
   }, [])
@@ -99,9 +110,17 @@ export default function ExploreScreen() {
   const translateY = slideAnim.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] });
   const backdropOpacity = slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
 
+  if (isSkillsLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.light.primary} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <View style={styles.searchSection}>
+      <View style={[styles.searchSection, { paddingTop: insets.top + 8 }]}>
         <View style={styles.searchBar} testID="search-bar">
           <Search size={20} color={Colors.light.textSecondary} />
           <TextInput
@@ -233,7 +252,11 @@ export default function ExploreScreen() {
               onPress={() => router.push(`/skill/${skill._id || skill.id}` as any)}
               testID={`skill-${skill._id || skill.id}`}
             >
-              <Image source={{ uri: skill.imageUrl }} style={styles.skillImage} />
+              {skill.imageUrl ? (
+                <Image source={{ uri: resolveImageUrl(skill.imageUrl) }} style={styles.skillImage} />
+              ) : (
+                <View style={[styles.skillImage, { backgroundColor: Colors.light.backgroundTertiary }]} />
+              )}
               <View style={styles.skillContent}>
                 <View style={styles.skillHeader}>
                   <Text style={styles.categoryLabel}>{skill.category}</Text>
@@ -249,7 +272,7 @@ export default function ExploreScreen() {
                 </Text>
                 <View style={styles.skillFooter}>
                   <View style={styles.userInfo}>
-                    <Image source={{ uri:  skill.user.avatarUrl.startsWith('/uploads') ? `${url}${skill.user.avatarUrl}` : skill.user.avatarUrl }} style={styles.userAvatar} />
+                    <Image source={{ uri: resolveImageUrl(skill.user.avatarUrl, 'https://i.pravatar.cc/150?img=5') }} style={styles.userAvatar} />
                     <View style={styles.userDetails}>
                       <Text style={styles.userName} numberOfLines={1}>
                         {skill.user.name}
@@ -534,5 +557,11 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.light.backgroundSecondary,
   },
 });

@@ -25,8 +25,8 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
     let data = await getUsers()
     // console.log(data);
     setUsers(data)
-    if (users) {
-      let authUser = data.find((u) => u.id == user?._id)
+    if (data) {
+      let authUser = data.find((u) => u.id == user?.id)
       console.log("authUser", authUser);
       setCurrentUser(authUser ? authUser || data[0] : data[0])
     }
@@ -34,7 +34,7 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
   useEffect(() => {
     console.log("Working");
     loadUser()
-  }, [user?._id])
+  }, [user?.id])
 
   const otherUsers = useMemo<User[]>(() => {
     console.log('[Matching] Computing other users list', { refreshCounter });

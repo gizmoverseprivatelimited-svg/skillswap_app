@@ -1,16 +1,16 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { StyleSheet } from "react-native";
+import { StyleSheet, ActivityIndicator, View } from "react-native";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { AuthProvider } from "../providers/auth";
+import { AuthProvider, useAuth } from "../providers/auth";
 import { CurrentUserProvider } from "../providers/current-user";
 import { SkillSwapsProvider } from "../providers/skill-swaps";
 import { NotificationsProvider } from "../providers/notifications";
 import { ResourcesProvider } from "../providers/resources";
-import { OnboardingProvider } from "../providers/onboarding";
+import { OnboardingProvider, useOnboarding } from "../providers/onboarding";
 import { AdminProvider } from "@/providers/admin";
 
 SplashScreen.preventAutoHideAsync();
@@ -18,6 +18,45 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { hasCompletedOnboarding, isChecking } = useOnboarding();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (authLoading || isChecking) return;
+
+    // Bypass all redirect logic for admin routes
+    if (segments[0] === 'admin') return;
+
+    const inAuthGroup = segments[0] === 'login';
+
+    if (!isAuthenticated) {
+      // Redirect to login if not authenticated and not already on a public route
+      const publicRoutes = ['login', 'terms', 'privacy', 'about', 'contact', 'help', 'admin'];
+      const isPublic = publicRoutes.includes(segments[0] || '');
+      if (!isPublic) {
+        router.replace('/login');
+      }
+    } else if (!hasCompletedOnboarding) {
+      // Redirect to onboarding if authenticated but onboarding not completed
+      if (segments[0] !== 'onboarding') {
+        router.replace('/onboarding');
+      }
+    } else if (inAuthGroup || segments[0] === 'onboarding') {
+      // Redirect to home if authenticated, completed onboarding, and trying to access login/onboarding
+      router.replace('/(tabs)/home');
+    }
+  }, [isAuthenticated, authLoading, isChecking, hasCompletedOnboarding, segments]);
+
+  if (authLoading || isChecking) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6366F1" />
+      </View>
+    );
+  }
+
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
       <Stack.Screen name="login" options={{ headerShown: false }} />
@@ -201,5 +240,11 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
   },
 });

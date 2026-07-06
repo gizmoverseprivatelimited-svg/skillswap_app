@@ -5,6 +5,7 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MapPin, Star, Calendar, Sparkles, TrendingUp, Award, LogOut, Coins, Crown, ShoppingBag, ShieldCheck, RefreshCw, Settings, Plus, HelpCircle, FileText, Lock, MessageSquare, Info } from 'lucide-react-native';
@@ -16,6 +17,7 @@ import { mockUsers } from '@/mocks/data';
 import { TrustScoreBadge } from '@/components/TrustScoreBadge';
 import ReviewsSection from '@/components/ReviewsSection';
 import { useCurrentUser } from '@/providers/current-user';
+import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import url from '@/constants/backurl';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -113,6 +115,14 @@ export default function ProfileScreen() {
     router.replace('/onboarding');
   };
 
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.light.primary} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -128,7 +138,7 @@ export default function ProfileScreen() {
           <View style={styles.avatarContainer}>
             {currentUser?.avatarUrl ? (
               <Image
-                source={{ uri: `${url}${currentUser?.avatarUrl}` }}
+                source={{ uri: resolveImageUrl(currentUser?.avatarUrl) }}
                 style={styles.avatar}
               />
             ) : (
@@ -255,20 +265,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            style={styles.adminButton}
-            onPress={() => router.push('/admin' as any)}
-            activeOpacity={0.7}
-            testID="admin-panel-button"
-          >
-            <View style={styles.adminIconWrap}>
-              <Settings size={20} color="#FFFFFF" />
-            </View>
-            <View style={styles.adminTextWrap}>
-              <Text style={styles.adminTitle}>Admin Panel</Text>
-              <Text style={styles.adminSubtitle}>Manage users, reviews & more</Text>
-            </View>
-          </TouchableOpacity>
+
 
           <TouchableOpacity
             style={styles.restartOnboardingButton}
@@ -362,7 +359,7 @@ export default function ProfileScreen() {
                 >
                   {skill.imageUrl ? (
                     <Image
-                      source={{ uri: skill.imageUrl }}
+                      source={{ uri: resolveImageUrl(skill.imageUrl) }}
                       style={styles.skillImage}
                     />
                   ) : (
@@ -936,5 +933,11 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.light.background,
   },
 });

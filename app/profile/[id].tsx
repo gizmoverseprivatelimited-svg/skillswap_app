@@ -17,6 +17,7 @@ import Colors from '../../constants/colors';
 import ReviewsSection from '../../components/ReviewsSection';
 import { useCurrentUser } from '@/providers/current-user';
 import { useAlert } from '@/providers/alert';
+import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import url from '@/constants/backurl';
 import { useCallback, useEffect, useState } from 'react';
 import { useSkillSwaps } from '@/providers/skill-swaps';
@@ -136,7 +137,7 @@ export default function UserProfileScreen() {
         <View style={styles.header}>
           {user.avatarUrl ? (
             <Image
-              source={{ uri: user?.avatarUrl.startsWith('/uploads') ? `${url}${user?.avatarUrl}` : user?.avatarUrl }}
+              source={{ uri: resolveImageUrl(user?.avatarUrl) }}
               style={styles.avatar}
             />
           ) : (
@@ -196,7 +197,7 @@ export default function UserProfileScreen() {
               >
                 {skill.imageUrl ? (
                   <Image
-                    source={{ uri: skill.imageUrl }}
+                    source={{ uri: resolveImageUrl(skill.imageUrl) }}
                     style={styles.skillImage}
                   />
                 ) : (

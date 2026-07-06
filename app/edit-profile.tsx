@@ -16,6 +16,7 @@ import Colors from '@/constants/colors';
 import { useCurrentUser } from '@/providers/current-user';
 import { useAlert } from '@/providers/alert';
 import url from '@/constants/backurl';
+import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -323,7 +324,7 @@ export default function EditProfileScreen() {
             <View style={styles.avatarContainer}>
               {avatarUrl ? (
                 <Image
-                  source={{ uri: avatarUrl == currentUser?.avatarUrl ? currentUser?.avatarUrl.startsWith('/uploads') ? `${url}${currentUser?.avatarUrl}` : currentUser?.avatarUrl : avatarUrl }}
+                  source={{ uri: resolveImageUrl(avatarUrl) }}
                   style={styles.avatar}
                 />
               ) : (

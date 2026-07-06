@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { RefreshCcw, Star, TrendingUp, Users, Zap } from 'lucide-react-native';
@@ -16,7 +17,7 @@ import MatchCard from '../../components/MatchCard';
 import { useCurrentUser } from '../../providers/current-user';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkillWithUser } from '@/types';
-import url from '@/constants/backurl';
+import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import { useSkillSwaps } from '@/providers/skill-swaps';
 
 export default function HomeScreen() {
@@ -24,12 +25,20 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [skillsWithUsers, setSkillsWithUsers] = useState<SkillWithUser[]>([])
+  const [isSkillsLoading, setIsSkillsLoading] = useState(true);
   useSkillSwaps()
 
   useEffect(() => {
     async function getskill() {
-      const any = await getSkillsWithUsers();
-      setSkillsWithUsers(any)
+      try {
+        setIsSkillsLoading(true);
+        const any = await getSkillsWithUsers();
+        setSkillsWithUsers(any);
+      } catch (err) {
+        console.error('[Home] Failed to load skills:', err);
+      } finally {
+        setIsSkillsLoading(false);
+      }
     }
     getskill()
   }, [])
@@ -46,6 +55,14 @@ export default function HomeScreen() {
     const [first] = currentUser?.name.split(' ') || [];
     return first ?? currentUser?.name;
   }, [currentUser?.name]);
+
+  if (isSkillsLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.light.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -127,7 +144,7 @@ export default function HomeScreen() {
                 testID={`teach-card-${match.user.id}`}
               >
                 {match.user.avatarUrl ? (
-                  <Image source={{ uri:  match.user.avatarUrl.startsWith('/uploads') ? `${url}${match.user.avatarUrl}` : match.user.avatarUrl }} style={styles.teachAvatar} />
+                  <Image source={{ uri: resolveImageUrl(match.user.avatarUrl) }} style={styles.teachAvatar} />
                 ) : (
                   <View style={[styles.teachAvatar, { backgroundColor: Colors.light.backgroundTertiary }]} />
                 )}
@@ -171,7 +188,7 @@ export default function HomeScreen() {
                 >
                   {skill.imageUrl ? (
                     <Image
-                      source={{ uri: skill.imageUrl }}
+                      source={{ uri: resolveImageUrl(skill.imageUrl) }}
                       style={styles.featuredImage}
                     />
                   ) : (
@@ -197,7 +214,7 @@ export default function HomeScreen() {
                       <View style={styles.featuredUser}>
                         {skill.user.avatarUrl ? (
                           <Image
-                            source={{ uri: skill.user.avatarUrl.startsWith('/uploads') ? `${url}${skill.user.avatarUrl}` : skill.user.avatarUrl }}
+                            source={{ uri: resolveImageUrl(skill.user.avatarUrl) }}
                             style={styles.featuredAvatar}
                           />
                         ) : (
@@ -262,7 +279,7 @@ export default function HomeScreen() {
                 >
                   {skill.imageUrl ? (
                     <Image
-                      source={{ uri: skill.imageUrl }}
+                      source={{ uri: resolveImageUrl(skill.imageUrl) }}
                       style={styles.skillImage}
                     />
                   ) : (
@@ -282,7 +299,7 @@ export default function HomeScreen() {
                       <View style={styles.userInfo}>
                         {skill.user.avatarUrl ? (
                           <Image
-                            source={{ uri: skill.user.avatarUrl.startsWith('/uploads') ? `${url}${skill.user.avatarUrl}` : skill.user.avatarUrl }}
+                            source={{ uri: resolveImageUrl(skill.user.avatarUrl) }}
                             style={styles.userAvatar}
                           />
                         ) : (
@@ -737,5 +754,11 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.light.backgroundSecondary,
   },
 });

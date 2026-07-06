@@ -12,6 +12,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -111,7 +112,7 @@ const ResourceCardItem = memo(({ resource, isSaved, difficultyText, onOpen, onTo
               <Text style={styles.cardSubtitle} numberOfLines={2}>{resource.description}</Text>
               <View style={styles.metaRow}>
                 <View style={styles.metaLeft}>
-                  <ImageBackground source={{ uri:  resource.contributorAvatarUrl.startsWith('/uploads') ? `${url}${resource.contributorAvatarUrl}` : resource.contributorAvatarUrl }} style={styles.avatar} imageStyle={styles.avatarImage} />
+                  <ImageBackground source={{ uri: resource.contributorAvatarUrl ? (resource.contributorAvatarUrl.startsWith('/uploads') ? `${url}${resource.contributorAvatarUrl}` : resource.contributorAvatarUrl) : 'https://i.pravatar.cc/150?img=5' }} style={styles.avatar} imageStyle={styles.avatarImage} />
                   <View style={styles.metaTextBlock}>
                     <Text style={styles.contributorName}>{resource.contributorName}</Text>
                     <Text style={styles.contributorSubtitle}>{difficultyText}</Text>
@@ -152,7 +153,7 @@ ResourceCardItem.displayName = 'ResourceCardItem';
 
 export default function ResourcesScreen() {
   const insets = useSafeAreaInsets();
-  const { resources, featuredResources, recentResources, savedResourceIds, trendingTags, addResource, toggleSaved, endorseResource } = useResources();
+  const { resources, featuredResources, recentResources, savedResourceIds, trendingTags, addResource, toggleSaved, endorseResource, isLoading } = useResources();
   const { currentUser } = useCurrentUser();
   const [selectedType, setSelectedType] = useState<ActiveTypeFilter>('All');
   const [selectedCategory, setSelectedCategory] = useState<SkillCategory | 'All'>('All');
@@ -291,6 +292,14 @@ export default function ResourcesScreen() {
     }
     return `${difficulty} friendly`;
   }, []);
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.light.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -1223,5 +1232,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700' as const,
     color: '#0F172A',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.light.background,
   },
 });

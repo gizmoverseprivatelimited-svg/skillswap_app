@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Platform } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Platform, ActivityIndicator } from 'react-native';
 import { useAlert } from '@/providers/alert';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -75,7 +75,7 @@ const classifySlotStatus = (slot: SwapTimeProposal) => {
 export default function SwapDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getSwapById, addMessage, addCounterProposal, acceptProposal, declineSwap, updateLocation, completeSwap, setCalendarEventId } = useSkillSwaps();
+  const { getSwapById, addMessage, addCounterProposal, acceptProposal, declineSwap, updateLocation, completeSwap, setCalendarEventId, loading } = useSkillSwaps();
   const { currentUser, allUsers } = useCurrentUser();
   const { showAlert } = useAlert();
   const [messageDraft, setMessageDraft] = useState<string>('');
@@ -339,6 +339,14 @@ export default function SwapDetailScreen() {
       setIsSyncingCalendar(false);
     }
   }, [swap, counterpartSkill, partner, showAlert]);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.light.primary} />
+      </View>
+    );
+  }
 
   if (!swap) {
     return (
@@ -1057,5 +1065,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700' as const,
     color: '#FFFFFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.light.background,
   },
 });

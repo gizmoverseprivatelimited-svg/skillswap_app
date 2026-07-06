@@ -5,6 +5,7 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Stack } from 'expo-router';
@@ -27,7 +28,7 @@ import Colors from '@/constants/colors';
 export default function AdminDashboard() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { stats } = useAdmin();
+  const { stats, isLoading } = useAdmin();
 
   const navigateTo = useCallback((path: string) => {
     router.push(path as any);
@@ -76,6 +77,14 @@ export default function AdminDashboard() {
       badge: stats.pendingVerifications > 0 ? stats.pendingVerifications : undefined,
     },
   ];
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.light.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -378,5 +387,11 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 2,
     fontWeight: '500' as const,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.light.background,
   },
 });

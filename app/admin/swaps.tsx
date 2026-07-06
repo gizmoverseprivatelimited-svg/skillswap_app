@@ -5,6 +5,7 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import {
@@ -21,11 +22,12 @@ import {
 import { useSkillSwaps } from '@/providers/skill-swaps';
 import { useCurrentUser } from '@/providers/current-user';
 import type { SkillSwapStatus } from '@/types';
+import Colors from '@/constants/colors';
 
 type SwapFilter = 'all' | SkillSwapStatus;
 
 export default function SwapOversight() {
-  const { swaps } = useSkillSwaps();
+  const { swaps, loading } = useSkillSwaps();
   const { allUsers } = useCurrentUser();
   const [filter, setFilter] = useState<SwapFilter>('all');
 
@@ -70,6 +72,14 @@ export default function SwapOversight() {
     active: swaps.filter(s => s.status === 'negotiating' || s.status === 'scheduled').length,
     completed: swaps.filter(s => s.status === 'completed').length,
   }), [swaps]);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.light.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -321,5 +331,11 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     fontSize: 13,
     color: '#94A3B8',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
   },
 });

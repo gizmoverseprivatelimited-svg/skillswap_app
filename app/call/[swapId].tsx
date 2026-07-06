@@ -6,7 +6,7 @@ import { useMemo } from 'react';
 import VideoCallScreen from '../../components/VideoCallScreen';
 import { useCurrentUser } from '../../providers/current-user';
 import { useSkillSwaps } from '../../providers/skill-swaps';
-import url from '@/constants/backurl';
+import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
 export default function CallScreen() {
   const { swapId } = useLocalSearchParams<{ swapId: string }>();
@@ -66,7 +66,7 @@ export default function CallScreen() {
   return (
     <VideoCallScreen
       partnerName={partner.name}
-      partnerImage={partner.avatarUrl ? (partner.avatarUrl.startsWith('/uploads') ? `${url}${partner.avatarUrl}` : partner.avatarUrl) : undefined}
+      partnerImage={resolveImageUrl(partner.avatarUrl)}
       onEndCall={handleEndCall}
     />
   );

@@ -17,7 +17,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://skillswapcommunity.duckdns.org"
+        "EXPO_PUBLIC_API_URL": "https://api.skillswap.courses"
       }
     }
   },

@@ -8,6 +8,7 @@ import {
   TextInput,
   Modal,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import {
@@ -21,11 +22,12 @@ import {
 } from 'lucide-react-native';
 import { useAdmin } from '../../providers/admin';
 import { useAlert } from '@/providers/alert';
+import Colors from '@/constants/colors';
 
 type ReviewFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'flagged';
 
 export default function ReviewModeration() {
-  const { reviews, approveReview, rejectReview } = useAdmin();
+  const { reviews, approveReview, rejectReview, isLoading } = useAdmin();
   const { showAlert } = useAlert();
   const [filter, setFilter] = useState<ReviewFilter>('pending');
   const [rejectModalVisible, setRejectModalVisible] = useState<boolean>(false);
@@ -90,6 +92,14 @@ export default function ReviewModeration() {
     { label: 'Rejected', value: 'rejected' },
     { label: 'All', value: 'all' },
   ];
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.light.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -460,5 +470,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600' as const,
     color: '#94A3B8',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
   },
 });

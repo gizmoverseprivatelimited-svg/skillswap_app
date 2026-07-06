@@ -191,6 +191,7 @@ interface ResourcesContextValue {
   addResource: (draft: ResourceDraft, contributorId: string) => ResourceMeta | null;
   toggleSaved: (resourceId: string) => void;
   endorseResource: (resourceId: string) => void;
+  isLoading: boolean;
 }
 
 const generateResourceId = (): string => {
@@ -215,13 +216,20 @@ export const [ResourcesProvider, useResources] =
 
     // 🔄 Fetch resources
     const fetchResources = useCallback(async () => {
+      const fullUrl = `${API_URL}/resources`;
       try {
         setIsLoading(true);
-        const res = await fetch(`${API_URL}/resources`);
-        if (!res.ok) throw new Error('Failed to fetch');
-        const data = await res.json();
-        // console.log("Data", data);
-
+        console.log(`[Resources] Fetching: ${fullUrl}`);
+        const res = await fetch(fullUrl);
+        if (!res.ok) throw new Error(`Failed to fetch (${res.status})`);
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (parseErr) {
+          console.error(`[Resources] JSON Parse failed for ${fullUrl}. Response snippet:`, text.substring(0, 200));
+          throw parseErr;
+        }
         setResourceList(data.resources);
       } catch (err) {
         console.error('[Resources] Fetch error', err);

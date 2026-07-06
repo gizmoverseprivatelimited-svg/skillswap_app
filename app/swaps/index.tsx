@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Image, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Sparkles, CalendarDays, MessageCircle, Timer, ArrowRight } from 'lucide-react-native';
@@ -8,7 +8,7 @@ import { useSkillSwaps } from '../../providers/skill-swaps';
 import { useCurrentUser } from '../../providers/current-user';
 import { getSkillsWithUsers } from '../../mocks/data';
 import type { SkillWithUser, SkillSwapRequest, SkillSwapStatus } from '../../types';
-import url from '@/constants/backurl';
+import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
 const statusPalette: Record<SkillSwapStatus | 'fallback', { bg: string; text: string }> = {
   pending: { bg: 'rgba(249, 115, 22, 0.15)', text: '#EA580C' },
@@ -47,18 +47,22 @@ const buildSkillsLookup = (skills: SkillWithUser[]) => {
 
 export default function SwapsIndexScreen() {
   const router = useRouter();
-  const { swaps, pendingSwaps, negotiatingSwaps, scheduledSwaps, completedSwaps } = useSkillSwaps();
+  const { swaps, pendingSwaps, negotiatingSwaps, scheduledSwaps, completedSwaps, loading } = useSkillSwaps();
   const { currentUser, allUsers } = useCurrentUser();
   const [selectedFilter, setSelectedFilter] = useState<FilterKey>('all');
   const [allSkills, setAllSkills] = useState<SkillWithUser[]>([]);
+  const [isSkillsLoading, setIsSkillsLoading] = useState(true);
 
   useEffect(() => {
     async function loadSkills() {
       try {
+        setIsSkillsLoading(true);
         const skills = await getSkillsWithUsers();
         setAllSkills(skills);
       } catch (err) {
         console.error('[SwapsIndex] Failed to load skills:', err);
+      } finally {
+        setIsSkillsLoading(false);
       }
     }
     loadSkills();
@@ -153,7 +157,7 @@ export default function SwapsIndexScreen() {
         <View style={styles.swapHeader}>
           <View style={styles.swapPartnerRow}>
             {partner?.avatarUrl ? (
-              <Image source={{ uri: partner.avatarUrl.startsWith('/uploads') ? `${url}${partner.avatarUrl}` : partner.avatarUrl }} style={styles.avatar} />
+              <Image source={{ uri: resolveImageUrl(partner.avatarUrl) }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
                 <Sparkles size={16} color="#E0F2FE" />
@@ -202,9 +206,11 @@ export default function SwapsIndexScreen() {
     );
   }, [allUsers, currentUser?.id, handleNavigateToDetail, skillsMap]);
 
-  if (!currentUser) {
+  if (!currentUser || loading || isSkillsLoading) {
     return (
-      <View style={styles.container} />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.light.primary} />
+      </View>
     );
   }
 
@@ -487,5 +493,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 32,
     lineHeight: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.light.background,
   },
 });

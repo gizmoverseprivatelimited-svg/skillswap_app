@@ -9,6 +9,7 @@ import {
   TextInput,
   Modal,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import {
@@ -30,11 +31,12 @@ import { useAdmin, VerificationRequest } from '@/providers/admin';
 import { useAlert } from '@/providers/alert';
 import type { VerificationStatus } from '@/types';
 import url from '@/constants/backurl';
+import Colors from '@/constants/colors';
 
 type VFilter = 'all' | 'pending' | 'verified' | 'rejected';
 
 export default function VerificationApprovals() {
-  const { verificationRequests, approveVerification, rejectVerification } = useAdmin();
+  const { verificationRequests, approveVerification, rejectVerification, isLoading } = useAdmin();
   const { showAlert } = useAlert();
   const [filter, setFilter] = useState<VFilter>('pending');
   const [rejectModalVisible, setRejectModalVisible] = useState<boolean>(false);
@@ -117,6 +119,14 @@ export default function VerificationApprovals() {
     { label: 'All', value: 'all' },
   ];
 
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.light.primary} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Verifications', headerStyle: { backgroundColor: '#0F172A' }, headerTintColor: '#F8FAFC' }} />
@@ -146,7 +156,7 @@ export default function VerificationApprovals() {
           return (
             <View key={vr.id} style={styles.card}>
               <View style={styles.cardHeader}>
-                <Image source={{ uri: vr.userAvatar.startsWith('/uploads') ? `${url}${vr.userAvatar}` : vr.userAvatar }} style={styles.avatar} />
+                <Image source={{ uri: vr.userAvatar ? (vr.userAvatar.startsWith('/uploads') ? `${url}${vr.userAvatar}` : vr.userAvatar) : 'https://i.pravatar.cc/150?img=5' }} style={styles.avatar} />
                 <View style={styles.cardInfo}>
                   <Text style={styles.cardName}>{vr.userName}</Text>
                   <Text style={styles.cardDate}>
@@ -487,5 +497,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600' as const,
     color: '#94A3B8',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
   },
 });

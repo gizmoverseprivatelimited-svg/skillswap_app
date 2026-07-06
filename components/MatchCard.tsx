@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles, ArrowRight, BookOpen, GraduationCap } from 'lucide-react-native';
 import Colors from '../constants/colors';
 import type { MatchRecommendation } from '../types';
-import url from '@/constants/backurl';
+import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
 interface MatchCardProps {
   recommendation: MatchRecommendation;
@@ -77,7 +77,7 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
           <View style={styles.userRow}>
             {recommendation.user.avatarUrl ? (
               <Image
-                source={{ uri:  recommendation.user.avatarUrl.startsWith('/uploads') ? `${url}${recommendation.user.avatarUrl}` : recommendation.user.avatarUrl }}
+                source={{ uri: resolveImageUrl(recommendation.user.avatarUrl) }}
                 style={styles.avatar}
               />
             ) : (

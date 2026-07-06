@@ -54,6 +54,7 @@ interface AdminContextValue {
     pendingVerifications: number;
     totalSwaps: number;
   };
+  isLoading: boolean;
 }
 
 
@@ -204,6 +205,7 @@ const seedVerificationRequests = (): VerificationRequest[] => {
 };
 
 export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(() => {
+  const [isLoading, setIsLoading] = useState(true);
   const [users, setUsers] = useState<AdminUser[]>(seedAdminUsers);
   // const [reviews, setReviews] = useState<AdminReview[]>(seedReviews);
   const [reviews, setReviews] = useState<AdminReview[]>([]);
@@ -222,38 +224,45 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
 
 
   async function fetchReviews() {
+    const fullUrl = `${url}/admin/users/reviews`;
     try {
-      const response = await fetch(`${url}/admin/users/reviews`);
-
+      console.log(`[Admin] Fetching: ${fullUrl}`);
+      const response = await fetch(fullUrl);
       if (!response.ok) {
-        throw new Error('Failed to fetch reviews');
+        throw new Error(`Failed to fetch reviews (${response.status})`);
       }
-
-      const data = await response.json();
-      // console.log('reviews', data);
-
-
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error(`[Admin] JSON Parse failed for ${fullUrl}. Response snippet:`, text.substring(0, 200));
+        throw parseErr;
+      }
       setReviews(data.reviews);
-
     } catch (error) {
       console.error('[Admin] Fetch reviews failed', error);
     }
   }
 
   async function fetchVerificationRequests() {
+    const fullUrl = `${url}/admin/users/verifications`;
     try {
-      const response = await fetch(`${url}/admin/users/verifications`);
-      // console.log("response", response);
-
+      console.log(`[Admin] Fetching: ${fullUrl}`);
+      const response = await fetch(fullUrl);
       if (!response.ok) {
-        throw new Error('Failed to fetch verification requests');
+        throw new Error(`Failed to fetch verification requests (${response.status})`);
       }
-
-      const data = await response.json();
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error(`[Admin] JSON Parse failed for ${fullUrl}. Response snippet:`, text.substring(0, 200));
+        throw parseErr;
+      }
       console.log(data);
-      
 
-      // 🔹 Transform backend response → frontend shape
       const formatted: VerificationRequest[] = data.verifications.map(
         (v: any) => ({
           id: v._id,
@@ -269,15 +278,26 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
       );
 
       setVerificationRequests(formatted);
-
     } catch (error) {
       console.error('[Admin] Fetch verifications failed', error);
     }
   }
   useEffect(() => {
-    allusers();
-    fetchReviews();
-    fetchVerificationRequests();
+    async function loadData() {
+      setIsLoading(true);
+      try {
+        await Promise.all([
+          allusers(),
+          fetchReviews(),
+          fetchVerificationRequests(),
+        ]);
+      } catch (error) {
+        console.error('[Admin] Fetch data failed', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadData();
   }, []);
 
   // const banUser = useCallback((userId: string, reason: string) => {
@@ -671,5 +691,6 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
     approveVerification,
     rejectVerification,
     stats,
-  }), [users, reviews, verificationRequests, banUser, unbanUser, suspendUser, updateUserCredits, approveReview, rejectReview, approveVerification, rejectVerification, stats]);
+    isLoading,
+  }), [users, reviews, verificationRequests, banUser, unbanUser, suspendUser, updateUserCredits, approveReview, rejectReview, approveVerification, rejectVerification, stats, isLoading]);
 });

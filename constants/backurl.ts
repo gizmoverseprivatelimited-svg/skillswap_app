@@ -1,3 +1,3 @@
-const url = 'https://skillswapcommunity.duckdns.org';
+const url = 'https://api.skillswap.courses';
 
 export default url;

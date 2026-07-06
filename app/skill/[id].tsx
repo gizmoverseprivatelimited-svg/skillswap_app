@@ -11,6 +11,7 @@ import SkillSwapRequestModal from '../../components/SkillSwapRequestModal';
 import { useSkillSwaps } from '../../providers/skill-swaps';
 import { useCurrentUser } from '../../providers/current-user';
 import type { SkillSwapStatus, SkillWithUser } from '../../types';
+import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import url from '@/constants/backurl';
 
 const swapStatusPalette: Record<SkillSwapStatus | 'fallback', { bg: string; border: string }> = {
@@ -174,7 +175,11 @@ export default function SkillDetailScreen() {
         contentContainerStyle={contentContainerStyle}
       >
         <View style={styles.heroContainer}>
-          <Image source={{ uri: skill.imageUrl }} style={styles.headerImage} />
+          {skill.imageUrl ? (
+            <Image source={{ uri: resolveImageUrl(skill.imageUrl) }} style={styles.headerImage} />
+          ) : (
+            <View style={[styles.headerImage, { backgroundColor: Colors.light.backgroundTertiary }]} />
+          )}
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.8)']}
             style={styles.heroGradient}
@@ -231,7 +236,7 @@ export default function SkillDetailScreen() {
               onPress={() => router.push(`/profile/${skill?.user?.id}` as any)}
             >
               <Image
-                source={{ uri:  skill.user?.avatarUrl.startsWith('/uploads') ? `${url}${skill.user?.avatarUrl}` : skill.user?.avatarUrl }}
+                source={{ uri: resolveImageUrl(skill.user?.avatarUrl, 'https://i.pravatar.cc/150?img=5') }}
                 style={styles.teacherAvatar}
               />
               <View style={styles.teacherInfo}>
