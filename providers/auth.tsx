@@ -39,6 +39,7 @@ interface AuthContextValue {
   }) => Promise<void>;
   signOut: () => Promise<void>;
   refreshAuth: () => Promise<void>;
+  skipLogin: () => Promise<void>;
 }
 
 export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() => {
@@ -178,6 +179,22 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
     await clearToken();
   }, [clearToken]);
 
+  const skipLogin = useCallback(async () => {
+    console.log('[Auth] Skipping login');
+    const guestUser: AuthUser = {
+      id: '1',
+      email: 'guest@skillswap.com',
+      name: 'Guest User',
+      skillsToLearn: [],
+      skillsToTeach: [],
+      credits: 10,
+      premiumTier: 'free',
+    };
+    await saveToken('guest_token', guestUser);
+    await AsyncStorage.setItem('@skillswap/onboarding_complete_1', 'true');
+    setUser(guestUser);
+  }, [saveToken]);
+
   const isAuthenticated = useMemo(() => {
     return !!token && !!user;
   }, [token, user]);
@@ -193,7 +210,8 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
     signInWithOAuth,
     signOut,
     refreshAuth,
-  }), [user, token, isLoading, isAuthenticated, signIn, signUp, signInWithOtp, signInWithOAuth, signOut, refreshAuth]);
+    skipLogin,
+  }), [user, token, isLoading, isAuthenticated, signIn, signUp, signInWithOtp, signInWithOAuth, signOut, refreshAuth, skipLogin]);
 
   return value;
 });

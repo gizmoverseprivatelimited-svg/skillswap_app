@@ -17,8 +17,8 @@ WebBrowser.maybeCompleteAuthSession();
 const redirectUri = Platform.OS === 'web'
   ? 'http://localhost:8081/'
   : AuthSession.makeRedirectUri({
-      scheme: 'myapp',
-    });
+    scheme: 'myapp',
+  });
 
 type AuthMode = 'otp' | 'social' | 'email';
 type AuthFlow = 'signin' | 'signup' | 'forgot';
@@ -714,7 +714,10 @@ export default function LoginScreen() {
               By continuing you agree to our Terms and Privacy Policy
             </Text>
 
-            <TouchableOpacity testID="skip" onPress={() => router.replace('/home')} style={styles.skipButton}>
+            <TouchableOpacity testID="skip" onPress={async () => {
+              await auth.skipLogin();
+              router.replace('/home');
+            }} style={styles.skipButton}>
               <Text style={styles.skipText}>Skip for now</Text>
             </TouchableOpacity>
           </View>
