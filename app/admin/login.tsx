@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -27,7 +27,14 @@ import { useAdmin } from '@/providers/admin';
 export default function AdminLoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { adminLogin } = useAdmin();
+  const { adminLogin, isAdminAuthenticated } = useAdmin();
+
+  // If already authenticated as admin, redirect to admin dashboard
+  useEffect(() => {
+    if (isAdminAuthenticated) {
+      router.replace('/admin' as any);
+    }
+  }, [isAdminAuthenticated, router]);
 
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
