@@ -131,19 +131,21 @@ export default function VerificationApprovals() {
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Verifications', headerStyle: { backgroundColor: '#0F172A' }, headerTintColor: '#F8FAFC' }} />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterContent}>
-        {filters.map(f => (
-          <TouchableOpacity
-            key={f.value}
-            style={[styles.filterChip, filter === f.value && styles.filterChipActive]}
-            onPress={() => setFilter(f.value)}
-          >
-            <Text style={[styles.filterChipText, filter === f.value && styles.filterChipTextActive]}>
-              {f.label}{f.count !== undefined && f.count > 0 ? ` (${f.count})` : ''}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.filterWrap}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterContent}>
+          {filters.map(f => (
+            <TouchableOpacity
+              key={f.value}
+              style={[styles.filterChip, filter === f.value && styles.filterChipActive]}
+              onPress={() => setFilter(f.value)}
+            >
+              <Text style={[styles.filterChipText, filter === f.value && styles.filterChipTextActive]}>
+                {f.label}{f.count !== undefined && f.count > 0 ? ` (${f.count})` : ''}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       <ScrollView style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
         {filteredRequests.map(vr => {
@@ -260,12 +262,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F1F5F9',
   },
-  filterRow: {
+  filterWrap: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
     paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
+  },
+  filterRow: {
+    marginBottom: 4,
   },
   filterContent: {
     gap: 8,

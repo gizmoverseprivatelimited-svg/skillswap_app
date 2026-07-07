@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -21,18 +21,50 @@ import {
   Clock,
   Activity,
   BarChart3,
+  LogOut,
 } from 'lucide-react-native';
 import { useAdmin } from '../../providers/admin';
 import Colors from '@/constants/colors';
+import { useAlert } from '@/providers/alert';
 
 export default function AdminDashboard() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { stats, isLoading } = useAdmin();
+  const { stats, isLoading, isAdminAuthenticated, adminLogout } = useAdmin();
+  const { showAlert } = useAlert();
+
+  // Redirect to login if not authenticated as admin
+  useEffect(() => {
+    if (!isAdminAuthenticated) {
+      router.replace('/admin/login' as any);
+    }
+  }, [isAdminAuthenticated, router]);
 
   const navigateTo = useCallback((path: string) => {
     router.push(path as any);
   }, [router]);
+
+  const handleBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/home' as any);
+    }
+  }, [router]);
+
+  const handleLogout = useCallback(() => {
+    showAlert('Confirm Logout', 'Are you sure you want to log out of the Admin Panel?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
+          await adminLogout();
+          router.replace('/admin/login' as any);
+        },
+      },
+    ]);
+  }, [adminLogout, router, showAlert]);
 
   const statCards = [
     { label: 'Total Users', value: stats.totalUsers, icon: Users, color: '#3B82F6' },
@@ -91,8 +123,12 @@ export default function AdminDashboard() {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.headerWrap, { paddingTop: insets.top + 8 }]}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} testID="admin-back">
+          <TouchableOpacity onPress={handleBack} style={styles.backBtn} testID="admin-back">
             <Text style={styles.backText}>← Back</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn} testID="admin-logout">
+            <LogOut size={16} color="#EF4444" />
+            <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
         <Text style={styles.headerTitle}>Admin Panel</Text>
@@ -194,6 +230,7 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
   backBtn: {
@@ -204,6 +241,20 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 15,
     fontWeight: '500' as const,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  logoutText: {
+    color: '#EF4444',
+    fontSize: 13,
+    fontWeight: '600' as const,
   },
   headerTitle: {
     fontSize: 28,

@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, useRouter, useSegments, useRootNavigationState } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { StyleSheet, ActivityIndicator, View } from "react-native";
+import { StyleSheet, ActivityIndicator, View, Platform } from "react-native";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "../providers/auth";
 import { CurrentUserProvider } from "../providers/current-user";
@@ -22,32 +22,80 @@ function RootLayoutNav() {
   const { hasCompletedOnboarding, isChecking } = useOnboarding();
   const segments = useSegments();
   const router = useRouter();
+  const rootNavigationState = useRootNavigationState();
 
   useEffect(() => {
-    if (authLoading || isChecking) return;
+    if (authLoading || isChecking || !rootNavigationState?.key) return;
+
+    // Resolve the active route segment, taking browser URL into account on web initial load
+    let segment0: any = segments[0] || '';
+    let isAdminRoute = segment0 === 'admin' || segment0.startsWith('admin/');
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
+      let path = window.location.pathname;
+      if (window.location.hash && window.location.hash.startsWith('#/')) {
+        path = window.location.hash.substring(1);
+      }
+      const pathParts = path.split('/').filter(Boolean);
+      if (pathParts.length > 0) {
+        segment0 = pathParts[0];
+      }
+      if (path.startsWith('/admin') || path.startsWith('/admin/')) {
+        isAdminRoute = true;
+      }
+    }
+
+    // Sync the router state with the browser URL on web if they get out of sync on mount
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
+      let currentPath = window.location.pathname;
+      if (window.location.hash && window.location.hash.startsWith('#/')) {
+        currentPath = window.location.hash.substring(1);
+      }
+      const isWebAdmin = currentPath.startsWith('/admin') || currentPath.startsWith('/admin/');
+      const isRouterAdmin = segments[0] === 'admin' || (typeof segments[0] === 'string' && segments[0].startsWith('admin/'));
+      if (isWebAdmin && !isRouterAdmin) {
+        console.log('[DEBUG Layout] Syncing router path with web path:', currentPath);
+        router.replace(currentPath as any);
+        return;
+      }
+    }
+
+    console.log('[DEBUG Layout] State check:', {
+      segment0,
+      segments,
+      isAuthenticated,
+      hasCompletedOnboarding,
+      isAdminRoute
+    });
 
     // Bypass all redirect logic for admin routes
-    if (segments[0] === 'admin') return;
+    if (isAdminRoute) {
+      console.log('[DEBUG Layout] Bypassing redirects because we are on admin route:', segment0);
+      return;
+    }
 
-    const inAuthGroup = segments[0] === 'login';
+    const inAuthGroup = segment0 === 'login';
 
     if (!isAuthenticated) {
       // Redirect to login if not authenticated and not already on a public route
-      const publicRoutes = ['login', 'terms', 'privacy', 'about', 'contact', 'help', 'admin'];
-      const isPublic = publicRoutes.includes(segments[0] || '');
+      const publicRoutes: string[] = ['login', 'terms', 'privacy', 'about', 'contact', 'help', 'admin'];
+      const isPublic = publicRoutes.includes(segment0) || segment0.startsWith('admin/');
       if (!isPublic) {
-        router.replace('/login');
+        console.log('[DEBUG Layout] Redirecting to /login (not public)');
+        router.replace('/login' as any);
       }
     } else if (!hasCompletedOnboarding) {
       // Redirect to onboarding if authenticated but onboarding not completed
-      if (segments[0] !== 'onboarding') {
-        router.replace('/onboarding');
+      if (segment0 !== 'onboarding') {
+        console.log('[DEBUG Layout] Redirecting to /onboarding');
+        router.replace('/onboarding' as any);
       }
-    } else if (inAuthGroup || segments[0] === 'onboarding') {
+    } else if (inAuthGroup || segment0 === 'onboarding') {
       // Redirect to home if authenticated, completed onboarding, and trying to access login/onboarding
-      router.replace('/(tabs)/home');
+      console.log('[DEBUG Layout] Redirecting to /home');
+      router.replace('/(tabs)/home' as any);
     }
-  }, [isAuthenticated, authLoading, isChecking, hasCompletedOnboarding, segments]);
+  }, [isAuthenticated, authLoading, isChecking, hasCompletedOnboarding, segments, rootNavigationState]);
 
   if (authLoading || isChecking) {
     return (
@@ -126,6 +174,12 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="verification"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="admin/login"
         options={{
           headerShown: false,
         }}

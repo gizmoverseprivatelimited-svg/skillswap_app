@@ -20,18 +20,35 @@ export default function Index() {
   }
 
   // If we are deep-linked or directly loading a subpath (e.g. /admin), index should not redirect
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
+    let webPath = window.location.pathname;
+    if (window.location.hash && window.location.hash.startsWith('#/')) {
+      webPath = window.location.hash.substring(1);
+    }
+    if (webPath !== '/' && webPath !== '/index') {
+      console.log('[DEBUG Index] bypassing redirect on web because of path:', webPath);
+      return null;
+    }
+  }
+
   if (pathname !== '/' && pathname !== '/index') {
+    console.log('[DEBUG Index] bypassing redirect because of pathname:', pathname);
     return null;
   }
 
+  console.log('[DEBUG Index] evaluating index redirects:', { isAuthenticated, hasCompletedOnboarding });
+
   if (!isAuthenticated) {
+    console.log('[DEBUG Index] Redirecting to /login');
     return <Redirect href="/login" />;
   }
 
   if (!hasCompletedOnboarding) {
+    console.log('[DEBUG Index] Redirecting to /onboarding');
     return <Redirect href="/onboarding" />;
   }
 
+  console.log('[DEBUG Index] Redirecting to /home');
   return <Redirect href="/home" />;
 }
 
