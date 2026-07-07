@@ -51,7 +51,7 @@ export const getUsers = async (): Promise<User[]> => {
 export const mockUsers: User[] = [
   {
     id: '1',
-    name: 'Priya Sharma',
+    name: 'User',
     avatarUrl: 'https://i.pravatar.cc/150?img=1',
     bio: 'Passionate photographer and yoga instructor. Love connecting with people and learning new things!',
     location: 'Mumbai, Maharashtra',
