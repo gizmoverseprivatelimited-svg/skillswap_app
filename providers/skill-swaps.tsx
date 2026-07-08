@@ -199,10 +199,12 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
   const [allSwaps, setAllSwaps] = useState<SkillSwapRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchAllSwaps = async () => {
+  const fetchAllSwaps = async (silent = false) => {
     const fullUrl = `${url}/swaps/all`;
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       console.log(`[SkillSwaps] Fetching: ${fullUrl}`);
       const response = await fetch(fullUrl);
       if (!response.ok) {
@@ -224,15 +226,19 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
     } catch (err) {
       console.error('[SkillSwaps] fetch failed', err);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
-  const fetchSwaps = async () => {
+  const fetchSwaps = async (silent = false) => {
     if (!currentUser?.id) return;
     const fullUrl = `${url}/swaps?userId=${currentUser?.id}`;
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       console.log(`[SkillSwaps] Fetching: ${fullUrl}`);
       console.log("Yeah Current", currentUser);
       const response = await fetch(fullUrl);
@@ -255,7 +261,9 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
     } catch (err) {
       console.error('[SkillSwaps] fetch failed', err);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -265,9 +273,22 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
   // }, []);
 
   useEffect(() => {
-    if (!currentUser?.id || currentUser.id.length<4) return;
+    if (!currentUser?.id || currentUser.id.length < 4) return;
+    
+    // Initial load
     fetchSwaps();
-    fetchAllSwaps()
+    fetchAllSwaps();
+
+    // Start background polling every 4 seconds
+    const intervalId = setInterval(() => {
+      console.log('[SkillSwaps] Polling swaps silently...');
+      fetchSwaps(true);
+      fetchAllSwaps(true);
+    }, 4000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [currentUser?.id]);
 
 

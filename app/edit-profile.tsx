@@ -7,16 +7,18 @@ import {
   TouchableOpacity,
   Image,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useState } from 'react';
-import { X, Plus, Camera } from 'lucide-react-native';
+import { X, Plus, Camera, MapPin } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker'
 import Colors from '@/constants/colors';
 import { useCurrentUser } from '@/providers/current-user';
 import { useAlert } from '@/providers/alert';
 import url from '@/constants/backurl';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
+import * as Location from 'expo-location';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -32,6 +34,85 @@ export default function EditProfileScreen() {
   const [newSkillWanted, setNewSkillWanted] = useState<string>('');
 
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isLocating, setIsLocating] = useState<boolean>(false);
+
+  const handleGetLocation = async () => {
+    setIsLocating(true);
+    try {
+      console.log('[Location] Requesting location permission...');
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        showAlert(
+          'Permission Denied',
+          'Permission to access location was denied. Please enter your location manually.'
+        );
+        return;
+      }
+
+      console.log('[Location] Fetching current position...');
+      const currentLocation = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      console.log('[Location] Reverse geocoding position...');
+      let formattedLocation = '';
+
+      if (Platform.OS === 'web') {
+        // Fallback for Web using OpenStreetMap Nominatim reverse geocoder
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${currentLocation.coords.latitude}&lon=${currentLocation.coords.longitude}`,
+          {
+            headers: {
+              'User-Agent': 'SkillSwapCommunityApp',
+            },
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.address) {
+            const addr = data.address;
+            const city = addr.city || addr.town || addr.village || addr.suburb || addr.municipality || '';
+            const state = addr.state || '';
+            const country = addr.country || '';
+            const parts = [city, state, country].filter((p) => p.trim() !== '');
+            formattedLocation = parts.join(', ');
+          }
+        }
+      } else {
+        const geocoded = await Location.reverseGeocodeAsync({
+          latitude: currentLocation.coords.latitude,
+          longitude: currentLocation.coords.longitude,
+        });
+
+        if (geocoded && geocoded.length > 0) {
+          const address = geocoded[0];
+          console.log('[Location] Geocode address result:', address);
+          
+          // Extract city, state, country
+          const city = address.city || address.subregion || address.district || '';
+          const state = address.region || '';
+          const country = address.country || '';
+
+          const parts = [city, state, country].filter((p) => p.trim() !== '');
+          formattedLocation = parts.join(', ');
+        }
+      }
+
+      if (formattedLocation) {
+        setLocation(formattedLocation);
+      } else {
+        showAlert('Location Error', 'Could not resolve city/state from current location.');
+      }
+    } catch (error: any) {
+      console.error('[Location] Error getting location:', error);
+      showAlert(
+        'Location Error',
+        error.message || 'An error occurred while fetching your location. Please type manually.'
+      );
+    } finally {
+      setIsLocating(false);
+    }
+  };
 
   const handleAddSkillWanted = () => {
     if (newSkillWanted.trim()) {
@@ -360,6 +441,20 @@ export default function EditProfileScreen() {
               placeholder="Enter your location"
               placeholderTextColor={Colors.light.textTertiary}
             />
+            <TouchableOpacity
+              style={[styles.getLocationButton, isLocating && styles.getLocationButtonDisabled]}
+              onPress={handleGetLocation}
+              disabled={isLocating}
+            >
+              {isLocating ? (
+                <ActivityIndicator size="small" color="#FF6B9D" />
+              ) : (
+                <>
+                  <MapPin size={16} color="#FF6B9D" style={{ marginRight: 6 }} />
+                  <Text style={styles.getLocationButtonText}>Use Current Location</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
 
           <View style={styles.section}>
@@ -544,6 +639,25 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: Colors.light.text,
+  },
+  getLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF0F4',
+    borderWidth: 1,
+    borderColor: '#FFD1DF',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 10,
+  },
+  getLocationButtonDisabled: {
+    opacity: 0.6,
+  },
+  getLocationButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#FF6B9D',
   },
   addSkillButton: {
     width: 48,

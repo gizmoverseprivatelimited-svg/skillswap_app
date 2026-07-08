@@ -53,6 +53,7 @@ export default function UserManagement() {
       const q = search.toLowerCase();
       result = result.filter(u =>
         u.name?.toLowerCase().includes(q) ||
+        u.username?.toLowerCase().includes(q) ||
         u.email?.toLowerCase().includes(q) ||
         u.location?.toLowerCase().includes(q)
       );
@@ -140,6 +141,7 @@ export default function UserManagement() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
+        <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator size="large" color={Colors.light.primary} />
       </View>
     );
@@ -147,7 +149,7 @@ export default function UserManagement() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: 'User Management', headerStyle: { backgroundColor: '#0F172A' }, headerTintColor: '#F8FAFC' }} />
+      <Stack.Screen options={{ headerShown: true, title: 'User Management', headerStyle: { backgroundColor: '#0F172A' }, headerTintColor: '#F8FAFC' }} />
 
       <View style={styles.searchWrap}>
         <View style={styles.searchBar}>
@@ -186,7 +188,7 @@ export default function UserManagement() {
               <Image source={{ uri: resolveImageUrl(user.avatarUrl, 'https://i.pravatar.cc/150?img=5') }} style={styles.avatar} />
               <View style={styles.userInfo}>
                 <View style={styles.nameRow}>
-                  <Text style={styles.userName} numberOfLines={1}>{user.name }</Text>
+                  <Text style={styles.userName} numberOfLines={1}>{user.username ? `@${user.username}` : user.name} ({user.name})</Text>
                   {user.premiumTier !== 'free' && (
                     <Crown size={14} color="#F59E0B" />
                   )}
@@ -286,7 +288,7 @@ export default function UserManagement() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Take Action</Text>
-            {selectedUser && <Text style={styles.modalSubtitle}>Against {selectedUser.name}</Text>}
+             {selectedUser && <Text style={styles.modalSubtitle}>Against {selectedUser.username ? `@${selectedUser.username}` : selectedUser.name}</Text>}
             <TextInput
               style={styles.modalInput}
               placeholder="Enter reason..."
@@ -317,7 +319,7 @@ export default function UserManagement() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Credits</Text>
-            {selectedUser && <Text style={styles.modalSubtitle}>For {selectedUser.name}</Text>}
+             {selectedUser && <Text style={styles.modalSubtitle}>For {selectedUser.username ? `@${selectedUser.username}` : selectedUser.name}</Text>}
             <TextInput
               style={styles.modalInput}
               placeholder="Credit amount"

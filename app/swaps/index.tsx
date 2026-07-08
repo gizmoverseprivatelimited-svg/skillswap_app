@@ -156,15 +156,9 @@ export default function SwapsIndexScreen() {
       >
         <View style={styles.swapHeader}>
           <View style={styles.swapPartnerRow}>
-            {partner?.avatarUrl ? (
-              <Image source={{ uri: resolveImageUrl(partner.avatarUrl) }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Sparkles size={16} color="#E0F2FE" />
-              </View>
-            )}
+            <Image source={{ uri: resolveImageUrl(partner?.avatarUrl) }} style={styles.avatar} />
             <View style={styles.partnerInfo}>
-              <Text style={styles.partnerName}>{partner?.name ?? 'Skill Partner'}</Text>
+              <Text style={styles.partnerName}>{partner?.username ? `@${partner.username}` : (partner?.name ?? 'Skill Partner')}</Text>
               <Text style={styles.partnerSubtitle}>{nextAction}</Text>
             </View>
           </View>

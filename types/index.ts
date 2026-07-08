@@ -30,6 +30,7 @@ export type PremiumTier = 'free' | 'basic' | 'premium' | 'elite';
 export interface User {
   id: string;
   name: string;
+  username?: string;
   avatarUrl: string;
   bio: string;
   location: string;

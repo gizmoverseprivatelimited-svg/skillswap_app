@@ -107,6 +107,7 @@ export default function UserProfileScreen() {
   if (isLoading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator size="large" color={Colors.light.primary} />
       </View>
     );
@@ -115,6 +116,7 @@ export default function UserProfileScreen() {
   if (!user) {
     return (
       <View style={[styles.container, { paddingBottom: insets.bottom, justifyContent: 'center', alignItems: 'center' }]}>
+        <Stack.Screen options={{ headerShown: false }} />
         <Text style={styles.errorText}>User not found</Text>
       </View>
     );
@@ -128,21 +130,27 @@ export default function UserProfileScreen() {
   })).length;
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <Stack.Screen options={{ title: user.name }} />
+    <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: user.name,
+          headerStyle: {
+            backgroundColor: Colors.light.background,
+          },
+          headerTintColor: Colors.light.text,
+          headerShadowVisible: false,
+        }}
+      />
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          {user.avatarUrl ? (
-            <Image
-              source={{ uri: resolveImageUrl(user?.avatarUrl) }}
-              style={styles.avatar}
-            />
-          ) : (
-            <View style={[styles.avatar, { backgroundColor: Colors.light.backgroundTertiary }]} />
-          )}
+          <Image
+            source={{ uri: resolveImageUrl(user?.avatarUrl) }}
+            style={styles.avatar}
+          />
           <Text style={styles.name}>{user.name}</Text>
           <View style={styles.locationRow}>
             <MapPin size={16} color={Colors.light.textSecondary} />

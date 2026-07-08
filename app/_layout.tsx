@@ -12,6 +12,15 @@ import { NotificationsProvider } from "../providers/notifications";
 import { ResourcesProvider } from "../providers/resources";
 import { OnboardingProvider, useOnboarding } from "../providers/onboarding";
 import { AdminProvider } from "@/providers/admin";
+import url from '@/constants/backurl';
+
+const sendDebugLog = (msg: string, data: any) => {
+  fetch(`${url}/debug-log`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: msg, data }),
+  }).catch(() => {});
+};
 
 SplashScreen.preventAutoHideAsync();
 
@@ -60,12 +69,14 @@ function RootLayoutNav() {
       }
     }
 
-    console.log('[DEBUG Layout] State check:', {
+    sendDebugLog('[DEBUG Layout] State check', {
       segment0,
       segments,
       isAuthenticated,
       hasCompletedOnboarding,
-      isAdminRoute
+      isAdminRoute,
+      authLoading,
+      isChecking,
     });
 
     // Bypass all redirect logic for admin routes
@@ -81,18 +92,17 @@ function RootLayoutNav() {
       const publicRoutes: string[] = ['login', 'terms', 'privacy', 'about', 'contact', 'help', 'admin'];
       const isPublic = publicRoutes.includes(segment0) || segment0.startsWith('admin/');
       if (!isPublic) {
-        console.log('[DEBUG Layout] Redirecting to /login (not public)');
+        sendDebugLog('[DEBUG Layout] Redirecting to /login (not public)', { segment0, segments, isAuthenticated });
         router.replace('/login' as any);
       }
     } else if (!hasCompletedOnboarding) {
       // Redirect to onboarding if authenticated but onboarding not completed
       if (segment0 !== 'onboarding') {
-        console.log('[DEBUG Layout] Redirecting to /onboarding');
+        sendDebugLog('[DEBUG Layout] Redirecting to /onboarding', { segment0, segments });
         router.replace('/onboarding' as any);
       }
     } else if (inAuthGroup || segment0 === 'onboarding') {
-      // Redirect to home if authenticated, completed onboarding, and trying to access login/onboarding
-      console.log('[DEBUG Layout] Redirecting to /home');
+      sendDebugLog('[DEBUG Layout] Redirecting to /home', { segment0, segments });
       router.replace('/(tabs)/home' as any);
     }
   }, [isAuthenticated, authLoading, isChecking, hasCompletedOnboarding, segments, rootNavigationState]);

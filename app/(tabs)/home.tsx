@@ -42,7 +42,26 @@ export default function HomeScreen() {
     }
     getskill()
   }, [])
-  const { currentUser, topRecommendations, teachMatches, refreshRecommendations } = useCurrentUser();
+  const { currentUser, topRecommendations, teachMatches, refreshRecommendations, loadUser } = useCurrentUser();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      console.log('[Home] Refreshing matches and skills...');
+      // 1. Reload users and refresh recommendations
+      await loadUser();
+      refreshRecommendations();
+      
+      // 2. Reload skills
+      const any = await getSkillsWithUsers();
+      setSkillsWithUsers(any);
+    } catch (err) {
+      console.error('[Home] Refresh failed:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const filteredSkills = selectedCategory === 'All'
     ? skillsWithUsers
@@ -96,15 +115,25 @@ export default function HomeScreen() {
               </View>
               <TouchableOpacity
                 style={styles.refreshButton}
-                onPress={refreshRecommendations}
+                onPress={handleRefresh}
                 activeOpacity={0.85}
+                disabled={isRefreshing}
                 testID="refresh-matches"
               >
-                <RefreshCcw size={16} color={Colors.light.primary} />
-                <Text style={styles.refreshText}>Refresh</Text>
+                {isRefreshing ? (
+                  <ActivityIndicator size="small" color={Colors.light.primary} />
+                ) : (
+                  <RefreshCcw size={16} color={Colors.light.primary} />
+                )}
+                <Text style={styles.refreshText}>{isRefreshing ? 'Refreshing...' : 'Refresh'}</Text>
               </TouchableOpacity>
             </View>
-            {hasMatches ? (
+            {isRefreshing ? (
+              <View style={styles.loaderContainer}>
+                <ActivityIndicator size="large" color={Colors.light.primary} />
+                <Text style={styles.loaderText}>Finding perfect matches...</Text>
+              </View>
+            ) : hasMatches ? (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -135,36 +164,37 @@ export default function HomeScreen() {
                 <Text style={styles.matchesSubtitle}>Based on the skills you offer</Text>
               </View>
             </View>
-            {topTeachMatches.map((match) => (
-              <TouchableOpacity
-                key={`teach-${match.user.id}`}
-                style={styles.teachCard}
-                onPress={() => router.push(`/profile/${match.user.id}` as any)}
-                activeOpacity={0.85}
-                testID={`teach-card-${match.user.id}`}
-              >
-                {match.user.avatarUrl ? (
-                  <Image source={{ uri: resolveImageUrl(match.user.avatarUrl) }} style={styles.teachAvatar} />
-                ) : (
-                  <View style={[styles.teachAvatar, { backgroundColor: Colors.light.backgroundTertiary }]} />
-                )}
-                <View style={styles.teachInfo}>
-                  <Text style={styles.teachName}>{match.user.name}</Text>
-                  <View style={styles.teachSkillsRow}>
-                    {match.theyCanLearn.slice(0, 2).map((skill) => (
-                      <View key={`${match.user.id}-${skill}`} style={styles.teachChip}>
-                        <Text style={styles.teachChipText}>{skill}</Text>
-                      </View>
-                    ))}
+            {isRefreshing ? (
+              <View style={styles.loaderContainer}>
+                <ActivityIndicator size="large" color={Colors.light.primary} />
+              </View>
+            ) : topTeachMatches.length > 0 ? (
+              topTeachMatches.map((match) => (
+                <TouchableOpacity
+                  key={`teach-${match.user.id}`}
+                  style={styles.teachCard}
+                  onPress={() => router.push(`/profile/${match.user.id}` as any)}
+                  activeOpacity={0.85}
+                  testID={`teach-card-${match.user.id}`}
+                >
+                   <Image source={{ uri: resolveImageUrl(match.user.avatarUrl) }} style={styles.teachAvatar} />
+                  <View style={styles.teachInfo}>
+                    <Text style={styles.teachName}>{match.user.username ? `@${match.user.username}` : match.user.name}</Text>
+                    <View style={styles.teachSkillsRow}>
+                      {match.theyCanLearn.slice(0, 2).map((skill) => (
+                        <View key={`${match.user.id}-${skill}`} style={styles.teachChip}>
+                          <Text style={styles.teachChipText}>{skill}</Text>
+                        </View>
+                      ))}
+                    </View>
                   </View>
-                </View>
-                <View style={styles.teachCompatibility}>
-                  <Text style={styles.teachCompatibilityValue}>{match.compatibility}</Text>
-                  <Text style={styles.teachCompatibilityLabel}>match</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-            {topTeachMatches.length === 0 && (
+                  <View style={styles.teachCompatibility}>
+                    <Text style={styles.teachCompatibilityValue}>{match.compatibility}</Text>
+                    <Text style={styles.teachCompatibilityLabel}>match</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
               <View style={styles.emptyTeachCard}>
                 <Text style={styles.emptyMatchesTitle}>Expand your offerings to get learners here</Text>
               </View>
@@ -212,17 +242,13 @@ export default function HomeScreen() {
                         {skill.title}
                       </Text>
                       <View style={styles.featuredUser}>
-                        {skill.user.avatarUrl ? (
-                          <Image
-                            source={{ uri: resolveImageUrl(skill.user.avatarUrl) }}
-                            style={styles.featuredAvatar}
-                          />
-                        ) : (
-                          <View style={[styles.featuredAvatar, { backgroundColor: 'rgba(255,255,255,0.3)' }]} />
-                        )}
+                         <Image
+                           source={{ uri: resolveImageUrl(skill.user.avatarUrl) }}
+                           style={styles.featuredAvatar}
+                         />
                         <View style={styles.featuredUserInfo}>
                           <Text style={styles.featuredUserName} numberOfLines={1}>
-                            {skill.user.name}
+                            {skill.user.username ? `@${skill.user.username}` : skill.user.name}
                           </Text>
                           <View style={styles.featuredRating}>
                             <Star size={10} fill={Colors.light.accent} color={Colors.light.accent} />
@@ -297,16 +323,12 @@ export default function HomeScreen() {
                     </Text>
                     <View style={styles.skillFooter}>
                       <View style={styles.userInfo}>
-                        {skill.user.avatarUrl ? (
-                          <Image
-                            source={{ uri: resolveImageUrl(skill.user.avatarUrl) }}
-                            style={styles.userAvatar}
-                          />
-                        ) : (
-                          <View style={[styles.userAvatar, { backgroundColor: Colors.light.backgroundTertiary }]} />
-                        )}
+                         <Image
+                           source={{ uri: resolveImageUrl(skill.user.avatarUrl) }}
+                           style={styles.userAvatar}
+                         />
                         <Text style={styles.userName} numberOfLines={1}>
-                          {skill.user.name}
+                          {skill.user.username ? `@${skill.user.username}` : skill.user.name}
                         </Text>
                       </View>
                       <View style={styles.ratingContainer}>
@@ -760,5 +782,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.light.backgroundSecondary,
+  },
+  loaderContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  loaderText: {
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+    fontWeight: '500' as const,
   },
 });

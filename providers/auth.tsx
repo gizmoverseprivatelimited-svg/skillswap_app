@@ -13,6 +13,7 @@ interface AuthUser {
   _id?: string;
   email: string;
   name: string;
+  username?: string;
   avatar?: string;
   bio?: string;
   location?: string;
@@ -29,7 +30,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string, username: string) => Promise<void>;
   signInWithOtp: (identifier: string, code: string) => Promise<void>;
   signInWithOAuth: (provider: 'google' | 'apple', data: {
     providerId: string;
@@ -40,7 +41,16 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   refreshAuth: () => Promise<void>;
   skipLogin: () => Promise<void>;
+  updateUser: (newUser: AuthUser) => Promise<void>;
 }
+
+const sendDebugLog = (msg: string, data: any) => {
+  fetch(`${url}/debug-log`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: msg, data }),
+  }).catch(() => {});
+};
 
 export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() => {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -57,16 +67,21 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
   };
 
   const saveToken = useCallback(async (newToken: string, newUser?: AuthUser) => {
-    console.log('[Auth] Saving token');
+    sendDebugLog('[Auth] saveToken', { newToken, newUser });
     await AsyncStorage.setItem(TOKEN_KEY, newToken);
+    let normalizedUser: AuthUser | null = null;
     if (newUser) {
-      await AsyncStorage.setItem(USER_KEY, JSON.stringify(normalizeUser(newUser)));
+      normalizedUser = normalizeUser(newUser);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
     }
     setToken(newToken);
+    if (normalizedUser) {
+      setUser(normalizedUser);
+    }
   }, []);
 
   const clearToken = useCallback(async () => {
-    console.log('[Auth] Clearing token');
+    sendDebugLog('[Auth] clearToken', {});
     await AsyncStorage.removeItem(TOKEN_KEY);
     await AsyncStorage.removeItem(USER_KEY);
     setToken(null);
@@ -74,10 +89,11 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
   }, []);
 
   const refreshAuth = useCallback(async () => {
-    console.log('[Auth] Refreshing auth state');
+    sendDebugLog('[Auth] refreshAuth start', {});
     try {
       const storedToken = await AsyncStorage.getItem(TOKEN_KEY);
       const storedUser = await AsyncStorage.getItem(USER_KEY);
+      sendDebugLog('[Auth] refreshAuth results', { storedToken, storedUser });
       if (storedToken) {
         setToken(storedToken);
       }
@@ -102,30 +118,30 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
       body: JSON.stringify({ email, password }),
     });
 
-    if (!res.ok) throw new Error('Signin failed');
-
     const result = await res.json();
+    if (!res.ok) throw new Error(result.message || 'Signin failed');
     console.log(result);
 
     await saveToken(result.token, result.user);
-    setUser(normalizeUser(result.user));
   }, [saveToken]);
 
 
-  const signUp = useCallback(async (email: string, password: string, name: string) => {
+  const signUp = useCallback(async (email: string, password: string, name: string, username: string) => {
     const res = await fetch(`${URL}/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name }),
+      body: JSON.stringify({ email, password, name, username }),
     });
 
-    if (!res.ok) throw new Error('Signup failed');
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.message || 'Signup failed');
+    }
 
     const result = await res.json();
     console.log(result);
 
     await saveToken(result.token, result.user);
-    setUser(normalizeUser(result.user));
   }, [saveToken]);
 
 
@@ -151,7 +167,6 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
 
 
       await saveToken(result.token, result.user);
-      setUser(normalizeUser(result.user));
 
       console.log('[Auth] OTP sign in successful');
     },
@@ -170,7 +185,6 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
 
     const result = await res.json();
     await saveToken(result.token, result.user);
-    setUser(normalizeUser(result.user));
   }, [saveToken]);
 
 
@@ -195,6 +209,15 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
     setUser(guestUser);
   }, [saveToken]);
 
+  const updateUser = useCallback(async (newUser: AuthUser) => {
+    console.log('[Auth] Updating user data');
+    const normalized = normalizeUser(newUser);
+    if (normalized) {
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(normalized));
+      setUser(normalized);
+    }
+  }, []);
+
   const isAuthenticated = useMemo(() => {
     return !!token && !!user;
   }, [token, user]);
@@ -211,7 +234,8 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
     signOut,
     refreshAuth,
     skipLogin,
-  }), [user, token, isLoading, isAuthenticated, signIn, signUp, signInWithOtp, signInWithOAuth, signOut, refreshAuth, skipLogin]);
+    updateUser,
+  }), [user, token, isLoading, isAuthenticated, signIn, signUp, signInWithOtp, signInWithOAuth, signOut, refreshAuth, skipLogin, updateUser]);
 
   return value;
 });

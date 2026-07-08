@@ -100,7 +100,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
       setError(null);
       resetSwapMutation();
     }
-  }, [visible, currentUser?.skillsOffered, resetSwapMutation]);
+  }, [visible, resetSwapMutation]);
 
   const timeOptions = useMemo<TimeOption[]>(() => {
     return buildTimeOptions();

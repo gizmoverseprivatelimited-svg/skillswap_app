@@ -34,7 +34,7 @@ const resolveSwapTagStyle = (status: SkillSwapStatus | string) => {
 export default function SkillDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   // console.log(id);
-  
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
   // const [skillsWithUsers, setSkillsWithUsers] = useState<SkillWithUser[]>([])
@@ -147,6 +147,7 @@ export default function SkillDetailScreen() {
   if (isLoading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator size="large" color={Colors.light.primary} />
       </View>
     );
@@ -155,6 +156,7 @@ export default function SkillDetailScreen() {
   if (!skill) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Stack.Screen options={{ headerShown: false }} />
         <Text style={styles.errorText}>Skill not found</Text>
       </View>
     );
@@ -164,6 +166,7 @@ export default function SkillDetailScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
+          headerShown: true,
           title: '',
           headerTransparent: true,
           headerTintColor: '#FFFFFF',
@@ -240,7 +243,7 @@ export default function SkillDetailScreen() {
                 style={styles.teacherAvatar}
               />
               <View style={styles.teacherInfo}>
-                <Text style={styles.teacherName}>{skill.user.name}</Text>
+                <Text style={styles.teacherName}>{skill.user.username ? `@${skill.user.username}` : skill.user.name}</Text>
                 <View style={styles.teacherStats}>
                   <View style={styles.statItem}>
                     <Star size={14} fill={Colors.light.accent} color={Colors.light.accent} />

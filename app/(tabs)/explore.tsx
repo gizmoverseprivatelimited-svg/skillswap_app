@@ -275,7 +275,7 @@ export default function ExploreScreen() {
                     <Image source={{ uri: resolveImageUrl(skill.user.avatarUrl, 'https://i.pravatar.cc/150?img=5') }} style={styles.userAvatar} />
                     <View style={styles.userDetails}>
                       <Text style={styles.userName} numberOfLines={1}>
-                        {skill.user.name}
+                        {skill.user.username ? `@${skill.user.username}` : skill.user.name}
                       </Text>
                       <View style={styles.ratingRow}>
                         <Star size={12} fill={Colors.light.accent} color={Colors.light.accent} />

@@ -6,7 +6,7 @@ import * as Device from 'expo-device';
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 let Notifications: any = null;
-if (Platform.OS !== 'web' && !isExpoGo) {
+if (Platform.OS !== 'web') {
   try {
     Notifications = require('expo-notifications');
   } catch (error) {
@@ -118,7 +118,8 @@ async function registerForPushNotificationsAsync() {
     }
 
     try {
-      token = (await Notifications.getExpoPushTokenAsync()).data;
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+      token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
     } catch (error) {
       console.log('[PushNotifications] Failed to get push token:', error);
     }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Platform, ActivityIndicator } from 'react-native';
 import { useAlert } from '@/providers/alert';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { MapPin, Clock, Check, X, Send, Sparkles, CalendarClock, PlusCircle, ArrowLeft, ShieldCheck, Video, Phone, CalendarPlus, Download } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 import { useSkillSwaps } from '../../providers/skill-swaps';
@@ -263,7 +263,7 @@ export default function SwapDetailScreen() {
         swap,
         acceptedTime,
         counterpartSkill?.title ?? 'Skill Swap',
-        partner?.name ?? 'Partner',
+        partner?.username ?? (partner?.name ?? 'Partner'),
       );
 
       if (result.success && result.eventId) {
@@ -312,7 +312,7 @@ export default function SwapDetailScreen() {
         swap,
         acceptedTime,
         counterpartSkill?.title ?? 'Skill Swap',
-        partner?.name ?? 'Partner',
+        partner?.username ?? (partner?.name ?? 'Partner'),
       );
 
       if (result.success) {
@@ -343,6 +343,7 @@ export default function SwapDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
+        <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator size="large" color={Colors.light.primary} />
       </View>
     );
@@ -351,6 +352,7 @@ export default function SwapDetailScreen() {
   if (!swap) {
     return (
       <View style={styles.emptyContainer}>
+        <Stack.Screen options={{ headerShown: false }} />
         <Text style={styles.emptyTitle}>Swap not found</Text>
         <TouchableOpacity
           style={styles.emptyButton}
@@ -365,6 +367,12 @@ export default function SwapDetailScreen() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: 'Swap details',
+        }}
+      />
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <LinearGradient colors={['#1F2937', '#111827']} style={styles.heroBanner}>
           <TouchableOpacity style={styles.backRow} onPress={() => router.back()} testID="swap-detail-back">
@@ -372,7 +380,7 @@ export default function SwapDetailScreen() {
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
           <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>{partner?.name ?? 'Skill Partner'}</Text>
+            <Text style={styles.heroTitle}>{partner?.username ? `@${partner.username}` : (partner?.name ?? 'Skill Partner')}</Text>
             <Text style={styles.heroSubtitle}>{headerCopy?.title}</Text>
             <Text style={styles.heroBody}>{headerCopy?.description}</Text>
           </View>
@@ -397,7 +405,7 @@ export default function SwapDetailScreen() {
                 <Text style={styles.overviewValue}>{yourSkill?.title ?? 'Skill TBD'}</Text>
               </View>
               <View style={styles.overviewColumn}>
-                <Text style={styles.overviewLabel}>{partner ? `${partner.name.split(' ')[0]} offers` : 'Partner offers'}</Text>
+                <Text style={styles.overviewLabel}>{partner ? `${partner.username ? `@${partner.username}` : partner.name.split(' ')[0]} offers` : 'Partner offers'}</Text>
                 <Text style={styles.overviewValue}>{counterpartSkill?.title ?? 'Skill TBD'}</Text>
               </View>
             </View>

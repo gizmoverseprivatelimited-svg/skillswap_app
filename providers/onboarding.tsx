@@ -34,7 +34,7 @@ interface OnboardingContextValue {
 }
 
 export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingContextValue>(() => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, updateUser } = useAuth();
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean>(false);
   const [isChecking, setIsChecking] = useState<boolean>(true);
   const [currentStep, setCurrentStep] = useState<number>(0);
@@ -44,7 +44,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
 
   useEffect(() => {
     checkOnboardingStatus();
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user?.id]);
 
   const checkOnboardingStatus = useCallback(async () => {
     console.log('[Onboarding] Checking onboarding status');
@@ -64,11 +64,11 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
       setHasCompletedOnboarding(hasCompleted);
     } catch (error) {
       console.error('[Onboarding] Failed to check status:', error);
-      setHasCompletedOnboarding(false);
+      // Don't reset to false on error — keep the previous value
     } finally {
       setIsChecking(false);
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user?.id]);
 
   const updateOnboardingData = useCallback((data: Partial<OnboardingData>) => {
     console.log('[Onboarding] Updating data:', data);
@@ -83,6 +83,21 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
     }
 
     try {
+      // For guest users, complete onboarding purely locally
+      if (user.id === '1') {
+        const key = `${ONBOARDING_KEY}_${user.id}`;
+        await AsyncStorage.setItem(key, 'true');
+        
+        const dataKey = `${ONBOARDING_KEY}_${user.id}_data`;
+        await AsyncStorage.setItem(dataKey, JSON.stringify(onboardingData));
+        
+        setHasCompletedOnboarding(true);
+        setCurrentStep(0);
+        setOnboardingData({});
+        console.log('[Onboarding] Completed locally for guest user');
+        return;
+      }
+
       const response = await fetch(`${url}/users/onboarding`, {
         method: 'POST',
         headers: {
@@ -108,6 +123,11 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
         throw new Error('Onboarding save failed');
       }
 
+      const result = await response.json();
+
+      // Save onboarding flag to AsyncStorage BEFORE updateUser to prevent
+      // race condition: updateUser changes user ref → triggers checkOnboardingStatus
+      // → which must find the flag already written.
       const key = `${ONBOARDING_KEY}_${user.id}`;
       await AsyncStorage.setItem(key, 'true');
       
@@ -115,6 +135,10 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
       await AsyncStorage.setItem(dataKey, JSON.stringify(onboardingData));
       
       setHasCompletedOnboarding(true);
+
+      if (result.success && result.user) {
+        await updateUser(result.user);
+      }
       setCurrentStep(0);
       setOnboardingData({});
       
@@ -123,7 +147,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
       console.error('[Onboarding] Failed to complete:', error);
       throw error;
     }
-  }, [user, onboardingData]);
+  }, [user, onboardingData, updateUser]);
 
   const skipOnboarding = useCallback(async () => {
     console.log('[Onboarding] Skipping onboarding');

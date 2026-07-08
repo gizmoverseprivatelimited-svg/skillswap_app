@@ -37,7 +37,8 @@ export default function SwapOversight() {
   }, [swaps, filter]);
 
   const getUserName = (userId: string) => {
-    return allUsers.find(u => u.id === userId)?.name ?? 'Unknown';
+    const user = allUsers.find(u => u.id === userId);
+    return user ? (user.username ? `@${user.username}` : user.name) : 'Unknown';
   };
 
   const getSkillTitle = (userId: string, skillId: string) => {
@@ -76,6 +77,7 @@ export default function SwapOversight() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
+        <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator size="large" color={Colors.light.primary} />
       </View>
     );
@@ -83,7 +85,7 @@ export default function SwapOversight() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Swap Oversight', headerStyle: { backgroundColor: '#0F172A' }, headerTintColor: '#F8FAFC' }} />
+      <Stack.Screen options={{ headerShown: true, title: 'Swap Oversight', headerStyle: { backgroundColor: '#0F172A' }, headerTintColor: '#F8FAFC' }} />
 
       <View style={styles.summaryRow}>
         <View style={[styles.summaryCard, { backgroundColor: '#EFF6FF' }]}>

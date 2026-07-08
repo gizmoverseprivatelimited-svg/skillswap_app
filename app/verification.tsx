@@ -274,10 +274,7 @@ export default function VerificationScreen() {
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            headerShown: true,
-            title: 'Verification',
-            headerStyle: { backgroundColor: Colors.light.card },
-            headerTintColor: Colors.light.text,
+            headerShown: false,
           }}
         />
         <View style={styles.loadingContainer}>

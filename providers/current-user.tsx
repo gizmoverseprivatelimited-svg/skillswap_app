@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
 import { mockUsers, getUsers } from '../mocks/data';
 import type { MatchRecommendation, User } from '../types';
@@ -21,20 +21,41 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
   const [users, setUsers] = useState<User[]>(mockUsers)
   let { user } = useAuth()
 
-  async function loadUser() {
-    let data = await getUsers()
-    // console.log(data);
-    setUsers(data)
-    if (data) {
-      let authUser = data.find((u) => u.id == user?.id)
-      console.log("authUser", authUser);
-      setCurrentUser(authUser ? authUser || data[0] : data[0])
+  // Keep a ref to the latest user?.id so the polling interval always reads the current value
+  const userIdRef = useRef(user?.id);
+  useEffect(() => {
+    userIdRef.current = user?.id;
+  }, [user?.id]);
+
+  const loadUser = useCallback(async () => {
+    try {
+      let data = await getUsers()
+      if (data) {
+        setUsers(data)
+        const currentId = userIdRef.current;
+        let authUser = data.find((u) => u.id == currentId)
+        console.log("authUser", authUser);
+        setCurrentUser(authUser ? authUser || data[0] : data[0])
+      }
+    } catch (err) {
+      console.error('[CurrentUser] Failed to load users:', err);
     }
-  }
+  }, []);
+
   useEffect(() => {
     console.log("Working");
-    loadUser()
-  }, [user?.id])
+    loadUser();
+
+    // Poll users list every 10 seconds to detect new users and update matches
+    const intervalId = setInterval(() => {
+      console.log('[CurrentUser] Polling users silently...');
+      loadUser();
+    }, 10000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [user?.id, loadUser]);
 
   const otherUsers = useMemo<User[]>(() => {
     console.log('[Matching] Computing other users list', { refreshCounter });

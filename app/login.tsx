@@ -34,6 +34,7 @@ export default function LoginScreen() {
   const [identifier, setIdentifier] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [name, setName] = useState<string>('');
+  const [username, setUsername] = useState<string>('');
   const [code, setCode] = useState<string>('');
   const [step, setStep] = useState<'enter' | 'verify'>('enter');
   const [error, setError] = useState<string | null>(null);
@@ -136,7 +137,7 @@ export default function LoginScreen() {
   const onEmailSignUp = useCallback(async () => {
     console.log('[Login] Email sign up');
     setError(null);
-    if (!identifier || !password || !name) {
+    if (!identifier || !password || !name || !username) {
       setError('Fill in all fields');
       return;
     }
@@ -144,14 +145,20 @@ export default function LoginScreen() {
       setError('Password must be at least 8 characters');
       return;
     }
+    // Username regex validation: letters, numbers, dots, hyphens, underscores
+    const usernameRegex = /^[a-z0-9_.-]{3,30}$/;
+    if (!usernameRegex.test(username)) {
+      setError('Username must be 3-30 characters and contain only lowercase letters, numbers, dots, hyphens, or underscores');
+      return;
+    }
     try {
-      await auth.signUp(identifier, password, name);
+      await auth.signUp(identifier, password, name, username);
       router.replace('/');
     } catch (e: any) {
       console.error('[Login] sign up error', e);
       setError(e.message || 'Could not create account');
     }
-  }, [identifier, password, name, auth, router]);
+  }, [identifier, password, name, username, auth, router]);
 
   const onForgotPassword = useCallback(async () => {
     console.log('[Login] Forgot password');
@@ -492,6 +499,22 @@ export default function LoginScreen() {
                         style={styles.input}
                         value={name}
                         onChangeText={setName}
+                      />
+                    </View>
+
+                    <Text style={[styles.label, styles.labelSpaced]}>Username</Text>
+                    <View style={styles.inputRow}>
+                      <View style={styles.inputIcon}>
+                        <Sparkles size={18} color={Colors.light.textSecondary} />
+                      </View>
+                      <TextInput
+                        testID="username-input"
+                        placeholder="Choose a unique username"
+                        placeholderTextColor={Colors.light.textTertiary}
+                        style={styles.input}
+                        autoCapitalize="none"
+                        value={username}
+                        onChangeText={(val) => setUsername(val.toLowerCase().replace(/[^a-z0-9_.-]/g, ''))}
                       />
                     </View>
 

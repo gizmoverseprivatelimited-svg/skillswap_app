@@ -136,14 +136,10 @@ export default function ProfileScreen() {
           style={styles.header}
         >
           <View style={styles.avatarContainer}>
-            {currentUser?.avatarUrl ? (
-              <Image
-                source={{ uri: resolveImageUrl(currentUser?.avatarUrl) }}
-                style={styles.avatar}
-              />
-            ) : (
-              <View style={[styles.avatar, { backgroundColor: 'rgba(255,255,255,0.3)' }]} />
-            )}
+            <Image
+              source={{ uri: resolveImageUrl(currentUser?.avatarUrl) }}
+              style={styles.avatar}
+            />
             <View style={styles.badgeContainer}>
               <Award size={16} color="#FFFFFF" />
             </View>

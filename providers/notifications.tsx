@@ -115,14 +115,14 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         return;
       }
       matchSeenRef.current.add(recommendation.user.id);
-      // addNotification({
-      //   category: 'match',
-      //   title: 'Fresh match discovered',
-      //   body: `${recommendation.user.name} is a ${recommendation.compatibility}% compatibility partner. Explore their profile to connect.`,
-      //   metadata: {
-      //     userId: recommendation.user.id,
-      //   },
-      // });
+      addNotification({
+        category: 'match',
+        title: 'Fresh match discovered',
+        body: `${recommendation.user.username ? `@${recommendation.user.username}` : recommendation.user.name} is a ${recommendation.compatibility}% compatibility partner. Explore their profile to connect.`,
+        metadata: {
+          userId: recommendation.user.id,
+        },
+      });
     });
   }, [addNotification, topRecommendations]);
 
@@ -138,52 +138,52 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
       if (swap.recipientId === currentUser?.id && swap.status === 'pending') {
         const counterpart = allUsers.find((user) => user.id === counterpartId);
-        // addNotification({
-        //   category: 'swap',
-        //   title: 'New swap request',
-        //   body: `${counterpart?.name ?? 'A community member'} sent you a new skill swap request. Review their proposal now.`,
-        //   metadata: {
-        //     swapId: swap.id,
-        //   },
-        // });
+        addNotification({
+          category: 'swap',
+          title: 'New swap request',
+          body: `${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'A community member')} sent you a new skill swap request. Review their proposal now.`,
+          metadata: {
+            swapId: swap.id,
+          },
+        });
         return;
       }
 
       if (swap.requesterId === currentUser?.id && swap.status === 'negotiating') {
         const counterpart = allUsers.find((user) => user.id === counterpartId);
-        // addNotification({
-        //   category: 'swap',
-        //   title: 'Counter proposal received',
-        //   body: `${counterpart?.name ?? 'Your partner'} shared new time options for your swap.`,
-        //   metadata: {
-        //     swapId: swap.id,
-        //   },
-        // });
+        addNotification({
+          category: 'swap',
+          title: 'Counter proposal received',
+          body: `${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'Your partner')} shared new time options for your swap.`,
+          metadata: {
+            swapId: swap.id,
+          },
+        });
         return;
       }
 
       if (swap.status === 'scheduled' && swap.acceptedTimeId) {
         const counterpart = allUsers.find((user) => user.id === counterpartId);
-        // addNotification({
-        //   category: 'swap',
-        //   title: 'Swap confirmed',
-        //   body: `Your session with ${counterpart?.name ?? 'your partner'} is confirmed. Add it to your calendar and get ready!`,
-        //   metadata: {
-        //     swapId: swap.id,
-        //   },
-        // });
+        addNotification({
+          category: 'swap',
+          title: 'Swap confirmed',
+          body: `Your session with ${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'your partner')} is confirmed. Add it to your calendar and get ready!`,
+          metadata: {
+            swapId: swap.id,
+          },
+        });
       }
 
       if (swap.status === 'completed') {
         const counterpart = allUsers.find((user) => user.id === counterpartId);
-        // addNotification({
-        //   category: 'swap',
-        //   title: 'Swap completed',
-        //   body: `Nice work! Your swap with ${counterpart?.name ?? 'your partner'} is done. Leave a review to help the community.`,
-        //   metadata: {
-        //     swapId: swap.id,
-        //   },
-        // });
+        addNotification({
+          category: 'swap',
+          title: 'Swap completed',
+          body: `Nice work! Your swap with ${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'your partner')} is done. Leave a review to help the community.`,
+          metadata: {
+            swapId: swap.id,
+          },
+        });
       }
     });
   }, [addNotification, allUsers, currentUser?.id, swaps]);
@@ -214,15 +214,15 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             }
             reminderSeenRef.current.add(key);
             const humanReadable = threshold >= 1 ? `${threshold} hour${threshold === 1 ? '' : 's'}` : 'soon';
-            // addNotification({
-            //   category: 'reminder',
-            //   title: 'Upcoming swap reminder',
-            //   body: `Your swap with ${counterpart?.name ?? 'your partner'} starts in ${humanReadable}. Pull up your prep notes!`,
-            //   metadata: {
-            //     swapId: swap.id,
-            //     startsAt: acceptedSlot.startISO,
-            //   },
-            // });
+            addNotification({
+              category: 'reminder',
+              title: 'Upcoming swap reminder',
+              body: `Your swap with ${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'your partner')} starts in ${humanReadable}. Pull up your prep notes!`,
+              metadata: {
+                swapId: swap.id,
+                startsAt: acceptedSlot.startISO,
+              },
+            });
           }
         });
       });

@@ -503,10 +503,10 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
                   <View style={styles.reviewHeader}>
                     <View style={styles.reviewerRow}>
                       <View style={styles.avatarCircle}>
-                        <Text style={styles.avatarInitials}>{review.reviewer?.name?.slice(0, 2).toUpperCase()}</Text>
+                        <Text style={styles.avatarInitials}>{(review.reviewer?.username || review.reviewer?.name || 'US').slice(0, 2).toUpperCase()}</Text>
                       </View>
                       <View style={styles.reviewerInfo}>
-                        <Text style={styles.reviewerName}>{review.reviewer?.name}</Text>
+                        <Text style={styles.reviewerName}>{review.reviewer?.username ? `@${review.reviewer.username}` : review.reviewer?.name}</Text>
                         <Text style={styles.reviewDate}>{new Date(review.createdAt).toLocaleDateString()}</Text>
                       </View>
                     </View>

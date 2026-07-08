@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
@@ -13,6 +15,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles, GraduationCap, Target, Calendar, MapPin, MessageCircle, CheckCircle2 } from 'lucide-react-native';
 import { useOnboarding } from '@/providers/onboarding';
 import { categories } from '@/mocks/data';
+import { useAlert } from '@/providers/alert';
+import { useCurrentUser } from '@/providers/current-user';
+import * as Location from 'expo-location';
 
 type SkillLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
 
@@ -30,6 +35,89 @@ export default function OnboardingScreen() {
     updateOnboardingData,
     completeOnboarding,
   } = useOnboarding();
+  const { loadUser } = useCurrentUser();
+  const { showAlert } = useAlert();
+
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+
+  const handleGetLocation = async () => {
+    setIsLocating(true);
+    try {
+      console.log('[Location] Requesting location permission...');
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        showAlert(
+          'Permission Denied',
+          'Permission to access location was denied. Please enter your location manually.'
+        );
+        return;
+      }
+
+      console.log('[Location] Fetching current position...');
+      const currentLocation = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      console.log('[Location] Reverse geocoding position...');
+      let formattedLocation = '';
+
+      if (Platform.OS === 'web') {
+        // Fallback for Web using OpenStreetMap Nominatim reverse geocoder
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${currentLocation.coords.latitude}&lon=${currentLocation.coords.longitude}`,
+          {
+            headers: {
+              'User-Agent': 'SkillSwapCommunityApp',
+            },
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.address) {
+            const addr = data.address;
+            const city = addr.city || addr.town || addr.village || addr.suburb || addr.municipality || '';
+            const state = addr.state || '';
+            const country = addr.country || '';
+            const parts = [city, state, country].filter((p) => p.trim() !== '');
+            formattedLocation = parts.join(', ');
+          }
+        }
+      } else {
+        const geocoded = await Location.reverseGeocodeAsync({
+          latitude: currentLocation.coords.latitude,
+          longitude: currentLocation.coords.longitude,
+        });
+
+        if (geocoded && geocoded.length > 0) {
+          const address = geocoded[0];
+          console.log('[Location] Geocode address result:', address);
+          
+          // Extract city, state, country
+          const city = address.city || address.subregion || address.district || '';
+          const state = address.region || '';
+          const country = address.country || '';
+
+          const parts = [city, state, country].filter((p) => p.trim() !== '');
+          formattedLocation = parts.join(', ');
+        }
+      }
+
+      if (formattedLocation) {
+        setLocation(formattedLocation);
+      } else {
+        showAlert('Location Error', 'Could not resolve city/state from current location.');
+      }
+    } catch (error: any) {
+      console.error('[Location] Error getting location:', error);
+      showAlert(
+        'Location Error',
+        error.message || 'An error occurred while fetching your location. Please type manually.'
+      );
+    } finally {
+      setIsLocating(false);
+    }
+  };
 
   const [selectedTeachSkills, setSelectedTeachSkills] = useState<string[]>(onboardingData.skillsToTeach || []);
   const [selectedLearnSkills, setSelectedLearnSkills] = useState<string[]>(onboardingData.skillsToLearn || []);
@@ -73,9 +161,19 @@ export default function OnboardingScreen() {
   };
 
   const handleComplete = async () => {
+    if (isCompleting) return;
+    setIsCompleting(true);
     console.log('[Onboarding] Completing with final data');
-    await completeOnboarding();
-    router.replace('/(tabs)/home');
+    try {
+      await completeOnboarding();
+      await loadUser();
+      router.replace('/(tabs)/home');
+    } catch (error: any) {
+      console.error('[Onboarding] Failed to complete:', error);
+      showAlert('Onboarding Failed', error.message || 'Failed to complete onboarding. Please try again.');
+    } finally {
+      setIsCompleting(false);
+    }
   };
 
   const canContinue = () => {
@@ -370,6 +468,21 @@ export default function OnboardingScreen() {
           onChangeText={setLocation}
         />
 
+        <TouchableOpacity
+          style={[styles.getLocationButton, isLocating && styles.getLocationButtonDisabled]}
+          onPress={handleGetLocation}
+          disabled={isLocating}
+        >
+          {isLocating ? (
+            <ActivityIndicator size="small" color="#FF6B9D" />
+          ) : (
+            <>
+              <MapPin size={16} color="#FF6B9D" style={{ marginRight: 6 }} />
+              <Text style={styles.getLocationButtonText}>Use Current Location</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
         <View style={styles.toggleRow}>
           <TouchableOpacity
             style={[styles.toggle, virtualEnabled && styles.toggleActive]}
@@ -488,14 +601,14 @@ export default function OnboardingScreen() {
             <TouchableOpacity
               style={[
                 styles.continueButton,
-                !canContinue() && styles.continueButtonDisabled,
+                (!canContinue() || isCompleting) && styles.continueButtonDisabled,
                 currentStep === 0 && styles.continueButtonFull,
               ]}
               onPress={goToNextStep}
-              disabled={!canContinue()}
+              disabled={!canContinue() || isCompleting}
             >
               <Text style={styles.continueButtonText}>
-                {currentStep === totalSteps - 1 ? "Let's Go!" : 'Continue'}
+                {isCompleting ? 'Loading...' : (currentStep === totalSteps - 1 ? "Let's Go!" : 'Continue')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -714,6 +827,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
     marginBottom: 16,
+  },
+  getLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF0F4',
+    borderWidth: 1,
+    borderColor: '#FFD1DF',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  getLocationButtonDisabled: {
+    opacity: 0.6,
+  },
+  getLocationButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#FF6B9D',
   },
   toggleRow: {
     flexDirection: 'row',
