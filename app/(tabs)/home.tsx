@@ -70,10 +70,9 @@ export default function HomeScreen() {
   const featuredSkills = skillsWithUsers.slice(0, 3);
   const topTeachMatches = useMemo(() => teachMatches.slice(0, 4), [teachMatches]);
   const hasMatches = topRecommendations.length > 0;
-  const firstName = useMemo(() => {
-    const [first] = currentUser?.name.split(' ') || [];
-    return first ?? currentUser?.name;
-  }, [currentUser?.name]);
+  const usernameDisplay = useMemo(() => {
+    return currentUser?.username ? `@${currentUser.username}` : (currentUser?.name || '');
+  }, [currentUser?.username, currentUser?.name]);
 
   if (isSkillsLoading) {
     return (
@@ -97,7 +96,7 @@ export default function HomeScreen() {
         >
           <View style={styles.headerContent}>
             <View>
-              <Text style={styles.greeting}>Hi, {firstName}</Text>
+              <Text style={styles.greeting}>Hi, {usernameDisplay}</Text>
               <Text style={styles.subtitle}>Curated swaps to accelerate your growth</Text>
             </View>
             <View style={styles.logo} />
@@ -110,7 +109,7 @@ export default function HomeScreen() {
               <View style={styles.matchesTitleGroup}>
                 <Text style={styles.matchesTitle}>Smart Matches</Text>
                 <Text style={styles.matchesSubtitle}>
-                  {hasMatches ? `Perfect partners for ${firstName}` : 'Update your skills to unlock tailored pairings'}
+                  {hasMatches ? `Perfect partners for ${usernameDisplay}` : 'Update your skills to unlock tailored pairings'}
                 </Text>
               </View>
               <TouchableOpacity

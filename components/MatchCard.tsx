@@ -84,7 +84,9 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
               <View style={[styles.avatar, { backgroundColor: Colors.light.backgroundTertiary }]} />
             )}
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{recommendation.user.name}</Text>
+              <Text style={styles.userName}>
+                {recommendation.user.username ? `@${recommendation.user.username}` : recommendation.user.name}
+              </Text>
               {spotlightSkill && (
                 <View style={styles.spotlightRow}>
                   <GraduationCap size={14} color="rgba(148, 163, 184, 0.9)" />
