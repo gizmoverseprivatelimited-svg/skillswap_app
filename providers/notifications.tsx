@@ -57,6 +57,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   const matchSeenRef = useRef<Set<string>>(new Set());
   const swapSeenRef = useRef<Map<string, string>>(new Map());
   const reminderSeenRef = useRef<Set<string>>(new Set());
+  const messageSeenRef = useRef<Set<string>>(new Set());
+  const isInitialLoadRef = useRef<boolean>(true);
+  const prevUserIdRef = useRef<string | undefined>(currentUser?.id);
 
   useEffect(() => {
     if (expoPushToken && expoPushToken.length > 0 && currentUser?.id) {
@@ -239,6 +242,66 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       }
     };
   }, [addNotification, allUsers, currentUser?.id, scheduledSwaps]);
+
+  // Reset initial load and message refs when currentUser changes
+  useEffect(() => {
+    if (prevUserIdRef.current !== currentUser?.id) {
+      isInitialLoadRef.current = true;
+      messageSeenRef.current.clear();
+      prevUserIdRef.current = currentUser?.id;
+    }
+  }, [currentUser?.id]);
+
+  // Monitor incoming chat messages and alert the user
+  useEffect(() => {
+    if (!currentUser?.id || swaps.length === 0) {
+      return;
+    }
+
+    if (isInitialLoadRef.current) {
+      swaps.forEach((swap) => {
+        if (Array.isArray(swap.negotiationNotes)) {
+          swap.negotiationNotes.forEach((msg) => {
+            messageSeenRef.current.add(msg.id || msg._id || '');
+          });
+        }
+      });
+      isInitialLoadRef.current = false;
+      return;
+    }
+
+    swaps.forEach((swap) => {
+      const counterpartId = swap.requesterId === currentUser?.id ? swap.recipientId : swap.requesterId;
+      const counterpart = allUsers.find((user) => user.id === counterpartId);
+      const senderName = counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'Your partner');
+
+      if (Array.isArray(swap.negotiationNotes)) {
+        swap.negotiationNotes.forEach((msg) => {
+          const msgId = msg.id || msg._id || '';
+          if (!msgId) return;
+
+          // If the message is new, not written by us, and not a system message:
+          if (
+            !messageSeenRef.current.has(msgId) &&
+            msg.authorId !== currentUser.id &&
+            !msg.isSystem
+          ) {
+            messageSeenRef.current.add(msgId);
+            addNotification({
+              category: 'swap',
+              title: `New message from ${senderName}`,
+              body: msg.body,
+              metadata: {
+                swapId: swap.id,
+              },
+            });
+          } else {
+            messageSeenRef.current.add(msgId);
+          }
+        });
+      }
+    });
+  }, [swaps, currentUser?.id, allUsers, addNotification]);
 
   const unreadCount = useMemo(() => {
     return notifications.filter((notification) => !notification.read).length;
