@@ -1,4 +1,4 @@
-import * as Calendar from 'expo-calendar';
+import * as Calendar from 'expo-calendar/legacy';
 import { Platform, Share, Alert } from 'react-native';
 import type { SkillSwapRequest, SwapTimeProposal } from '@/types';
 
