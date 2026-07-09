@@ -123,14 +123,14 @@ function RootLayoutNav() {
       <Stack.Screen
         name="skill/[id]"
         options={{
-          headerShown: true,
+          headerShown: false,
           presentation: 'card',
         }}
       />
       <Stack.Screen
         name="profile/[id]"
         options={{
-          headerShown: true,
+          headerShown: false,
           title: 'Profile',
         }}
       />
@@ -144,7 +144,7 @@ function RootLayoutNav() {
       <Stack.Screen
         name="swaps/[id]"
         options={{
-          headerShown: true,
+          headerShown: false,
           title: 'Swap Detail',
         }}
       />
@@ -203,28 +203,28 @@ function RootLayoutNav() {
       <Stack.Screen
         name="admin/users"
         options={{
-          headerShown: true,
+          headerShown: false,
           title: 'User Management',
         }}
       />
       <Stack.Screen
         name="admin/reviews"
         options={{
-          headerShown: true,
+          headerShown: false,
           title: 'Review Moderation',
         }}
       />
       <Stack.Screen
         name="admin/swaps"
         options={{
-          headerShown: true,
+          headerShown: false,
           title: 'Swap Oversight',
         }}
       />
       <Stack.Screen
         name="admin/verifications"
         options={{
-          headerShown: true,
+          headerShown: false,
           title: 'Verifications',
         }}
       />

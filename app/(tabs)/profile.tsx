@@ -17,31 +17,40 @@ import { mockUsers } from '@/mocks/data';
 import { TrustScoreBadge } from '@/components/TrustScoreBadge';
 import ReviewsSection from '@/components/ReviewsSection';
 import { useCurrentUser } from '@/providers/current-user';
+import { useSkillSwaps } from '@/providers/skill-swaps';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import url from '@/constants/backurl';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const auth = useAuth();
   const { resetOnboarding } = useOnboarding();
   const { currentUser } = useCurrentUser();
+  const { swaps } = useSkillSwaps();
   const [verifications, setVerifications] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reviews, setReviews] = useState<any>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  const completedSwapsCount = useMemo(() => {
+    return swaps.filter((s: any) => s.status === 'completed').length;
+  }, [swaps]);
 
-  const fetchReviews = useCallback(async () => {
+  const displayTotalSwaps = useMemo(() => {
+    return Math.max(currentUser?.totalSwaps || 0, completedSwapsCount);
+  }, [currentUser?.totalSwaps, completedSwapsCount]);
+
+
+  const fetchReviews = useCallback(async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) {
+        setIsLoading(true);
+      }
       setFetchError(null);
       const res = await fetch(
         `${url}/reviews?revieweeId=${currentUser?.id}&skillId=${""}`
       );
-
-      // console.log(res);
-
 
       if (!res.ok) throw new Error("Failed to fetch reviews");
 
@@ -51,9 +60,13 @@ export default function ProfileScreen() {
       setReviews(data);
     } catch (err) {
       console.error("[Reviews] Fetch error", err);
-      setFetchError("Failed to load reviews");
+      if (!silent) {
+        setFetchError("Failed to load reviews");
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, [currentUser?.id]);
 
@@ -100,6 +113,12 @@ export default function ProfileScreen() {
   useEffect(() => {
     fetchReviews();
     fetchVerifications();
+
+    const interval = setInterval(() => {
+      fetchReviews(true);
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [fetchReviews, fetchVerifications]);
 
 
@@ -201,7 +220,7 @@ export default function ProfileScreen() {
               <View style={styles.statIconContainer}>
                 <TrendingUp size={20} color={Colors.light.primary} />
               </View>
-              <Text style={styles.statValue}>{currentUser?.totalSwaps}</Text>
+              <Text style={styles.statValue}>{displayTotalSwaps}</Text>
               <Text style={styles.statLabel}>Total Swaps</Text>
             </View>
             <View style={styles.statCard}>

@@ -42,9 +42,11 @@ export default function UserProfileScreen() {
   const user = allUsers.find(u => u.id === id);
   const insets = useSafeAreaInsets();
 
-  const fetchReviews = useCallback(async () => {
+  const fetchReviews = useCallback(async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) {
+        setIsLoading(true);
+      }
       setFetchError(null);
       const res = await fetch(
         `${url}/reviews?revieweeId=${user?.id}&skillId=${""}`
@@ -58,14 +60,24 @@ export default function UserProfileScreen() {
       setReviews(data);
     } catch (err) {
       console.error("[Reviews] Fetch error", err);
-      setFetchError("Failed to load reviews");
+      if (!silent) {
+        setFetchError("Failed to load reviews");
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, [user?.id]);
 
   useEffect(() => {
     fetchReviews();
+
+    const interval = setInterval(() => {
+      fetchReviews(true);
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [fetchReviews]);
 
   const handleSendMessage = useCallback(async () => {
