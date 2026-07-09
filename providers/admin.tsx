@@ -311,19 +311,21 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
       }
       console.log(data);
 
-      const formatted: VerificationRequest[] = data.verifications.map(
-        (v: any) => ({
-          id: v._id,
-          userId: v.userId._id,
-          userName: v.userId.name,
-          userAvatar: v.userId.avatarUrl || '',
-          type: v.type,
-          status: v.status,
-          submittedAt: v.createdAt,
-          details: v.details,
-          documentUrl: v.documentUrl,
-        })
-      );
+      const formatted: VerificationRequest[] = data.verifications
+        .filter((v: any) => v.userId)
+        .map(
+          (v: any) => ({
+            id: v._id,
+            userId: v.userId._id,
+            userName: v.userId.name,
+            userAvatar: v.userId.avatarUrl || '',
+            type: v.type,
+            status: v.status,
+            submittedAt: v.createdAt,
+            details: v.details,
+            documentUrl: v.documentUrl,
+          })
+        );
 
       setVerificationRequests(formatted);
     } catch (error) {
