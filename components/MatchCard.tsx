@@ -75,14 +75,10 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
           </View>
 
           <View style={styles.userRow}>
-            {recommendation.user.avatarUrl ? (
-              <Image
-                source={{ uri: resolveImageUrl(recommendation.user.avatarUrl) }}
-                style={styles.avatar}
-              />
-            ) : (
-              <View style={[styles.avatar, { backgroundColor: Colors.light.backgroundTertiary }]} />
-            )}
+            <Image
+              source={{ uri: resolveImageUrl(recommendation.user.avatarUrl) }}
+              style={styles.avatar}
+            />
             <View style={styles.userInfo}>
               <Text style={styles.userName}>
                 {recommendation.user.username ? `@${recommendation.user.username}` : recommendation.user.name}
