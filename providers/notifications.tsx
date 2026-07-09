@@ -58,7 +58,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   const swapSeenRef = useRef<Map<string, string>>(new Map());
   const reminderSeenRef = useRef<Set<string>>(new Set());
   const messageSeenRef = useRef<Set<string>>(new Set());
+  const reviewSeenRef = useRef<Set<string>>(new Set());
   const isInitialLoadRef = useRef<boolean>(true);
+  const isInitialReviewsLoadRef = useRef<boolean>(true);
   const prevUserIdRef = useRef<string | undefined>(currentUser?.id);
 
   useEffect(() => {
@@ -243,11 +245,13 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     };
   }, [addNotification, allUsers, currentUser?.id, scheduledSwaps]);
 
-  // Reset initial load and message refs when currentUser changes
+  // Reset initial load and message/review refs when currentUser changes
   useEffect(() => {
     if (prevUserIdRef.current !== currentUser?.id) {
       isInitialLoadRef.current = true;
+      isInitialReviewsLoadRef.current = true;
       messageSeenRef.current.clear();
+      reviewSeenRef.current.clear();
       prevUserIdRef.current = currentUser?.id;
     }
   }, [currentUser?.id]);
@@ -302,6 +306,61 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       }
     });
   }, [swaps, currentUser?.id, allUsers, addNotification]);
+
+  // Monitor incoming reviews and alert the user
+  useEffect(() => {
+    if (!currentUser?.id) {
+      return;
+    }
+
+    const checkNewReviews = async () => {
+      try {
+        const response = await fetch(`${url}/reviews?revieweeId=${currentUser.id}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        
+        if (data && Array.isArray(data.reviews)) {
+          if (isInitialReviewsLoadRef.current) {
+            data.reviews.forEach((rev: any) => {
+              reviewSeenRef.current.add(rev.id || rev._id || '');
+            });
+            isInitialReviewsLoadRef.current = false;
+            return;
+          }
+
+          data.reviews.forEach((rev: any) => {
+            const revId = rev.id || rev._id || '';
+            if (!revId) return;
+
+            if (!reviewSeenRef.current.has(revId)) {
+              reviewSeenRef.current.add(revId);
+              
+              // Only alert if the reviewer is not the current user
+              if (rev.reviewer?.id !== currentUser.id) {
+                addNotification({
+                  category: 'system',
+                  title: 'New review received',
+                  body: `${rev.reviewer?.name || 'A user'} gave you a ${rev.rating}-star review: "${rev.comment || ''}"`,
+                  metadata: {
+                    rating: rev.rating,
+                  },
+                });
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('[Notifications] Failed to check reviews:', err);
+      }
+    };
+
+    checkNewReviews();
+    const interval = setInterval(checkNewReviews, 15000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [currentUser?.id, addNotification]);
 
   const unreadCount = useMemo(() => {
     return notifications.filter((notification) => !notification.read).length;
