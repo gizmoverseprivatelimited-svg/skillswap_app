@@ -266,7 +266,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       swaps.forEach((swap) => {
         if (Array.isArray(swap.negotiationNotes)) {
           swap.negotiationNotes.forEach((msg) => {
-            messageSeenRef.current.add(msg.id || msg._id || '');
+            messageSeenRef.current.add(msg.id || (msg as any)._id || '');
           });
         }
       });
@@ -281,7 +281,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
       if (Array.isArray(swap.negotiationNotes)) {
         swap.negotiationNotes.forEach((msg) => {
-          const msgId = msg.id || msg._id || '';
+          const msgId = msg.id || (msg as any)._id || '';
           if (!msgId) return;
 
           // If the message is new, not written by us, and not a system message:

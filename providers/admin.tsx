@@ -698,7 +698,7 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
         );
 
         console.log(response);
-        
+
 
         if (!response.ok) {
           throw new Error('Failed to reject');
@@ -744,6 +744,7 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
     approveVerification,
     rejectVerification,
     stats,
+
     isLoading,
   }), [users, reviews, verificationRequests, isAdminAuthenticated, adminLogin, adminLogout, banUser, unbanUser, suspendUser, updateUserCredits, approveReview, rejectReview, approveVerification, rejectVerification, stats, isLoading]);
 });
