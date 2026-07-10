@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, Animated, TouchableOpacity, Platform } from 're
 import { useNotifications } from '../providers/notifications';
 import { Bell, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export function InAppNotificationBanner() {
   const { notifications, markAsRead } = useNotifications();
@@ -10,6 +11,7 @@ export function InAppNotificationBanner() {
   const lastSeenIdRef = useRef<string | null>(null);
   const slideAnim = useRef(new Animated.Value(-150)).current;
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const dismissBanner = useCallback(() => {
     Animated.timing(slideAnim, {
@@ -33,10 +35,10 @@ export function InAppNotificationBanner() {
       const diffMs = Date.now() - new Date(latest.createdAt).getTime();
       if (diffMs < 15000) {
         setActiveNotification(latest);
-        
+
         // Slide down
         Animated.spring(slideAnim, {
-          toValue: Platform.OS === 'ios' ? 50 : 30, // Position below notches/status bars
+          toValue: insets.top + 32, // Position below notches/status bars with safe space
           useNativeDriver: true,
           tension: 40,
           friction: 8,

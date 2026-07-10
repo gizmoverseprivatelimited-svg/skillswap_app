@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -28,29 +28,15 @@ export default function HomeScreen() {
   const [isSkillsLoading, setIsSkillsLoading] = useState(true);
   useSkillSwaps()
 
-  useEffect(() => {
-    async function getskill() {
-      try {
-        setIsSkillsLoading(true);
-        const any = await getSkillsWithUsers();
-        setSkillsWithUsers(any);
-      } catch (err) {
-        console.error('[Home] Failed to load skills:', err);
-      } finally {
-        setIsSkillsLoading(false);
-      }
-    }
-    getskill()
-  }, [])
-  const { currentUser, topRecommendations, teachMatches, refreshRecommendations, loadUser } = useCurrentUser();
+  const { currentUser, topRecommendations, teachMatches, refreshRecommendations, loadUser, isLoading: isUsersLoading } = useCurrentUser();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
       console.log('[Home] Refreshing matches and skills...');
       // 1. Reload users and refresh recommendations
-      await loadUser();
+      await loadUser(true);
       refreshRecommendations();
       
       // 2. Reload skills
@@ -61,7 +47,30 @@ export default function HomeScreen() {
     } finally {
       setIsRefreshing(false);
     }
-  };
+  }, [loadUser, refreshRecommendations]);
+
+  useEffect(() => {
+    async function initHome() {
+      try {
+        setIsSkillsLoading(true);
+        const any = await getSkillsWithUsers();
+        setSkillsWithUsers(any);
+      } catch (err) {
+        console.error('[Home] Initial fetch failed:', err);
+      } finally {
+        setIsSkillsLoading(false);
+      }
+    }
+    initHome();
+
+    // Programmatically trigger refresh after a short delay to let login state settle
+    const timer = setTimeout(() => {
+      console.log('[Home] Automatically triggering refresh on mount');
+      handleRefresh();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const filteredSkills = selectedCategory === 'All'
     ? skillsWithUsers
@@ -127,7 +136,7 @@ export default function HomeScreen() {
                 <Text style={styles.refreshText}>{isRefreshing ? 'Refreshing...' : 'Refresh'}</Text>
               </TouchableOpacity>
             </View>
-            {isRefreshing ? (
+            {isRefreshing || isUsersLoading ? (
               <View style={styles.loaderContainer}>
                 <ActivityIndicator size="large" color={Colors.light.primary} />
                 <Text style={styles.loaderText}>Finding perfect matches...</Text>

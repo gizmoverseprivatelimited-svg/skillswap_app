@@ -14,22 +14,28 @@ interface CurrentUserContextValue {
   topRecommendations: MatchRecommendation[];
   teachMatches: MatchRecommendation[];
   refreshRecommendations: () => void;
+  isLoading: boolean;
 }
 
 export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUserContextValue>(() => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [refreshCounter, setRefreshCounter] = useState<number>(0);
   const [users, setUsers] = useState<User[]>(mockUsers)
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   let { user } = useAuth()
 
-  // Keep a ref to the latest user?.id so the polling interval always reads the current value
-  const userIdRef = useRef(user?.id);
+  // Keep a ref to the latest user object to prevent loadUser from recreating and causing re-render loops
+  const userRef = useRef(user);
   useEffect(() => {
-    userIdRef.current = user?.id;
-  }, [user?.id]);
+    userRef.current = user;
+  }, [user]);
 
-  const loadUser = useCallback(async () => {
-    const currentId = userIdRef.current;
+  const loadUser = useCallback(async (silent = false) => {
+    const activeUser = userRef.current;
+    const currentId = activeUser?.id;
+    if (!silent) {
+      setIsLoading(true);
+    }
     if (currentId === '1') {
       let guestProfile: any = {};
       let guestSkills: Skill[] = [];
@@ -48,9 +54,9 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
 
       const demoUser: User = {
         id: '1',
-        name: guestProfile.name || user?.name || 'Guest User',
-        username: user?.username || 'user_demo',
-        avatarUrl: guestProfile.avatarUrl || user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+        name: guestProfile.name || activeUser?.name || 'Guest User',
+        username: activeUser?.username || 'user_demo',
+        avatarUrl: guestProfile.avatarUrl || activeUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
         bio: guestProfile.bio || 'Demo account. Explore all functionalities of SkillSwap!',
         location: guestProfile.location || 'New Delhi, India',
         skillsOffered: guestSkills,
@@ -58,8 +64,8 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
         rating: 4.8,
         totalSwaps: 5,
         joinedDate: '2026-01-01',
-        credits: user?.credits ?? 10,
-        premiumTier: user?.premiumTier ?? 'free',
+        credits: activeUser?.credits ?? 10,
+        premiumTier: activeUser?.premiumTier ?? 'free',
       };
       setCurrentUser(demoUser);
     }
@@ -80,21 +86,25 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
       }
     } catch (err) {
       console.error('[CurrentUser] Failed to load users:', err);
+    } finally {
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => {
+    console.log("[CurrentUser] Loading users...");
+    loadUser();
+
     if (!user?.id) {
       setCurrentUser(null);
-      return;
     }
-    console.log("Working");
-    loadUser();
 
     // Poll users list every 10 seconds to detect new users and update matches
     const intervalId = setInterval(() => {
       console.log('[CurrentUser] Polling users silently...');
-      loadUser();
+      loadUser(true);
     }, 10000);
 
     return () => {
@@ -105,7 +115,7 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
   const otherUsers = useMemo<User[]>(() => {
     console.log('[Matching] Computing other users list', { refreshCounter });
     return users.filter((user) => user.id !== currentUser?.id);
-  }, [currentUser?.id, refreshCounter]);
+  }, [currentUser?.id, refreshCounter, users]);
 
   const recommendations = useMemo<MatchRecommendation[]>(() => {
     if (!currentUser) {
@@ -137,8 +147,9 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
       topRecommendations,
       teachMatches,
       refreshRecommendations,
+      isLoading,
     };
-  }, [recommendations, loadUser, users, currentUser, topRecommendations, teachMatches, refreshRecommendations]);
+  }, [recommendations, loadUser, users, currentUser, topRecommendations, teachMatches, refreshRecommendations, isLoading]);
 
   return value;
 });

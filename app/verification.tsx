@@ -433,7 +433,9 @@ export default function VerificationScreen() {
             placeholderTextColor={Colors.light.textSecondary}
             value={email}
             onChangeText={setEmail}
-            keyboardType="phone-pad"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
           />
           <TouchableOpacity
             style={styles.submitButton}

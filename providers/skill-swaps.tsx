@@ -91,7 +91,7 @@ const mapProposals = (
 };
 
 export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsContextValue>(() => {
-  const { currentUser, allUsers } = useCurrentUser();
+  const { currentUser, allUsers, loadUser } = useCurrentUser();
   // const [swaps, setSwaps] = useState<SkillSwapRequest[]>(() => {
   //   const lookupSkillId = (userId: string): string => {
   //     const user = allUsers.find((candidate) => candidate.id === userId);
@@ -273,17 +273,28 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
   // }, []);
 
   useEffect(() => {
-    if (!currentUser?.id || currentUser.id.length < 4) {
-      setSwaps([]);
-      setAllSwaps([]);
-      return;
-    }
-    
-    // Initial load
-    fetchSwaps();
+    // Always fetch all swaps (needed for admin oversight)
     fetchAllSwaps();
 
-    // Start background polling every 4 seconds
+    if (!currentUser?.id || currentUser.id.length < 4) {
+      setSwaps([]);
+      setLoading(false);
+
+      // Start background polling only for all swaps
+      const intervalId = setInterval(() => {
+        console.log('[SkillSwaps] Polling all swaps silently...');
+        fetchAllSwaps(true);
+      }, 4000);
+
+      return () => {
+        clearInterval(intervalId);
+      };
+    }
+    
+    // Initial load for user swaps
+    fetchSwaps();
+
+    // Start background polling for both user swaps and all swaps
     const intervalId = setInterval(() => {
       console.log('[SkillSwaps] Polling swaps silently...');
       fetchSwaps(true);
@@ -488,9 +499,12 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
       // Update local state (optimistic UI)
       setSwaps((prev) => [createdSwap, ...prev]);
 
+      // Reload user data to update credit balance in UI
+      await loadUser().catch((err: any) => console.error('[SkillSwaps] Failed to refresh user after swap creation', err));
+
       return createdSwap;
     },
-    [currentUser?.id],
+    [currentUser?.id, loadUser],
   );
 
 

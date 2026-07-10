@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, useRouter, useSegments, useRootNavigationState } from "expo-router";
+import { Stack, useRouter, useSegments, useRootNavigationState, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -33,13 +33,14 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
   const rootNavigationState = useRootNavigationState();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (authLoading || isChecking || !rootNavigationState?.key) return;
 
     // Resolve the active route segment, taking browser URL into account on web initial load
     let segment0: any = segments[0] || '';
-    let isAdminRoute = segment0 === 'admin' || segment0.startsWith('admin/');
+    let isAdminRoute = segment0 === 'admin' || segment0.startsWith('admin/') || (pathname && (pathname.startsWith('/admin') || pathname.startsWith('admin')));
 
     if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
       let path = window.location.pathname;
@@ -106,7 +107,7 @@ function RootLayoutNav() {
       sendDebugLog('[DEBUG Layout] Redirecting to /home', { segment0, segments });
       router.replace('/(tabs)/home' as any);
     }
-  }, [isAuthenticated, authLoading, isChecking, hasCompletedOnboarding, segments, rootNavigationState]);
+  }, [isAuthenticated, authLoading, isChecking, hasCompletedOnboarding, segments, rootNavigationState, pathname]);
 
   if (authLoading || isChecking) {
     return (

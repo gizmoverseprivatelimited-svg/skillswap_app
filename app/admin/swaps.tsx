@@ -27,26 +27,26 @@ import Colors from '@/constants/colors';
 type SwapFilter = 'all' | SkillSwapStatus;
 
 export default function SwapOversight() {
-  const { swaps, loading } = useSkillSwaps();
+  const { allSwaps, loading } = useSkillSwaps();
   const { allUsers } = useCurrentUser();
   const [filter, setFilter] = useState<SwapFilter>('all');
 
   const filteredSwaps = useMemo(() => {
-    if (filter === 'all') return swaps;
-    return swaps.filter(s => s.status === filter);
-  }, [swaps, filter]);
+    if (filter === 'all') return allSwaps;
+    return allSwaps.filter(s => s.status === filter);
+  }, [allSwaps, filter]);
 
   const getUserName = (userId: string) => {
-    const user = allUsers.find(u => u.id === userId);
+    const user = allUsers.find(u => u.id == userId || u._id == userId);
     return user ? (user.username ? `@${user.username}` : user.name) : 'Unknown';
   };
 
   const getSkillTitle = (userId: string, skillId: string) => {
     // console.log(userId,skillId);
     
-    const user = allUsers.find(u => u.id === userId);
+    const user = allUsers.find(u => u.id == userId || u._id == userId);
     console.log(user);
-    return (user?.skillsOffered || []).find(s => s._id === skillId)?.title ?? 'Unknown Skill';
+    return (user?.skillsOffered || []).find(s => s._id == skillId || s.id == skillId)?.title ?? 'Unknown Skill';
   };
 
   const getStatusConfig = (status: SkillSwapStatus) => {
@@ -69,10 +69,10 @@ export default function SwapOversight() {
   ];
 
   const swapStats = useMemo(() => ({
-    total: swaps.length,
-    active: swaps.filter(s => s.status === 'negotiating' || s.status === 'scheduled').length,
-    completed: swaps.filter(s => s.status === 'completed').length,
-  }), [swaps]);
+    total: allSwaps.length,
+    active: allSwaps.filter(s => s.status === 'negotiating' || s.status === 'scheduled').length,
+    completed: allSwaps.filter(s => s.status === 'completed').length,
+  }), [allSwaps]);
 
   if (loading) {
     return (
