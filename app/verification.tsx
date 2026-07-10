@@ -88,8 +88,30 @@ export default function VerificationScreen() {
 
   let { currentUser } = useCurrentUser()
 
+  const checkGuestAndAction = (action: () => void) => {
+    console.log('[Verification] Clicked card. currentUser:', currentUser);
+    if (!currentUser || currentUser?.id === '1') {
+      showAlert('Login Required', 'To verify your profile details, please log in with a real account.');
+      return;
+    }
+    action();
+  };
 
   const fetchVerifications = async () => {
+    if (currentUser?.id === '1') {
+      const structured: StructuredVerifications = {
+        identity: { status: 'none' },
+        email: { status: 'none' },
+        phone: { status: 'none' },
+        linkedin: { status: 'none' },
+        portfolio: { status: 'none' },
+        trustScore: 0,
+        skillBadges: [],
+      };
+      setVerifications(structured);
+      setLoading(false);
+      return;
+    }
     try {
       const response = await fetch(`${url}/verifications/my/${currentUser?.id}`);
       const data = await response.json();
@@ -136,7 +158,7 @@ export default function VerificationScreen() {
 
   useEffect(() => {
     fetchVerifications();
-  }, []);
+  }, [currentUser?.id]);
 
   // const handleVerifyEmail = async () => {
   //   try {
@@ -573,12 +595,7 @@ export default function VerificationScreen() {
               description="Verify your identity with a government-issued ID"
               status={verifications?.identity?.status ?? 'none'}
               icon={<ShieldCheck size={24} color="#6366F1" />}
-              onPress={() => {
-                // if (verifications?.identity?.status === 'none' ||
-                //   verifications?.identity?.status === 'rejected') {
-                //   }
-                  setShowIdentityForm(true);
-              }}
+              onPress={() => checkGuestAndAction(() => setShowIdentityForm(true))}
               trustPoints={30}
             />
 
@@ -587,7 +604,7 @@ export default function VerificationScreen() {
               description="Confirm your email address"
               status={verifications?.email?.status ?? 'none'}
               icon={<Mail size={24} color="#10B981" />}
-              onPress={() => setShowEmailForm(true)}
+              onPress={() => checkGuestAndAction(() => setShowEmailForm(true))}
               trustPoints={10}
             />
 
@@ -596,7 +613,7 @@ export default function VerificationScreen() {
               description="Add and verify your phone number"
               status={verifications?.phone?.status ?? 'none'}
               icon={<Smartphone size={24} color="#F59E0B" />}
-              onPress={() => setShowPhoneForm(true)}
+              onPress={() => checkGuestAndAction(() => setShowPhoneForm(true))}
               trustPoints={10}
             />
 
@@ -605,7 +622,7 @@ export default function VerificationScreen() {
               description="Connect your professional LinkedIn account"
               status={verifications?.linkedin?.status ?? 'none'}
               icon={<Linkedin size={24} color="#0A66C2" />}
-              onPress={() => setShowLinkedInForm(true)}
+              onPress={() => checkGuestAndAction(() => setShowLinkedInForm(true))}
               trustPoints={20}
             />
 
@@ -614,7 +631,7 @@ export default function VerificationScreen() {
               description="Showcase your work with a portfolio link"
               status={verifications?.portfolio?.status ?? 'none'}
               icon={<Globe size={24} color="#8B5CF6" />}
-              onPress={() => setShowPortfolioForm(true)}
+              onPress={() => checkGuestAndAction(() => setShowPortfolioForm(true))}
               trustPoints={15}
             />
           </View>

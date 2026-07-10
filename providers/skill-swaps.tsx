@@ -273,7 +273,11 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
   // }, []);
 
   useEffect(() => {
-    if (!currentUser?.id || currentUser.id.length < 4) return;
+    if (!currentUser?.id || currentUser.id.length < 4) {
+      setSwaps([]);
+      setAllSwaps([]);
+      return;
+    }
     
     // Initial load
     fetchSwaps();
@@ -338,6 +342,9 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
 
   const addMessage = useCallback(
     async ({ requestId, authorId, body, isSystem }: AddMessageInput) => {
+      if (currentUser?.id === '1') {
+        throw new Error('Please login with a real account to send messages.');
+      }
       // 🔹 optimistic UI
       const optimisticMessage = buildMessage(authorId, body, isSystem);
 
@@ -400,7 +407,7 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
         // optional: rollback or toast
       }
     },
-    []
+    [currentUser?.id]
   );
 
 
@@ -442,6 +449,9 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
       locationPreference,
       message,
     }: CreateSwapRequestInput) => {
+      if (currentUser?.id === '1') {
+        throw new Error('Please login with a real account to request skill swaps.');
+      }
       if (!currentUser?.id) {
         throw new Error('User not authenticated');
       }
@@ -509,6 +519,9 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
 
   const addCounterProposal = useCallback(
     async (input: CounterProposalInput) => {
+      if (currentUser?.id === '1') {
+        throw new Error('Please login with a real account to make counter proposals.');
+      }
       const { requestId, proposerId, slots, message } = input;
 
       console.log('[SkillSwaps] Counter proposal', input);
@@ -578,7 +591,7 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
         // optional: rollback / toast
       }
     },
-    []
+    [currentUser?.id]
   );
 
 
@@ -619,6 +632,9 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
 
   const acceptProposal = useCallback(
     async (input: AcceptProposalInput) => {
+      if (currentUser?.id === '1') {
+        throw new Error('Please login with a real account to accept proposals.');
+      }
       const { requestId, timeId, location, note } = input;
 
       console.log('[SkillSwaps] Accepting proposal', input);
@@ -740,6 +756,9 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
 
   const declineSwap = useCallback(
     async (input: DeclineSwapInput) => {
+      if (currentUser?.id === '1') {
+        throw new Error('Please login with a real account.');
+      }
       const { requestId, note } = input;
       console.log('[SkillSwaps] Declining swap', input);
 
@@ -825,6 +844,9 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
 
   const updateLocation = useCallback(
     async (input: UpdateLocationInput) => {
+      if (currentUser?.id === '1') {
+        throw new Error('Please login with a real account.');
+      }
       const { requestId, location } = input;
 
       console.log('[SkillSwaps] Updating location', input);
@@ -905,6 +927,9 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
 
   const completeSwap = useCallback(
     async (requestId: string) => {
+      if (currentUser?.id === '1') {
+        throw new Error('Please login with a real account.');
+      }
       console.log('[SkillSwaps] Completing swap', requestId);
 
       // 🔹 Optimistic UI

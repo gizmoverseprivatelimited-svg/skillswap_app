@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
 import { mockUsers, getUsers } from '../mocks/data';
-import type { MatchRecommendation, User } from '../types';
+import type { MatchRecommendation, User, Skill } from '../types';
 import { computeMatchRecommendations } from '../lib/matching';
 import { useAuth } from './auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface CurrentUserContextValue {
   loadUser: any
@@ -16,7 +17,7 @@ interface CurrentUserContextValue {
 }
 
 export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUserContextValue>(() => {
-  const [currentUser, setCurrentUser] = useState<User>(mockUsers[0]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [refreshCounter, setRefreshCounter] = useState<number>(0);
   const [users, setUsers] = useState<User[]>(mockUsers)
   let { user } = useAuth()
@@ -28,21 +29,65 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
   }, [user?.id]);
 
   const loadUser = useCallback(async () => {
+    const currentId = userIdRef.current;
+    if (currentId === '1') {
+      let guestProfile: any = {};
+      let guestSkills: Skill[] = [];
+      try {
+        const storedGuest = await AsyncStorage.getItem('@skillswap/guest_user_profile');
+        if (storedGuest) {
+          guestProfile = JSON.parse(storedGuest);
+        }
+        const storedSkills = await AsyncStorage.getItem('@skillswap/guest_skills_offered');
+        if (storedSkills) {
+          guestSkills = JSON.parse(storedSkills);
+        }
+      } catch (e) {
+        console.error('[CurrentUser] Failed to read guest data:', e);
+      }
+
+      const demoUser: User = {
+        id: '1',
+        name: guestProfile.name || user?.name || 'Guest User',
+        username: user?.username || 'user_demo',
+        avatarUrl: guestProfile.avatarUrl || user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+        bio: guestProfile.bio || 'Demo account. Explore all functionalities of SkillSwap!',
+        location: guestProfile.location || 'New Delhi, India',
+        skillsOffered: guestSkills,
+        skillsWanted: guestProfile.skillsWanted || ['Cooking', 'Hindi', 'Guitar'],
+        rating: 4.8,
+        totalSwaps: 5,
+        joinedDate: '2026-01-01',
+        credits: user?.credits ?? 10,
+        premiumTier: user?.premiumTier ?? 'free',
+      };
+      setCurrentUser(demoUser);
+    }
+
     try {
       let data = await getUsers()
       if (data) {
         setUsers(data)
-        const currentId = userIdRef.current;
-        let authUser = data.find((u) => u.id == currentId)
-        console.log("authUser", authUser);
-        setCurrentUser(authUser ? authUser || data[0] : data[0])
+        if (!currentId) {
+          setCurrentUser(null);
+          return;
+        }
+        if (currentId !== '1') {
+          let authUser = data.find((u) => u.id == currentId)
+          console.log("authUser", authUser);
+          setCurrentUser(authUser || null)
+        }
       }
     } catch (err) {
       console.error('[CurrentUser] Failed to load users:', err);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
+    if (!user?.id) {
+      setCurrentUser(null);
+      return;
+    }
     console.log("Working");
     loadUser();
 

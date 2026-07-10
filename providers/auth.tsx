@@ -84,6 +84,8 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
     sendDebugLog('[Auth] clearToken', {});
     await AsyncStorage.removeItem(TOKEN_KEY);
     await AsyncStorage.removeItem(USER_KEY);
+    await AsyncStorage.removeItem('@skillswap/guest_user_profile');
+    await AsyncStorage.removeItem('@skillswap/guest_skills_offered');
     setToken(null);
     setUser(null);
   }, []);
@@ -199,6 +201,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
       id: '1',
       email: 'guest@skillswap.com',
       name: 'Guest User',
+      username: 'user_demo',
       skillsToLearn: [],
       skillsToTeach: [],
       credits: 10,

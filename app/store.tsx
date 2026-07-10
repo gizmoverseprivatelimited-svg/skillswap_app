@@ -115,6 +115,10 @@ export default function StoreScreen() {
   };
 
   const handlePurchaseCredits = (packageId: typeof creditPackages[number]['id']) => {
+    if (currentUser?.id === '1') {
+      showAlert('Login Required', 'To top up or purchase credits, please log in with a real account.');
+      return;
+    }
     const pkg = creditPackages.find((p) => p.id === packageId);
     if (!pkg) return;
     setCheckoutItem({
@@ -180,6 +184,10 @@ export default function StoreScreen() {
   };
 
   const handlePurchasePremium = (tier: typeof premiumTiers[number]['id']) => {
+    if (currentUser?.id === '1') {
+      showAlert('Login Required', 'To purchase a premium subscription, please log in with a real account.');
+      return;
+    }
     const tierInfo = premiumTiers.find((t) => t.id === tier);
     if (!tierInfo) return;
     const price = selectedDuration === 'monthly' ? tierInfo.monthlyPrice : tierInfo.yearlyPrice;

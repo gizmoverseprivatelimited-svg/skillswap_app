@@ -81,6 +81,10 @@ export default function UserProfileScreen() {
   }, [fetchReviews]);
 
   const handleSendMessage = useCallback(async () => {
+    if (currentUser?.id === '1') {
+      showAlert('Login Required', 'To start a message or request a swap, please log in with a real account.');
+      return;
+    }
     if (!user || !currentUser) return;
     console.log(swaps);
 
@@ -185,7 +189,7 @@ export default function UserProfileScreen() {
             <View style={styles.statCard}>
               <View style={styles.joinedRow}>
                 <Calendar size={16} color={Colors.light.primary} />
-                <Text style={styles.statValue}>{new Date(user?.joinedDate || "").getFullYear()}</Text>
+                <Text style={styles.statValue}>{user?.joinedDate ? new Date(user.joinedDate).getFullYear() : '—'}</Text>
               </View>
               <Text style={styles.statLabel}>Joined</Text>
             </View>
@@ -217,7 +221,7 @@ export default function UserProfileScreen() {
               >
                 {skill.imageUrl ? (
                   <Image
-                    source={{ uri: resolveImageUrl(skill.imageUrl) }}
+                    source={{ uri: resolveImageUrl(skill.imageUrl, 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800') }}
                     style={styles.skillImage}
                   />
                 ) : (

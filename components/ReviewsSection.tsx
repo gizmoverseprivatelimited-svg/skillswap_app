@@ -25,6 +25,7 @@ import Colors from "../constants/colors";
 import { useCurrentUser } from "../providers/current-user";
 import type { RatingBucket, ReviewWithAuthor } from "../types";
 import url from "@/constants/backurl";
+import { useAlert } from "../providers/alert";
 
 interface ReviewsSectionProps {
   revieweeId: string;
@@ -43,6 +44,7 @@ const reviewReasons = [
 
 const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSectionProps) => {
   const { currentUser } = useCurrentUser();
+  const { showAlert } = useAlert();
   // console.log("Hii", skillId, revieweeId);
   const [isComposerVisible, setIsComposerVisible] = useState<boolean>(false);
   const [selectedRating, setSelectedRating] = useState<number>(5);
@@ -212,9 +214,13 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
   }, [progressAnim]);
 
   const handleOpenComposer = useCallback(() => {
+    if (!currentUser || currentUser.id === '1') {
+      showAlert('Login Required', 'Please log in to submit a review.');
+      return;
+    }
     setComposerError(null);
     setIsComposerVisible(true);
-  }, []);
+  }, [currentUser, showAlert]);
 
   const handleCloseComposer = useCallback(() => {
     if (isSubmittingReview) {
@@ -240,11 +246,15 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
   }, [isSubmittingReview]);
 
   const handleOpenReport = useCallback((review: ReviewWithAuthor) => {
+    if (!currentUser || currentUser.id === '1') {
+      showAlert('Login Required', 'Please log in to report a review.');
+      return;
+    }
     setReportTarget(review);
     setReportReason("");
     setReportError(null);
     setReportModalVisible(true);
-  }, []);
+  }, [currentUser, showAlert]);
 
   // const handleSubmitReport = useCallback(() => {
   //   if (!reportTarget) {

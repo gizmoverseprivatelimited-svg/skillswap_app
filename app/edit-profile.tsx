@@ -19,6 +19,7 @@ import { useAlert } from '@/providers/alert';
 import url from '@/constants/backurl';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -219,6 +220,30 @@ export default function EditProfileScreen() {
     }
 
     setIsSaving(true);
+
+    if (currentUser?.id === '1') {
+      try {
+        const guestData = {
+          name: name.trim(),
+          bio: bio.trim(),
+          location: location.trim(),
+          avatarUrl: avatarUrl,
+          skillsWanted: skillsWanted,
+        };
+        await AsyncStorage.setItem('@skillswap/guest_user_profile', JSON.stringify(guestData));
+        await loadUser();
+        
+        showAlert('Success', 'Profile updated successfully', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      } catch (error) {
+        console.error('[EditProfile] Guest Save error:', error);
+        showAlert('Error', 'Failed to save profile. Please try again.');
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
 
     try {
       const formData = new FormData();

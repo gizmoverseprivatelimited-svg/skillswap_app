@@ -234,7 +234,7 @@ export default function ProfileScreen() {
               <View style={styles.statIconContainer}>
                 <Calendar size={20} color={Colors.light.secondary} />
               </View>
-              <Text style={styles.statValue}>{new Date(currentUser?.joinedDate || "").getFullYear()}</Text>
+              <Text style={styles.statValue}>{currentUser?.joinedDate ? new Date(currentUser.joinedDate).getFullYear() : '—'}</Text>
               <Text style={styles.statLabel}>Joined</Text>
             </View>
           </View>
@@ -374,7 +374,7 @@ export default function ProfileScreen() {
                 >
                   {skill.imageUrl ? (
                     <Image
-                      source={{ uri: resolveImageUrl(skill.imageUrl) }}
+                      source={{ uri: resolveImageUrl(skill.imageUrl, 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800') }}
                       style={styles.skillImage}
                     />
                   ) : (

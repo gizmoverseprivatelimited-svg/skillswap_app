@@ -3,6 +3,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useCurrentUser } from './current-user';
 import { useSkillSwaps } from './skill-swaps';
 import { usePushNotifications } from '../lib/push-notifications';
+import { useOnboarding } from './onboarding';
 import url from '@/constants/backurl';
 
 type NotificationCategory = 'match' | 'swap' | 'reminder' | 'system';
@@ -51,6 +52,7 @@ const sortNotifications = (items: NotificationItem[]): NotificationItem[] => {
 export const [NotificationsProvider, useNotifications] = createContextHook<NotificationsContextValue>(() => {
   const { currentUser, topRecommendations, allUsers } = useCurrentUser();
   const { swaps, scheduledSwaps } = useSkillSwaps();
+  const { hasCompletedOnboarding } = useOnboarding();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const { expoPushToken, schedulePushNotification } = usePushNotifications();
 
@@ -64,6 +66,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   const prevUserIdRef = useRef<string | undefined>(currentUser?.id);
 
   useEffect(() => {
+    if (!hasCompletedOnboarding) return;
     if (expoPushToken && expoPushToken.length > 0 && currentUser?.id) {
       fetch(`${url}/users/push-token`, {
         method: 'POST',
@@ -73,7 +76,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         .then(() => console.log('[Notifications] Registered push token with backend'))
         .catch((err) => console.error('[Notifications] Failed to register token:', err));
     }
-  }, [expoPushToken, currentUser?.id]);
+  }, [expoPushToken, currentUser?.id, hasCompletedOnboarding]);
 
   const addNotification = useCallback((input: AddNotificationInput) => {
     const payload: NotificationItem = {
@@ -115,6 +118,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   }, []);
 
   useEffect(() => {
+    if (!hasCompletedOnboarding) return;
     topRecommendations.forEach((recommendation) => {
       if (matchSeenRef.current.has(recommendation.user.id)) {
         return;
@@ -129,10 +133,15 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         },
       });
     });
-  }, [addNotification, topRecommendations]);
+  }, [addNotification, topRecommendations, hasCompletedOnboarding]);
 
   useEffect(() => {
+    if (!hasCompletedOnboarding) return;
     swaps.forEach((swap) => {
+      // Ensure the swap actually belongs to the current user
+      if (swap.requesterId !== currentUser?.id && swap.recipientId !== currentUser?.id) {
+        return;
+      }
       const counterpartId = swap.requesterId === currentUser?.id ? swap.recipientId : swap.requesterId;
       const key = `${swap.id}-${swap.status}`;
       const previousKey = swapSeenRef.current.get(swap.id);
@@ -191,12 +200,17 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         });
       }
     });
-  }, [addNotification, allUsers, currentUser?.id, swaps]);
+  }, [addNotification, allUsers, currentUser?.id, swaps, hasCompletedOnboarding]);
 
   useEffect(() => {
+    if (!hasCompletedOnboarding) return;
     const createReminderNotifications = () => {
       const now = Date.now();
       scheduledSwaps.forEach((swap) => {
+        // Ensure the swap actually belongs to the current user
+        if (swap.requesterId !== currentUser?.id && swap.recipientId !== currentUser?.id) {
+          return;
+        }
         if (!swap.acceptedTimeId) {
           return;
         }
@@ -243,22 +257,26 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         clearInterval(interval);
       }
     };
-  }, [addNotification, allUsers, currentUser?.id, scheduledSwaps]);
+  }, [addNotification, allUsers, currentUser?.id, scheduledSwaps, hasCompletedOnboarding]);
 
   // Reset initial load and message/review refs when currentUser changes
   useEffect(() => {
-    if (prevUserIdRef.current !== currentUser?.id) {
+    if (prevUserIdRef.current !== currentUser?.id || !hasCompletedOnboarding) {
       isInitialLoadRef.current = true;
       isInitialReviewsLoadRef.current = true;
       messageSeenRef.current.clear();
       reviewSeenRef.current.clear();
+      matchSeenRef.current.clear();
+      swapSeenRef.current.clear();
+      reminderSeenRef.current.clear();
+      setNotifications([]);
       prevUserIdRef.current = currentUser?.id;
     }
-  }, [currentUser?.id]);
+  }, [currentUser?.id, hasCompletedOnboarding]);
 
   // Monitor incoming chat messages and alert the user
   useEffect(() => {
-    if (!currentUser?.id || swaps.length === 0) {
+    if (!hasCompletedOnboarding || !currentUser?.id || swaps.length === 0) {
       return;
     }
 
@@ -275,6 +293,10 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     }
 
     swaps.forEach((swap) => {
+      // Ensure the swap actually belongs to the current user
+      if (swap.requesterId !== currentUser?.id && swap.recipientId !== currentUser?.id) {
+        return;
+      }
       const counterpartId = swap.requesterId === currentUser?.id ? swap.recipientId : swap.requesterId;
       const counterpart = allUsers.find((user) => user.id === counterpartId);
       const senderName = counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'Your partner');
@@ -305,11 +327,11 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         });
       }
     });
-  }, [swaps, currentUser?.id, allUsers, addNotification]);
+  }, [swaps, currentUser?.id, allUsers, addNotification, hasCompletedOnboarding]);
 
   // Monitor incoming reviews and alert the user
   useEffect(() => {
-    if (!currentUser?.id) {
+    if (!hasCompletedOnboarding || !currentUser?.id || currentUser.id === '1') {
       return;
     }
 
@@ -360,7 +382,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     return () => {
       clearInterval(interval);
     };
-  }, [currentUser?.id, addNotification]);
+  }, [currentUser?.id, addNotification, hasCompletedOnboarding]);
 
   const unreadCount = useMemo(() => {
     return notifications.filter((notification) => !notification.read).length;

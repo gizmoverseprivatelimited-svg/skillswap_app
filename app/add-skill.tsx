@@ -17,6 +17,7 @@ import { useAlert } from '@/providers/alert';
 import { SkillCategory, SkillLevel, Skill } from '@/types';
 import url from '@/constants/backurl';
 import { getSkillsWithUsers } from '@/mocks/data';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CATEGORIES: SkillCategory[] = [
   'Arts & Crafts',
@@ -81,6 +82,40 @@ export default function AddSkillScreen() {
     }
 
     setIsSaving(true);
+
+    if (currentUser?.id === '1') {
+      try {
+        const newSkill: Skill = {
+          id: `guest_skill_${Date.now()}`,
+          _id: `guest_skill_${Date.now()}`,
+          title: title.trim(),
+          category,
+          description: description.trim() || `Teaching ${title.trim()}`,
+          level,
+          userId: currentUser.id,
+          imageUrl: imageUrl ?? STOCK_IMAGES['Technology'],
+        };
+
+        const storedSkillsStr = await AsyncStorage.getItem('@skillswap/guest_skills_offered');
+        const currentSkills = storedSkillsStr ? JSON.parse(storedSkillsStr) : [];
+        const updatedSkills = [...currentSkills, newSkill];
+        await AsyncStorage.setItem('@skillswap/guest_skills_offered', JSON.stringify(updatedSkills));
+
+        await loadUser();
+
+        showAlert(
+          'Skill Added',
+          `"${newSkill.title}" has been added to your profile!`,
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      } catch (error) {
+        console.error('[AddSkill] Guest Save error:', error);
+        showAlert('Error', 'Failed to add skill. Please try again.');
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
 
     try {
       const payload = {

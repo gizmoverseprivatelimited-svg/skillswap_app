@@ -10,6 +10,7 @@ import ReviewsSection from '../../components/ReviewsSection';
 import SkillSwapRequestModal from '../../components/SkillSwapRequestModal';
 import { useSkillSwaps } from '../../providers/skill-swaps';
 import { useCurrentUser } from '../../providers/current-user';
+import { useAlert } from '../../providers/alert';
 import type { SkillSwapStatus, SkillWithUser } from '../../types';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import url from '@/constants/backurl';
@@ -55,6 +56,7 @@ export default function SkillDetailScreen() {
 
 
   const { currentUser } = useCurrentUser();
+  const { showAlert } = useAlert();
   const [isSwapModalVisible, setSwapModalVisible] = useState<boolean>(false);
 
 
@@ -131,12 +133,16 @@ export default function SkillDetailScreen() {
   }, [activeSwap]);
 
   const handleRequestPress = useCallback(() => {
+    if (currentUser?.id === '1') {
+      showAlert('Login Required', 'To send a skill swap request, you must log in with a real account.');
+      return;
+    }
     if (activeSwap) {
       router.push(`/swaps/${activeSwap.id}` as never);
       return;
     }
     setSwapModalVisible(true);
-  }, [activeSwap, router]);
+  }, [activeSwap, router, currentUser?.id, showAlert]);
   const contentContainerStyle = useMemo(() => {
     return {
       paddingBottom: insets.bottom + 140,
@@ -179,7 +185,7 @@ export default function SkillDetailScreen() {
       >
         <View style={styles.heroContainer}>
           {skill.imageUrl ? (
-            <Image source={{ uri: resolveImageUrl(skill.imageUrl) }} style={styles.headerImage} />
+            <Image source={{ uri: resolveImageUrl(skill.imageUrl, 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800') }} style={styles.headerImage} />
           ) : (
             <View style={[styles.headerImage, { backgroundColor: Colors.light.backgroundTertiary }]} />
           )}

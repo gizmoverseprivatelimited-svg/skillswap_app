@@ -11,7 +11,9 @@ export function resolveImageUrl(
   path: string | null | undefined,
   fallback?: string,
 ): string | undefined {
-  if (!path) return fallback || 'https://api.dicebear.com/7.x/bottts/png?seed=placeholder';
+  if (!path) {
+    return fallback || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+  }
 
   // console.log(path);
 

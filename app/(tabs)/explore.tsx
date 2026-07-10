@@ -253,7 +253,7 @@ export default function ExploreScreen() {
               testID={`skill-${skill._id || skill.id}`}
             >
               {skill.imageUrl ? (
-                <Image source={{ uri: resolveImageUrl(skill.imageUrl) }} style={styles.skillImage} />
+                <Image source={{ uri: resolveImageUrl(skill.imageUrl, 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800') }} style={styles.skillImage} />
               ) : (
                 <View style={[styles.skillImage, { backgroundColor: Colors.light.backgroundTertiary }]} />
               )}

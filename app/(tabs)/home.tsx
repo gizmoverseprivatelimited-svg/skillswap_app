@@ -217,7 +217,7 @@ export default function HomeScreen() {
                 >
                   {skill.imageUrl ? (
                     <Image
-                      source={{ uri: resolveImageUrl(skill.imageUrl) }}
+                      source={{ uri: resolveImageUrl(skill.imageUrl, 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800') }}
                       style={styles.featuredImage}
                     />
                   ) : (
@@ -304,7 +304,7 @@ export default function HomeScreen() {
                 >
                   {skill.imageUrl ? (
                     <Image
-                      source={{ uri: resolveImageUrl(skill.imageUrl) }}
+                      source={{ uri: resolveImageUrl(skill.imageUrl, 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800') }}
                       style={styles.skillImage}
                     />
                   ) : (
