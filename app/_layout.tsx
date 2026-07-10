@@ -11,6 +11,7 @@ import { SkillSwapsProvider } from "../providers/skill-swaps";
 import { NotificationsProvider } from "../providers/notifications";
 import { ResourcesProvider } from "../providers/resources";
 import { OnboardingProvider, useOnboarding } from "../providers/onboarding";
+import { InAppNotificationBanner } from "../components/InAppNotificationBanner";
 import { AdminProvider } from "@/providers/admin";
 import url from '@/constants/backurl';
 
@@ -287,6 +288,7 @@ export default function RootLayout() {
                       <ErrorBoundary>
                         <GestureHandlerRootView style={styles.container}>
                           <RootLayoutNav />
+                          <InAppNotificationBanner />
                         </GestureHandlerRootView>
                       </ErrorBoundary>
                     </ResourcesProvider>

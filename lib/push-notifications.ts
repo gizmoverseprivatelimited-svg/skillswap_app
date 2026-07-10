@@ -65,6 +65,7 @@ export function usePushNotifications() {
   }, []);
 
   const schedulePushNotification = async (title: string, body: string, data?: Record<string, unknown>, trigger?: any) => {
+
     if (Platform.OS === 'web' || !Notifications) {
       console.log('[PushNotifications] Push notifications not supported or running in Expo Go - cannot schedule');
       return;
@@ -76,6 +77,8 @@ export function usePushNotifications() {
           title,
           body,
           data: data ?? {},
+          sound: true,
+          channelId: 'default',
         },
         trigger: trigger ?? { seconds: 1 },
       });
@@ -105,18 +108,19 @@ async function registerForPushNotificationsAsync() {
     });
   }
 
-  if (Device.isDevice) {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync({});
-      finalStatus = status;
-    }
-    if (finalStatus !== 'granted') {
-      console.log('[PushNotifications] Permission not granted');
-      return;
-    }
+  // Request notifications permission on both simulators/emulators and physical devices
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync({});
+    finalStatus = status;
+  }
+  if (finalStatus !== 'granted') {
+    console.log('[PushNotifications] Permission not granted');
+    return;
+  }
 
+  if (Device.isDevice) {
     try {
       const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
       token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
@@ -124,7 +128,7 @@ async function registerForPushNotificationsAsync() {
       console.log('[PushNotifications] Failed to get push token:', error);
     }
   } else {
-    console.log('[PushNotifications] Must use physical device for Push Notifications');
+    console.log('[PushNotifications] Must use physical device for Push Notifications token');
   }
 
   return token;
