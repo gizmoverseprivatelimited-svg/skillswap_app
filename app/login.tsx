@@ -11,11 +11,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Phone, Apple, Chrome, Sparkles, Lock, User, ArrowLeft } from 'lucide-react-native';
 import { useAuth } from '@/providers/auth';
 import url from '@/constants/backurl';
+import * as Linking from 'expo-linking';
 
 WebBrowser.maybeCompleteAuthSession();
 
 const redirectUri = Platform.OS === 'web'
-  ? 'http://localhost:8081/'
+  ? (typeof window !== 'undefined' ? window.location.origin + '/' : 'http://localhost:8081/')
   : AuthSession.makeRedirectUri({
     scheme: 'myapp',
   });
@@ -67,14 +68,13 @@ export default function LoginScreen() {
   const onSendCode = useCallback(async () => {
     console.log('[Login] Sending OTP for', identifier);
     setError(null);
-    console.log(identifier);
 
-
-    if (!identifier || identifier.trim().length < 5) {
-      setError('Enter a valid email or phone number');
+    if (!identifier || identifier.trim().length < 7) {
+      setError('Enter a valid phone number (e.g. +91 98765 43210)');
       return;
     }
     try {
+      setIsPending(true);
       const res = await fetch(`${url}/api/auth/send-otp`, {
         method: 'POST',
         headers: {
@@ -90,14 +90,12 @@ export default function LoginScreen() {
       }
 
       setStep('verify');
-
-      showAlert(
-        'Code sent',
-        (result.message || 'OTP sent successfully') + ` Otp is ${result.otp}`
-      );
-    } catch (e) {
+      showAlert('Code sent! 📱', result.message || 'Check your phone for the SMS OTP.');
+    } catch (e: any) {
       console.error('[Login] send code error', e);
-      setError('Could not send the code. Try again.');
+      setError(e.message || 'Could not send the code. Try again.');
+    } finally {
+      setIsPending(false);
     }
   }, [identifier]);
 
@@ -319,9 +317,16 @@ export default function LoginScreen() {
       const res = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
       if (res.type === 'success' && res.url) {
+        // Try extracting access_token from the hash fragment first, then from search parameters
         const hash = res.url.split('#')[1] ?? '';
-        const params = new URLSearchParams(hash);
-        const accessToken = params.get('access_token');
+        const hashParams = new URLSearchParams(hash);
+        let accessToken = hashParams.get('access_token');
+
+        if (!accessToken) {
+          const search = res.url.split('?')[1] ?? '';
+          const searchParams = new URLSearchParams(search.split('#')[0]);
+          accessToken = searchParams.get('access_token');
+        }
 
         if (!accessToken) {
           throw new Error('No access token returned from Google');
@@ -629,26 +634,23 @@ export default function LoginScreen() {
               <View style={styles.card}>
                 {step === 'enter' ? (
                   <View>
-                    <Text style={styles.label}>Email or Phone</Text>
+                    <Text style={styles.label}>Phone Number</Text>
                     <View style={styles.inputRow}>
                       <View style={styles.inputIcon}>
-                        {isEmail ? (
-                          <Mail size={18} color={Colors.light.textSecondary} />
-                        ) : (
-                          <Phone size={18} color={Colors.light.textSecondary} />
-                        )}
+                        <Phone size={18} color={Colors.light.textSecondary} />
                       </View>
                       <TextInput
                         testID="identifier-input"
-                        placeholder="you@example.com or +91 98765 43210"
+                        placeholder="+91 98765 43210"
                         placeholderTextColor={Colors.light.textTertiary}
                         style={styles.input}
-                        keyboardType={isEmail ? 'email-address' : 'phone-pad'}
+                        keyboardType="phone-pad"
                         autoCapitalize="none"
                         value={identifier}
                         onChangeText={setIdentifier}
                       />
                     </View>
+                    <Text style={styles.otpHint}>📱 We'll send a 6-digit OTP to your phone via SMS</Text>
                     {!!error && <Text style={styles.errorText}>{error}</Text>}
                     <TouchableOpacity
                       testID="send-code"
@@ -666,14 +668,15 @@ export default function LoginScreen() {
                         {isLoading ? (
                           <ActivityIndicator color="#fff" />
                         ) : (
-                          <Text style={styles.primaryBtnText}>Send code</Text>
+                          <Text style={styles.primaryBtnText}>Send OTP via SMS</Text>
                         )}
                       </LinearGradient>
                     </TouchableOpacity>
                   </View>
                 ) : (
                   <View>
-                    <Text style={styles.label}>Enter 6-digit code</Text>
+                    <Text style={styles.label}>Enter 6-digit OTP</Text>
+                    <Text style={styles.otpHint}>Sent to {identifier}</Text>
                     <TextInput
                       testID="code-input"
                       style={styles.codeInput}
@@ -700,8 +703,11 @@ export default function LoginScreen() {
                         <Text style={styles.primaryBtnText}>Verify & Continue</Text>
                       </LinearGradient>
                     </TouchableOpacity>
-                    <TouchableOpacity testID="edit-identifier" style={styles.linkBtn} onPress={() => setStep('enter')}>
-                      <Text style={styles.linkText}>Edit email/phone</Text>
+                    <TouchableOpacity testID="edit-identifier" style={styles.linkBtn} onPress={() => { setStep('enter'); setCode(''); }}>
+                      <Text style={styles.linkText}>✏️ Edit phone number</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity testID="resend-otp" style={styles.linkBtn} onPress={onSendCode}>
+                      <Text style={styles.linkText}>Resend OTP</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -1019,5 +1025,12 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     fontSize: 15,
     fontWeight: '600' as const,
+  },
+  otpHint: {
+    fontSize: 13,
+    color: Colors.light.textSecondary,
+    marginTop: 6,
+    marginBottom: 8,
+    lineHeight: 18,
   },
 });

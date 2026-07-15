@@ -66,7 +66,33 @@ export function usePushNotifications() {
 
   const schedulePushNotification = async (title: string, body: string, data?: Record<string, unknown>, trigger?: any) => {
 
-    if (Platform.OS === 'web' || !Notifications) {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        const handleNotificationClick = function(this: Notification) {
+          window.focus();
+          if (data?.swapId) {
+            window.location.href = `/#/swaps/${data.swapId}`;
+          } else if (data?.userId) {
+            window.location.href = `/#/profile/${data.userId}`;
+          }
+          this.close();
+        };
+
+        if (Notification.permission === 'granted') {
+          const n = new Notification(title, { body, data: data as any });
+          n.onclick = handleNotificationClick;
+        } else if (Notification.permission !== 'denied') {
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted') {
+            const n = new Notification(title, { body, data: data as any });
+            n.onclick = handleNotificationClick;
+          }
+        }
+      }
+      return;
+    }
+
+    if (!Notifications) {
       console.log('[PushNotifications] Push notifications not supported or running in Expo Go - cannot schedule');
       return;
     }

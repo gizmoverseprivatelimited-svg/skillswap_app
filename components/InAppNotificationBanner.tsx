@@ -61,7 +61,11 @@ export function InAppNotificationBanner() {
 
     const swapId = activeNotification.metadata?.swapId;
     const userId = activeNotification.metadata?.userId;
-    if (swapId) {
+    const type = activeNotification.metadata?.type;
+    
+    if (type === 'video-call' && swapId) {
+      router.push(`/call/${swapId}?isJoining=true` as never);
+    } else if (swapId) {
       router.push(`/swaps/${swapId}` as never);
     } else if (userId) {
       router.push(`/profile/${userId}` as never);
@@ -72,15 +76,23 @@ export function InAppNotificationBanner() {
 
   if (!activeNotification) return null;
 
+  const isVideoCall = activeNotification.metadata?.type === 'video-call';
+
   return (
     <Animated.View style={[styles.bannerContainer, { transform: [{ translateY: slideAnim }] }]}>
-      <TouchableOpacity activeOpacity={0.9} onPress={handlePress} style={styles.bannerContent}>
-        <View style={styles.iconContainer}>
-          <Bell size={20} color="#FFFFFF" />
+      <TouchableOpacity activeOpacity={0.9} onPress={handlePress} style={[styles.bannerContent, isVideoCall && styles.videoCallBannerContent]}>
+        <View style={[styles.iconContainer, isVideoCall && styles.videoCallIconContainer]}>
+          {isVideoCall ? (
+            <View style={styles.videoIconInner} /> // Fallback placeholder if no video icon
+          ) : (
+            <Bell size={20} color="#FFFFFF" />
+          )}
         </View>
         <View style={styles.textContainer}>
           <Text style={styles.title} numberOfLines={1}>{activeNotification.title}</Text>
-          <Text style={styles.body} numberOfLines={2}>{activeNotification.body}</Text>
+          <Text style={[styles.body, isVideoCall && { color: '#FFFFFF', fontWeight: '600' }]} numberOfLines={2}>
+            {activeNotification.body} {isVideoCall ? '— Tap to join!' : ''}
+          </Text>
         </View>
         <TouchableOpacity onPress={dismissBanner} style={styles.closeButton}>
           <X size={18} color="#94A3B8" />
@@ -113,6 +125,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#4338CA', // Indigo border
   },
+  videoCallBannerContent: {
+    backgroundColor: '#064E3B', // Emerald for active call
+    borderColor: '#059669',
+  },
   iconContainer: {
     width: 36,
     height: 36,
@@ -121,6 +137,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+  },
+  videoCallIconContainer: {
+    backgroundColor: '#10B981', // Bright Emerald
+  },
+  videoIconInner: {
+    width: 14,
+    height: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 2,
   },
   textContainer: {
     flex: 1,

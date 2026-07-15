@@ -284,7 +284,16 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       swaps.forEach((swap) => {
         if (Array.isArray(swap.negotiationNotes)) {
           swap.negotiationNotes.forEach((msg) => {
-            messageSeenRef.current.add(msg.id || (msg as any)._id || '');
+            const msgId = msg.id || (msg as any)._id || '';
+            const isVideoCallAlert = msg.body.includes("started the video call");
+            const isRecent = new Date(msg.createdAt).getTime() > Date.now() - 5 * 60 * 1000;
+            
+            // If it's a recent video call alert from the partner, don't mark as seen yet!
+            if (isVideoCallAlert && isRecent && String(msg.authorId) !== String(currentUser.id)) {
+              // Leave it out of messageSeenRef so the next pass will catch it
+            } else {
+              messageSeenRef.current.add(msgId);
+            }
           });
         }
       });
@@ -294,11 +303,11 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
     swaps.forEach((swap) => {
       // Ensure the swap actually belongs to the current user
-      if (swap.requesterId !== currentUser?.id && swap.recipientId !== currentUser?.id) {
+      if (String(swap.requesterId) !== String(currentUser?.id) && String(swap.recipientId) !== String(currentUser?.id)) {
         return;
       }
-      const counterpartId = swap.requesterId === currentUser?.id ? swap.recipientId : swap.requesterId;
-      const counterpart = allUsers.find((user) => user.id === counterpartId);
+      const counterpartId = String(swap.requesterId) === String(currentUser?.id) ? swap.recipientId : swap.requesterId;
+      const counterpart = allUsers.find((user) => String(user.id) === String(counterpartId));
       const senderName = counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'Your partner');
 
       if (Array.isArray(swap.negotiationNotes)) {
@@ -306,19 +315,22 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           const msgId = msg.id || (msg as any)._id || '';
           if (!msgId) return;
 
-          // If the message is new, not written by us, and not a system message:
           if (
             !messageSeenRef.current.has(msgId) &&
-            msg.authorId !== currentUser.id &&
+            String(msg.authorId) !== String(currentUser.id) &&
             !msg.isSystem
           ) {
             messageSeenRef.current.add(msgId);
+            
+            const isVideoCallAlert = msg.body.includes("started the video call");
+            
             addNotification({
-              category: 'swap',
-              title: `New message from ${senderName}`,
+              category: isVideoCallAlert ? 'swap' : 'swap',
+              title: isVideoCallAlert ? `Incoming Video Call from ${senderName}` : `New message from ${senderName}`,
               body: msg.body,
               metadata: {
                 swapId: swap.id,
+                type: isVideoCallAlert ? 'video-call' : undefined,
               },
             });
           } else {

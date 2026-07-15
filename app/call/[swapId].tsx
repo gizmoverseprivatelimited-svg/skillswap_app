@@ -2,14 +2,15 @@ import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import VideoCallScreen from '../../components/VideoCallScreen';
+import HMSView from '../../components/HMSView';
 import { useCurrentUser } from '../../providers/current-user';
 import { useSkillSwaps } from '../../providers/skill-swaps';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
 export default function CallScreen() {
-  const { swapId } = useLocalSearchParams<{ swapId: string }>();
+  const { swapId, isJoining } = useLocalSearchParams<{ swapId: string, isJoining?: string }>();
   const router = useRouter();
   const { currentUser, allUsers } = useCurrentUser();
 
@@ -41,6 +42,31 @@ export default function CallScreen() {
 
 
 
+  const [roomCode, setRoomCode] = useState<string | null>(null);
+  const [loadingCode, setLoadingCode] = useState(true);
+
+  useEffect(() => {
+    async function fetchRoomCode() {
+      if (!swapId) return;
+      try {
+        const { default: url } = await import('@/constants/backurl');
+        const joinParam = isJoining ? `&isJoining=true` : '';
+        const res = await fetch(`${url}/swaps/${swapId}/100ms-room?userId=${currentUser?.id || ''}${joinParam}`);
+        if (res.ok) {
+          const data = await res.json();
+          setRoomCode(data.roomCode);
+        } else {
+          console.error('Failed to fetch room code', await res.text());
+        }
+      } catch (err) {
+        console.error('Error fetching room code:', err);
+      } finally {
+        setLoadingCode(false);
+      }
+    }
+    fetchRoomCode();
+  }, [swapId, currentUser?.id]);
+
   if (!swap || !partner) {
     return (
       <View style={styles.errorContainer}>
@@ -63,6 +89,25 @@ export default function CallScreen() {
     );
   }
 
+  if (loadingCode) {
+    return (
+      <View style={[styles.errorContainer, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#111827' }]}>
+        <Text style={{ color: '#fff', marginTop: 20 }}>Joining room...</Text>
+      </View>
+    );
+  }
+
+  if (roomCode) {
+    return (
+      <HMSView
+        roomCode={roomCode}
+        userName={currentUser?.name || 'Guest'}
+        onLeave={handleEndCall}
+      />
+    );
+  }
+
+  // Fallback to placeholder if roomCode fails
   return (
     <VideoCallScreen
       partnerName={partner.name}
