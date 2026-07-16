@@ -3,6 +3,14 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "private": true,
+  "expo": {
+    "install": {
+      "exclude": [
+        "@react-navigation/native",
+        "react-native-worklets"
+      ]
+    }
+  },
   "scripts": {
     "start": "bunx rork start -p 9y9o2uf7zfqrbrj98js57 --tunnel",
     "start-web": "bunx rork start -p 9y9o2uf7zfqrbrj98js57 --web --tunnel",
