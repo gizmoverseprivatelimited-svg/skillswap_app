@@ -319,14 +319,13 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           const msgId = msg.id || (msg as any)._id || '';
           if (!msgId) return;
 
+          const isVideoCallAlert = msg.body.includes("started the video call");
           if (
             !messageSeenRef.current.has(msgId) &&
             String(msg.authorId) !== String(currentUser.id) &&
-            !msg.isSystem
+            (!msg.isSystem || isVideoCallAlert)
           ) {
             messageSeenRef.current.add(msgId);
-            
-            const isVideoCallAlert = msg.body.includes("started the video call");
             
             addNotification({
               category: isVideoCallAlert ? 'swap' : 'swap',
@@ -337,7 +336,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
                 type: isVideoCallAlert ? 'video-call' : undefined,
               },
             });
-          } else {
+          } else if (!messageSeenRef.current.has(msgId) && msg.isSystem && !isVideoCallAlert) {
             messageSeenRef.current.add(msgId);
           }
         });

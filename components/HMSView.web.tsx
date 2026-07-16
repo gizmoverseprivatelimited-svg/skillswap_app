@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { View } from 'react-native';
 
 export default function HMSView({ roomCode, userName, onLeave }: { roomCode: string; userName: string; onLeave: () => void }) {
-  // Adding skip_preview=true just in case it helps bypass extra screens
-  const webPrebuiltUrl = `https://gizmoverse-videoconf-1656.app.100ms.live/meeting/${roomCode}?name=${encodeURIComponent(userName)}&skip_preview=true`;
+  // Removed skip_preview=true so the browser can require a user click (fixing AutoplayBlocked)
+  const webPrebuiltUrl = `https://gizmoverse-videoconf-1656.app.100ms.live/meeting/${roomCode}?name=${encodeURIComponent(userName)}`;
   
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -24,12 +24,12 @@ export default function HMSView({ roomCode, userName, onLeave }: { roomCode: str
   }, [onLeave]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: '#000', zIndex: 9999 }}>
       <iframe
         src={webPrebuiltUrl}
-        allow="camera; microphone; fullscreen; speaker; display-capture"
+        allow="camera; microphone; fullscreen; speaker; display-capture; autoplay; wake-lock; compute-pressure"
         style={{ width: '100%', height: '100%', border: 'none' }}
       />
-    </View>
+    </div>
   );
 }

@@ -71,7 +71,7 @@ export default function CallScreen() {
     fetchRoomCode();
   }, [swapId, currentUser?.id]);
 
-  if (!swap || !partner) {
+  if (!swap) {
     return (
       <View style={styles.errorContainer}>
         <LinearGradient
@@ -85,7 +85,7 @@ export default function CallScreen() {
           </TouchableOpacity>
           <View style={styles.errorContent}>
             <Text style={styles.errorTitle}>Call not available</Text>
-            <Text style={styles.errorMessage}>Unable to start the call. Please try again.</Text>
+            <Text style={styles.errorMessage}>Swap details could not be loaded.</Text>
           </View>
           <View style={styles.safeAreaBottom} />
         </LinearGradient>
@@ -114,8 +114,8 @@ export default function CallScreen() {
   // Fallback to placeholder if roomCode fails
   return (
     <VideoCallScreen
-      partnerName={partner.name}
-      partnerImage={resolveImageUrl(partner.avatarUrl)}
+      partnerName={partner?.name || 'Partner'}
+      partnerImage={resolveImageUrl(partner?.avatarUrl)}
       onEndCall={handleEndCall}
     />
   );
