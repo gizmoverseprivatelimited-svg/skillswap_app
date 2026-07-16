@@ -37,14 +37,14 @@ export default function SwapOversight() {
   }, [allSwaps, filter]);
 
   const getUserName = (userId: string) => {
-    const user = allUsers.find(u => u.id == userId || u._id == userId);
+    const user = allUsers.find(u => u.id == userId || (u as any)._id == userId);
     return user ? (user.username ? `@${user.username}` : user.name) : 'Unknown';
   };
 
   const getSkillTitle = (userId: string, skillId: string) => {
     // console.log(userId,skillId);
     
-    const user = allUsers.find(u => u.id == userId || u._id == userId);
+    const user = allUsers.find(u => u.id == userId || (u as any)._id == userId);
     console.log(user);
     return (user?.skillsOffered || []).find(s => s._id == skillId || s.id == skillId)?.title ?? 'Unknown Skill';
   };

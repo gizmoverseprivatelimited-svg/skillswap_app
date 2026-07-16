@@ -37,7 +37,11 @@ export default function CallScreen() {
   }, [allUsers, currentUser?.id, swap]);
 
   const handleEndCall = () => {
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace(`/swaps/${swapId}`);
+    }
   };
 
 

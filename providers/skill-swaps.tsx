@@ -280,29 +280,25 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
       setSwaps([]);
       setLoading(false);
 
-      // Start background polling only for all swaps
-      const intervalId = setInterval(() => {
-        console.log('[SkillSwaps] Polling all swaps silently...');
-        fetchAllSwaps(true);
-      }, 4000);
-
-      return () => {
-        clearInterval(intervalId);
-      };
+      return;
     }
     
     // Initial load for user swaps
     fetchSwaps();
 
     // Start background polling for both user swaps and all swaps
-    const intervalId = setInterval(() => {
-      console.log('[SkillSwaps] Polling swaps silently...');
-      fetchSwaps(true);
-      fetchAllSwaps(true);
-    }, 4000);
+    let intervalId: any;
+    const timeoutId = setTimeout(() => {
+      intervalId = setInterval(() => {
+        console.log('[SkillSwaps] Polling swaps silently...');
+        fetchSwaps(true);
+        fetchAllSwaps(true);
+      }, 4000);
+    }, 2000);
 
     return () => {
-      clearInterval(intervalId);
+      clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
     };
   }, [currentUser?.id]);
 

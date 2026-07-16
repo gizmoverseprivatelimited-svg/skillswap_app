@@ -247,13 +247,17 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       });
     };
 
-    createReminderNotifications();
+    let interval: any;
+    const timeout = setTimeout(() => {
+      createReminderNotifications();
+      interval = globalThis.setInterval(createReminderNotifications, 60 * 1000);
+    }, 2000);
 
-    const interval = globalThis.setInterval(createReminderNotifications, 60 * 1000);
     return () => {
+      clearTimeout(timeout);
       if (typeof interval === 'number') {
         globalThis.clearInterval(interval);
-      } else {
+      } else if (interval) {
         clearInterval(interval);
       }
     };
@@ -388,11 +392,15 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       }
     };
 
-    checkNewReviews();
-    const interval = setInterval(checkNewReviews, 15000);
+    let interval: any;
+    const timeout = setTimeout(() => {
+      checkNewReviews();
+      interval = setInterval(checkNewReviews, 15000);
+    }, 2000);
 
     return () => {
-      clearInterval(interval);
+      clearTimeout(timeout);
+      if (interval) clearInterval(interval);
     };
   }, [currentUser?.id, addNotification, hasCompletedOnboarding]);
 

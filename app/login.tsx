@@ -12,6 +12,12 @@ import { Mail, Phone, Apple, Chrome, Sparkles, Lock, User, ArrowLeft } from 'luc
 import { useAuth } from '@/providers/auth';
 import url from '@/constants/backurl';
 import * as Linking from 'expo-linking';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { webAuth, nativeAuth, googleProvider, signInWithPopup } from '@/lib/firebase';
+
+GoogleSignin.configure({
+  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
+});
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -282,88 +288,48 @@ export default function LoginScreen() {
     try {
       console.log('[Login] Google sign-in start');
 
-      // ✅ Redirect URI
-      // const redirectUri =
-      //   Platform.OS === 'web'
-      //     ? window.location.origin
-      //     : 'myapp://';
-
-      console.log(redirectUri);
-
-
-      // ✅ Your Google Client ID
-      // const clientId =
-      //   '1031049540017-jjdl98e04dqstrtebkbq7a3bbfgjok7u.apps.googleusercontent.com';
-
-      const clientId = Platform.select({
-        ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_ID,
-        android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_ID,
-        web: process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
-        default: process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
-      });
-
-      if (!clientId) {
-        showAlert('Configuration Error', 'Google OAuth is not configured');
-        return;
-      }
-
-      const authUrl =
-        `https://accounts.google.com/o/oauth2/v2/auth` +
-        `?client_id=${encodeURIComponent(clientId)}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&response_type=token` +
-        `&scope=${encodeURIComponent('profile email')}`;
-
-      const res = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-
-      if (res.type === 'success' && res.url) {
-        // Try extracting access_token from the hash fragment first, then from search parameters
-        const hash = res.url.split('#')[1] ?? '';
-        const hashParams = new URLSearchParams(hash);
-        let accessToken = hashParams.get('access_token');
-
-        if (!accessToken) {
-          const search = res.url.split('?')[1] ?? '';
-          const searchParams = new URLSearchParams(search.split('#')[0]);
-          accessToken = searchParams.get('access_token');
+      if (Platform.OS === 'web') {
+        if (!webAuth || !googleProvider || !signInWithPopup) {
+          throw new Error('Firebase web auth not initialized');
         }
-
-        if (!accessToken) {
-          throw new Error('No access token returned from Google');
-        }
-
-        console.log('[Login] Google token received');
-
-        // ✅ Fetch Google user info
-        const userInfoResponse = await fetch(
-          'https://www.googleapis.com/oauth2/v2/userinfo',
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          }
-        );
-
-        const userInfo = await userInfoResponse.json();
-        console.log(userInfo);
-
-
+        const result = await signInWithPopup(webAuth, googleProvider);
+        const userInfo = result.user;
+        
         await auth.signInWithOAuth('google', {
-          providerId: userInfo.id,
-          email: userInfo.email,
-          name: userInfo.name,
-          avatar: userInfo.picture,
+          providerId: userInfo.uid,
+          email: userInfo.email || '',
+          name: userInfo.displayName || undefined,
+          avatar: userInfo.photoURL || undefined,
+        });
+        
+        router.replace('/');
+      } else {
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        const signInResult = await GoogleSignin.signIn();
+        const idToken = signInResult.data?.idToken;
+        
+        if (!idToken) throw new Error('No idToken returned from Google');
+        
+        const googleCredential = nativeAuth.GoogleAuthProvider.credential(idToken);
+        const userCredential = await nativeAuth().signInWithCredential(googleCredential);
+        const userInfo = userCredential.user;
+        
+        await auth.signInWithOAuth('google', {
+          providerId: userInfo.uid,
+          email: userInfo.email || '',
+          name: userInfo.displayName || undefined,
+          avatar: userInfo.photoURL || undefined,
         });
 
         router.replace('/');
       }
-
-      if (res.type === 'cancel') {
+    } catch (error: any) {
+      if (error?.code === 'SIGN_IN_CANCELLED' || error?.code === 'auth/popup-closed-by-user') {
         console.log('[Login] Google sign-in cancelled');
+      } else {
+        console.error('[Login] Google sign-in error', error);
+        showAlert('Google Sign in failed');
       }
-    } catch (error) {
-      console.error('[Login] Google sign-in error', error);
-      showAlert('Google Sign in failed');
     }
   }, [router, auth, showAlert]);
 

@@ -101,14 +101,21 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
       setCurrentUser(null);
     }
 
-    // Poll users list every 10 seconds to detect new users and update matches
-    const intervalId = setInterval(() => {
-      console.log('[CurrentUser] Polling users silently...');
-      loadUser(true);
-    }, 10000);
+    // Poll users list every 10 seconds to detect new users and update matches, start after 2s if logged in
+    let intervalId: any;
+    let timeoutId: any;
+    if (user?.id) {
+      timeoutId = setTimeout(() => {
+        intervalId = setInterval(() => {
+          console.log('[CurrentUser] Polling users silently...');
+          loadUser(true);
+        }, 10000);
+      }, 2000);
+    }
 
     return () => {
-      clearInterval(intervalId);
+      clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
     };
   }, [user?.id, loadUser]);
 
