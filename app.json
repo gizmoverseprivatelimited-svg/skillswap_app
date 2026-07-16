@@ -34,7 +34,8 @@
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": true,
+            "minSdkVersion": 24
           },
           "ios": {
             "useFrameworks": "static"
