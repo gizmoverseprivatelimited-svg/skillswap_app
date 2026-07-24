@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,17 +10,31 @@ import {
   Animated,
   Easing,
   Pressable,
-  ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronDown, Search, SlidersHorizontal, Star, X } from 'lucide-react-native';
+import {
+  ChevronDown,
+  Search,
+  SlidersHorizontal,
+  Star,
+  X,
+  GraduationCap,
+  BookOpen,
+  ArrowLeftRight,
+  MapPin,
+} from 'lucide-react-native';
 import Colors from '@/constants/colors';
-import { getSkillsWithUsers, categories } from '@/mocks/data';
-import type { SkillLevel, SkillWithUser } from '@/types';
+import { getSkillsWithUsers, mockUsers, categories } from '@/mocks/data';
+import type { SkillLevel, SkillWithUser, User } from '@/types';
+import { useCurrentUser } from '@/providers/current-user';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+const DEFAULT_SKILL_IMAGE = 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800';
+
 type SortBy = 'Relevance' | 'Rating' | 'Swaps' | 'Newest';
+type RoleTab = 'teachers' | 'learners' | 'swappers';
 
 interface FiltersState {
   level: SkillLevel | 'Any';
@@ -32,33 +46,34 @@ const LEVEL_OPTIONS: (SkillLevel | 'Any')[] = ['Any', 'Beginner', 'Intermediate'
 const RATING_OPTIONS: FiltersState['minRating'][] = [0, 4, 4.5, 4.8, 5];
 const SORT_OPTIONS: SortBy[] = ['Relevance', 'Rating', 'Swaps', 'Newest'];
 
+const ROLE_TABS: { key: RoleTab; label: string; icon: typeof GraduationCap }[] = [
+  { key: 'teachers', label: 'Teachers', icon: GraduationCap },
+  { key: 'learners', label: 'Learners', icon: BookOpen },
+  { key: 'swappers', label: 'Swappers', icon: ArrowLeftRight },
+];
+
 export default function ExploreScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const [activeTab, setActiveTab] = useState<RoleTab>('teachers');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   const [filters, setFilters] = useState<FiltersState>({ level: 'Any', minRating: 0, sortBy: 'Relevance' });
   const slideAnim = useRef(new Animated.Value(0)).current;
+
   const [skillsWithUsers, setSkillsWithUsers] = useState<SkillWithUser[]>([]);
-  const [isSkillsLoading, setIsSkillsLoading] = useState(true);
+
+  const { currentUser, allUsers } = useCurrentUser();
 
   useEffect(() => {
-    async function getskill() {
-      try {
-        setIsSkillsLoading(true);
-        const any = await getSkillsWithUsers();
-        setSkillsWithUsers(any);
-      } catch (err) {
-        console.error('[Explore] Failed to fetch skills:', err);
-      } finally {
-        setIsSkillsLoading(false);
-      }
-    }
-    getskill()
-  }, [])
+    getSkillsWithUsers().then(setSkillsWithUsers).catch(console.error);
+  }, []);
 
-  // const skillsWithUsers = getSkillsWithUsers();
+  // Use backend users for learners/swappers, fall back to mockUsers if empty
+  const otherUsers = useMemo(() => {
+    const backendUsers = allUsers.filter((u) => u.id !== currentUser?.id);
+    return backendUsers.length > 0 ? backendUsers : mockUsers.slice(1);
+  }, [allUsers, currentUser?.id]);
 
   const toggleFilters = useCallback(() => {
     const next = !isFilterOpen;
@@ -77,50 +92,240 @@ export default function ExploreScreen() {
     setSearchQuery('');
   }, []);
 
+  // --- TEACHERS: skills offered ---
   const filteredSkills = useMemo<SkillWithUser[]>(() => {
     const q = searchQuery.trim().toLowerCase();
     let list = skillsWithUsers.filter((skill) => {
-      const matchesSearch = q.length === 0
-        ? true
-        : skill.title.toLowerCase().includes(q) || skill.description.toLowerCase().includes(q) || skill.user.name.toLowerCase().includes(q);
+      const titleMatches = skill.title?.toLowerCase().includes(q) ?? false;
+      const descMatches = skill.description?.toLowerCase().includes(q) ?? false;
+      const userNameMatches = skill.user?.name?.toLowerCase().includes(q) ?? false;
+
+      const matchesSearch = q.length === 0 ? true : titleMatches || descMatches || userNameMatches;
       const matchesCategory = selectedCategory === 'All' || skill.category === (selectedCategory as any);
       const matchesLevel = filters.level === 'Any' || skill.level === filters.level;
-      const matchesRating = (skill.user.rating ?? 0) >= filters.minRating;
+      const matchesRating = (skill.user?.rating ?? 0) >= filters.minRating;
       return matchesSearch && matchesCategory && matchesLevel && matchesRating;
     });
 
     switch (filters.sortBy) {
       case 'Rating':
-        list = [...list].sort((a, b) => (b.user.rating ?? 0) - (a.user.rating ?? 0));
+        list = [...list].sort((a, b) => (b.user?.rating ?? 0) - (a.user?.rating ?? 0));
         break;
       case 'Swaps':
-        list = [...list].sort((a, b) => (b.user.totalSwaps ?? 0) - (a.user.totalSwaps ?? 0));
+        list = [...list].sort((a, b) => (b.user?.totalSwaps ?? 0) - (a.user?.totalSwaps ?? 0));
         break;
       case 'Newest':
-        list = [...list].sort((a, b) => new Date(b.user.joinedDate).getTime() - new Date(a.user.joinedDate).getTime());
+        list = [...list].sort((a, b) => new Date(b.user?.joinedDate || 0).getTime() - new Date(a.user?.joinedDate || 0).getTime());
         break;
       case 'Relevance':
       default:
         break;
     }
-
     return list;
   }, [filters.level, filters.minRating, filters.sortBy, searchQuery, selectedCategory, skillsWithUsers]);
+
+  // --- LEARNERS: users wanting skills ---
+  const filteredLearners = useMemo<User[]>(() => {
+    const q = searchQuery.trim().toLowerCase();
+    let list = (otherUsers || []).filter((u) => (u.skillsWanted || []).length > 0);
+    if (q.length > 0) {
+      list = list.filter((u) => {
+        const nameMatch = u.name?.toLowerCase().includes(q) ?? false;
+        const skillMatch = (u.skillsWanted || []).some((s) => (typeof s === 'string' ? s : (s as any)?.title || '').toLowerCase().includes(q));
+        const locationMatch = u.location?.toLowerCase().includes(q) ?? false;
+        return nameMatch || skillMatch || locationMatch;
+      });
+    }
+    if (selectedCategory !== 'All') {
+      list = list.filter((u) => (u.skillsWanted || []).some((s) => s === selectedCategory));
+    }
+    if (filters.minRating > 0) {
+      list = list.filter((u) => (u.rating ?? 0) >= filters.minRating);
+    }
+    switch (filters.sortBy) {
+      case 'Rating':
+        list = [...list].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+        break;
+      case 'Swaps':
+        list = [...list].sort((a, b) => (b.totalSwaps ?? 0) - (a.totalSwaps ?? 0));
+        break;
+      case 'Newest':
+        list = [...list].sort((a, b) => new Date(b.joinedDate || 0).getTime() - new Date(a.joinedDate || 0).getTime());
+        break;
+      default:
+        break;
+    }
+    return list;
+  }, [filters.minRating, filters.sortBy, otherUsers, searchQuery, selectedCategory]);
+
+  // --- SWAPPERS: users who both teach and learn ---
+  const filteredSwappers = useMemo<User[]>(() => {
+    const q = searchQuery.trim().toLowerCase();
+    let list = (otherUsers || []).filter((u) => (u.skillsOffered || []).length > 0 && (u.skillsWanted || []).length > 0);
+    if (q.length > 0) {
+      list = list.filter((u) => {
+        const nameMatch = u.name?.toLowerCase().includes(q) ?? false;
+        const teachMatch = (u.skillsOffered || []).some((s) => (typeof s === 'string' ? s : s.title || '').toLowerCase().includes(q));
+        const wantMatch = (u.skillsWanted || []).some((s) => (typeof s === 'string' ? s : (s as any)?.title || '').toLowerCase().includes(q));
+        const locationMatch = u.location?.toLowerCase().includes(q) ?? false;
+        return nameMatch || teachMatch || wantMatch || locationMatch;
+      });
+    }
+    if (selectedCategory !== 'All') {
+      list = list.filter((u) =>
+        u.skillsOffered.some((s) => s.category === selectedCategory) ||
+        u.skillsWanted.some((s) => s === selectedCategory)
+      );
+    }
+    if (filters.minRating > 0) {
+      list = list.filter((u) => (u.rating ?? 0) >= filters.minRating);
+    }
+    switch (filters.sortBy) {
+      case 'Rating':
+        list = [...list].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+        break;
+      case 'Swaps':
+        list = [...list].sort((a, b) => (b.totalSwaps ?? 0) - (a.totalSwaps ?? 0));
+        break;
+      case 'Newest':
+        list = [...list].sort((a, b) => new Date(b.joinedDate).getTime() - new Date(a.joinedDate).getTime());
+        break;
+      default:
+        break;
+    }
+    return list;
+  }, [filters.minRating, filters.sortBy, otherUsers, searchQuery, selectedCategory]);
 
   const translateY = slideAnim.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] });
   const backdropOpacity = slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
 
-  if (isSkillsLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.light.primary} />
+  const resultsCount =
+    activeTab === 'teachers' ? filteredSkills.length
+    : activeTab === 'learners' ? filteredLearners.length
+    : filteredSwappers.length;
+
+  const renderSkillCard = useCallback(({ item }: { item: SkillWithUser }) => (
+    <TouchableOpacity
+      style={styles.skillCard}
+      onPress={() => router.push(`/skill/${item.id}` as any)}
+      activeOpacity={0.85}
+    >
+      <Image source={{ uri: resolveImageUrl(item.imageUrl, DEFAULT_SKILL_IMAGE) }} style={styles.skillImage} />
+      <View style={styles.skillContent}>
+        <View style={styles.skillHeader}>
+          <Text style={styles.categoryLabel}>{item.category}</Text>
+          <View style={styles.levelBadge}>
+            <Text style={styles.levelText}>{item.level}</Text>
+          </View>
+        </View>
+        <Text style={styles.skillTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.skillDescription} numberOfLines={2}>{item.description}</Text>
+        <View style={styles.skillFooter}>
+          <View style={styles.userInfo}>
+            <Image source={{ uri: resolveImageUrl(item.user.avatarUrl, DEFAULT_AVATAR) }} style={styles.userAvatar} />
+            <View style={styles.userDetails}>
+              <Text style={styles.userName} numberOfLines={1}>{item.user.name}</Text>
+              <View style={styles.ratingRow}>
+                <Star size={12} fill={Colors.light.accent} color={Colors.light.accent} />
+                <Text style={styles.ratingText}>{item.user.rating}</Text>
+                <Text style={styles.swapsText}>• {item.user.totalSwaps} swaps</Text>
+              </View>
+            </View>
+          </View>
+        </View>
       </View>
-    );
-  }
+    </TouchableOpacity>
+  ), [router]);
+
+  const renderLearnerCard = useCallback(({ item }: { item: User }) => (
+    <TouchableOpacity
+      style={styles.personCard}
+      onPress={() => router.push(`/profile/${item.id}` as any)}
+      activeOpacity={0.85}
+    >
+      <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatar} />
+      <View style={styles.personContent}>
+        <View style={styles.personHeader}>
+          <Text style={styles.personName} numberOfLines={1}>{item.name}</Text>
+          <View style={styles.ratingPill}>
+            <Star size={11} fill={Colors.light.accent} color={Colors.light.accent} />
+            <Text style={styles.ratingPillText}>{item.rating}</Text>
+          </View>
+        </View>
+        <View style={styles.personLocationRow}>
+          <MapPin size={12} color={Colors.light.textTertiary} />
+          <Text style={styles.personLocation} numberOfLines={1}>{item.location}</Text>
+        </View>
+        <Text style={styles.wantsLabel}>Wants to learn</Text>
+        <View style={styles.chipRow}>
+          {item.skillsWanted.slice(0, 4).map((s) => (
+            <View key={s} style={styles.wantChip}>
+              <Text style={styles.wantChipText}>{s}</Text>
+            </View>
+          ))}
+        </View>
+        <Text style={styles.personSwaps}>{item.totalSwaps} swaps completed</Text>
+      </View>
+    </TouchableOpacity>
+  ), [router]);
+
+  const renderSwapperCard = useCallback(({ item }: { item: User }) => (
+    <TouchableOpacity
+      style={styles.personCard}
+      onPress={() => router.push(`/profile/${item.id}` as any)}
+      activeOpacity={0.85}
+    >
+      <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatar} />
+      <View style={styles.personContent}>
+        <View style={styles.personHeader}>
+          <Text style={styles.personName} numberOfLines={1}>{item.name}</Text>
+          <View style={styles.ratingPill}>
+            <Star size={11} fill={Colors.light.accent} color={Colors.light.accent} />
+            <Text style={styles.ratingPillText}>{item.rating}</Text>
+          </View>
+        </View>
+        <View style={styles.personLocationRow}>
+          <MapPin size={12} color={Colors.light.textTertiary} />
+          <Text style={styles.personLocation} numberOfLines={1}>{item.location}</Text>
+        </View>
+        <View style={styles.swapSection}>
+          <View style={styles.swapHalf}>
+            <Text style={styles.swapHalfLabel}>Teaches</Text>
+            <View style={styles.chipRow}>
+              {item.skillsOffered.slice(0, 2).map((s, idx) => {
+                const title = typeof s === 'string' ? s : s.title || String(s);
+                const key = typeof s === 'string' ? s : (s.id || s._id || `teach-${idx}`);
+                return (
+                  <View key={key} style={styles.teachChip}>
+                    <Text style={styles.teachChipText} numberOfLines={1}>{title}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+          <View style={styles.swapDivider} />
+          <View style={styles.swapHalf}>
+            <Text style={styles.swapHalfLabel}>Learns</Text>
+            <View style={styles.chipRow}>
+              {item.skillsWanted.slice(0, 2).map((s, idx) => {
+                const text = typeof s === 'string' ? s : String(s);
+                return (
+                  <View key={`want-${idx}-${text}`} style={styles.wantChip}>
+                    <Text style={styles.wantChipText}>{text}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+        <Text style={styles.personSwaps}>{item.totalSwaps} swaps completed</Text>
+      </View>
+    </TouchableOpacity>
+  ), [router]);
 
   return (
     <View style={styles.container}>
-      <View style={[styles.searchSection, { paddingTop: insets.top + 8 }]}>
+      <View style={styles.searchSection}>
         <View style={styles.searchBar} testID="search-bar">
           <Search size={20} color={Colors.light.textSecondary} />
           <TextInput
@@ -143,6 +348,24 @@ export default function ExploreScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Role tabs */}
+      <View style={styles.roleTabsRow}>
+        {ROLE_TABS.map((tab) => {
+          const isActive = activeTab === tab.key;
+          const Icon = tab.icon;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.roleTab, isActive && styles.roleTabActive]}
+              onPress={() => setActiveTab(tab.key)}
+              activeOpacity={0.7}
+            >
+              <Icon size={16} color={isActive ? '#FFFFFF' : Colors.light.textSecondary} />
+              <Text style={[styles.roleTabText, isActive && styles.roleTabTextActive]}>{tab.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       {isFilterOpen && (
         <Pressable style={styles.backdrop} onPress={toggleFilters} testID="filters-backdrop">
@@ -172,21 +395,23 @@ export default function ExploreScreen() {
               </View>
             </View>
 
-            <View style={styles.filterGroup}>
-              <Text style={styles.groupLabel}>Level</Text>
-              <View style={styles.rowChips}>
-                {LEVEL_OPTIONS.map((lvl) => (
-                  <TouchableOpacity
-                    key={lvl}
-                    style={[styles.pill, filters.level === lvl && styles.pillActive]}
-                    onPress={() => setFilters((f) => ({ ...f, level: lvl }))}
-                    testID={`level-${lvl}`}
-                  >
-                    <Text style={[styles.pillText, filters.level === lvl && styles.pillTextActive]}>{lvl}</Text>
-                  </TouchableOpacity>
-                ))}
+            {activeTab === 'teachers' && (
+              <View style={styles.filterGroup}>
+                <Text style={styles.groupLabel}>Level</Text>
+                <View style={styles.rowChips}>
+                  {LEVEL_OPTIONS.map((lvl) => (
+                    <TouchableOpacity
+                      key={lvl}
+                      style={[styles.pill, filters.level === lvl && styles.pillActive]}
+                      onPress={() => setFilters((f) => ({ ...f, level: lvl }))}
+                      testID={`level-${lvl}`}
+                    >
+                      <Text style={[styles.pillText, filters.level === lvl && styles.pillTextActive]}>{lvl}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-            </View>
+            )}
 
             <View style={styles.filterGroup}>
               <Text style={styles.groupLabel}>Minimum rating</Text>
@@ -234,64 +459,55 @@ export default function ExploreScreen() {
         </Pressable>
       )}
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.resultsHeader}>
-          <Text style={styles.resultsText} testID="results-count">
-            {filteredSkills.length} {filteredSkills.length === 1 ? 'skill' : 'skills'} found
-          </Text>
-        </View>
+      <View style={styles.resultsHeader}>
+        <Text style={styles.resultsText} testID="results-count">
+          {resultsCount} {resultsCount === 1 ? 'result' : 'results'}
+        </Text>
+      </View>
 
-        <View style={styles.skillsList}>
-          {filteredSkills.map((skill) => (
-            <TouchableOpacity
-              key={skill._id || skill.id}
-              style={styles.skillCard}
-              onPress={() => router.push(`/skill/${skill._id || skill.id}` as any)}
-              testID={`skill-${skill._id || skill.id}`}
-            >
-              {skill.imageUrl ? (
-                <Image source={{ uri: resolveImageUrl(skill.imageUrl, 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800') }} style={styles.skillImage} />
-              ) : (
-                <View style={[styles.skillImage, { backgroundColor: Colors.light.backgroundTertiary }]} />
-              )}
-              <View style={styles.skillContent}>
-                <View style={styles.skillHeader}>
-                  <Text style={styles.categoryLabel}>{skill.category}</Text>
-                  <View style={styles.levelBadge}>
-                    <Text style={styles.levelText}>{skill.level}</Text>
-                  </View>
-                </View>
-                <Text style={styles.skillTitle} numberOfLines={2}>
-                  {skill.title}
-                </Text>
-                <Text style={styles.skillDescription} numberOfLines={2}>
-                  {skill.description}
-                </Text>
-                <View style={styles.skillFooter}>
-                  <View style={styles.userInfo}>
-                    <Image source={{ uri: resolveImageUrl(skill.user.avatarUrl, 'https://i.pravatar.cc/150?img=5') }} style={styles.userAvatar} />
-                    <View style={styles.userDetails}>
-                      <Text style={styles.userName} numberOfLines={1}>
-                        {skill.user.username ? `@${skill.user.username}` : skill.user.name}
-                      </Text>
-                      <View style={styles.ratingRow}>
-                        <Star size={12} fill={Colors.light.accent} color={Colors.light.accent} />
-                        <Text style={styles.ratingText}>{skill.user.rating}</Text>
-                        <Text style={styles.swapsText}>• {skill.user.totalSwaps} swaps</Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+      {activeTab === 'teachers' && (
+        <FlatList
+          data={filteredSkills}
+          keyExtractor={(item) => item.id}
+          renderItem={renderSkillCard}
+          ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={<EmptyState text="No teachers match your filters." />}
+        />
+      )}
 
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+      {activeTab === 'learners' && (
+        <FlatList
+          data={filteredLearners}
+          keyExtractor={(item) => item.id}
+          renderItem={renderLearnerCard}
+          ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={<EmptyState text="No learners match your filters." />}
+        />
+      )}
+
+      {activeTab === 'swappers' && (
+        <FlatList
+          data={filteredSwappers}
+          keyExtractor={(item) => item.id}
+          renderItem={renderSwapperCard}
+          ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={<EmptyState text="No swappers match your filters." />}
+        />
+      )}
+    </View>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <View style={styles.emptyWrap}>
+      <Text style={styles.emptyText}>{text}</Text>
     </View>
   );
 }
@@ -305,7 +521,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 16,
+    paddingBottom: 12,
     gap: 12,
     backgroundColor: Colors.light.background,
     borderBottomWidth: 1,
@@ -341,13 +557,46 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-
+  roleTabsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 10,
+    backgroundColor: Colors.light.background,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.borderLight,
+  },
+  roleTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 11,
+    borderRadius: 14,
+    backgroundColor: Colors.light.backgroundTertiary,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  roleTabActive: {
+    backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
+    shadowColor: Colors.light.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  roleTabText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.light.textSecondary,
+  },
+  roleTabTextActive: {
+    color: '#FFFFFF',
+  },
   backdrop: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15, 23, 42, 0.4)',
     zIndex: 10,
     justifyContent: 'flex-start',
@@ -441,22 +690,20 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     fontSize: 16,
   },
-  scrollView: {
-    flex: 1,
-  },
   resultsHeader: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 14,
   },
   resultsText: {
     fontSize: 15,
     color: Colors.light.textSecondary,
     fontWeight: '600' as const,
   },
-  skillsList: {
+  listContent: {
     paddingHorizontal: 20,
-    gap: 16,
+    paddingBottom: 40,
   },
+  // Skill card (teachers)
   skillCard: {
     backgroundColor: Colors.light.card,
     borderRadius: 20,
@@ -555,13 +802,144 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.light.textSecondary,
   },
-  bottomSpacer: {
-    height: 40,
+  // Person card (learners + swappers)
+  personCard: {
+    flexDirection: 'row',
+    backgroundColor: Colors.light.card,
+    borderRadius: 20,
+    padding: 16,
+    gap: 14,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
   },
-  loadingContainer: {
+  personAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: Colors.light.border,
+  },
+  personContent: {
     flex: 1,
-    justifyContent: 'center',
+  },
+  personHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Colors.light.backgroundSecondary,
+    marginBottom: 4,
+  },
+  personName: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    flex: 1,
+    marginRight: 8,
+  },
+  ratingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  ratingPillText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.light.accent,
+  },
+  personLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 10,
+  },
+  personLocation: {
+    fontSize: 13,
+    color: Colors.light.textTertiary,
+    fontWeight: '500' as const,
+  },
+  wantsLabel: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: Colors.light.textSecondary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap' as const,
+    gap: 6,
+    marginBottom: 10,
+  },
+  wantChip: {
+    backgroundColor: 'rgba(99, 102, 241, 0.10)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.20)',
+  },
+  wantChipText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#6366F1',
+  },
+  teachChip: {
+    backgroundColor: 'rgba(16, 185, 129, 0.10)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.20)',
+    maxWidth: 140,
+  },
+  teachChipText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#10B981',
+  },
+  swapSection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 8,
+  },
+  swapHalf: {
+    flex: 1,
+  },
+  swapDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: Colors.light.borderLight,
+  },
+  swapHalfLabel: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: Colors.light.textSecondary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  personSwaps: {
+    fontSize: 12,
+    color: Colors.light.textTertiary,
+    fontWeight: '500' as const,
+  },
+  emptyWrap: {
+    paddingVertical: 60,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 15,
+    color: Colors.light.textTertiary,
+    fontWeight: '500' as const,
   },
 });

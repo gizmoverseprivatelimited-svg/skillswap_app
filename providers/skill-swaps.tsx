@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
-import { SkillSwapRequest, SkillSwapStatus, SwapMessage, SwapTimeProposal } from '../types';
+import { SkillSwapRequest, SkillSwapStatus, SwapMessage, SwapTimeProposal, SwapType } from '../types';
 import { useCurrentUser } from './current-user';
+import { useEarnings } from './earnings';
 import url from '@/constants/backurl';
 
 interface CreateSwapRequestInput {
   recipientId: string;
   recipientSkillId: string;
-  requesterSkillId: string;
+  requesterSkillId?: string;
+  swapType: SwapType;
   proposedTimes: { startISO: string; endISO: string }[];
   locationPreference: string | null;
   message?: string;
@@ -92,6 +94,7 @@ const mapProposals = (
 
 export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsContextValue>(() => {
   const { currentUser, allUsers, loadUser } = useCurrentUser();
+  const { awardPoints } = useEarnings();
   // const [swaps, setSwaps] = useState<SkillSwapRequest[]>(() => {
   //   const lookupSkillId = (userId: string): string => {
   //     const user = allUsers.find((candidate) => candidate.id === userId);
@@ -205,7 +208,6 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
       if (!silent) {
         setLoading(true);
       }
-      console.log(`[SkillSwaps] Fetching: ${fullUrl}`);
       const response = await fetch(fullUrl);
       if (!response.ok) {
         throw new Error(`Failed to fetch swaps (${response.status})`);
@@ -239,8 +241,6 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
       if (!silent) {
         setLoading(true);
       }
-      console.log(`[SkillSwaps] Fetching: ${fullUrl}`);
-      console.log("Yeah Current", currentUser);
       const response = await fetch(fullUrl);
       if (!response.ok) {
         throw new Error(`Failed to fetch swaps (${response.status})`);
@@ -282,7 +282,7 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
 
       return;
     }
-    
+
     // Initial load for user swaps
     fetchSwaps();
 
@@ -290,7 +290,6 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
     let intervalId: any;
     const timeoutId = setTimeout(() => {
       intervalId = setInterval(() => {
-        console.log('[SkillSwaps] Polling swaps silently...');
         fetchSwaps(true);
         fetchAllSwaps(true);
       }, 4000);
@@ -452,6 +451,7 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
       recipientId,
       recipientSkillId,
       requesterSkillId,
+      swapType,
       proposedTimes,
       locationPreference,
       message,
@@ -465,9 +465,10 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
 
       const payload = {
         requesterId: currentUser.id,
-        requesterSkillId,
+        requesterSkillId: requesterSkillId || null,
         recipientId,
         recipientSkillId,
+        swapType,
         locationPreference,
         message,
         proposedTimes: proposedTimes.map((slot) => ({
@@ -994,6 +995,77 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
               : swap
           )
         );
+        // Award points based on swapType
+        const targetSwap = updatedSwap || swaps.find((s) => s.id === requestId || s._id === requestId);
+        if (targetSwap) {
+          const swapType = targetSwap.swapType || 'swap';
+
+          if (swapType === 'teach') {
+            // Requester is teacher, recipient is learner
+            if (targetSwap.requesterId) {
+              awardPoints({
+                userId: targetSwap.requesterId,
+                amount: 50,
+                source: 'class_taught',
+                description: 'Completed teaching session (Teacher: +50 pts)',
+                swapId: requestId,
+              });
+            }
+            if (targetSwap.recipientId) {
+              awardPoints({
+                userId: targetSwap.recipientId,
+                amount: 10,
+                source: 'bonus',
+                description: 'Completed learning session (Student: +10 pts)',
+                swapId: requestId,
+              });
+            }
+          } else if (swapType === 'learn') {
+            // Requester is learner, recipient is teacher
+            if (targetSwap.recipientId) {
+              awardPoints({
+                userId: targetSwap.recipientId,
+                amount: 50,
+                source: 'class_taught',
+                description: 'Completed teaching session (Teacher: +50 pts)',
+                swapId: requestId,
+              });
+            }
+            if (targetSwap.requesterId) {
+              awardPoints({
+                userId: targetSwap.requesterId,
+                amount: 10,
+                source: 'bonus',
+                description: 'Completed learning session (Student: +10 pts)',
+                swapId: requestId,
+              });
+            }
+          } else {
+            // 'swap' — recipient is teacher, requester is student
+            const teacherId = targetSwap.recipientId;
+            const studentId = targetSwap.requesterId;
+
+            if (teacherId) {
+              awardPoints({
+                userId: teacherId,
+                amount: 50,
+                source: 'class_taught',
+                description: 'Completed swap session (Teacher: +50 pts)',
+                swapId: requestId,
+              });
+            }
+
+            if (studentId) {
+              awardPoints({
+                userId: studentId,
+                amount: 10,
+                source: 'bonus',
+                description: 'Completed swap session (Student: +10 pts)',
+                swapId: requestId,
+              });
+            }
+          }
+        }
       } catch (error) {
         console.error('[SkillSwaps] Complete swap failed', error);
         // optional: rollback or toast

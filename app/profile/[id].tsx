@@ -90,10 +90,11 @@ export default function UserProfileScreen() {
 
     const existingSwap = swaps.find(
       (s) => {
-        console.log(s, currentUser, user);
-
+        if (s.status === 'completed' || s.status === 'declined') {
+          return false;
+        }
         return (s.requesterId === currentUser.id && s.recipientId === user.id) ||
-          (s.requesterId === user.id && s.recipientId === currentUser.id)
+          (s.requesterId === user.id && s.recipientId === currentUser.id);
       }
     );
 

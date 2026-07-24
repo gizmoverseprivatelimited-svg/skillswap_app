@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Image, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Sparkles, CalendarDays, MessageCircle, Timer, ArrowRight } from 'lucide-react-native';
+import { Sparkles, CalendarDays, MessageCircle, Timer, ArrowRight, GraduationCap, BookOpen, ArrowLeftRight } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 import { useSkillSwaps } from '../../providers/skill-swaps';
 import { useCurrentUser } from '../../providers/current-user';
@@ -110,6 +110,29 @@ export default function SwapsIndexScreen() {
     const partner = allUsers.find((user) => user.id === partnerId);
     const partnerSkill = skillsMap.get(isRequester ? swap.recipientSkillId : swap.requesterSkillId);
     const offeredSkill = skillsMap.get(isRequester ? swap.requesterSkillId : swap.recipientSkillId);
+
+    // Determine role labels based on swapType
+    const swapType = swap.swapType || 'swap';
+    const getRoleInfo = () => {
+      if (swapType === 'learn') {
+        // Requester is learner, recipient is teacher
+        if (isRequester) {
+          return { myRole: 'Learner', partnerRole: 'Teacher', myLabel: 'You learn', partnerLabel: 'They teach', color: '#6366F1', bg: '#EEF2FF', Icon: BookOpen };
+        }
+        return { myRole: 'Teacher', partnerRole: 'Learner', myLabel: 'You teach', partnerLabel: 'They learn', color: '#10B981', bg: '#ECFDF5', Icon: GraduationCap };
+      }
+      if (swapType === 'teach') {
+        // Requester is teacher, recipient is learner
+        if (isRequester) {
+          return { myRole: 'Teacher', partnerRole: 'Learner', myLabel: 'You teach', partnerLabel: 'They learn', color: '#10B981', bg: '#ECFDF5', Icon: GraduationCap };
+        }
+        return { myRole: 'Learner', partnerRole: 'Teacher', myLabel: 'You learn', partnerLabel: 'They teach', color: '#6366F1', bg: '#EEF2FF', Icon: BookOpen };
+      }
+      // swap
+      return { myRole: 'Swapper', partnerRole: 'Swapper', myLabel: 'You share', partnerLabel: 'You learn', color: '#F59E0B', bg: '#FFFBEB', Icon: ArrowLeftRight };
+    };
+    const roleInfo = getRoleInfo();
+
     const nextAction = (() => {
       if (swap.status === 'pending') {
         return 'Awaiting confirmation';
@@ -169,15 +192,35 @@ export default function SwapsIndexScreen() {
           </View>
         </View>
 
+        {/* Role badge */}
+        <View style={[styles.swapRoleBadge, { backgroundColor: roleInfo.bg, borderColor: roleInfo.color }]}>
+          <roleInfo.Icon size={14} color={roleInfo.color} />
+          <Text style={[styles.swapRoleText, { color: roleInfo.color }]}>
+            {roleInfo.myRole === 'Swapper' ? 'Mutual Swap' : `You are the ${roleInfo.myRole}`}
+          </Text>
+        </View>
+
         <View style={styles.skillsRow}>
           <View style={styles.skillColumn}>
-            <Text style={styles.skillLabel}>{isRequester ? 'You share' : 'They share'}</Text>
-            <Text style={styles.skillTitle} numberOfLines={1}>{offeredSkill?.title ?? 'Skill TBD'}</Text>
+            <Text style={styles.skillLabel}>{roleInfo.myLabel}</Text>
+            <Text style={styles.skillTitle} numberOfLines={1}>
+              {swapType === 'swap'
+                ? (offeredSkill?.title ?? 'Skill TBD')
+                : swapType === 'learn'
+                  ? (isRequester ? partnerSkill?.title : offeredSkill?.title) ?? 'Skill TBD'
+                  : (isRequester ? offeredSkill?.title : partnerSkill?.title) ?? 'Skill TBD'}
+            </Text>
           </View>
-          <ArrowRight size={18} color={Colors.light.primary} />
+          <ArrowRight size={18} color={roleInfo.color} />
           <View style={styles.skillColumn}>
-            <Text style={styles.skillLabel}>{isRequester ? 'You learn' : 'They learn'}</Text>
-            <Text style={styles.skillTitle} numberOfLines={1}>{partnerSkill?.title ?? 'Skill TBD'}</Text>
+            <Text style={styles.skillLabel}>{roleInfo.partnerLabel}</Text>
+            <Text style={styles.skillTitle} numberOfLines={1}>
+              {swapType === 'swap'
+                ? (partnerSkill?.title ?? 'Skill TBD')
+                : swapType === 'learn'
+                  ? (isRequester ? offeredSkill?.title || 'N/A' : partnerSkill?.title) ?? 'Skill TBD'
+                  : (isRequester ? partnerSkill?.title || 'N/A' : offeredSkill?.title) ?? 'Skill TBD'}
+            </Text>
           </View>
         </View>
 
@@ -487,6 +530,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 32,
     lineHeight: 20,
+  },
+  swapRoleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  swapRoleText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    letterSpacing: 0.3,
   },
   loadingContainer: {
     flex: 1,

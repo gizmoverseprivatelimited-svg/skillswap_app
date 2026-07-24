@@ -1,7 +1,17 @@
-import type { MatchRecommendation, SkillCategory, User } from '../types';
+import type { MatchRecommendation, OnboardingRole, SkillCategory, User } from '../types';
 
 const unique = (values: string[]): string[] => {
   return Array.from(new Set(values));
+};
+
+/** Derive a user's role from their skills. Falls back to explicit role field, then 'swap'. */
+export const getUserRole = (user: User): OnboardingRole => {
+  if (user.role) return user.role;
+  const offers = user.skillsOffered.length > 0;
+  const wants = user.skillsWanted.length > 0;
+  if (offers && !wants) return 'teacher';
+  if (wants && !offers) return 'learner';
+  return 'swap';
 };
 
 const clampCompatibility = (value: number): number => {
@@ -61,21 +71,33 @@ export const computeMatchRecommendations = (
   currentUser: User,
   otherUsers: User[],
 ): MatchRecommendation[] => {
-  const currentOffers = currentUser.skillsOffered.map((skill) => skill.title);
-  const currentOfferCategories = currentUser.skillsOffered.map((skill) => skill.category);
-  const currentWants = currentUser.skillsWanted;
+  const currentOffers = (currentUser.skillsOffered || []).map((skill: any) =>
+    typeof skill === 'string' ? skill : skill?.title || ''
+  ).filter(Boolean);
+  const currentOfferCategories = (currentUser.skillsOffered || []).map((skill: any) =>
+    typeof skill === 'string' ? '' : skill?.category || ''
+  ).filter(Boolean);
+  const currentWants = (currentUser.skillsWanted || []).map((s: any) =>
+    typeof s === 'string' ? s : s?.title || ''
+  ).filter(Boolean);
 
   const recommendations = otherUsers.map<MatchRecommendation>((user) => {
-    const userOffersRaw = user.skillsOffered.map((skill) => skill.title);
-    const userOfferCategories = user.skillsOffered.map((skill) => skill.category);
-    const userWants = user.skillsWanted;
+    const userOffersRaw = (user.skillsOffered || []).map((skill: any) =>
+      typeof skill === 'string' ? skill : skill?.title || ''
+    ).filter(Boolean);
+    const userOfferCategories = (user.skillsOffered || []).map((skill: any) =>
+      typeof skill === 'string' ? '' : skill?.category || ''
+    ).filter(Boolean);
+    const userWants = (user.skillsWanted || []).map((s: any) =>
+      typeof s === 'string' ? s : s?.title || ''
+    ).filter(Boolean);
 
     const youCanLearn = unique(findMatches(userOffersRaw, currentWants));
     const theyCanLearn = unique(findMatches(currentOffers, userWants));
     const sharedInterests = unique(findMatches(currentWants, userWants));
     const categoryMatches = unique(
       currentOfferCategories
-        .filter((category) => userOfferCategories.includes(category))
+        .filter((category) => category && userOfferCategories.includes(category))
         .map((category) => category),
     ) as SkillCategory[];
 
@@ -83,22 +105,12 @@ export const computeMatchRecommendations = (
       youCanLearn.length,
       theyCanLearn.length,
       sharedInterests.length,
-      user.rating,
-      user.totalSwaps,
+      user.rating ?? 4.5,
+      user.totalSwaps ?? 0,
       categoryMatches.length,
     );
 
-    const primarySkill = youCanLearn[0] ?? theyCanLearn[0] ?? null;
-
-    console.log('[Matching] Recommendation generated', {
-      currentUserId: currentUser.id,
-      targetUserId: user.id,
-      compatibility,
-      youCanLearnCount: youCanLearn.length,
-      theyCanLearnCount: theyCanLearn.length,
-      sharedInterestsCount: sharedInterests.length,
-      categoryMatchesCount: categoryMatches.length,
-    });
+    const primarySkill = youCanLearn[0] ?? theyCanLearn[0] ?? (userOffersRaw[0] || null);
 
     return {
       user,

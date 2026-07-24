@@ -8,20 +8,22 @@ console.log("Hey Hey", API_URL);
 
 async function apiGet<T>(endpoint: string): Promise<T> {
   const fullUrl = `${API_URL}${endpoint}`;
-  console.log(`[apiGet] Fetching: ${fullUrl}`);
-  const res = await fetch(fullUrl);
-  if (!res.ok) {
-    console.error(`[apiGet] Response not OK (${res.status}) for ${fullUrl}`);
-    throw new Error(`API error: ${res.status}`);
-  }
-  const text = await res.text();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
   try {
+    const res = await fetch(fullUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!res.ok) {
+      throw new Error(`API error: ${res.status}`);
+    }
+    const text = await res.text();
     return JSON.parse(text) as T;
   } catch (err) {
-    console.error(`[apiGet] JSON Parse failed for ${fullUrl}. Response snippet:`, text.substring(0, 200));
-    throw err;
+    clearTimeout(timeoutId);
+    console.error(`[apiGet] Fetch error for ${fullUrl}:`, err);
+    return [] as unknown as T;
   }
-};
+}
 
 // export const mockUsers = apiGet<User[]>('/users');
 // apiGet<ResourceMeta[]>('/resources');

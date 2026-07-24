@@ -5,19 +5,63 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
+  Alert,
   Image,
+  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useState } from 'react';
-import { ChevronDown, ImagePlus, X } from 'lucide-react-native';
+import {
+  ChevronDown,
+  ImagePlus,
+  GraduationCap,
+  BookOpen,
+  ArrowLeftRight,
+  Check,
+  ArrowLeft,
+} from 'lucide-react-native';
 import Colors from '@/constants/colors';
+import url from '@/constants/backurl';
 import { useCurrentUser } from '@/providers/current-user';
 import { useAlert } from '@/providers/alert';
 import { SkillCategory, SkillLevel, Skill } from '@/types';
-import url from '@/constants/backurl';
-import { getSkillsWithUsers } from '@/mocks/data';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+type AddMode = 'teach' | 'learn' | 'swap';
+
+const MODE_OPTIONS: {
+  key: AddMode;
+  title: string;
+  subtitle: string;
+  icon: typeof GraduationCap;
+  color: string;
+  bg: string;
+}[] = [
+  {
+    key: 'teach',
+    title: 'Teach a Skill',
+    subtitle: 'Share something you know',
+    icon: GraduationCap,
+    color: '#10B981',
+    bg: '#ECFDF5',
+  },
+  {
+    key: 'learn',
+    title: 'Learn a Skill',
+    subtitle: 'Find someone to teach you',
+    icon: BookOpen,
+    color: '#6366F1',
+    bg: '#EEF2FF',
+  },
+  {
+    key: 'swap',
+    title: 'Skill Swap',
+    subtitle: 'Teach & learn together',
+    icon: ArrowLeftRight,
+    color: '#F59E0B',
+    bg: '#FFFBEB',
+  },
+];
 
 const CATEGORIES: SkillCategory[] = [
   'Arts & Crafts',
@@ -49,259 +93,407 @@ const STOCK_IMAGES: Record<SkillCategory, string> = {
 
 export default function AddSkillScreen() {
   const router = useRouter();
-  const { currentUser } = useCurrentUser();
+  const { currentUser, loadUser } = useCurrentUser();
   const { showAlert } = useAlert();
 
-  const [title, setTitle] = useState<string>('');
-  const [description, setDescription] = useState<string>('');
-  const [category, setCategory] = useState<SkillCategory | null>(null);
-  const [level, setLevel] = useState<SkillLevel | null>(null);
-  const [showCategoryPicker, setShowCategoryPicker] = useState<boolean>(false);
+  const [mode, setMode] = useState<AddMode | null>(null);
+  const [teachTitle, setTeachTitle] = useState<string>('');
+  const [teachCategory, setTeachCategory] = useState<SkillCategory | null>(null);
+  const [teachLevel, setTeachLevel] = useState<SkillLevel | null>(null);
+  const [teachDescription, setTeachDescription] = useState<string>('');
+  const [showTeachCategory, setShowTeachCategory] = useState<boolean>(false);
+
+  const [learnTitle, setLearnTitle] = useState<string>('');
+  const [learnCategory, setLearnCategory] = useState<SkillCategory | null>(null);
+  const [showLearnCategory, setShowLearnCategory] = useState<boolean>(false);
+
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
-  const imageUrl = category ? STOCK_IMAGES[category] : null;
-  let { loadUser } = useCurrentUser()
+  const showTeachFields = mode === 'teach' || mode === 'swap';
+  const showLearnFields = mode === 'learn' || mode === 'swap';
+
+  const teachImageUrl = teachCategory ? STOCK_IMAGES[teachCategory] : null;
+
+  const validate = (): string | null => {
+    if (!mode) return 'Please choose an option to continue.';
+    if (showTeachFields) {
+      if (!teachTitle.trim()) return 'Please enter the skill you can teach.';
+      if (!teachCategory) return 'Please select a category for your teach skill.';
+      if (!teachLevel) return 'Please select your proficiency level.';
+    }
+    if (showLearnFields) {
+      if (!learnTitle.trim()) return 'Please enter the skill you want to learn.';
+    }
+    return null;
+  };
 
   const handleSave = async () => {
-    if (!title.trim()) {
-      showAlert('Missing Info', 'Please enter a skill title.');
-      return;
-    }
-    if (!category) {
-      showAlert('Missing Info', 'Please select a category.');
-      return;
-    }
-    if (!level) {
-      showAlert('Missing Info', 'Please select your proficiency level.');
-      return;
-    }
-
-    if (!currentUser?.id) {
-      showAlert('Error', 'User not authenticated.');
+    const error = validate();
+    if (error) {
+      Alert.alert('Missing Info', error);
       return;
     }
 
     setIsSaving(true);
+    try {
+      const newSkills: Skill[] = [];
 
-    if (currentUser?.id === '1') {
-      try {
-        const newSkill: Skill = {
-          id: `guest_skill_${Date.now()}`,
-          _id: `guest_skill_${Date.now()}`,
-          title: title.trim(),
-          category,
-          description: description.trim() || `Teaching ${title.trim()}`,
-          level,
-          userId: currentUser.id,
-          imageUrl: imageUrl ?? STOCK_IMAGES['Technology'],
+      if (showTeachFields && teachTitle.trim() && teachCategory && teachLevel) {
+        const skillPayload: Skill = {
+          id: `skill-${Date.now()}`,
+          title: teachTitle.trim(),
+          category: teachCategory,
+          description: teachDescription.trim() || `Teaching ${teachTitle.trim()}`,
+          level: teachLevel,
+          userId: currentUser?.id || '',
+          imageUrl: teachImageUrl ?? STOCK_IMAGES['Technology'],
         };
 
-        const storedSkillsStr = await AsyncStorage.getItem('@skillswap/guest_skills_offered');
-        const currentSkills = storedSkillsStr ? JSON.parse(storedSkillsStr) : [];
-        const updatedSkills = [...currentSkills, newSkill];
-        await AsyncStorage.setItem('@skillswap/guest_skills_offered', JSON.stringify(updatedSkills));
-
-        await loadUser();
-
-        showAlert(
-          'Skill Added',
-          `"${newSkill.title}" has been added to your profile!`,
-          [{ text: 'OK', onPress: () => router.back() }]
-        );
-      } catch (error) {
-        console.error('[AddSkill] Guest Save error:', error);
-        showAlert('Error', 'Failed to add skill. Please try again.');
-      } finally {
-        setIsSaving(false);
-      }
-      return;
-    }
-
-    try {
-      const payload = {
-        title: title.trim(),
-        category,
-        description: description.trim() || `Teaching ${title.trim()}`,
-        level,
-        userId: currentUser.id,
-        imageUrl: imageUrl ?? STOCK_IMAGES['Technology'],
-      };
-
-      const response = await fetch(`${url}/skills`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      console.log(response);
-
-
-      if (!response.ok) {
-        throw new Error('Failed to create skill');
+        if (currentUser && currentUser.id !== '1') {
+          try {
+            const res = await fetch(`${url}/skills`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(skillPayload),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data?.skill) {
+                newSkills.push(data.skill);
+              } else {
+                newSkills.push(skillPayload);
+              }
+            } else {
+              newSkills.push(skillPayload);
+            }
+          } catch (err) {
+            console.warn('[AddSkill] Backend /skills POST failed, updating locally:', err);
+            newSkills.push(skillPayload);
+          }
+        } else {
+          newSkills.push(skillPayload);
+        }
       }
 
-      const createdSkill = await response.json();
+      if (showLearnFields && learnTitle.trim() && currentUser) {
+        const alreadyWants = currentUser.skillsWanted.includes(learnTitle.trim());
+        if (!alreadyWants) {
+          currentUser.skillsWanted.push(learnTitle.trim());
+        }
+      }
 
+      if (currentUser) {
+        newSkills.forEach((s) => currentUser.skillsOffered.push(s));
 
-      console.log('[AddSkill] Skill saved to DB:', createdSkill);
-      getSkillsWithUsers()
-      loadUser()
-      showAlert(
-        'Skill Added',
-        `"${payload.title}" has been added to your profile!`,
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
-    } catch (error) {
-      console.error('[AddSkill] Error:', error);
-      showAlert('Error', 'Failed to add skill. Please try again.');
+        if (currentUser.id === '1') {
+          try {
+            await AsyncStorage.setItem('@skillswap/guest_skills_offered', JSON.stringify(currentUser.skillsOffered));
+            const storedGuest = await AsyncStorage.getItem('@skillswap/guest_user_profile');
+            const guestData = storedGuest ? JSON.parse(storedGuest) : {};
+            guestData.skillsWanted = currentUser.skillsWanted;
+            await AsyncStorage.setItem('@skillswap/guest_user_profile', JSON.stringify(guestData));
+          } catch (e) {
+            console.error('[AddSkill] Error saving guest profile skills:', e);
+          }
+        } else {
+          // Sync updated user wanted skills to user profile endpoint if not guest
+          try {
+            await fetch(`${url}/users/me`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: currentUser.id,
+                skillsWanted: currentUser.skillsWanted,
+              }),
+            });
+          } catch (err) {
+            console.warn('[AddSkill] Backend /users/me PUT failed, continuing locally:', err);
+          }
+        }
+      }
+
+      const summary =
+        mode === 'teach'
+          ? `"${teachTitle.trim()}" added to your teaching skills.`
+          : mode === 'learn'
+          ? `"${learnTitle.trim()}" added to your learning list.`
+          : `"${teachTitle.trim()}" added to teaching and "${learnTitle.trim()}" added to learning.`;
+
+      if (loadUser) {
+        await loadUser(true);
+      }
+
+      showAlert('Done!', summary, [{ text: 'OK', onPress: () => router.back() }]);
+    } catch (e) {
+      console.error('[AddSkill] Error:', e);
+      showAlert('Error', 'Failed to save. Please try again.');
     } finally {
       setIsSaving(false);
     }
   };
 
+  const resetFields = () => {
+    setMode(null);
+    setTeachTitle('');
+    setTeachCategory(null);
+    setTeachLevel(null);
+    setTeachDescription('');
+    setShowTeachCategory(false);
+    setLearnTitle('');
+    setLearnCategory(null);
+    setShowLearnCategory(false);
+  };
+
+  // ---------- Mode selection screen ----------
+  if (!mode) {
+    return (
+      <>
+        <Stack.Screen
+          options={{
+            title: 'Add New Skill',
+            headerStyle: { backgroundColor: Colors.light.background },
+            headerTintColor: Colors.light.text,
+            headerShadowVisible: false,
+          }}
+        />
+        <View style={styles.container}>
+          <ScrollView
+            contentContainerStyle={styles.modeScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.modeHeading}>What would you like to do?</Text>
+            <Text style={styles.modeSubheading}>
+              Choose one option to get started. You can add more anytime.
+            </Text>
+
+            <View style={styles.modeOptions}>
+              {MODE_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={styles.modeCard}
+                    onPress={() => setMode(opt.key)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[styles.modeIconWrap, { backgroundColor: opt.bg }]}>
+                      <Icon size={28} color={opt.color} />
+                    </View>
+                    <View style={styles.modeCardContent}>
+                      <Text style={styles.modeCardTitle}>{opt.title}</Text>
+                      <Text style={styles.modeCardSubtitle}>{opt.subtitle}</Text>
+                    </View>
+                    <View style={styles.modeArrow}>
+                      <ChevronDown
+                        size={20}
+                        color={Colors.light.textTertiary}
+                        style={{ transform: [{ rotate: '-90deg' }] }}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </View>
+      </>
+    );
+  }
+
+  // ---------- Form screen ----------
+  const activeMode = MODE_OPTIONS.find((m) => m.key === mode)!;
+
   return (
     <>
       <Stack.Screen
         options={{
-          title: 'Add Skill to Teach',
+          title: activeMode.title,
           headerStyle: { backgroundColor: Colors.light.background },
           headerTintColor: Colors.light.text,
           headerShadowVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={resetFields}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <ArrowLeft size={22} color={Colors.light.text} />
+            </TouchableOpacity>
+          ),
         }}
       />
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {imageUrl && (
-            <View style={styles.previewContainer}>
-              <Image source={{ uri: imageUrl }} style={styles.previewImage} />
-              <View style={styles.previewOverlay}>
-                <Text style={styles.previewLabel}>Preview</Text>
-              </View>
-            </View>
-          )}
-
-          {!imageUrl && (
-            <View style={styles.placeholderImage}>
-              <ImagePlus size={40} color={Colors.light.textTertiary} />
-              <Text style={styles.placeholderText}>
-                Image auto-selected by category
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.section}>
-            <Text style={styles.label}>Skill Title</Text>
-            <TextInput
-              style={styles.input}
-              value={title}
-              onChangeText={setTitle}
-              placeholder="e.g. Portrait Photography, Guitar Basics"
-              placeholderTextColor={Colors.light.textTertiary}
-              maxLength={60}
-            />
-            <Text style={styles.charCount}>{title.length}/60</Text>
+          {/* Mode badge */}
+          <View style={[styles.modeBadge, { backgroundColor: activeMode.bg }]}>
+            <activeMode.icon size={16} color={activeMode.color} />
+            <Text style={[styles.modeBadgeText, { color: activeMode.color }]}>
+              {activeMode.title}
+            </Text>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.label}>Category</Text>
-            <TouchableOpacity
-              style={styles.pickerButton}
-              onPress={() => setShowCategoryPicker(!showCategoryPicker)}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.pickerButtonText,
-                  !category && styles.pickerPlaceholder,
-                ]}
-              >
-                {category ?? 'Select a category'}
+          {/* TEACH FIELDS */}
+          {showTeachFields && (
+            <View style={styles.fieldGroup}>
+              <Text style={styles.groupTitle}>
+                <GraduationCap size={16} color={Colors.light.primary} /> Skill I Can Teach
+                <Text style={styles.required}> *</Text>
               </Text>
-              <ChevronDown size={20} color={Colors.light.textSecondary} />
-            </TouchableOpacity>
-            {showCategoryPicker && (
-              <View style={styles.optionsGrid}>
-                {CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[
-                      styles.optionChip,
-                      category === cat && styles.optionChipSelected,
-                    ]}
-                    onPress={() => {
-                      setCategory(cat);
-                      setShowCategoryPicker(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.optionChipText,
-                        category === cat && styles.optionChipTextSelected,
-                      ]}
-                    >
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
 
-          <View style={styles.section}>
-            <Text style={styles.label}>Your Proficiency Level</Text>
-            <View style={styles.levelRow}>
-              {LEVELS.map((lvl) => (
+              {teachImageUrl && (
+                <View style={styles.previewContainer}>
+                  <Image source={{ uri: teachImageUrl }} style={styles.previewImage} />
+                  <View style={styles.previewOverlay}>
+                    <Text style={styles.previewLabel}>Preview</Text>
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.section}>
+                <Text style={styles.label}>Skill Title <Text style={styles.required}>*</Text></Text>
+                <TextInput
+                  style={styles.input}
+                  value={teachTitle}
+                  onChangeText={setTeachTitle}
+                  placeholder="e.g. Portrait Photography, Guitar Basics"
+                  placeholderTextColor={Colors.light.textTertiary}
+                  maxLength={60}
+                />
+                <Text style={styles.charCount}>{teachTitle.length}/60</Text>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.label}>Category <Text style={styles.required}>*</Text></Text>
                 <TouchableOpacity
-                  key={lvl}
-                  style={[
-                    styles.levelChip,
-                    level === lvl && styles.levelChipSelected,
-                  ]}
-                  onPress={() => setLevel(lvl)}
+                  style={styles.pickerButton}
+                  onPress={() => setShowTeachCategory(!showTeachCategory)}
+                  activeOpacity={0.7}
                 >
-                  <Text
-                    style={[
-                      styles.levelChipText,
-                      level === lvl && styles.levelChipTextSelected,
-                    ]}
-                  >
-                    {lvl}
+                  <Text style={[styles.pickerButtonText, !teachCategory && styles.pickerPlaceholder]}>
+                    {teachCategory ?? 'Select a category'}
                   </Text>
+                  <ChevronDown size={20} color={Colors.light.textSecondary} />
                 </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+                {showTeachCategory && (
+                  <View style={styles.optionsGrid}>
+                    {CATEGORIES.map((cat) => (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[styles.optionChip, teachCategory === cat && styles.optionChipSelected]}
+                        onPress={() => {
+                          setTeachCategory(cat);
+                          setShowTeachCategory(false);
+                        }}
+                      >
+                        <Text style={[styles.optionChipText, teachCategory === cat && styles.optionChipTextSelected]}>
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
 
-          <View style={styles.section}>
-            <Text style={styles.label}>Description (Optional)</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Describe what you can teach, your experience, and what learners can expect..."
-              placeholderTextColor={Colors.light.textTertiary}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              maxLength={300}
-            />
-            <Text style={styles.charCount}>{description.length}/300</Text>
-          </View>
+              <View style={styles.section}>
+                <Text style={styles.label}>Proficiency Level <Text style={styles.required}>*</Text></Text>
+                <View style={styles.levelRow}>
+                  {LEVELS.map((lvl) => (
+                    <TouchableOpacity
+                      key={lvl}
+                      style={[styles.levelChip, teachLevel === lvl && styles.levelChipSelected]}
+                      onPress={() => setTeachLevel(lvl)}
+                    >
+                      <Text style={[styles.levelChipText, teachLevel === lvl && styles.levelChipTextSelected]}>
+                        {lvl}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.label}>Description (Optional)</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={teachDescription}
+                  onChangeText={setTeachDescription}
+                  placeholder="Describe what you can teach, your experience, and what learners can expect..."
+                  placeholderTextColor={Colors.light.textTertiary}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  maxLength={300}
+                />
+                <Text style={styles.charCount}>{teachDescription.length}/300</Text>
+              </View>
+            </View>
+          )}
+
+          {/* LEARN FIELDS */}
+          {showLearnFields && (
+            <View style={[styles.fieldGroup, showTeachFields && styles.fieldGroupSpaced]}>
+              <Text style={styles.groupTitle}>
+                <BookOpen size={16} color="#6366F1" /> Skill I Want to Learn
+                <Text style={styles.required}> *</Text>
+              </Text>
+
+              <View style={styles.section}>
+                <Text style={styles.label}>Skill Title <Text style={styles.required}>*</Text></Text>
+                <TextInput
+                  style={styles.input}
+                  value={learnTitle}
+                  onChangeText={setLearnTitle}
+                  placeholder="e.g. Spanish, Watercolor Painting, Python"
+                  placeholderTextColor={Colors.light.textTertiary}
+                  maxLength={60}
+                />
+                <Text style={styles.charCount}>{learnTitle.length}/60</Text>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.label}>Category (Optional)</Text>
+                <TouchableOpacity
+                  style={styles.pickerButton}
+                  onPress={() => setShowLearnCategory(!showLearnCategory)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.pickerButtonText, !learnCategory && styles.pickerPlaceholder]}>
+                    {learnCategory ?? 'Select a category'}
+                  </Text>
+                  <ChevronDown size={20} color={Colors.light.textSecondary} />
+                </TouchableOpacity>
+                {showLearnCategory && (
+                  <View style={styles.optionsGrid}>
+                    {CATEGORIES.map((cat) => (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[styles.optionChip, learnCategory === cat && styles.optionChipSelected]}
+                        onPress={() => {
+                          setLearnCategory(cat);
+                          setShowLearnCategory(false);
+                        }}
+                      >
+                        <Text style={[styles.optionChipText, learnCategory === cat && styles.optionChipTextSelected]}>
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
         </ScrollView>
 
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => router.back()}
-            disabled={isSaving}
-          >
+          <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()} disabled={isSaving}>
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -309,12 +501,11 @@ export default function AddSkillScreen() {
             onPress={handleSave}
             disabled={isSaving}
           >
-            <Text style={styles.saveButtonText}>
-              {isSaving ? 'Adding...' : 'Add Skill'}
-            </Text>
+            <Check size={18} color="#FFFFFF" />
+            <Text style={styles.saveButtonText}>{isSaving ? 'Saving...' : 'Save'}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </>
   );
 }
@@ -324,6 +515,66 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.light.backgroundSecondary,
   },
+  // Mode selection
+  modeScrollContent: {
+    padding: 20,
+    paddingTop: 28,
+  },
+  modeHeading: {
+    fontSize: 26,
+    fontWeight: '800' as const,
+    color: Colors.light.text,
+    marginBottom: 8,
+  },
+  modeSubheading: {
+    fontSize: 15,
+    color: Colors.light.textSecondary,
+    marginBottom: 28,
+    lineHeight: 22,
+  },
+  modeOptions: {
+    gap: 14,
+  },
+  modeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.light.card,
+    borderRadius: 18,
+    padding: 18,
+    gap: 16,
+    borderWidth: 1.5,
+    borderColor: Colors.light.borderLight,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  modeIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeCardContent: {
+    flex: 1,
+  },
+  modeCardTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    marginBottom: 3,
+  },
+  modeCardSubtitle: {
+    fontSize: 13,
+    color: Colors.light.textSecondary,
+    fontWeight: '500' as const,
+  },
+  modeArrow: {
+    paddingHorizontal: 4,
+  },
+  // Form
   scrollView: {
     flex: 1,
   },
@@ -331,11 +582,47 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 120,
   },
+  modeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  modeBadgeText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+  },
+  fieldGroup: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+  },
+  fieldGroupSpaced: {
+    marginTop: 20,
+  },
+  groupTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    marginBottom: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  required: {
+    color: '#EF4444',
+    fontWeight: '700' as const,
+  },
   previewContainer: {
-    height: 180,
-    borderRadius: 20,
+    height: 160,
+    borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: 24,
+    marginBottom: 18,
     position: 'relative',
   },
   previewImage: {
@@ -344,8 +631,8 @@ const styles = StyleSheet.create({
   },
   previewOverlay: {
     position: 'absolute',
-    top: 12,
-    right: 12,
+    top: 10,
+    right: 10,
     backgroundColor: 'rgba(0,0,0,0.5)',
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -356,60 +643,43 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: '#FFFFFF',
   },
-  placeholderImage: {
-    height: 160,
-    borderRadius: 20,
-    backgroundColor: Colors.light.backgroundTertiary,
-    borderWidth: 2,
-    borderColor: Colors.light.border,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-    gap: 10,
-  },
-  placeholderText: {
-    fontSize: 14,
-    color: Colors.light.textTertiary,
-    fontWeight: '500' as const,
-  },
   section: {
-    marginBottom: 24,
+    marginBottom: 18,
   },
   label: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700' as const,
     color: Colors.light.text,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   input: {
-    backgroundColor: Colors.light.card,
+    backgroundColor: Colors.light.backgroundTertiary,
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: 12,
+    padding: 14,
     fontSize: 16,
     color: Colors.light.text,
   },
   textArea: {
-    minHeight: 120,
-    paddingTop: 16,
+    minHeight: 100,
+    paddingTop: 14,
   },
   charCount: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.light.textTertiary,
     textAlign: 'right' as const,
-    marginTop: 6,
+    marginTop: 4,
   },
   pickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.light.card,
+    backgroundColor: Colors.light.backgroundTertiary,
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: 12,
+    padding: 14,
   },
   pickerButtonText: {
     fontSize: 16,
@@ -423,22 +693,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 12,
+    marginTop: 10,
   },
   optionChip: {
-    backgroundColor: Colors.light.card,
+    backgroundColor: Colors.light.backgroundTertiary,
     borderWidth: 1,
     borderColor: Colors.light.border,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
   },
   optionChipSelected: {
     backgroundColor: Colors.light.primary,
     borderColor: Colors.light.primary,
   },
   optionChipText: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.light.text,
     fontWeight: '600' as const,
   },
@@ -447,15 +717,15 @@ const styles = StyleSheet.create({
   },
   levelRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   levelChip: {
     flex: 1,
-    backgroundColor: Colors.light.card,
+    backgroundColor: Colors.light.backgroundTertiary,
     borderWidth: 1.5,
     borderColor: Colors.light.border,
-    paddingVertical: 14,
-    borderRadius: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
     alignItems: 'center',
   },
   levelChipSelected: {
@@ -463,7 +733,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.primary,
   },
   levelChipText: {
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.light.textSecondary,
     fontWeight: '700' as const,
   },
@@ -485,7 +755,7 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     backgroundColor: Colors.light.card,
-    paddingVertical: 16,
+    paddingVertical: 15,
     borderRadius: 14,
     alignItems: 'center',
     borderWidth: 1,
@@ -497,11 +767,14 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
   },
   saveButton: {
-    flex: 1,
-    backgroundColor: Colors.light.primary,
-    paddingVertical: 16,
-    borderRadius: 14,
+    flex: 1.5,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.light.primary,
+    paddingVertical: 15,
+    borderRadius: 14,
     shadowColor: Colors.light.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,

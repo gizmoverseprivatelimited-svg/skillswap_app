@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Plus, Camera, MapPin } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker'
 import Colors from '@/constants/colors';
@@ -31,8 +31,23 @@ export default function EditProfileScreen() {
   const [location, setLocation] = useState<string>(currentUser?.location || "");
   const [avatarUrl, setAvatarUrl] = useState<string>(currentUser?.avatarUrl || "");
 
-  const [skillsWanted, setSkillsWanted] = useState<string[]>(currentUser?.skillsWanted || [""]);
+  const [skillsWanted, setSkillsWanted] = useState<string[]>(
+    (currentUser?.skillsWanted || []).filter((s) => s.trim() !== '')
+  );
   const [newSkillWanted, setNewSkillWanted] = useState<string>('');
+
+  const isInitialized = useRef(false);
+
+  useEffect(() => {
+    if (currentUser && !isInitialized.current) {
+      isInitialized.current = true;
+      setName(currentUser.name || '');
+      setBio(currentUser.bio || '');
+      setLocation(currentUser.location || '');
+      setAvatarUrl(currentUser.avatarUrl || '');
+      setSkillsWanted((currentUser.skillsWanted || []).filter((s) => s.trim() !== ''));
+    }
+  }, [currentUser]);
 
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isLocating, setIsLocating] = useState<boolean>(false);
@@ -116,8 +131,12 @@ export default function EditProfileScreen() {
   };
 
   const handleAddSkillWanted = () => {
-    if (newSkillWanted.trim()) {
-      setSkillsWanted([...skillsWanted, newSkillWanted.trim()]);
+    const trimmed = newSkillWanted.trim();
+    if (trimmed) {
+      const currentList = skillsWanted.filter((s) => s.trim() !== '');
+      if (!currentList.includes(trimmed)) {
+        setSkillsWanted([...currentList, trimmed]);
+      }
       setNewSkillWanted('');
     }
   };
@@ -221,6 +240,8 @@ export default function EditProfileScreen() {
 
     setIsSaving(true);
 
+    const cleanedSkillsWanted = skillsWanted.map((s) => s.trim()).filter(Boolean);
+
     if (currentUser?.id === '1') {
       try {
         const guestData = {
@@ -228,7 +249,7 @@ export default function EditProfileScreen() {
           bio: bio.trim(),
           location: location.trim(),
           avatarUrl: avatarUrl,
-          skillsWanted: skillsWanted,
+          skillsWanted: cleanedSkillsWanted,
         };
         await AsyncStorage.setItem('@skillswap/guest_user_profile', JSON.stringify(guestData));
         await loadUser();
@@ -252,7 +273,7 @@ export default function EditProfileScreen() {
       formData.append('name', name.trim());
       formData.append('bio', bio.trim());
       formData.append('location', location.trim());
-      formData.append('skillsWanted', JSON.stringify(skillsWanted));
+      formData.append('skillsWanted', JSON.stringify(cleanedSkillsWanted));
 
       if (avatarUrl && avatarUrl !== currentUser?.avatarUrl) {
         if (Platform.OS === 'web') {
@@ -318,7 +339,7 @@ export default function EditProfileScreen() {
       }
 
       console.log('[EditProfile] Updated:', result);
-      loadUser();
+      await loadUser(true);
 
 
       showAlert('Success', 'Profile updated successfully', [

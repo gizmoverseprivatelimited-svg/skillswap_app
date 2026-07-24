@@ -81,6 +81,9 @@ export default function SkillDetailScreen() {
 
   const activeSwap = useMemo(() => {
     return swaps.find((candidate) => {
+      if (candidate.status === 'completed' || candidate.status === 'declined') {
+        return false;
+      }
       if (candidate.recipientId === skill?.user?.id && candidate.requesterId === currentUser?.id) {
         return true;
       }

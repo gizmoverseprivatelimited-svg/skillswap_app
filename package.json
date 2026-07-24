@@ -107,5 +107,11 @@
     "react-dom": "19.2.3",
     "react-native-web": "^0.21.2",
     "typescript": "~6.0.3"
+  },
+  "resolutions": {
+    "@tldraw/state": "^2.0.0"
+  },
+  "overrides": {
+    "@tldraw/state": "^2.0.0"
   }
 }

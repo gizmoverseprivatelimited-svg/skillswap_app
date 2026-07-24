@@ -64,6 +64,8 @@ export default function VerificationScreen() {
   const [documentUrl, setDocumentUrl] = useState('');
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [email, setEmail] = useState('');
+  const [phoneOtpSent, setPhoneOtpSent] = useState<boolean>(false);
+  const [otpCode, setOtpCode] = useState<string>('');
   // showEmailForm
 
 
@@ -257,9 +259,6 @@ export default function VerificationScreen() {
         body: JSON.stringify({ type, details, documentUrl, userId: currentUser?.id }),
       });
 
-      console.log(response);
-
-
       const data = await response.json();
 
       if (!response.ok) {
@@ -286,6 +285,62 @@ export default function VerificationScreen() {
 
     } catch (error) {
       showAlert('Error', 'Failed to submit verification');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendPhoneOtp = async () => {
+    if (!phone) {
+      showAlert('Error', 'Please enter your phone number');
+      return;
+    }
+    try {
+      setLoading(true);
+      const response = await fetch(`${url}/api/auth/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: phone }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        showAlert('Error', data.message || 'Failed to send OTP');
+        return;
+      }
+      setPhoneOtpSent(true);
+      showAlert('Success', 'OTP sent to your phone via SMS');
+    } catch (error) {
+      showAlert('Error', 'Failed to send OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyPhoneOtp = async () => {
+    if (!otpCode) {
+      showAlert('Error', 'Please enter the OTP');
+      return;
+    }
+    try {
+      setLoading(true);
+      const response = await fetch(`${url}/verifications/verify-phone-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: phone, code: otpCode, userId: currentUser?.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        showAlert('Error', data.message || 'Verification failed');
+        return;
+      }
+      showAlert('Verified', 'Your phone number has been verified successfully!');
+      setPhone('');
+      setOtpCode('');
+      setPhoneOtpSent(false);
+      setShowPhoneForm(false);
+      fetchVerifications();
+    } catch (error) {
+      showAlert('Error', 'Failed to verify OTP');
     } finally {
       setLoading(false);
     }
@@ -366,7 +421,11 @@ export default function VerificationScreen() {
             headerTintColor: Colors.light.text,
             headerLeft: () => (
               <TouchableOpacity
-                onPress={() => setShowPhoneForm(false)}
+                onPress={() => {
+                  setShowPhoneForm(false);
+                  setPhoneOtpSent(false);
+                  setOtpCode('');
+                }}
                 style={styles.backButton}
               >
                 <ArrowLeft size={24} color={Colors.light.text} />
@@ -377,27 +436,54 @@ export default function VerificationScreen() {
         <ScrollView style={styles.formContainer}>
           <Text style={styles.formTitle}>Verify Phone Number</Text>
           <Text style={styles.formDescription}>
-            Enter your phone number to verify your account.
+            {phoneOtpSent ? 'Enter the OTP sent to your phone.' : 'Enter your phone number to verify your account.'}
           </Text>
-          <TextInput
-            style={styles.input}
-            placeholder="+91 98765 43210"
-            placeholderTextColor={Colors.light.textSecondary}
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-          />
-          <TouchableOpacity
-            style={styles.submitButton}
-            onPress={() => submitVerification('phone', phone)}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.submitButtonText}>Verify Phone</Text>
-            )}
-          </TouchableOpacity>
+          
+          {!phoneOtpSent ? (
+            <>
+              <TextInput
+                style={styles.input}
+                placeholder="+91 98765 43210"
+                placeholderTextColor={Colors.light.textSecondary}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+              <TouchableOpacity
+                style={styles.submitButton}
+                onPress={handleSendPhoneOtp}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Send OTP</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter 6-digit OTP"
+                placeholderTextColor={Colors.light.textSecondary}
+                value={otpCode}
+                onChangeText={setOtpCode}
+                keyboardType="number-pad"
+              />
+              <TouchableOpacity
+                style={styles.submitButton}
+                onPress={handleVerifyPhoneOtp}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Verify OTP</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
         </ScrollView>
       </View>
     );

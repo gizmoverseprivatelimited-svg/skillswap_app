@@ -24,6 +24,8 @@ export interface Skill {
   userId: string;
   imageUrl: string;
 }
+export type OnboardingRole = 'teacher' | 'learner' | 'swap';
+export type SwapType = 'teach' | 'learn' | 'swap';
 
 export type PremiumTier = 'free' | 'basic' | 'premium' | 'elite';
 
@@ -45,6 +47,7 @@ export interface User {
   banStatus?: string;
   reportCount?: number;
   email?:string;
+  role?: OnboardingRole;
 }
 
 export interface SkillWithUser extends Skill {
@@ -146,6 +149,7 @@ export interface SkillSwapRequest {
   requesterSkillId: string;
   recipientId: string;
   recipientSkillId: string;
+  swapType: SwapType;
   status: SkillSwapStatus;
   locationPreference: string | null;
   createdAt: string;
@@ -229,4 +233,83 @@ export interface UserVerifications {
   portfolio: PortfolioVerification;
   skillBadges: SkillBadge[];
   trustScore: number;
+}
+
+export type EarningSourceType =
+  | 'swap_completed'
+  | 'class_taught'
+  | 'monthly_subscription'
+  | 'bonus'
+  | 'referral'
+  | 'admin_adjustment';
+
+export type PayoutMethod = 'store_credit' | 'bank_transfer' | 'upi' | 'paypal';
+
+export type PayoutStatus =
+  | 'pending'
+  | 'approved'
+  | 'processing'
+  | 'completed'
+  | 'rejected'
+  | 'cancelled';
+
+export interface PointTransaction {
+  id: string;
+  userId: string;
+  amount: number;
+  type: 'earned' | 'redeemed';
+  source: EarningSourceType;
+  description: string;
+  swapId?: string;
+  timestamp: string;
+  createdAt?: string;
+}
+
+export interface PayoutRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  points: number;
+  amount: number;
+  amountCurrency?: number;
+  currency: string;
+  method: PayoutMethod;
+  status: PayoutStatus;
+  createdAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  rejectionReason?: string;
+  payoutDetails?: {
+    storeCreditAccount?: string;
+    accountName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    upiId?: string;
+    paypalEmail?: string;
+  };
+  processedAt?: string;
+  transactionRef?: string;
+}
+
+export interface EarningsSummary {
+  userId: string;
+  totalEarnedPoints: number;
+  totalPointsEarned?: number;
+  availablePoints: number;
+  availableCurrency?: number;
+  pendingPoints?: number;
+  totalPayouts: number;
+  completedPayouts: number;
+  pendingPayouts: number;
+  lifetimePayouts?: number;
+  currentMonthPoints: number;
+  currentMonthClasses: number;
+}
+
+export interface EarningRule {
+  source: EarningSourceType;
+  label: string;
+  points: number;
+  description: string;
 }

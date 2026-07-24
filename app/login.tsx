@@ -361,32 +361,7 @@ export default function LoginScreen() {
           </LinearGradient>
 
           <View style={styles.contentContainer}>
-            <View style={styles.switcher}>
-              <TouchableOpacity
-                testID="mode-email"
-                style={[styles.switchBtn, mode === 'email' && styles.switchBtnActive]}
-                onPress={() => setMode('email')}
-              >
-                <Text style={[styles.switchText, mode === 'email' && styles.switchTextActive]}>Email</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                testID="mode-otp"
-                style={[styles.switchBtn, mode === 'otp' && styles.switchBtnActive]}
-                onPress={() => setMode('otp')}
-              >
-                <Text style={[styles.switchText, mode === 'otp' && styles.switchTextActive]}>OTP</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                testID="mode-social"
-                style={[styles.switchBtn, mode === 'social' && styles.switchBtnActive]}
-                onPress={() => setMode('social')}
-              >
-                <Text style={[styles.switchText, mode === 'social' && styles.switchTextActive]}>Social</Text>
-              </TouchableOpacity>
-            </View>
-
-            {mode === 'email' && (
-              <View style={styles.card}>
+            <View style={styles.card}>
                 {flow === 'signin' && (
                   <>
                     <Text style={styles.label}>Email</Text>
@@ -438,6 +413,11 @@ export default function LoginScreen() {
                       >
                         <Text style={styles.primaryBtnText}>Sign In</Text>
                       </LinearGradient>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.googleBtn} onPress={signInWithGoogle} testID="google-sign-in" activeOpacity={0.85}>
+                      <Chrome size={22} color="#fff" />
+                      <Text style={styles.googleText}>Continue with Google</Text>
                     </TouchableOpacity>
 
                     <View style={styles.linkRow}>
@@ -594,116 +574,6 @@ export default function LoginScreen() {
                   </>
                 )}
               </View>
-            )}
-
-            {mode === 'otp' && (
-              <View style={styles.card}>
-                {step === 'enter' ? (
-                  <View>
-                    <Text style={styles.label}>Phone Number</Text>
-                    <View style={styles.inputRow}>
-                      <View style={styles.inputIcon}>
-                        <Phone size={18} color={Colors.light.textSecondary} />
-                      </View>
-                      <TextInput
-                        testID="identifier-input"
-                        placeholder="+91 98765 43210"
-                        placeholderTextColor={Colors.light.textTertiary}
-                        style={styles.input}
-                        keyboardType="phone-pad"
-                        autoCapitalize="none"
-                        value={identifier}
-                        onChangeText={setIdentifier}
-                      />
-                    </View>
-                    <Text style={styles.otpHint}>📱 We'll send a 6-digit OTP to your phone via SMS</Text>
-                    {!!error && <Text style={styles.errorText}>{error}</Text>}
-                    <TouchableOpacity
-                      testID="send-code"
-                      style={[styles.primaryBtn, isLoading && styles.primaryBtnDisabled]}
-                      onPress={onSendCode}
-                      disabled={isLoading}
-                      activeOpacity={0.8}
-                    >
-                      <LinearGradient
-                        colors={[Colors.light.primary, Colors.light.primaryLight]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.buttonGradient}
-                      >
-                        {isLoading ? (
-                          <ActivityIndicator color="#fff" />
-                        ) : (
-                          <Text style={styles.primaryBtnText}>Send OTP via SMS</Text>
-                        )}
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <View>
-                    <Text style={styles.label}>Enter 6-digit OTP</Text>
-                    <Text style={styles.otpHint}>Sent to {identifier}</Text>
-                    <TextInput
-                      testID="code-input"
-                      style={styles.codeInput}
-                      value={code}
-                      onChangeText={setCode}
-                      keyboardType="number-pad"
-                      maxLength={6}
-                      placeholder="123456"
-                      placeholderTextColor={Colors.light.textTertiary}
-                    />
-                    {!!error && <Text style={styles.errorText}>{error}</Text>}
-                    <TouchableOpacity
-                      testID="verify-code"
-                      style={styles.primaryBtn}
-                      onPress={onVerifyOtp}
-                      activeOpacity={0.8}
-                    >
-                      <LinearGradient
-                        colors={[Colors.light.primary, Colors.light.primaryLight]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.buttonGradient}
-                      >
-                        <Text style={styles.primaryBtnText}>Verify & Continue</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                    <TouchableOpacity testID="edit-identifier" style={styles.linkBtn} onPress={() => { setStep('enter'); setCode(''); }}>
-                      <Text style={styles.linkText}>✏️ Edit phone number</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity testID="resend-otp" style={styles.linkBtn} onPress={onSendCode}>
-                      <Text style={styles.linkText}>Resend OTP</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {mode === 'social' && (
-              <View style={styles.card}>
-                {Platform.OS !== 'web' && Platform.OS === 'ios' ? (
-                  <AppleAuthentication.AppleAuthenticationButton
-                    buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                    buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                    cornerRadius={16}
-                    style={styles.appleBtn}
-                    onPress={signInWithApple}
-                    testID="apple-sign-in"
-                  />
-                ) : (
-                  <TouchableOpacity style={styles.appleFallback} onPress={() => showAlert('Apple Sign in', 'Available on iOS only')} testID="apple-fallback">
-                    <Apple size={22} color={Colors.light.text} />
-                    <Text style={styles.appleFallbackText}>Continue with Apple</Text>
-                  </TouchableOpacity>
-                )}
-
-                <TouchableOpacity style={styles.googleBtn} onPress={signInWithGoogle} testID="google-sign-in" activeOpacity={0.85}>
-                  <Chrome size={22} color="#fff" />
-                  <Text style={styles.googleText}>Continue with Google</Text>
-                </TouchableOpacity>
-              </View>
-            )}
 
             <Text style={styles.disclaimer}>
               By continuing you agree to our Terms and Privacy Policy
@@ -961,6 +831,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
+    marginTop: 12,
     backgroundColor: '#4285F4',
     borderRadius: 16,
     paddingVertical: 16,

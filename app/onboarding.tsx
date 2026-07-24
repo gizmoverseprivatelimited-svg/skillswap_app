@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,18 +6,27 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  ActivityIndicator,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, GraduationCap, Target, Calendar, MapPin, MessageCircle, CheckCircle2 } from 'lucide-react-native';
-import { useOnboarding } from '@/providers/onboarding';
-import { categories } from '@/mocks/data';
-import { useAlert } from '@/providers/alert';
-import { useCurrentUser } from '@/providers/current-user';
 import * as Location from 'expo-location';
+import {
+  Sparkles,
+  GraduationCap,
+  Target,
+  Calendar,
+  MapPin,
+  MessageCircle,
+  CheckCircle2,
+  ArrowLeftRight,
+  BookOpen,
+} from 'lucide-react-native';
+import { OnboardingRole } from '@/types';
+import { useOnboarding } from '@/providers/onboarding';
+import { useCurrentUser } from '@/providers/current-user';
+import { categories } from '@/mocks/data';
 
 type SkillLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
 
@@ -25,177 +34,149 @@ const skillLevels: SkillLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'Expe
 const availabilityOptions = ['Weekday Mornings', 'Weekday Afternoons', 'Weekday Evenings', 'Weekends', 'Flexible'];
 const communicationOptions = ['Video Call', 'In Person', 'Chat', 'Mix of All'];
 
+type StepKey = 'welcome' | 'role' | 'teach' | 'experience' | 'learn' | 'availability' | 'preferences' | 'summary';
+
+const ROLE_OPTIONS: {
+  key: OnboardingRole;
+  label: string;
+  desc: string;
+  icon: typeof GraduationCap;
+  color: string;
+  bg: string;
+}[] = [
+  { key: 'teacher', label: 'I want to Teach', desc: 'Share my skills with others', icon: GraduationCap, color: '#10B981', bg: '#ECFDF5' },
+  { key: 'learner', label: 'I want to Learn', desc: 'Find someone to teach me', icon: BookOpen, color: '#6366F1', bg: '#EEF2FF' },
+  { key: 'swap', label: 'Skill Swap', desc: 'Teach & learn together', icon: ArrowLeftRight, color: '#F59E0B', bg: '#FFFBEB' },
+];
+
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { 
-    currentStep, 
-    setCurrentStep, 
-    totalSteps, 
-    onboardingData, 
-    updateOnboardingData,
-    completeOnboarding,
-  } = useOnboarding();
-  const { loadUser } = useCurrentUser();
-  const { showAlert } = useAlert();
+  const { updateOnboardingData, completeOnboarding } = useOnboarding();
+  const { applyOnboardingData } = useCurrentUser();
 
-  const [isCompleting, setIsCompleting] = useState(false);
-  const [isLocating, setIsLocating] = useState(false);
+  const [role, setRole] = useState<OnboardingRole | null>(null);
+  const [stepIndex, setStepIndex] = useState<number>(0);
 
-  const handleGetLocation = async () => {
-    setIsLocating(true);
-    try {
-      console.log('[Location] Requesting location permission...');
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        showAlert(
-          'Permission Denied',
-          'Permission to access location was denied. Please enter your location manually.'
-        );
-        return;
-      }
-
-      console.log('[Location] Fetching current position...');
-      const currentLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
-      console.log('[Location] Reverse geocoding position...');
-      let formattedLocation = '';
-
-      if (Platform.OS === 'web') {
-        // Fallback for Web using OpenStreetMap Nominatim reverse geocoder
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${currentLocation.coords.latitude}&lon=${currentLocation.coords.longitude}`,
-          {
-            headers: {
-              'User-Agent': 'SkillSwapCommunityApp',
-            },
-          }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.address) {
-            const addr = data.address;
-            const city = addr.city || addr.town || addr.village || addr.suburb || addr.municipality || '';
-            const state = addr.state || '';
-            const country = addr.country || '';
-            const parts = [city, state, country].filter((p) => p.trim() !== '');
-            formattedLocation = parts.join(', ');
-          }
-        }
-      } else {
-        const geocoded = await Location.reverseGeocodeAsync({
-          latitude: currentLocation.coords.latitude,
-          longitude: currentLocation.coords.longitude,
-        });
-
-        if (geocoded && geocoded.length > 0) {
-          const address = geocoded[0];
-          console.log('[Location] Geocode address result:', address);
-          
-          // Extract city, state, country
-          const city = address.city || address.subregion || address.district || '';
-          const state = address.region || '';
-          const country = address.country || '';
-
-          const parts = [city, state, country].filter((p) => p.trim() !== '');
-          formattedLocation = parts.join(', ');
-        }
-      }
-
-      if (formattedLocation) {
-        setLocation(formattedLocation);
-      } else {
-        showAlert('Location Error', 'Could not resolve city/state from current location.');
-      }
-    } catch (error: any) {
-      console.error('[Location] Error getting location:', error);
-      showAlert(
-        'Location Error',
-        error.message || 'An error occurred while fetching your location. Please type manually.'
-      );
-    } finally {
-      setIsLocating(false);
-    }
-  };
-
-  const [selectedTeachSkills, setSelectedTeachSkills] = useState<string[]>(onboardingData.skillsToTeach || []);
-  const [selectedLearnSkills, setSelectedLearnSkills] = useState<string[]>(onboardingData.skillsToLearn || []);
-  const [experienceLevels, setExperienceLevels] = useState<Record<string, SkillLevel>>((onboardingData.experienceLevels || {}) as Record<string, SkillLevel>);
-  const [learningGoals, setLearningGoals] = useState<string[]>(onboardingData.learningGoals || []);
-  const [availability, setAvailability] = useState<string[]>(onboardingData.availability || []);
-  const [communication, setCommunication] = useState<string>(onboardingData.communicationPreference || '');
-  const [location, setLocation] = useState<string>(onboardingData.matchingPreferences?.location || '');
-  const [virtualEnabled, setVirtualEnabled] = useState<boolean>(onboardingData.matchingPreferences?.virtual ?? true);
-  const [inPersonEnabled, setInPersonEnabled] = useState<boolean>(onboardingData.matchingPreferences?.inPerson ?? false);
+  const [selectedTeachSkills, setSelectedTeachSkills] = useState<string[]>([]);
+  const [selectedLearnSkills, setSelectedLearnSkills] = useState<string[]>([]);
+  const [isCompleting, setIsCompleting] = useState<boolean>(false);
+  const [experienceLevels, setExperienceLevels] = useState<Record<string, SkillLevel>>({});
+  const [learningGoals, setLearningGoals] = useState<string[]>([]);
+  const [availability, setAvailability] = useState<string[]>([]);
+  const [communication, setCommunication] = useState<string>('');
+  const [location, setLocation] = useState<string>('');
+  const [isFetchingLocation, setIsFetchingLocation] = useState<boolean>(false);
+  const [virtualEnabled, setVirtualEnabled] = useState<boolean>(true);
+  const [inPersonEnabled, setInPersonEnabled] = useState<boolean>(false);
 
   const skillCategories = categories.filter(c => c !== 'All');
 
+  const steps = useMemo<StepKey[]>(() => {
+    const list: StepKey[] = ['welcome', 'role'];
+    if (role === 'teacher' || role === 'swap') {
+      list.push('teach', 'experience');
+    }
+    if (role === 'learner' || role === 'swap') {
+      list.push('learn');
+    }
+    list.push('availability', 'preferences', 'summary');
+    return list;
+  }, [role]);
+
+  const currentStep = steps[stepIndex] ?? 'welcome';
+  const totalSteps = steps.length;
+
   const goToNextStep = () => {
-    if (currentStep === 1) {
+    // Persist data when leaving relevant steps
+    if (currentStep === 'role' && role) {
+      updateOnboardingData({ role });
+    } else if (currentStep === 'teach') {
       updateOnboardingData({ skillsToTeach: selectedTeachSkills });
-    } else if (currentStep === 2) {
+    } else if (currentStep === 'experience') {
       updateOnboardingData({ skillsToTeach: selectedTeachSkills, experienceLevels });
-    } else if (currentStep === 3) {
+    } else if (currentStep === 'learn') {
       updateOnboardingData({ skillsToLearn: selectedLearnSkills, learningGoals });
-    } else if (currentStep === 4) {
+    } else if (currentStep === 'availability') {
       updateOnboardingData({ availability });
-    } else if (currentStep === 5) {
-      updateOnboardingData({ 
+    } else if (currentStep === 'preferences') {
+      updateOnboardingData({
         communicationPreference: communication,
-        matchingPreferences: { location, virtual: virtualEnabled, inPerson: inPersonEnabled }
+        matchingPreferences: { location, virtual: virtualEnabled, inPerson: inPersonEnabled },
       });
     }
 
-    if (currentStep < totalSteps - 1) {
-      setCurrentStep(currentStep + 1);
+    if (stepIndex < totalSteps - 1) {
+      setStepIndex(stepIndex + 1);
     } else {
       handleComplete();
     }
   };
 
   const goToPreviousStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
+    if (stepIndex > 0) setStepIndex(stepIndex - 1);
   };
 
   const handleComplete = async () => {
-    if (isCompleting) return;
     setIsCompleting(true);
-    console.log('[Onboarding] Completing with final data');
+
+    const fullData = {
+      role: role ?? 'swap',
+      skillsToTeach: selectedTeachSkills,
+      skillsToLearn: selectedLearnSkills,
+      experienceLevels,
+      learningGoals,
+      availability,
+      communicationPreference: communication,
+      matchingPreferences: { location, virtual: virtualEnabled, inPerson: inPersonEnabled },
+    };
+
+    // Apply the collected onboarding data to the current user so Smart Matches
+    // and the home screen immediately reflect the user's chosen role and skills.
+    applyOnboardingData(fullData);
+
     try {
-      await completeOnboarding();
-      await loadUser();
-      router.replace('/(tabs)/home');
-    } catch (error: any) {
-      console.error('[Onboarding] Failed to complete:', error);
-      showAlert('Onboarding Failed', error.message || 'Failed to complete onboarding. Please try again.');
-    } finally {
-      setIsCompleting(false);
+      // Pass data directly to avoid React state batching issues
+      await completeOnboarding(fullData);
+    } catch (error) {
+      console.warn('[Onboarding] completeOnboarding threw, navigating anyway:', error);
     }
+    
+    setIsCompleting(false);
+    router.replace('/(tabs)/home' as any);
   };
 
-  const canContinue = () => {
-    if (currentStep === 0) return true;
-    if (currentStep === 1) return selectedTeachSkills.length > 0;
-    if (currentStep === 2) return selectedTeachSkills.every(skill => experienceLevels[skill]);
-    if (currentStep === 3) return selectedLearnSkills.length > 0;
-    if (currentStep === 4) return availability.length > 0;
-    if (currentStep === 5) return communication.length > 0 && (virtualEnabled || inPersonEnabled);
-    return true;
+  const canContinue = (): boolean => {
+    switch (currentStep) {
+      case 'welcome':
+        return true;
+      case 'role':
+        return role !== null;
+      case 'teach':
+        return selectedTeachSkills.length > 0;
+      case 'experience':
+        return selectedTeachSkills.every(skill => experienceLevels[skill]);
+      case 'learn':
+        return selectedLearnSkills.length > 0;
+      case 'availability':
+        return availability.length > 0;
+      case 'preferences':
+        return communication.length > 0 && (virtualEnabled || inPersonEnabled);
+      case 'summary':
+        return true;
+      default:
+        return true;
+    }
   };
 
   const toggleSkillSelection = (skill: string, isTeach: boolean) => {
     const setter = isTeach ? setSelectedTeachSkills : setSelectedLearnSkills;
     const selected = isTeach ? selectedTeachSkills : selectedLearnSkills;
-    
     if (selected.includes(skill)) {
       setter(selected.filter(s => s !== skill));
       if (isTeach) {
-        const newLevels = { ...experienceLevels };
-        delete newLevels[skill];
-        setExperienceLevels(newLevels);
+        const next = { ...experienceLevels };
+        delete next[skill];
+        setExperienceLevels(next);
       }
     } else {
       setter([...selected, skill]);
@@ -222,12 +203,60 @@ export default function OnboardingScreen() {
     }
   };
 
+  const fetchLocation = async () => {
+    setIsFetchingLocation(true);
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setIsFetchingLocation(false);
+        return;
+      }
+      let loc = await Location.getCurrentPositionAsync({});
+      
+      if (Platform.OS === 'web') {
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.coords.latitude}&lon=${loc.coords.longitude}&zoom=10&addressdetails=1`);
+        const data = await response.json();
+        if (data && data.address) {
+          const city = data.address.city || data.address.town || data.address.village || data.address.county;
+          const state = data.address.state;
+          if (city && state) {
+            setLocation(`${city}, ${state}`);
+          } else if (city) {
+            setLocation(city);
+          } else if (state) {
+            setLocation(state);
+          }
+        }
+      } else {
+        let geocode = await Location.reverseGeocodeAsync({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude
+        });
+        if (geocode.length > 0) {
+          const place = geocode[0];
+          const city = place.city || place.subregion;
+          const state = place.region;
+          if (city && state) {
+            setLocation(`${city}, ${state}`);
+          } else if (city) {
+            setLocation(city);
+          } else if (state) {
+            setLocation(state);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Error fetching location", e);
+    }
+    setIsFetchingLocation(false);
+  };
+
   const renderWelcomeStep = () => (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
         <Sparkles size={64} color="#FF6B9D" strokeWidth={1.5} />
       </View>
-      <Text style={styles.title}>Welcome to SkillSwap!</Text>
+      <Text style={styles.title}>Welcome to LearnSwap!</Text>
       <Text style={styles.subtitle}>
         Let&apos;s set up your profile so we can match you with the perfect skill exchange partners.
       </Text>
@@ -249,10 +278,45 @@ export default function OnboardingScreen() {
     </View>
   );
 
+  const renderRoleStep = () => (
+    <View style={styles.stepContainer}>
+      <View style={styles.iconContainer}>
+        <ArrowLeftRight size={48} color="#FF6B9D" strokeWidth={1.5} />
+      </View>
+      <Text style={styles.title}>How will you use LearnSwap?</Text>
+      <Text style={styles.subtitle}>
+        Choose the option that best fits you. You can do both later!
+      </Text>
+      <View style={styles.roleList}>
+        {ROLE_OPTIONS.map((opt) => {
+          const Icon = opt.icon;
+          const selected = role === opt.key;
+          return (
+            <TouchableOpacity
+              key={opt.key}
+              style={[styles.roleCard, selected && styles.roleCardSelected, selected && { borderColor: opt.color }]}
+              onPress={() => setRole(opt.key)}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.roleIconWrap, { backgroundColor: opt.bg }]}>
+                <Icon size={28} color={opt.color} />
+              </View>
+              <View style={styles.roleCardContent}>
+                <Text style={styles.roleCardTitle}>{opt.label}</Text>
+                <Text style={styles.roleCardSubtitle}>{opt.desc}</Text>
+              </View>
+              {selected && <CheckCircle2 size={22} color={opt.color} />}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+
   const renderTeachSkillsStep = () => (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
-        <GraduationCap size={48} color="#FF6B9D" strokeWidth={1.5} />
+        <GraduationCap size={48} color="#10B981" strokeWidth={1.5} />
       </View>
       <Text style={styles.title}>What can you teach?</Text>
       <Text style={styles.subtitle}>
@@ -262,23 +326,13 @@ export default function OnboardingScreen() {
         {skillCategories.map((skill) => (
           <TouchableOpacity
             key={skill}
-            style={[
-              styles.optionItem,
-              selectedTeachSkills.includes(skill) && styles.optionItemSelected,
-            ]}
+            style={[styles.optionItem, selectedTeachSkills.includes(skill) && styles.optionItemSelected]}
             onPress={() => toggleSkillSelection(skill, true)}
           >
-            <Text
-              style={[
-                styles.optionText,
-                selectedTeachSkills.includes(skill) && styles.optionTextSelected,
-              ]}
-            >
+            <Text style={[styles.optionText, selectedTeachSkills.includes(skill) && styles.optionTextSelected]}>
               {skill}
             </Text>
-            {selectedTeachSkills.includes(skill) && (
-              <CheckCircle2 size={20} color="#fff" />
-            )}
+            {selectedTeachSkills.includes(skill) && <CheckCircle2 size={20} color="#fff" />}
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -288,9 +342,7 @@ export default function OnboardingScreen() {
   const renderExperienceLevelStep = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.title}>Rate your expertise</Text>
-      <Text style={styles.subtitle}>
-        How would you rate your level in these skills?
-      </Text>
+      <Text style={styles.subtitle}>How would you rate your level in these skills?</Text>
       <ScrollView style={styles.optionsList} showsVerticalScrollIndicator={false}>
         {selectedTeachSkills.map((skill) => (
           <View key={skill} style={styles.skillLevelContainer}>
@@ -299,18 +351,10 @@ export default function OnboardingScreen() {
               {skillLevels.map((level) => (
                 <TouchableOpacity
                   key={level}
-                  style={[
-                    styles.levelButton,
-                    experienceLevels[skill] === level && styles.levelButtonSelected,
-                  ]}
+                  style={[styles.levelButton, experienceLevels[skill] === level && styles.levelButtonSelected]}
                   onPress={() => setSkillLevel(skill, level)}
                 >
-                  <Text
-                    style={[
-                      styles.levelButtonText,
-                      experienceLevels[skill] === level && styles.levelButtonTextSelected,
-                    ]}
-                  >
+                  <Text style={[styles.levelButtonText, experienceLevels[skill] === level && styles.levelButtonTextSelected]}>
                     {level}
                   </Text>
                 </TouchableOpacity>
@@ -325,55 +369,35 @@ export default function OnboardingScreen() {
   const renderLearnSkillsStep = () => (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
-        <Target size={48} color="#FF6B9D" strokeWidth={1.5} />
+        <Target size={48} color="#6366F1" strokeWidth={1.5} />
       </View>
       <Text style={styles.title}>What do you want to learn?</Text>
-      <Text style={styles.subtitle}>
-        Select skills you&apos;re interested in learning
-      </Text>
+      <Text style={styles.subtitle}>Select skills you&apos;re interested in learning</Text>
       <ScrollView style={styles.optionsList} showsVerticalScrollIndicator={false}>
         {skillCategories.map((skill) => (
           <TouchableOpacity
             key={skill}
-            style={[
-              styles.optionItem,
-              selectedLearnSkills.includes(skill) && styles.optionItemSelected,
-            ]}
+            style={[styles.optionItem, selectedLearnSkills.includes(skill) && styles.optionItemSelected]}
             onPress={() => toggleSkillSelection(skill, false)}
           >
-            <Text
-              style={[
-                styles.optionText,
-                selectedLearnSkills.includes(skill) && styles.optionTextSelected,
-              ]}
-            >
+            <Text style={[styles.optionText, selectedLearnSkills.includes(skill) && styles.optionTextSelected]}>
               {skill}
             </Text>
-            {selectedLearnSkills.includes(skill) && (
-              <CheckCircle2 size={20} color="#fff" />
-            )}
+            {selectedLearnSkills.includes(skill) && <CheckCircle2 size={20} color="#fff" />}
           </TouchableOpacity>
         ))}
       </ScrollView>
-      
+
       <View style={styles.goalsSection}>
         <Text style={styles.goalsTitle}>Your learning goals (optional)</Text>
         <View style={styles.goalsList}>
           {['Career Change', 'Hobby', 'Personal Growth', 'Side Project'].map((goal) => (
             <TouchableOpacity
               key={goal}
-              style={[
-                styles.goalChip,
-                learningGoals.includes(goal) && styles.goalChipSelected,
-              ]}
+              style={[styles.goalChip, learningGoals.includes(goal) && styles.goalChipSelected]}
               onPress={() => toggleGoal(goal)}
             >
-              <Text
-                style={[
-                  styles.goalChipText,
-                  learningGoals.includes(goal) && styles.goalChipTextSelected,
-                ]}
-              >
+              <Text style={[styles.goalChipText, learningGoals.includes(goal) && styles.goalChipTextSelected]}>
                 {goal}
               </Text>
             </TouchableOpacity>
@@ -389,30 +413,18 @@ export default function OnboardingScreen() {
         <Calendar size={48} color="#FF6B9D" strokeWidth={1.5} />
       </View>
       <Text style={styles.title}>When are you available?</Text>
-      <Text style={styles.subtitle}>
-        Select your preferred times for skill exchanges
-      </Text>
+      <Text style={styles.subtitle}>Select your preferred times for skill exchanges</Text>
       <View style={styles.optionsList}>
         {availabilityOptions.map((slot) => (
           <TouchableOpacity
             key={slot}
-            style={[
-              styles.optionItem,
-              availability.includes(slot) && styles.optionItemSelected,
-            ]}
+            style={[styles.optionItem, availability.includes(slot) && styles.optionItemSelected]}
             onPress={() => toggleAvailability(slot)}
           >
-            <Text
-              style={[
-                styles.optionText,
-                availability.includes(slot) && styles.optionTextSelected,
-              ]}
-            >
+            <Text style={[styles.optionText, availability.includes(slot) && styles.optionTextSelected]}>
               {slot}
             </Text>
-            {availability.includes(slot) && (
-              <CheckCircle2 size={20} color="#fff" />
-            )}
+            {availability.includes(slot) && <CheckCircle2 size={20} color="#fff" />}
           </TouchableOpacity>
         ))}
       </View>
@@ -425,41 +437,26 @@ export default function OnboardingScreen() {
         <MessageCircle size={48} color="#FF6B9D" strokeWidth={1.5} />
       </View>
       <Text style={styles.title}>How do you prefer to connect?</Text>
-      <Text style={styles.subtitle}>
-        Choose your preferred method of skill exchange
-      </Text>
-      
+      <Text style={styles.subtitle}>Choose your preferred method of skill exchange</Text>
       <View style={styles.optionsList}>
         {communicationOptions.map((option) => (
           <TouchableOpacity
             key={option}
-            style={[
-              styles.optionItem,
-              communication === option && styles.optionItemSelected,
-            ]}
+            style={[styles.optionItem, communication === option && styles.optionItemSelected]}
             onPress={() => setCommunication(option)}
           >
-            <Text
-              style={[
-                styles.optionText,
-                communication === option && styles.optionTextSelected,
-              ]}
-            >
+            <Text style={[styles.optionText, communication === option && styles.optionTextSelected]}>
               {option}
             </Text>
-            {communication === option && (
-              <CheckCircle2 size={20} color="#fff" />
-            )}
+            {communication === option && <CheckCircle2 size={20} color="#fff" />}
           </TouchableOpacity>
         ))}
       </View>
-
       <View style={styles.locationSection}>
         <View style={styles.locationHeader}>
           <MapPin size={20} color="#333" />
           <Text style={styles.locationTitle}>Location Preferences</Text>
         </View>
-        
         <TextInput
           style={styles.locationInput}
           placeholder="Enter your city or region (optional)"
@@ -467,148 +464,118 @@ export default function OnboardingScreen() {
           value={location}
           onChangeText={setLocation}
         />
-
         <TouchableOpacity
-          style={[styles.getLocationButton, isLocating && styles.getLocationButtonDisabled]}
-          onPress={handleGetLocation}
-          disabled={isLocating}
+          style={[styles.getLocationButton, isFetchingLocation && styles.getLocationButtonDisabled]}
+          onPress={fetchLocation}
+          disabled={isFetchingLocation}
         >
-          {isLocating ? (
-            <ActivityIndicator size="small" color="#FF6B9D" />
-          ) : (
-            <>
-              <MapPin size={16} color="#FF6B9D" style={{ marginRight: 6 }} />
-              <Text style={styles.getLocationButtonText}>Use Current Location</Text>
-            </>
-          )}
+          <Text style={styles.getLocationButtonText}>
+            {isFetchingLocation ? 'Fetching...' : 'Use Current Location'}
+          </Text>
         </TouchableOpacity>
-
         <View style={styles.toggleRow}>
           <TouchableOpacity
             style={[styles.toggle, virtualEnabled && styles.toggleActive]}
             onPress={() => setVirtualEnabled(!virtualEnabled)}
           >
-            <Text style={[styles.toggleText, virtualEnabled && styles.toggleTextActive]}>
-              Virtual Sessions
-            </Text>
+            <Text style={[styles.toggleText, virtualEnabled && styles.toggleTextActive]}>Virtual Sessions</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.toggle, inPersonEnabled && styles.toggleActive]}
             onPress={() => setInPersonEnabled(!inPersonEnabled)}
           >
-            <Text style={[styles.toggleText, inPersonEnabled && styles.toggleTextActive]}>
-              In-Person Meetups
-            </Text>
+            <Text style={[styles.toggleText, inPersonEnabled && styles.toggleTextActive]}>In-Person Meetups</Text>
           </TouchableOpacity>
         </View>
       </View>
     </View>
   );
 
-  const renderFinalStep = () => (
-    <View style={styles.stepContainer}>
-      <View style={styles.iconContainer}>
-        <CheckCircle2 size={64} color="#4CAF50" strokeWidth={1.5} />
+  const renderFinalStep = () => {
+    const roleLabel = role ? ROLE_OPTIONS.find(r => r.key === role)?.label : '';
+    return (
+      <View style={styles.stepContainer}>
+        <View style={styles.iconContainer}>
+          <CheckCircle2 size={64} color="#4CAF50" strokeWidth={1.5} />
+        </View>
+        <Text style={styles.title}>You&apos;re all set!</Text>
+        <Text style={styles.subtitle}>Ready to start your skill exchange journey?</Text>
+        <View style={styles.summaryContainer}>
+          <Text style={styles.summaryTitle}>Your Profile Summary:</Text>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryLabel}>Role:</Text>
+            <Text style={styles.summaryValue}>{roleLabel}</Text>
+          </View>
+          {(role === 'teacher' || role === 'swap') && selectedTeachSkills.length > 0 && (
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Teaching:</Text>
+              <Text style={styles.summaryValue}>{selectedTeachSkills.join(', ')}</Text>
+            </View>
+          )}
+          {(role === 'learner' || role === 'swap') && selectedLearnSkills.length > 0 && (
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Learning:</Text>
+              <Text style={styles.summaryValue}>{selectedLearnSkills.join(', ')}</Text>
+            </View>
+          )}
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryLabel}>Availability:</Text>
+            <Text style={styles.summaryValue}>{availability.join(', ')}</Text>
+          </View>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryLabel}>Preference:</Text>
+            <Text style={styles.summaryValue}>{communication}</Text>
+          </View>
+        </View>
       </View>
-      <Text style={styles.title}>You&apos;re all set!</Text>
-      <Text style={styles.subtitle}>
-        Ready to start your skill exchange journey?
-      </Text>
-      <View style={styles.summaryContainer}>
-        <Text style={styles.summaryTitle}>Your Profile Summary:</Text>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>Teaching:</Text>
-          <Text style={styles.summaryValue}>{selectedTeachSkills.join(', ')}</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>Learning:</Text>
-          <Text style={styles.summaryValue}>{selectedLearnSkills.join(', ')}</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>Availability:</Text>
-          <Text style={styles.summaryValue}>{availability.join(', ')}</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>Preference:</Text>
-          <Text style={styles.summaryValue}>{communication}</Text>
-        </View>
-      </View>
-    </View>
-  );
+    );
+  };
 
   const renderStep = () => {
     switch (currentStep) {
-      case 0:
-        return renderWelcomeStep();
-      case 1:
-        return renderTeachSkillsStep();
-      case 2:
-        return renderExperienceLevelStep();
-      case 3:
-        return renderLearnSkillsStep();
-      case 4:
-        return renderAvailabilityStep();
-      case 5:
-        return renderPreferencesStep();
-      case 6:
-        return renderFinalStep();
-      default:
-        return null;
+      case 'welcome': return renderWelcomeStep();
+      case 'role': return renderRoleStep();
+      case 'teach': return renderTeachSkillsStep();
+      case 'experience': return renderExperienceLevelStep();
+      case 'learn': return renderLearnSkillsStep();
+      case 'availability': return renderAvailabilityStep();
+      case 'preferences': return renderPreferencesStep();
+      case 'summary': return renderFinalStep();
+      default: return null;
     }
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <LinearGradient
-        colors={['#FFF5F7', '#FFFFFF', '#F0F9FF']}
-        style={styles.gradient}
-      >
+      <LinearGradient colors={['#FFF5F7', '#FFFFFF', '#F0F9FF']} style={styles.gradient}>
         <View style={styles.header}>
           <View style={styles.progressBarContainer}>
             <View style={styles.progressBarBackground}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  { width: `${((currentStep + 1) / totalSteps) * 100}%` },
-                ]}
-              />
+              <View style={[styles.progressBarFill, { width: `${((stepIndex + 1) / totalSteps) * 100}%` }]} />
             </View>
           </View>
-          <Text style={styles.stepCounter}>
-            Step {currentStep + 1} of {totalSteps}
-          </Text>
+          <Text style={styles.stepCounter}>Step {stepIndex + 1} of {totalSteps}</Text>
         </View>
 
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
           {renderStep()}
         </ScrollView>
 
         <View style={styles.footer}>
           <View style={styles.buttonRow}>
-            {currentStep > 0 && (
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={goToPreviousStep}
-              >
+            {stepIndex > 0 && (
+              <TouchableOpacity style={styles.backButton} onPress={goToPreviousStep}>
                 <Text style={styles.backButtonText}>Back</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
-              style={[
-                styles.continueButton,
-                (!canContinue() || isCompleting) && styles.continueButtonDisabled,
-                currentStep === 0 && styles.continueButtonFull,
-              ]}
+              style={[styles.continueButton, !canContinue() && styles.continueButtonDisabled, stepIndex === 0 && styles.continueButtonFull]}
               onPress={goToNextStep}
-              disabled={!canContinue() || isCompleting}
+              disabled={!canContinue()}
             >
               <Text style={styles.continueButtonText}>
-                {isCompleting ? 'Loading...' : (currentStep === totalSteps - 1 ? "Let's Go!" : 'Continue')}
+                {stepIndex === totalSteps - 1 ? "Let's Go!" : 'Continue'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -619,205 +586,63 @@ export default function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
+  container: { flex: 1, backgroundColor: '#fff' },
+  gradient: { flex: 1 },
+  header: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 20 },
+  progressBarContainer: { marginBottom: 8 },
+  progressBarBackground: { height: 4, backgroundColor: '#E0E0E0', borderRadius: 2, overflow: 'hidden' },
+  progressBarFill: { height: '100%', backgroundColor: '#FF6B9D', borderRadius: 2 },
+  stepCounter: { fontSize: 12, color: '#666', fontWeight: '600' as const, textAlign: 'center' },
+  content: { flex: 1 },
+  contentContainer: { paddingHorizontal: 24, paddingBottom: 24 },
+  stepContainer: { flex: 1 },
+  iconContainer: { alignItems: 'center', marginBottom: 24 },
+  title: { fontSize: 28, fontWeight: '700' as const, color: '#1A1A1A', marginBottom: 12, textAlign: 'center' },
+  subtitle: { fontSize: 16, color: '#666', marginBottom: 24, textAlign: 'center', lineHeight: 24 },
+  description: { fontSize: 14, color: '#888', marginBottom: 32, textAlign: 'center', lineHeight: 20 },
+  featureList: { marginTop: 32 },
+  featureItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, paddingHorizontal: 16 },
+  featureText: { fontSize: 16, color: '#333', marginLeft: 16, fontWeight: '500' as const },
+  // Role selection
+  roleList: { gap: 14, marginTop: 8 },
+  roleCard: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16, padding: 18, gap: 16,
+    borderWidth: 2, borderColor: '#E0E0E0', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
   },
-  gradient: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 20,
-  },
-  progressBarContainer: {
-    marginBottom: 8,
-  },
-  progressBarBackground: {
-    height: 4,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#FF6B9D',
-    borderRadius: 2,
-  },
-  stepCounter: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '600' as const,
-    textAlign: 'center',
-  },
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-  },
-  stepContainer: {
-    flex: 1,
-  },
-  iconContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700' as const,
-    color: '#1A1A1A',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 24,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  description: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 32,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  featureList: {
-    marginTop: 32,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 16,
-  },
-  featureText: {
-    fontSize: 16,
-    color: '#333',
-    marginLeft: 16,
-    fontWeight: '500' as const,
-  },
-  optionsList: {
-    marginTop: 8,
-  },
+  roleCardSelected: { borderWidth: 2, backgroundColor: '#FAFAFA' },
+  roleIconWrap: { width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  roleCardContent: { flex: 1 },
+  roleCardTitle: { fontSize: 17, fontWeight: '700' as const, color: '#1A1A1A', marginBottom: 3 },
+  roleCardSubtitle: { fontSize: 13, color: '#666', fontWeight: '500' as const },
+  // Options
+  optionsList: { marginTop: 8 },
   optionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    padding: 18,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff',
+    padding: 18, borderRadius: 12, marginBottom: 12, borderWidth: 2, borderColor: '#E0E0E0',
   },
-  optionItemSelected: {
-    backgroundColor: '#FF6B9D',
-    borderColor: '#FF6B9D',
-  },
-  optionText: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500' as const,
-  },
-  optionTextSelected: {
-    color: '#fff',
-    fontWeight: '600' as const,
-  },
-  skillLevelContainer: {
-    marginBottom: 24,
-  },
-  skillLevelTitle: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#333',
-    marginBottom: 12,
-  },
-  levelButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  levelButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: '#F5F5F5',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  levelButtonSelected: {
-    backgroundColor: '#FF6B9D',
-    borderColor: '#FF6B9D',
-  },
-  levelButtonText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500' as const,
-  },
-  levelButtonTextSelected: {
-    color: '#fff',
-    fontWeight: '600' as const,
-  },
-  goalsSection: {
-    marginTop: 24,
-    paddingTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-  },
-  goalsTitle: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#333',
-    marginBottom: 12,
-  },
-  goalsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  goalChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: '#F5F5F5',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  goalChipSelected: {
-    backgroundColor: '#E3F2FD',
-    borderColor: '#2196F3',
-  },
-  goalChipText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500' as const,
-  },
-  goalChipTextSelected: {
-    color: '#2196F3',
-    fontWeight: '600' as const,
-  },
-  locationSection: {
-    marginTop: 24,
-    paddingTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-  },
-  locationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  locationTitle: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#333',
-    marginLeft: 8,
-  },
+  optionItemSelected: { backgroundColor: '#FF6B9D', borderColor: '#FF6B9D' },
+  optionText: { fontSize: 16, color: '#333', fontWeight: '500' as const },
+  optionTextSelected: { color: '#fff', fontWeight: '600' as const },
+  // Skill levels
+  skillLevelContainer: { marginBottom: 24 },
+  skillLevelTitle: { fontSize: 16, fontWeight: '600' as const, color: '#333', marginBottom: 12 },
+  levelButtons: { flexDirection: 'row', flexWrap: 'wrap' as const, gap: 8 },
+  levelButton: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: '#F5F5F5', borderWidth: 1, borderColor: '#E0E0E0' },
+  levelButtonSelected: { backgroundColor: '#FF6B9D', borderColor: '#FF6B9D' },
+  levelButtonText: { fontSize: 14, color: '#666', fontWeight: '500' as const },
+  levelButtonTextSelected: { color: '#fff', fontWeight: '600' as const },
+  // Goals
+  goalsSection: { marginTop: 24, paddingTop: 24, borderTopWidth: 1, borderTopColor: '#E0E0E0' },
+  goalsTitle: { fontSize: 16, fontWeight: '600' as const, color: '#333', marginBottom: 12 },
+  goalsList: { flexDirection: 'row', flexWrap: 'wrap' as const, gap: 8 },
+  goalChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: '#F5F5F5', borderWidth: 1, borderColor: '#E0E0E0' },
+  goalChipSelected: { backgroundColor: '#E3F2FD', borderColor: '#2196F3' },
+  goalChipText: { fontSize: 14, color: '#666', fontWeight: '500' as const },
+  goalChipTextSelected: { color: '#2196F3', fontWeight: '600' as const },
+  // Location
+  locationSection: { marginTop: 24, paddingTop: 24, borderTopWidth: 1, borderTopColor: '#E0E0E0' },
+  locationHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  locationTitle: { fontSize: 16, fontWeight: '600' as const, color: '#333', marginLeft: 8 },
   locationInput: {
     backgroundColor: '#F5F5F5',
     borderRadius: 12,
@@ -847,97 +672,24 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: '#FF6B9D',
   },
-  toggleRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  toggle: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 10,
-    backgroundColor: '#F5F5F5',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    alignItems: 'center',
-  },
-  toggleActive: {
-    backgroundColor: '#E3F2FD',
-    borderColor: '#2196F3',
-  },
-  toggleText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500' as const,
-  },
-  toggleTextActive: {
-    color: '#2196F3',
-    fontWeight: '600' as const,
-  },
-  summaryContainer: {
-    backgroundColor: '#F9F9F9',
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 24,
-  },
-  summaryTitle: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: '#333',
-    marginBottom: 16,
-  },
-  summaryItem: {
-    marginBottom: 12,
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-    fontWeight: '600' as const,
-  },
-  summaryValue: {
-    fontSize: 15,
-    color: '#333',
-    lineHeight: 22,
-  },
-  footer: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  backButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
-    backgroundColor: '#F5F5F5',
-    alignItems: 'center',
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '600' as const,
-  },
-  continueButton: {
-    flex: 2,
-    paddingVertical: 16,
-    borderRadius: 12,
-    backgroundColor: '#FF6B9D',
-    alignItems: 'center',
-  },
-  continueButtonFull: {
-    flex: 1,
-  },
-  continueButtonDisabled: {
-    backgroundColor: '#E0E0E0',
-  },
-  continueButtonText: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '700' as const,
-  },
+  toggleRow: { flexDirection: 'row', gap: 12 },
+  toggle: { flex: 1, padding: 14, borderRadius: 10, backgroundColor: '#F5F5F5', borderWidth: 1, borderColor: '#E0E0E0', alignItems: 'center' },
+  toggleActive: { backgroundColor: '#E3F2FD', borderColor: '#2196F3' },
+  toggleText: { fontSize: 14, color: '#666', fontWeight: '500' as const },
+  toggleTextActive: { color: '#2196F3', fontWeight: '600' as const },
+  // Summary
+  summaryContainer: { backgroundColor: '#F9F9F9', borderRadius: 16, padding: 20, marginTop: 24 },
+  summaryTitle: { fontSize: 18, fontWeight: '700' as const, color: '#333', marginBottom: 16 },
+  summaryItem: { marginBottom: 12 },
+  summaryLabel: { fontSize: 14, color: '#666', marginBottom: 4, fontWeight: '600' as const },
+  summaryValue: { fontSize: 15, color: '#333', lineHeight: 22 },
+  // Footer
+  footer: { paddingHorizontal: 24, paddingVertical: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#E0E0E0' },
+  buttonRow: { flexDirection: 'row', gap: 12 },
+  backButton: { flex: 1, paddingVertical: 16, borderRadius: 12, backgroundColor: '#F5F5F5', alignItems: 'center' },
+  backButtonText: { fontSize: 16, color: '#666', fontWeight: '600' as const },
+  continueButton: { flex: 2, paddingVertical: 16, borderRadius: 12, backgroundColor: '#FF6B9D', alignItems: 'center' },
+  continueButtonFull: { flex: 1 },
+  continueButtonDisabled: { backgroundColor: '#E0E0E0' },
+  continueButtonText: { fontSize: 16, color: '#fff', fontWeight: '700' as const },
 });

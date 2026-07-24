@@ -22,8 +22,10 @@ import {
   Activity,
   BarChart3,
   LogOut,
+  Wallet,
 } from 'lucide-react-native';
 import { useAdmin } from '../../providers/admin';
+import { useEarnings } from '@/providers/earnings';
 import Colors from '@/constants/colors';
 import { useAlert } from '@/providers/alert';
 
@@ -31,6 +33,7 @@ export default function AdminDashboard() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { stats, isLoading, isAdminAuthenticated, adminLogout } = useAdmin();
+  const { pendingPayoutsCount } = useEarnings();
   const { showAlert } = useAlert();
 
   // Redirect to login if not authenticated as admin
@@ -107,6 +110,15 @@ export default function AdminDashboard() {
       bg: '#ECFDF5',
       route: '/admin/verifications',
       badge: stats.pendingVerifications > 0 ? stats.pendingVerifications : undefined,
+    },
+    {
+      title: 'Payout Approvals',
+      subtitle: `${pendingPayoutsCount} pending request${pendingPayoutsCount !== 1 ? 's' : ''}`,
+      icon: Wallet,
+      color: '#6366F1',
+      bg: '#EEF2FF',
+      route: '/admin/payouts',
+      badge: pendingPayoutsCount > 0 ? pendingPayoutsCount : undefined,
     },
   ];
 

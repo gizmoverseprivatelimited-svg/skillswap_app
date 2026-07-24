@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,93 +7,136 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { RefreshCcw, Star, TrendingUp, Users, Zap } from 'lucide-react-native';
+import { RefreshCcw, Star, TrendingUp, Users, Zap, GraduationCap, BookOpen, ArrowLeftRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '../../constants/colors';
 import { getSkillsWithUsers, categories } from '../../mocks/data';
 import MatchCard from '../../components/MatchCard';
 import { useCurrentUser } from '../../providers/current-user';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SkillWithUser } from '@/types';
-import { resolveImageUrl } from '@/lib/resolveImageUrl';
-import { useSkillSwaps } from '@/providers/skill-swaps';
+import { resolveImageUrl } from '../../lib/resolveImageUrl';
+
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+const DEFAULT_SKILL_IMAGE = 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800';
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [skillsWithUsers, setSkillsWithUsers] = useState<SkillWithUser[]>([])
-  const [isSkillsLoading, setIsSkillsLoading] = useState(true);
-  useSkillSwaps()
+  const [skillsWithUsers, setSkillsWithUsers] = useState<any[]>([]);
 
-  const { currentUser, topRecommendations, teachMatches, refreshRecommendations, loadUser, isLoading: isUsersLoading } = useCurrentUser();
+  const { currentUser, topRecommendations, teachMatches, learnMatches, swapMatches, userRole, refreshRecommendations } = useCurrentUser();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleRefresh = useCallback(async () => {
+  const fetchSkillsData = async () => {
+    try {
+      const data = await getSkillsWithUsers();
+      setSkillsWithUsers(data);
+    } catch (err) {
+      console.error('Failed to fetch skills data:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchSkillsData();
+  }, []);
+
+  const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      console.log('[Home] Refreshing matches and skills...');
-      // 1. Reload users and refresh recommendations
-      await loadUser(true);
-      refreshRecommendations();
-      
-      // 2. Reload skills
-      const any = await getSkillsWithUsers();
-      setSkillsWithUsers(any);
+      const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 5000));
+      await Promise.race([
+        Promise.all([
+          fetchSkillsData(),
+          refreshRecommendations(),
+        ]),
+        timeoutPromise,
+      ]);
     } catch (err) {
-      console.error('[Home] Refresh failed:', err);
+      console.error('Error refreshing home data:', err);
     } finally {
       setIsRefreshing(false);
     }
-  }, [loadUser, refreshRecommendations]);
+  };
 
-  useEffect(() => {
-    async function initHome() {
-      try {
-        setIsSkillsLoading(true);
-        const any = await getSkillsWithUsers();
-        setSkillsWithUsers(any);
-      } catch (err) {
-        console.error('[Home] Initial fetch failed:', err);
-      } finally {
-        setIsSkillsLoading(false);
-      }
-    }
-    initHome();
-
-    // Programmatically trigger refresh after a short delay to let login state settle
-    const timer = setTimeout(() => {
-      console.log('[Home] Automatically triggering refresh on mount');
-      handleRefresh();
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const filteredSkills = selectedCategory === 'All'
-    ? skillsWithUsers
+  const filteredSkills = selectedCategory === 'All' 
+    ? skillsWithUsers 
     : skillsWithUsers.filter(skill => skill.category === selectedCategory);
 
   const featuredSkills = skillsWithUsers.slice(0, 3);
   const topTeachMatches = useMemo(() => teachMatches.slice(0, 4), [teachMatches]);
+  const topLearnMatches = useMemo(() => learnMatches.slice(0, 4), [learnMatches]);
+  const topSwapMatches = useMemo(() => swapMatches.slice(0, 4), [swapMatches]);
   const hasMatches = topRecommendations.length > 0;
-  const usernameDisplay = useMemo(() => {
-    return currentUser?.username ? `@${currentUser.username}` : (currentUser?.name || '');
-  }, [currentUser?.username, currentUser?.name]);
+  const firstName = useMemo(() => {
+    if (!currentUser) return '';
+    const [first] = currentUser.name.split(' ');
+    return first ?? currentUser.name;
+  }, [currentUser?.name]);
+  const matchesSubtitle = useMemo(() => {
+    if (userRole === 'teacher') return `Learners who need ${firstName}'s skills`;
+    if (userRole === 'learner') return `Teachers who can help ${firstName} grow`;
+    return `Perfect swap partners for ${firstName}`;
+  }, [userRole, firstName]);
 
-  if (isSkillsLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.light.primary} />
-      </View>
-    );
-  }
+  const secondarySection = useMemo<{
+    title: string;
+    subtitle: string;
+    items: typeof topTeachMatches;
+    chips: (m: typeof topTeachMatches[number]) => string[];
+    icon: typeof GraduationCap;
+    color: string;
+  } | null>(() => {
+    if (userRole === 'teacher') {
+      return {
+        title: 'They want to learn from you',
+        subtitle: 'Based on the skills you offer',
+        items: topTeachMatches,
+        chips: (m) => m.theyCanLearn.slice(0, 2),
+        icon: GraduationCap,
+        color: Colors.light.primary,
+      };
+    }
+    if (userRole === 'learner') {
+      return {
+        title: 'They can teach you',
+        subtitle: 'People offering what you want to learn',
+        items: topLearnMatches,
+        chips: (m) => m.youCanLearn.slice(0, 2),
+        icon: BookOpen,
+        color: '#6366F1',
+      };
+    }
+    return {
+      title: 'Mutual skill swaps',
+      subtitle: 'Teach each other — give & get',
+      items: topSwapMatches,
+      chips: (m) => [...m.youCanLearn.slice(0, 1), ...m.theyCanLearn.slice(0, 1)],
+      icon: ArrowLeftRight,
+      color: '#F59E0B',
+    };
+  }, [userRole, topTeachMatches, topLearnMatches, topSwapMatches]);
 
   return (
     <View style={styles.container}>
-      <ScrollView
+      <Modal
+        transparent
+        animationType="fade"
+        visible={isRefreshing}
+        onRequestClose={() => {}}
+      >
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color={Colors.light.primary} />
+            <Text style={styles.loadingText}>Fetching latest data from backend...</Text>
+          </View>
+        </View>
+      </Modal>
+
+      <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
@@ -105,7 +148,7 @@ export default function HomeScreen() {
         >
           <View style={styles.headerContent}>
             <View>
-              <Text style={styles.greeting}>Hi, {usernameDisplay}</Text>
+              <Text style={styles.greeting}>Hi, {firstName}</Text>
               <Text style={styles.subtitle}>Curated swaps to accelerate your growth</Text>
             </View>
             <View style={styles.logo} />
@@ -117,31 +160,24 @@ export default function HomeScreen() {
             <View style={styles.matchesHeader}>
               <View style={styles.matchesTitleGroup}>
                 <Text style={styles.matchesTitle}>Smart Matches</Text>
-                <Text style={styles.matchesSubtitle}>
-                  {hasMatches ? `Perfect partners for ${usernameDisplay}` : 'Update your skills to unlock tailored pairings'}
-                </Text>
+                <Text style={styles.matchesSubtitle}>{matchesSubtitle}</Text>
               </View>
               <TouchableOpacity
-                style={styles.refreshButton}
+                style={[styles.refreshButton, isRefreshing && { opacity: 0.8 }]}
                 onPress={handleRefresh}
-                activeOpacity={0.85}
                 disabled={isRefreshing}
+                activeOpacity={0.85}
                 testID="refresh-matches"
               >
                 {isRefreshing ? (
-                  <ActivityIndicator size="small" color={Colors.light.primary} />
+                  <ActivityIndicator size="small" color={Colors.light.primary} style={{ marginRight: 4 }} />
                 ) : (
                   <RefreshCcw size={16} color={Colors.light.primary} />
                 )}
-                <Text style={styles.refreshText}>{isRefreshing ? 'Refreshing...' : 'Refresh'}</Text>
+                <Text style={styles.refreshText}>{isRefreshing ? 'Loading...' : 'Refresh'}</Text>
               </TouchableOpacity>
             </View>
-            {isRefreshing || isUsersLoading ? (
-              <View style={styles.loaderContainer}>
-                <ActivityIndicator size="large" color={Colors.light.primary} />
-                <Text style={styles.loaderText}>Finding perfect matches...</Text>
-              </View>
-            ) : hasMatches ? (
+            {hasMatches ? (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -168,43 +204,48 @@ export default function HomeScreen() {
           <View style={styles.teachSection} testID="teach-matches-section">
             <View style={styles.matchesHeader}>
               <View style={styles.matchesTitleGroup}>
-                <Text style={styles.teachTitle}>They want to learn from you</Text>
-                <Text style={styles.matchesSubtitle}>Based on the skills you offer</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {secondarySection && <secondarySection.icon size={20} color={secondarySection.color} />}
+                  <Text style={styles.teachTitle}>{secondarySection?.title ?? ''}</Text>
+                </View>
+                <Text style={styles.matchesSubtitle}>{secondarySection?.subtitle ?? ''}</Text>
               </View>
             </View>
-            {isRefreshing ? (
-              <View style={styles.loaderContainer}>
-                <ActivityIndicator size="large" color={Colors.light.primary} />
-              </View>
-            ) : topTeachMatches.length > 0 ? (
-              topTeachMatches.map((match) => (
-                <TouchableOpacity
-                  key={`teach-${match.user.id}`}
-                  style={styles.teachCard}
-                  onPress={() => router.push(`/profile/${match.user.id}` as any)}
-                  activeOpacity={0.85}
-                  testID={`teach-card-${match.user.id}`}
-                >
-                   <Image source={{ uri: resolveImageUrl(match.user.avatarUrl) }} style={styles.teachAvatar} />
-                  <View style={styles.teachInfo}>
-                    <Text style={styles.teachName}>{match.user.username ? `@${match.user.username}` : match.user.name}</Text>
-                    <View style={styles.teachSkillsRow}>
-                      {match.theyCanLearn.slice(0, 2).map((skill) => (
-                        <View key={`${match.user.id}-${skill}`} style={styles.teachChip}>
-                          <Text style={styles.teachChipText}>{skill}</Text>
+            {secondarySection?.items.map((match) => (
+              <TouchableOpacity
+                key={`sec-${match.user.id}`}
+                style={styles.teachCard}
+                onPress={() => router.push(`/profile/${match.user.id}` as any)}
+                activeOpacity={0.85}
+                testID={`sec-card-${match.user.id}`}
+              >
+                {match.user.avatarUrl ? (
+                  <Image source={{ uri: resolveImageUrl(match.user.avatarUrl, DEFAULT_AVATAR) }} style={styles.teachAvatar} defaultSource={{ uri: DEFAULT_AVATAR }} />
+                ) : (
+                  <Image source={{ uri: DEFAULT_AVATAR }} style={styles.teachAvatar} />
+                )}
+                <View style={styles.teachInfo}>
+                  <Text style={styles.teachName}>{match.user.name}</Text>
+                  <View style={styles.teachSkillsRow}>
+                    {secondarySection.chips(match).map((skill, index) => {
+                      const skillText = typeof skill === 'string' ? skill : (skill as any)?.title || String(skill);
+                      return (
+                        <View key={`${match.user.id}-${index}`} style={styles.teachChip}>
+                          <Text style={styles.teachChipText}>{skillText}</Text>
                         </View>
-                      ))}
-                    </View>
+                      );
+                    })}
                   </View>
-                  <View style={styles.teachCompatibility}>
-                    <Text style={styles.teachCompatibilityValue}>{match.compatibility}</Text>
-                    <Text style={styles.teachCompatibilityLabel}>match</Text>
-                  </View>
-                </TouchableOpacity>
-              ))
-            ) : (
+                </View>
+                <View style={styles.teachCompatibility}>
+                  <Text style={styles.teachCompatibilityValue}>{match.compatibility}</Text>
+                  <Text style={styles.teachCompatibilityLabel}>match</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+            {secondarySection && secondarySection.items.length === 0 && (
               <View style={styles.emptyTeachCard}>
-                <Text style={styles.emptyMatchesTitle}>Expand your offerings to get learners here</Text>
+                <Text style={styles.emptyMatchesTitle}>No matches here yet — add more skills to your profile.</Text>
               </View>
             )}
           </View>
@@ -213,25 +254,22 @@ export default function HomeScreen() {
               <Text style={styles.sectionTitle}>Featured</Text>
               <Zap size={18} color={Colors.light.accent} fill={Colors.light.accent} />
             </View>
-            <ScrollView
-              horizontal
+            <ScrollView 
+              horizontal 
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.featuredScroll}
             >
               {featuredSkills.map((skill) => (
                 <TouchableOpacity
-                  key={skill._id || skill.id}
+                  key={skill.id}
                   style={styles.featuredCard}
-                  onPress={() => router.push(`/skill/${skill._id || skill.id}` as any)}
+                  onPress={() => router.push(`/skill/${skill.id}` as any)}
                 >
-                  {skill.imageUrl ? (
-                    <Image
-                      source={{ uri: resolveImageUrl(skill.imageUrl, 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800') }}
-                      style={styles.featuredImage}
-                    />
-                  ) : (
-                    <View style={[styles.featuredImage, { backgroundColor: Colors.light.backgroundTertiary }]} />
-                  )}
+                  <Image
+                    source={{ uri: resolveImageUrl(skill.imageUrl, DEFAULT_SKILL_IMAGE) }}
+                    style={styles.featuredImage}
+                    defaultSource={{ uri: DEFAULT_SKILL_IMAGE }}
+                  />
                   <LinearGradient
                     colors={['transparent', 'rgba(0,0,0,0.85)']}
                     style={styles.featuredOverlay}
@@ -250,13 +288,13 @@ export default function HomeScreen() {
                         {skill.title}
                       </Text>
                       <View style={styles.featuredUser}>
-                         <Image
-                           source={{ uri: resolveImageUrl(skill.user.avatarUrl) }}
-                           style={styles.featuredAvatar}
-                         />
+                        <Image
+                          source={{ uri: resolveImageUrl(skill.user.avatarUrl, DEFAULT_AVATAR) }}
+                          style={styles.featuredAvatar}
+                        />
                         <View style={styles.featuredUserInfo}>
                           <Text style={styles.featuredUserName} numberOfLines={1}>
-                            {skill.user.username ? `@${skill.user.username}` : skill.user.name}
+                            {skill.user.name}
                           </Text>
                           <View style={styles.featuredRating}>
                             <Star size={10} fill={Colors.light.accent} color={Colors.light.accent} />
@@ -273,8 +311,8 @@ export default function HomeScreen() {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Categories</Text>
-            <ScrollView
-              horizontal
+            <ScrollView 
+              horizontal 
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.categoriesScroll}
             >
@@ -307,18 +345,15 @@ export default function HomeScreen() {
             <View style={styles.skillsGrid}>
               {filteredSkills.map((skill) => (
                 <TouchableOpacity
-                  key={skill._id || skill.id}
+                  key={skill.id}
                   style={styles.skillCard}
-                  onPress={() => router.push(`/skill/${skill._id || skill.id}` as any)}
+                  onPress={() => router.push(`/skill/${skill.id}` as any)}
                 >
-                  {skill.imageUrl ? (
-                    <Image
-                      source={{ uri: resolveImageUrl(skill.imageUrl, 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800') }}
-                      style={styles.skillImage}
-                    />
-                  ) : (
-                    <View style={[styles.skillImage, { backgroundColor: Colors.light.backgroundTertiary }]} />
-                  )}
+                  <Image
+                    source={{ uri: resolveImageUrl(skill.imageUrl, DEFAULT_SKILL_IMAGE) }}
+                    style={styles.skillImage}
+                    defaultSource={{ uri: DEFAULT_SKILL_IMAGE }}
+                  />
                   <View style={styles.skillContent}>
                     <View style={styles.skillHeader}>
                       <Text style={styles.categoryLabel}>{skill.category}</Text>
@@ -331,12 +366,12 @@ export default function HomeScreen() {
                     </Text>
                     <View style={styles.skillFooter}>
                       <View style={styles.userInfo}>
-                         <Image
-                           source={{ uri: resolveImageUrl(skill.user.avatarUrl) }}
-                           style={styles.userAvatar}
-                         />
+                        <Image
+                          source={{ uri: resolveImageUrl(skill.user.avatarUrl, DEFAULT_AVATAR) }}
+                          style={styles.userAvatar}
+                        />
                         <Text style={styles.userName} numberOfLines={1}>
-                          {skill.user.username ? `@${skill.user.username}` : skill.user.name}
+                          {skill.user.name}
                         </Text>
                       </View>
                       <View style={styles.ratingContainer}>
@@ -785,21 +820,28 @@ const styles = StyleSheet.create({
   bottomSpacer: {
     height: 40,
   },
-  loadingContainer: {
+  loadingOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.light.backgroundSecondary,
-  },
-  loaderContainer: {
-    paddingVertical: 40,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
-  loaderText: {
-    fontSize: 14,
-    color: Colors.light.textSecondary,
-    fontWeight: '500' as const,
+  loadingBox: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 16,
+    paddingHorizontal: 28,
+    paddingVertical: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.light.text,
   },
 });

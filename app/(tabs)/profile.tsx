@@ -7,17 +7,39 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { MapPin, Star, Calendar, Sparkles, TrendingUp, Award, LogOut, Coins, Crown, ShoppingBag, ShieldCheck, RefreshCw, Settings, Plus, HelpCircle, FileText, Lock, MessageSquare, Info } from 'lucide-react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
+import {
+  MapPin,
+  Star,
+  Calendar,
+  Sparkles,
+  TrendingUp,
+  Award,
+  LogOut,
+  Coins,
+  Crown,
+  ShoppingBag,
+  ShieldCheck,
+  RefreshCw,
+  Settings,
+  Plus,
+  HelpCircle,
+  FileText,
+  Lock,
+  MessageSquare,
+  Info,
+  Wallet,
+  History,
+} from 'lucide-react-native';
 import { useAuth } from '@/providers/auth';
 import { useOnboarding } from '@/providers/onboarding';
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '@/constants/colors';
-import { mockUsers } from '@/mocks/data';
 import { TrustScoreBadge } from '@/components/TrustScoreBadge';
 import ReviewsSection from '@/components/ReviewsSection';
 import { useCurrentUser } from '@/providers/current-user';
 import { useSkillSwaps } from '@/providers/skill-swaps';
+import { useEarnings } from '@/providers/earnings';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import url from '@/constants/backurl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -26,12 +48,25 @@ export default function ProfileScreen() {
   const router = useRouter();
   const auth = useAuth();
   const { resetOnboarding } = useOnboarding();
-  const { currentUser } = useCurrentUser();
+  const { currentUser, loadUser } = useCurrentUser();
   const { swaps } = useSkillSwaps();
+  const { getSummary } = useEarnings();
+
   const [verifications, setVerifications] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reviews, setReviews] = useState<any>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const earningsSummary = useMemo(() => {
+    if (!currentUser?.id) {
+      return {
+        availablePoints: 0,
+        currentMonthPoints: 0,
+        currentMonthClasses: 0,
+      };
+    }
+    return getSummary(currentUser.id);
+  }, [currentUser?.id, getSummary]);
 
   const completedSwapsCount = useMemo(() => {
     return swaps.filter((s: any) => s.status === 'completed').length;
@@ -40,7 +75,6 @@ export default function ProfileScreen() {
   const displayTotalSwaps = useMemo(() => {
     return Math.max(currentUser?.totalSwaps || 0, completedSwapsCount);
   }, [currentUser?.totalSwaps, completedSwapsCount]);
-
 
   const fetchReviews = useCallback(async (silent = false) => {
     try {
@@ -55,7 +89,6 @@ export default function ProfileScreen() {
       if (!res.ok) throw new Error("Failed to fetch reviews");
 
       const data = await res.json();
-      console.log("reviews", data);
 
       setReviews(data);
     } catch (err) {
@@ -69,7 +102,6 @@ export default function ProfileScreen() {
       }
     }
   }, [currentUser?.id]);
-
 
   const fetchVerifications = useCallback(async () => {
     if (!currentUser?.id) return;
@@ -121,6 +153,16 @@ export default function ProfileScreen() {
     return () => clearInterval(interval);
   }, [fetchReviews, fetchVerifications]);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadUser(true);
+      fetchReviews(true);
+      fetchVerifications();
+      if (currentUser?.id) {
+        getSummary(currentUser.id);
+      }
+    }, [loadUser, fetchReviews, fetchVerifications, currentUser?.id, getSummary])
+  );
 
   const handleSignOut = async () => {
     console.log('[Profile] Signing out');
@@ -215,6 +257,31 @@ export default function ProfileScreen() {
             </View>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.earningsCard}
+            onPress={() => router.push('/earnings' as any)}
+            activeOpacity={0.7}
+          >
+            <LinearGradient
+              colors={['#6366F1', '#4F46E5']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.earningsGradient}
+            >
+              <View style={styles.earningsIconWrap}>
+                <Wallet size={22} color="#FFFFFF" />
+              </View>
+              <View style={styles.earningsInfo}>
+                <Text style={styles.earningsLabel}>Teaching Earnings</Text>
+                <Text style={styles.earningsPoints}>{earningsSummary.availablePoints.toLocaleString()} points available</Text>
+                <Text style={styles.earningsSub}>This month: +{earningsSummary.currentMonthPoints} pts · {earningsSummary.currentMonthClasses} classes</Text>
+              </View>
+              <View style={styles.earningsArrow}>
+                <Text style={styles.earningsArrowText}>View →</Text>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+
           <View style={styles.statsRow}>
             <View style={styles.statCard}>
               <View style={styles.statIconContainer}>
@@ -227,17 +294,35 @@ export default function ProfileScreen() {
               <View style={styles.statIconContainer}>
                 <Star size={20} fill={Colors.light.accent} color={Colors.light.accent} />
               </View>
-              <Text style={styles.statValue}>{reviews?.stats?.averageRating}</Text>
+              <Text style={styles.statValue}>{reviews?.stats?.averageRating ?? currentUser?.rating ?? 5.0}</Text>
               <Text style={styles.statLabel}>Rating</Text>
             </View>
             <View style={styles.statCard}>
               <View style={styles.statIconContainer}>
                 <Calendar size={20} color={Colors.light.secondary} />
               </View>
-              <Text style={styles.statValue}>{currentUser?.joinedDate ? new Date(currentUser.joinedDate).getFullYear() : '—'}</Text>
+              <Text style={styles.statValue}>{currentUser?.joinedDate ? new Date(currentUser.joinedDate).getFullYear() : '2024'}</Text>
               <Text style={styles.statLabel}>Joined</Text>
             </View>
           </View>
+
+          <TouchableOpacity
+            style={styles.verificationCard}
+            onPress={() => router.push('/swaps/history' as any)}
+            activeOpacity={0.7}
+            testID="swap-history-button"
+          >
+            <View style={[styles.verificationIcon, { backgroundColor: '#EEF2FF' }]}>
+              <History size={24} color="#6366F1" />
+            </View>
+            <View style={styles.verificationContent}>
+              <Text style={styles.verificationTitle}>Swap History</Text>
+              <Text style={styles.verificationSubtitle}>
+                {swaps.length > 0 ? `${swaps.length} total swaps (ongoing & completed)` : 'View all past and ongoing swaps'}
+              </Text>
+            </View>
+            <Text style={[styles.verificationAction, { color: '#6366F1' }]}>View →</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.verificationCard}
@@ -280,7 +365,20 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-
+          <TouchableOpacity
+            style={styles.adminButton}
+            onPress={() => router.push('/admin/login' as any)}
+            activeOpacity={0.7}
+            testID="admin-panel-button"
+          >
+            <View style={styles.adminIconWrap}>
+              <Settings size={20} color="#FFFFFF" />
+            </View>
+            <View style={styles.adminTextWrap}>
+              <Text style={styles.adminTitle}>Admin Panel</Text>
+              <Text style={styles.adminSubtitle}>Manage users, reviews & more</Text>
+            </View>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.restartOnboardingButton}
@@ -396,8 +494,6 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-
-
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Want to Learn</Text>
@@ -439,6 +535,12 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.light.backgroundSecondary,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: Colors.light.backgroundSecondary,
   },
   scrollView: {
@@ -644,6 +746,61 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: Colors.light.primary,
   },
+  earningsCard: {
+    marginBottom: 20,
+    borderRadius: 18,
+    overflow: 'hidden',
+    shadowColor: Colors.light.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  earningsGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 18,
+    gap: 14,
+  },
+  earningsIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  earningsInfo: {
+    flex: 1,
+  },
+  earningsLabel: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '600' as const,
+    marginBottom: 2,
+  },
+  earningsPoints: {
+    fontSize: 18,
+    color: '#FFFFFF',
+    fontWeight: '800' as const,
+    marginBottom: 2,
+  },
+  earningsSub: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '500' as const,
+  },
+  earningsArrow: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  earningsArrowText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
   verificationCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -724,6 +881,59 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: '#FFFFFF',
   },
+  adminButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+    gap: 14,
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  adminIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminTextWrap: {
+    flex: 1,
+  },
+  adminTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  adminSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '500' as const,
+  },
+  restartOnboardingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.light.card,
+    paddingVertical: 14,
+    borderRadius: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+  },
+  restartOnboardingText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.light.primary,
+  },
   section: {
     marginBottom: 24,
   },
@@ -738,16 +948,35 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: Colors.light.text,
   },
-  badge: {
+  addSkillButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: Colors.light.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 12,
   },
-  badgeText: {
-    fontSize: 13,
+  addSkillButtonText: {
+    fontSize: 14,
     fontWeight: '700' as const,
     color: '#FFFFFF',
+  },
+  addWantButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.light.primaryLight + '20',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.primaryLight,
+  },
+  addWantButtonText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.light.primary,
   },
   bioContainer: {
     backgroundColor: Colors.light.card,
@@ -789,19 +1018,18 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800' as const,
     color: '#FFFFFF',
-    lineHeight: 26,
   },
   skillCardBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
   skillCardBadgeText: {
     fontSize: 12,
     fontWeight: '700' as const,
-    color: Colors.light.primary,
+    color: '#FFFFFF',
   },
   wantsList: {
     gap: 10,
@@ -810,106 +1038,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.light.card,
-    padding: 16,
-    borderRadius: 16,
+    padding: 14,
+    borderRadius: 14,
     gap: 12,
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
   },
   wantIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.light.backgroundTertiary,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.light.primaryLight + '20',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  addSkillButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.light.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  addSkillButtonText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    color: '#FFFFFF',
-  },
-  addWantButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.light.primaryLight + '20',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.light.primaryLight,
-  },
-  addWantButtonText: {
-    fontSize: 13,
-    fontWeight: '700' as const,
-    color: Colors.light.primary,
   },
   wantText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600' as const,
     color: Colors.light.text,
-  },
-  adminButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0F172A',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-    gap: 14,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  adminIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
-    backgroundColor: '#334155',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  adminTextWrap: {
-    flex: 1,
-  },
-  adminTitle: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-    color: '#F8FAFC',
-  },
-  adminSubtitle: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  restartOnboardingButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.light.card,
-    paddingVertical: 14,
-    borderRadius: 16,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  restartOnboardingText: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.light.primary,
   },
   supportGrid: {
     flexDirection: 'row',
@@ -917,42 +1063,29 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   supportCard: {
-    width: '30%',
-    flexGrow: 1,
-    flexBasis: '30%',
+    width: '48%',
     backgroundColor: Colors.light.card,
-    padding: 16,
+    padding: 14,
     borderRadius: 16,
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
-    shadowColor: Colors.light.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
   },
   supportIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   supportLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600' as const,
-    color: Colors.light.textSecondary,
-    textAlign: 'center',
+    color: Colors.light.text,
   },
   bottomSpacer: {
     height: 40,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.light.background,
   },
 });

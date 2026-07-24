@@ -3,7 +3,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './auth';
 import url from '@/constants/backurl';
-import type { Skill } from '../types';
+import type { Skill, OnboardingRole } from '../types';
 
 const ONBOARDING_KEY = '@skillswap/onboarding_complete';
 
@@ -19,6 +19,7 @@ export interface OnboardingData {
     virtual: boolean;
     inPerson: boolean;
   };
+  role?: OnboardingRole;
 }
 
 interface OnboardingContextValue {
@@ -29,7 +30,7 @@ interface OnboardingContextValue {
   onboardingData: Partial<OnboardingData>;
   updateOnboardingData: (data: Partial<OnboardingData>) => void;
   setCurrentStep: (step: number) => void;
-  completeOnboarding: () => Promise<void>;
+  completeOnboarding: (dataOverride?: Partial<OnboardingData>) => Promise<void>;
   skipOnboarding: () => Promise<void>;
   resetOnboarding: () => Promise<void>;
 }
@@ -76,8 +77,9 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
     setOnboardingData(prev => ({ ...prev, ...data }));
   }, []);
 
-  const completeOnboarding = useCallback(async () => {
-    console.log('[Onboarding] Completing onboarding with data:', onboardingData);
+  const completeOnboarding = useCallback(async (dataOverride?: Partial<OnboardingData>) => {
+    const finalData = dataOverride ? { ...onboardingData, ...dataOverride } : onboardingData;
+    console.log('[Onboarding] Completing onboarding with data:', finalData);
     if (!user) {
       console.error('[Onboarding] Cannot complete without user');
       return;
@@ -90,10 +92,10 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
         await AsyncStorage.setItem(key, 'true');
         
         const dataKey = `${ONBOARDING_KEY}_${user.id}_data`;
-        await AsyncStorage.setItem(dataKey, JSON.stringify(onboardingData));
+        await AsyncStorage.setItem(dataKey, JSON.stringify(finalData));
 
-        if (Array.isArray(onboardingData.skillsToTeach)) {
-          const guestSkills: Skill[] = onboardingData.skillsToTeach.map((skill, index) => {
+        if (Array.isArray(finalData.skillsToTeach)) {
+          const guestSkills: Skill[] = finalData.skillsToTeach.map((skill, index) => {
             const STOCK_IMAGES: Record<string, string> = {
               'Arts & Crafts': 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800',
               'Technology': 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800',
@@ -112,7 +114,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
               title: skill,
               category: skill as any,
               description: `I can teach ${skill}`,
-              level: (onboardingData.experienceLevels && onboardingData.experienceLevels[skill]) as any || 'Beginner',
+              level: (finalData.experienceLevels && finalData.experienceLevels[skill]) as any || 'Beginner',
               userId: user.id,
               imageUrl: STOCK_IMAGES[skill] || 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800',
             };
@@ -134,13 +136,13 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
         },
         body: JSON.stringify({
           userId: user.id,
-          skillsToTeach: onboardingData.skillsToTeach || [],
-          skillsToLearn: onboardingData.skillsToLearn || [],
-          experienceLevels: onboardingData.experienceLevels || {},
-          learningGoals: onboardingData.learningGoals || [],
-          availability: onboardingData.availability || [],
-          communicationPreference: onboardingData.communicationPreference || '',
-          matchingPreferences: onboardingData.matchingPreferences || {
+          skillsToTeach: finalData.skillsToTeach || [],
+          skillsToLearn: finalData.skillsToLearn || [],
+          experienceLevels: finalData.experienceLevels || {},
+          learningGoals: finalData.learningGoals || [],
+          availability: finalData.availability || [],
+          communicationPreference: finalData.communicationPreference || '',
+          matchingPreferences: finalData.matchingPreferences || {
             location: '',
             virtual: true,
             inPerson: false,
@@ -161,7 +163,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
       await AsyncStorage.setItem(key, 'true');
       
       const dataKey = `${ONBOARDING_KEY}_${user.id}_data`;
-      await AsyncStorage.setItem(dataKey, JSON.stringify(onboardingData));
+      await AsyncStorage.setItem(dataKey, JSON.stringify(finalData));
       
       setHasCompletedOnboarding(true);
 

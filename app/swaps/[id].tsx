@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Platform, ActivityIndicator } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Platform, ActivityIndicator, Alert, Modal } from 'react-native';
 import { useAlert } from '@/providers/alert';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { MapPin, Clock, Check, X, Send, Sparkles, CalendarClock, PlusCircle, ArrowLeft, ShieldCheck, Video, Phone, CalendarPlus, Download } from 'lucide-react-native';
+import { MapPin, Clock, Check, X, Send, Sparkles, CalendarClock, PlusCircle, ArrowLeft, ShieldCheck, Video, Phone, CalendarPlus, Download, GraduationCap, BookOpen, ArrowLeftRight, Coins, Zap, AlertTriangle } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 import { useSkillSwaps } from '../../providers/skill-swaps';
 import { useCurrentUser } from '../../providers/current-user';
@@ -76,7 +76,7 @@ export default function SwapDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { getSwapById, addMessage, addCounterProposal, acceptProposal, declineSwap, updateLocation, completeSwap, setCalendarEventId, loading } = useSkillSwaps();
-  const { currentUser, allUsers } = useCurrentUser();
+  const { currentUser, allUsers, loadUser } = useCurrentUser();
   const { showAlert } = useAlert();
   const [messageDraft, setMessageDraft] = useState<string>('');
   const [counterNotes, setCounterNotes] = useState<string>('');
@@ -84,6 +84,9 @@ export default function SwapDetailScreen() {
   const [selectedSuggestions, setSelectedSuggestions] = useState<TimeSuggestion[]>([]);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [isSyncingCalendar, setIsSyncingCalendar] = useState<boolean>(false);
+  const [creditConfirmModalVisible, setCreditConfirmModalVisible] = useState<boolean>(false);
+  const [pendingSlotToAccept, setPendingSlotToAccept] = useState<string | null>(null);
+  const [isAcceptingWithCredit, setIsAcceptingWithCredit] = useState<boolean>(false);
 
   const swap = useMemo(() => {
     if (!id) {
@@ -143,6 +146,93 @@ export default function SwapDetailScreen() {
     const copy = statusCopy[swap.status];
     return copy;
   }, [swap]);
+
+  // Role information based on swapType
+  const roleInfo = useMemo(() => {
+    if (!swap || !currentUser) return null;
+    const isRequester = swap.requesterId === currentUser.id;
+    const swapType = swap.swapType || 'swap';
+    if (swapType === 'learn') {
+      if (isRequester) {
+        return { myRole: 'Learner', partnerRole: 'Teacher', color: '#6366F1', bg: '#EEF2FF', Icon: BookOpen, myLabel: 'You learn', partnerLabel: `${partner?.name?.split(' ')[0] || 'Partner'} teaches` };
+      }
+      return { myRole: 'Teacher', partnerRole: 'Learner', color: '#10B981', bg: '#ECFDF5', Icon: GraduationCap, myLabel: 'You teach', partnerLabel: `${partner?.name?.split(' ')[0] || 'Partner'} learns` };
+    }
+    if (swapType === 'teach') {
+      if (isRequester) {
+        return { myRole: 'Teacher', partnerRole: 'Learner', color: '#10B981', bg: '#ECFDF5', Icon: GraduationCap, myLabel: 'You teach', partnerLabel: `${partner?.name?.split(' ')[0] || 'Partner'} learns` };
+      }
+      return { myRole: 'Learner', partnerRole: 'Teacher', color: '#6366F1', bg: '#EEF2FF', Icon: BookOpen, myLabel: 'You learn', partnerLabel: `${partner?.name?.split(' ')[0] || 'Partner'} teaches` };
+    }
+    return { myRole: 'Swapper', partnerRole: 'Swapper', color: '#F59E0B', bg: '#FFFBEB', Icon: ArrowLeftRight, myLabel: 'You offer', partnerLabel: `${partner?.username ? `@${partner.username}` : partner?.name?.split(' ')[0] || 'Partner'} offers` };
+  }, [swap, currentUser, partner]);
+
+  // Computed exchange details: clearly separated Teaching & Learning skills
+  const exchangeSkills = useMemo(() => {
+    if (!swap || !currentUser) {
+      return { teachingSkill: null, learningSkill: null, teachingOwner: '', learningOwner: '' };
+    }
+
+    const isRequester = swap.requesterId === currentUser.id;
+    const swapType = swap.swapType || 'swap';
+
+    const requesterSkill = swap.requesterSkillId ? skillsMap.get(swap.requesterSkillId) : null;
+    const recipientSkill = swap.recipientSkillId ? skillsMap.get(swap.recipientSkillId) : null;
+
+    let teachingSkill: SkillWithUser | null = null;
+    let learningSkill: SkillWithUser | null = null;
+    let teachingOwner: string = '';
+    let learningOwner: string = '';
+
+    const partnerName = partner?.name?.split(' ')[0] || (partner?.username ? `@${partner.username}` : 'Partner');
+
+    if (swapType === 'learn') {
+      if (isRequester) {
+        learningSkill = recipientSkill;
+        teachingSkill = null;
+        teachingOwner = `${partnerName} teaches`;
+        learningOwner = 'You learn';
+      } else {
+        teachingSkill = recipientSkill;
+        learningSkill = null;
+        teachingOwner = 'You teach';
+        learningOwner = `${partnerName} learns`;
+      }
+    } else if (swapType === 'teach') {
+      if (isRequester) {
+        teachingSkill = requesterSkill;
+        learningSkill = null;
+        teachingOwner = 'You teach';
+        learningOwner = `${partnerName} learns`;
+      } else {
+        learningSkill = requesterSkill;
+        teachingSkill = null;
+        teachingOwner = `${partnerName} teaches`;
+        learningOwner = 'You learn';
+      }
+    } else {
+      if (isRequester) {
+        teachingSkill = requesterSkill;
+        learningSkill = recipientSkill;
+        teachingOwner = 'You teach';
+        learningOwner = `${partnerName} teaches`;
+      } else {
+        teachingSkill = recipientSkill;
+        learningSkill = requesterSkill;
+        teachingOwner = 'You teach';
+        learningOwner = `${partnerName} teaches`;
+      }
+    }
+
+    return {
+      teachingSkill,
+      learningSkill,
+      teachingOwner,
+      learningOwner,
+      swapType,
+      isRequester,
+    };
+  }, [swap, currentUser, partner, skillsMap]);
 
   const sortedNotes = useMemo(() => {
     if (!swap) {
@@ -208,9 +298,49 @@ export default function SwapDetailScreen() {
       return;
     }
     setErrorBanner(null);
-    console.log('[SwapDetail] Accepting slot', { swapId: swap.id, slotId });
-    acceptProposal({ requestId: swap.id, timeId: slotId });
-  }, [acceptProposal, swap]);
+
+    const isRequester = swap.requesterId === currentUser?.id;
+    const swapType = swap.swapType || 'swap';
+
+    // Learner (recipient in 'teach') or Skill Swapper (recipient in 'swap') pays 5 credits
+    const isPayingUser =
+      (swapType === 'teach' && !isRequester) ||
+      (swapType === 'swap' && !isRequester);
+
+    if (isPayingUser && !swap.recipientPaid) {
+      const userCredits = currentUser?.credits ?? 0;
+      const isFreeTier = (currentUser?.premiumTier || 'free') === 'free';
+      const cost = isFreeTier ? 5 : 0;
+
+      if (cost > 0 && userCredits < cost) {
+        showAlert(
+          'Insufficient Credits ⚠️',
+          `Accepting this swap requires ${cost} credits. You currently have ${userCredits} credits. Please earn or top up your credits.`
+        );
+        return;
+      }
+
+      setPendingSlotToAccept(slotId);
+      setCreditConfirmModalVisible(true);
+    } else {
+      acceptProposal({ requestId: swap.id, timeId: slotId });
+    }
+  }, [acceptProposal, swap, currentUser, showAlert]);
+
+  const handleConfirmCreditDeduction = useCallback(async () => {
+    if (!swap || !pendingSlotToAccept) return;
+    try {
+      setIsAcceptingWithCredit(true);
+      await acceptProposal({ requestId: swap.id, timeId: pendingSlotToAccept });
+      await loadUser(true);
+      setCreditConfirmModalVisible(false);
+      setPendingSlotToAccept(null);
+    } catch (err: any) {
+      setErrorBanner(err.message || 'Failed to accept proposal');
+    } finally {
+      setIsAcceptingWithCredit(false);
+    }
+  }, [acceptProposal, loadUser, pendingSlotToAccept, swap]);
 
   const handleDeclineSwap = useCallback(() => {
     if (!swap) {
@@ -398,15 +528,41 @@ export default function SwapDetailScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionHeading}>Exchange Overview</Text>
+          {/* Role badge */}
+          {roleInfo && (
+            <View style={[styles.detailRoleBadge, { backgroundColor: roleInfo.bg, borderColor: roleInfo.color }]}>
+              <roleInfo.Icon size={16} color={roleInfo.color} />
+              <Text style={[styles.detailRoleText, { color: roleInfo.color }]}>
+                {roleInfo.myRole === 'Swapper' ? 'Mutual Skill Swap' : `You are the ${roleInfo.myRole}`}
+              </Text>
+            </View>
+          )}
           <View style={styles.overviewCard}>
             <View style={styles.overviewRow}>
+              {/* Teaching Skill Box */}
               <View style={styles.overviewColumn}>
-                <Text style={styles.overviewLabel}>You offer</Text>
-                <Text style={styles.overviewValue}>{yourSkill?.title ?? 'Skill TBD'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <GraduationCap size={16} color="#10B981" />
+                  <Text style={[styles.overviewLabel, { color: '#10B981', fontWeight: '700' }]}>
+                    {exchangeSkills.teachingOwner || 'Teaching'}
+                  </Text>
+                </View>
+                <Text style={styles.overviewValue}>
+                  {exchangeSkills.teachingSkill?.title ?? (swap?.swapType === 'learn' ? counterpartSkill?.title ?? 'Skill TBD' : 'None (Learner only)')}
+                </Text>
               </View>
+
+              {/* Learning Skill Box */}
               <View style={styles.overviewColumn}>
-                <Text style={styles.overviewLabel}>{partner ? `${partner.username ? `@${partner.username}` : partner.name.split(' ')[0]} offers` : 'Partner offers'}</Text>
-                <Text style={styles.overviewValue}>{counterpartSkill?.title ?? 'Skill TBD'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <BookOpen size={16} color="#6366F1" />
+                  <Text style={[styles.overviewLabel, { color: '#6366F1', fontWeight: '700' }]}>
+                    {exchangeSkills.learningOwner || 'Learning'}
+                  </Text>
+                </View>
+                <Text style={styles.overviewValue}>
+                  {exchangeSkills.learningSkill?.title ?? (swap?.swapType === 'teach' ? yourSkill?.title ?? 'Skill TBD' : 'None (Teacher only)')}
+                </Text>
               </View>
             </View>
             {swap.locationPreference && (
@@ -598,7 +754,12 @@ export default function SwapDetailScreen() {
             <View style={styles.callActions}>
               <TouchableOpacity
                 style={[styles.callButton, styles.videoCallButton]}
-                onPress={() => router.push(`/call/${swap.id}`)}
+                onPress={() => {
+                  if (typeof document !== 'undefined' && document.activeElement) {
+                    (document.activeElement as HTMLElement).blur();
+                  }
+                  router.push(`/call/${swap.id}`);
+                }}
                 activeOpacity={0.9}
                 testID="start-video-call"
               >
@@ -607,7 +768,12 @@ export default function SwapDetailScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.callButton, styles.voiceCallButton]}
-                onPress={() => router.push(`/call/${swap.id}`)}
+                onPress={() => {
+                  if (typeof document !== 'undefined' && document.activeElement) {
+                    (document.activeElement as HTMLElement).blur();
+                  }
+                  router.push(`/call/${swap.id}`);
+                }}
                 activeOpacity={0.9}
                 testID="start-voice-call"
               >
@@ -629,6 +795,119 @@ export default function SwapDetailScreen() {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* ⚡ Custom Credit Deduction Warning Modal */}
+      <Modal
+        visible={creditConfirmModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!isAcceptingWithCredit) {
+            setCreditConfirmModalVisible(false);
+            setPendingSlotToAccept(null);
+          }
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            {/* Top Accent Bar */}
+            <LinearGradient
+              colors={['#F59E0B', '#D97706']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.modalTopBar}
+            />
+
+            {/* Close Button */}
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              onPress={() => {
+                if (!isAcceptingWithCredit) {
+                  setCreditConfirmModalVisible(false);
+                  setPendingSlotToAccept(null);
+                }
+              }}
+              disabled={isAcceptingWithCredit}
+            >
+              <X size={18} color={Colors.light.textSecondary} />
+            </TouchableOpacity>
+
+            {/* Icon Banner */}
+            <View style={styles.modalIconBox}>
+              <LinearGradient
+                colors={['#FFFBEB', '#FEF3C7']}
+                style={styles.modalIconCircle}
+              >
+                <Coins size={32} color="#D97706" />
+              </LinearGradient>
+            </View>
+
+            {/* Title & Description */}
+            <Text style={styles.modalTitle}>Credit Requirement ⚡</Text>
+            <Text style={styles.modalDesc}>
+              As a {swap?.swapType === 'swap' ? 'Skill Swapper' : 'Learner'}, accepting this skill swap session requires <Text style={{ fontWeight: '700', color: '#D97706' }}>5 credits</Text>.
+            </Text>
+
+            {/* Credit Summary Card */}
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Current Balance</Text>
+                <Text style={styles.summaryValue}>{currentUser?.credits ?? 0} credits</Text>
+              </View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Deduction</Text>
+                <Text style={[styles.summaryValue, { color: '#DC2626' }]}>-5 credits</Text>
+              </View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { fontWeight: '700', color: Colors.light.text }]}>Remaining Balance</Text>
+                <Text style={[styles.summaryValue, { fontWeight: '700', color: '#10B981' }]}>
+                  {Math.max(0, (currentUser?.credits ?? 0) - 5)} credits
+                </Text>
+              </View>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelActionBtn}
+                onPress={() => {
+                  setCreditConfirmModalVisible(false);
+                  setPendingSlotToAccept(null);
+                }}
+                disabled={isAcceptingWithCredit}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.cancelActionText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.confirmActionBtn}
+                onPress={handleConfirmCreditDeduction}
+                disabled={isAcceptingWithCredit}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={['#F59E0B', '#D97706']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.confirmGradient}
+                >
+                  {isAcceptingWithCredit ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <Zap size={16} color="#FFFFFF" />
+                      <Text style={styles.confirmActionText}>Accept (-5 Credits)</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1074,10 +1353,157 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: '#FFFFFF',
   },
+  detailRoleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  detailRoleText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    letterSpacing: 0.3,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.light.background,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: Colors.light.card,
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  modalTopBar: {
+    height: 6,
+    width: '100%',
+  },
+  modalCloseBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.light.backgroundSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalIconBox: {
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  modalIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FDE68A',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800' as const,
+    color: Colors.light.text,
+    textAlign: 'center',
+    marginTop: 14,
+  },
+  modalDesc: {
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    marginTop: 6,
+    lineHeight: 20,
+  },
+  summaryCard: {
+    backgroundColor: Colors.light.backgroundSecondary,
+    borderRadius: 16,
+    marginHorizontal: 20,
+    marginTop: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    fontSize: 13,
+    color: Colors.light.textSecondary,
+    fontWeight: '500' as const,
+  },
+  summaryValue: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.light.text,
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: Colors.light.borderLight,
+    marginVertical: 10,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 20,
+  },
+  cancelActionBtn: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 14,
+    backgroundColor: Colors.light.backgroundSecondary,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+  },
+  cancelActionText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
+  },
+  confirmActionBtn: {
+    flex: 1.4,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  confirmGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  confirmActionText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
   },
 });

@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CalendarCheck2, Clock, MapPin, Sparkles, X, ArrowRight, Check, AlertTriangle, Coins } from 'lucide-react-native';
+import { CalendarCheck2, Clock, MapPin, Sparkles, X, ArrowRight, Check, AlertTriangle, Coins, GraduationCap, BookOpen, ArrowLeftRight } from 'lucide-react-native';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import Colors from '../constants/colors';
-import type { SkillSwapRequest, SkillWithUser } from '../types';
+import type { SkillSwapRequest, SkillWithUser, SwapType } from '../types';
 import { useCurrentUser } from '../providers/current-user';
 import { useSkillSwaps } from '../providers/skill-swaps';
 
@@ -60,22 +60,86 @@ const locationOptions = [
 ];
 
 const headlineGradient = ['#0F172A', '#1E293B'] as const;
-const stepTitles = ['Choose your trade', 'Pick session slots', 'Wrap-up details'];
+
+const SWAP_TYPE_OPTIONS: {
+  key: SwapType;
+  title: string;
+  subtitle: string;
+  icon: typeof GraduationCap;
+  color: string;
+  bg: string;
+}[] = [
+  {
+    key: 'learn',
+    title: 'Learn from them',
+    subtitle: 'You are the learner',
+    icon: BookOpen,
+    color: '#6366F1',
+    bg: '#EEF2FF',
+  },
+  {
+    key: 'teach',
+    title: 'Teach them',
+    subtitle: 'You are the teacher',
+    icon: GraduationCap,
+    color: '#10B981',
+    bg: '#ECFDF5',
+  },
+  {
+    key: 'swap',
+    title: 'Skill Swap',
+    subtitle: 'Teach & learn together',
+    icon: ArrowLeftRight,
+    color: '#F59E0B',
+    bg: '#FFFBEB',
+  },
+];
 
 export default function SkillSwapRequestModal({ visible, skill, onClose }: SkillSwapRequestModalProps) {
   const router = useRouter();
-  const { currentUser } = useCurrentUser();
+  const { currentUser, allUsers } = useCurrentUser();
   const { createSwapRequest } = useSkillSwaps();
   const [step, setStep] = useState<number>(0);
-  const [selectedSkillId, setSelectedSkillId] = useState<string>(currentUser?.skillsOffered[0]?._id ?? '');
+  const [swapType, setSwapType] = useState<SwapType | null>(null);
+  
+  // Selected skills
+  const [selectedRequesterSkillId, setSelectedRequesterSkillId] = useState<string>('');
+  const [selectedRecipientSkillId, setSelectedRecipientSkillId] = useState<string>('');
+
   const [selectedTimes, setSelectedTimes] = useState<TimeOption[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string>('Virtual Studio Lounge');
   const [customLocation, setCustomLocation] = useState<string>('');
   const [introMessage, setIntroMessage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
-  const swapCost = currentUser?.premiumTier === 'free' ? 5 : 0;
-  const hasEnoughCredits = currentUser?.credits ? currentUser?.credits : 1 >= swapCost;
+  // Latest partner data from backend (via allUsers)
+  const latestPartner = useMemo(() => {
+    if (!skill?.user?.id) return skill?.user;
+    return allUsers.find((u) => u.id === skill.user.id || (u as any)._id === skill.user.id) || skill.user;
+  }, [allUsers, skill?.user]);
+
+  // Partner skills list (ensure current skill is present)
+  const partnerSkills = useMemo(() => {
+    if (!skill) return [];
+    const list = latestPartner?.skillsOffered || [];
+    const currentId = skill._id || skill.id;
+    const exists = list.some((s) => (s._id || s.id) === currentId);
+    if (!exists && skill) {
+      return [skill, ...list];
+    }
+    return list;
+  }, [skill, latestPartner]);
+
+  // For 'teach' type, teacher pays nothing; for 'learn'/'swap', credits apply
+  const swapCost = useMemo(() => {
+    if (swapType === 'teach') return 0;
+    return currentUser?.premiumTier === 'free' ? 5 : 0;
+  }, [swapType, currentUser?.premiumTier]);
+  const hasEnoughCredits = (currentUser?.credits ?? 0) >= swapCost;
+
+  // Step titles — consistent 4 steps across all swap types
+  const stepTitles = ['Request type', 'Choose skills', 'Pick session slots', 'Wrap-up details'];
+  const totalSteps = stepTitles.length;
 
   type SwapPayload = Parameters<typeof createSwapRequest>[0];
 
@@ -89,10 +153,14 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
     },
   });
 
+  const wasVisible = useRef(false);
+
   useEffect(() => {
-    if (visible) {
+    if (visible && !wasVisible.current) {
       setStep(0);
-      setSelectedSkillId(currentUser?.skillsOffered[0]?._id ?? '');
+      setSwapType(null);
+      setSelectedRequesterSkillId(currentUser?.skillsOffered[0]?._id || currentUser?.skillsOffered[0]?.id || '');
+      setSelectedRecipientSkillId(skill?._id || skill?.id || '');
       setSelectedTimes([]);
       setSelectedLocation('Virtual Studio Lounge');
       setCustomLocation('');
@@ -100,6 +168,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
       setError(null);
       resetSwapMutation();
     }
+    wasVisible.current = visible;
   }, [visible, resetSwapMutation]);
 
   const timeOptions = useMemo<TimeOption[]>(() => {
@@ -113,21 +182,35 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
     return selectedLocation;
   }, [customLocation, selectedLocation]);
 
+  // Determine step roles
+  const isTypeStep = step === 0;
+  const isSkillStep = step === 1;
+  const isTimeStep = step === 2;
+  const isDetailsStep = step === 3;
+
   const canAdvance = useMemo<boolean>(() => {
-    if (step === 0) {
-      console.log(selectedSkillId);
-      return selectedSkillId?.trim().length > 0;
+    if (isTypeStep) {
+      return swapType !== null;
     }
-    if (step === 1) {
-      console.log(selectedTimes.length);
+    if (isSkillStep) {
+      if (swapType === 'learn') {
+        return selectedRecipientSkillId?.trim().length > 0;
+      }
+      if (swapType === 'teach') {
+        return selectedRequesterSkillId?.trim().length > 0;
+      }
+      if (swapType === 'swap') {
+        return selectedRequesterSkillId?.trim().length > 0 && selectedRecipientSkillId?.trim().length > 0;
+      }
+    }
+    if (isTimeStep) {
       return selectedTimes.length > 0;
     }
-    if (step === 2) {
-      console.log(mergedLocation?.trim().length);
+    if (isDetailsStep) {
       return mergedLocation?.trim().length > 0;
     }
     return false;
-  }, [mergedLocation, selectedSkillId, selectedTimes.length, step]);
+  }, [isTypeStep, isSkillStep, isTimeStep, isDetailsStep, swapType, selectedRequesterSkillId, selectedRecipientSkillId, selectedTimes.length, mergedLocation]);
 
   const handleSelectTime = useCallback(
     (option: TimeOption) => {
@@ -152,7 +235,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
       return;
     }
     setError(null);
-    if (step < 2) {
+    if (step < totalSteps - 1) {
       setStep((previous) => previous + 1);
       return;
     }
@@ -165,28 +248,17 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
         return;
       }
       try {
-        console.log(skill);
-
-        // const createdSwap = await submitSwapRequest({
-        //   recipientId: skill.user.id,
-        //   recipientSkillId: skill.id,
-        //   requesterSkillId: selectedSkillId,
-        //   proposedTimes: payloadTimes,
-        //   locationPreference: mergedLocation,
-        //   message: introMessage?.trim().length > 0 ? introMessage : undefined,
-        // });
-
         const payload = {
           recipientId: skill.user.id,
-          recipientSkillId: skill.id,
-          requesterSkillId: selectedSkillId,
+          recipientSkillId: selectedRecipientSkillId || skill.id,
+          requesterSkillId: swapType === 'learn' ? undefined : selectedRequesterSkillId,
+          swapType: swapType!,
           proposedTimes: payloadTimes,
           locationPreference: mergedLocation,
           message: introMessage?.trim().length > 0 ? introMessage : undefined,
         };
 
-        const createdSwap = await createSwapRequest(payload)
-        // console.log(createdSwap);
+        const createdSwap = await createSwapRequest(payload);
         onClose();
         router.push(`/swaps/${createdSwap.id}` as never);
       } catch (swapError) {
@@ -195,11 +267,33 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
       }
     };
     void submit();
-  }, [canAdvance, introMessage, isSubmitting, mergedLocation, onClose, router, selectedSkillId, selectedTimes, skill.id, skill.user.id, step, submitSwapRequest]);
+  }, [canAdvance, introMessage, isSubmitting, mergedLocation, onClose, router, selectedRequesterSkillId, selectedRecipientSkillId, selectedTimes, skill.id, skill.user.id, step, totalSteps, swapType, swapCost, hasEnoughCredits, currentUser?.credits, createSwapRequest]);
 
-  const activeSkill = useMemo(() => {
-    return currentUser?.skillsOffered.find((candidate) => candidate._id === selectedSkillId) ?? null;
-  }, [currentUser?.skillsOffered, selectedSkillId]);
+  const activeMySkill = useMemo(() => {
+    return currentUser?.skillsOffered.find((candidate) => (candidate._id || candidate.id) === selectedRequesterSkillId) ?? null;
+  }, [currentUser?.skillsOffered, selectedRequesterSkillId]);
+
+  const activePartnerSkill = useMemo(() => {
+    return partnerSkills.find((candidate) => (candidate._id || candidate.id) === selectedRecipientSkillId) ?? null;
+  }, [partnerSkills, selectedRecipientSkillId]);
+
+  const roleDescription = useMemo(() => {
+    if (!swapType) return '';
+    const partnerName = (latestPartner?.name || skill.user.name).split(' ')[0];
+    const learnedSkillTitle = activePartnerSkill?.title || skill.title;
+    const taughtSkillTitle = activeMySkill?.title || 'your skill';
+    if (swapType === 'learn') return `You will learn "${learnedSkillTitle}" from ${partnerName}`;
+    if (swapType === 'teach') return `You will teach "${taughtSkillTitle}" to ${partnerName}`;
+    return `You teach "${taughtSkillTitle}" & learn "${learnedSkillTitle}"`;
+  }, [swapType, skill, latestPartner, activePartnerSkill, activeMySkill]);
+
+  const headlineText = useMemo(() => {
+    const partnerName = (latestPartner?.name || skill.user.name).split(' ')[0];
+    if (!swapType) return `Request a session with ${partnerName}`;
+    if (swapType === 'learn') return `Learn from ${partnerName}`;
+    if (swapType === 'teach') return `Teach ${partnerName}`;
+    return `Swap with ${partnerName}`;
+  }, [swapType, skill, latestPartner]);
 
   return (
     <Modal
@@ -211,8 +305,8 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
       <View style={styles.backdrop}>
         <View style={styles.modalCard}>
           <LinearGradient colors={headlineGradient} style={styles.header}>
-            <View>
-              <Text style={styles.headline}>Propose a swap with {skill.user.name.split(' ')[0]}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.headline}>{headlineText}</Text>
               <Text style={styles.subheadline}>{stepTitles[step]}</Text>
             </View>
             <Pressable onPress={onClose} style={styles.closeButton} testID="close-swap-modal">
@@ -230,57 +324,167 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
             })}
           </View>
 
+          {/* Role badge — shown after type is selected */}
+          {swapType && step > 0 && (
+            <View style={styles.roleBanner}>
+              <View style={[styles.roleBadge, {
+                backgroundColor: swapType === 'teach' ? '#ECFDF5' : swapType === 'learn' ? '#EEF2FF' : '#FFFBEB',
+                borderColor: swapType === 'teach' ? '#10B981' : swapType === 'learn' ? '#6366F1' : '#F59E0B',
+              }]}>
+                {swapType === 'teach' && <GraduationCap size={14} color="#10B981" />}
+                {swapType === 'learn' && <BookOpen size={14} color="#6366F1" />}
+                {swapType === 'swap' && <ArrowLeftRight size={14} color="#F59E0B" />}
+                <Text style={[styles.roleBadgeText, {
+                  color: swapType === 'teach' ? '#10B981' : swapType === 'learn' ? '#6366F1' : '#F59E0B',
+                }]}>
+                  {swapType === 'teach' ? 'You are the Teacher' : swapType === 'learn' ? 'You are the Learner' : 'Mutual Swap'}
+                </Text>
+              </View>
+              <Text style={styles.roleDescription}>{roleDescription}</Text>
+            </View>
+          )}
+
           <ScrollView
             style={styles.contentScroll}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.contentInner}
           >
             <View>
-              {step === 0 && (
+              {/* Step 0: Swap Type Selection */}
+              {isTypeStep && (
                 <View style={styles.stepSection}>
-                  <Text style={styles.sectionLabel}>You will teach</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.skillsRow}>
-                    {currentUser?.skillsOffered.map((offeredSkill, i) => {
-                      const isActive = offeredSkill._id === selectedSkillId;
+                  <Text style={styles.sectionLabel}>How do you want to connect?</Text>
+                  <View style={styles.typeOptions}>
+                    {SWAP_TYPE_OPTIONS.map((opt) => {
+                      const Icon = opt.icon;
+                      const isActive = swapType === opt.key;
                       return (
                         <Pressable
-                          key={i}
-                          onPress={() => {
-                            return setSelectedSkillId(offeredSkill._id || '')
-                          }}
-                          style={[styles.skillCard, isActive && styles.skillCardActive]}
-                          testID={`offer-skill-${offeredSkill._id}`}
+                          key={opt.key}
+                          onPress={() => setSwapType(opt.key)}
+                          style={[styles.typeCard, isActive && { borderColor: opt.color, borderWidth: 2 }]}
+                          testID={`swap-type-${opt.key}`}
                         >
-                          <LinearGradient
-                            colors={isActive ? ['#38BDF8', '#6366F1'] : ['#1E293B', '#0F172A']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.skillCardGradient}
-                          >
-                            <View style={styles.skillCardHeader}>
-                              <Sparkles size={16} color={isActive ? '#0B1220' : '#3B82F6'} />
-                              <Text style={[styles.skillCardLevel, isActive && styles.skillCardLevelActive]}>{offeredSkill.level}</Text>
+                          <View style={[styles.typeIconWrap, { backgroundColor: opt.bg }]}>
+                            <Icon size={24} color={opt.color} />
+                          </View>
+                          <View style={styles.typeCardContent}>
+                            <Text style={styles.typeCardTitle}>{opt.title}</Text>
+                            <Text style={styles.typeCardSubtitle}>{opt.subtitle}</Text>
+                          </View>
+                          {isActive && (
+                            <View style={[styles.typeCheckCircle, { backgroundColor: opt.color }]}>
+                              <Check size={14} color="#FFFFFF" />
                             </View>
-                            <Text style={[styles.skillCardTitle, isActive && styles.skillCardTitleActive]} numberOfLines={2}>
-                              {offeredSkill.title}
-                            </Text>
-                          </LinearGradient>
+                          )}
                         </Pressable>
                       );
                     })}
-                  </ScrollView>
-                  {activeSkill && (
-                    <View style={styles.skillSummary}>
-                      <Text style={styles.skillSummaryTitle}>{activeSkill.title}</Text>
-                      <Text style={styles.skillSummaryText}>
-                        {activeSkill.description.slice(0, 140)}{activeSkill.description.length > 140 ? '…' : ''}
+                  </View>
+                  {swapType && (
+                    <View style={styles.typeCostHint}>
+                      <Coins size={16} color={swapType === 'teach' ? '#10B981' : '#F59E0B'} />
+                      <Text style={styles.typeCostText}>
+                        {swapType === 'teach'
+                          ? 'Free — you earn 50 points on completion'
+                          : swapCost === 0
+                            ? 'Free with Premium'
+                            : `Costs ${swapCost} credits`}
                       </Text>
                     </View>
                   )}
                 </View>
               )}
 
-              {step === 1 && (
+              {/* Step 1: Skill Selection (Learner chooses target skill, Teacher chooses taught skill, Swap chooses both) */}
+              {isSkillStep && (
+                <View style={styles.stepSection}>
+                  {/* TEACHER SKILL SELECTION (For 'teach' or 'swap') */}
+                  {(swapType === 'teach' || swapType === 'swap') && (
+                    <View style={{ gap: 10 }}>
+                      <Text style={styles.sectionLabel}>
+                        Skill you will teach {skill.user.name.split(' ')[0]}
+                      </Text>
+                      {currentUser?.skillsOffered && currentUser.skillsOffered.length > 0 ? (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.skillsRow}>
+                          {currentUser.skillsOffered.map((offeredSkill, i) => {
+                            const itemKey = offeredSkill._id || offeredSkill.id || `my-skill-${i}`;
+                            const isActive = itemKey === selectedRequesterSkillId;
+                            return (
+                              <Pressable
+                                key={i}
+                                onPress={() => setSelectedRequesterSkillId(itemKey)}
+                                style={[styles.skillCard, isActive && styles.skillCardActive]}
+                                testID={`offer-skill-${itemKey}`}
+                              >
+                                <LinearGradient
+                                  colors={isActive ? ['#38BDF8', '#6366F1'] : ['#1E293B', '#0F172A']}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 1 }}
+                                  style={styles.skillCardGradient}
+                                >
+                                  <View style={styles.skillCardHeader}>
+                                    <Sparkles size={16} color={isActive ? '#0B1220' : '#3B82F6'} />
+                                    <Text style={[styles.skillCardLevel, isActive && styles.skillCardLevelActive]}>{offeredSkill.level}</Text>
+                                  </View>
+                                  <Text style={[styles.skillCardTitle, isActive && styles.skillCardTitleActive]} numberOfLines={2}>
+                                    {offeredSkill.title}
+                                  </Text>
+                                </LinearGradient>
+                              </Pressable>
+                            );
+                          })}
+                        </ScrollView>
+                      ) : (
+                        <Text style={{ fontSize: 13, color: '#F87171' }}>
+                          You don't have any teaching skills added to your profile yet.
+                        </Text>
+                      )}
+                    </View>
+                  )}
+
+                  {/* LEARNER SKILL SELECTION (For 'learn' or 'swap') */}
+                  {(swapType === 'learn' || swapType === 'swap') && (
+                    <View style={{ gap: 10, marginTop: swapType === 'swap' ? 16 : 0 }}>
+                      <Text style={styles.sectionLabel}>
+                        Skill you want to learn from {skill.user.name.split(' ')[0]}
+                      </Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.skillsRow}>
+                        {partnerSkills.map((pSkill, i) => {
+                          const itemKey = pSkill._id || pSkill.id || `partner-skill-${i}`;
+                          const isActive = itemKey === selectedRecipientSkillId;
+                          return (
+                            <Pressable
+                              key={i}
+                              onPress={() => setSelectedRecipientSkillId(itemKey)}
+                              style={[styles.skillCard, isActive && styles.skillCardActive]}
+                              testID={`learn-skill-${itemKey}`}
+                            >
+                              <LinearGradient
+                                colors={isActive ? ['#34D399', '#059669'] : ['#1E293B', '#0F172A']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.skillCardGradient}
+                              >
+                                <View style={styles.skillCardHeader}>
+                                  <BookOpen size={16} color={isActive ? '#0B1220' : '#10B981'} />
+                                  <Text style={[styles.skillCardLevel, isActive && styles.skillCardLevelActive]}>{pSkill.level}</Text>
+                                </View>
+                                <Text style={[styles.skillCardTitle, isActive && styles.skillCardTitleActive]} numberOfLines={2}>
+                                  {pSkill.title}
+                                </Text>
+                              </LinearGradient>
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Time Selection Step */}
+              {isTimeStep && (
                 <View style={styles.stepSection}>
                   <Text style={styles.sectionLabel}>Suggest up to 3 slots</Text>
                   <View style={styles.timeGrid}>
@@ -314,17 +518,22 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                 </View>
               )}
 
-              {step === 2 && (
+              {/* Details Step */}
+              {isDetailsStep && (
                 <View style={styles.stepSection}>
                   <View style={styles.creditsCostCard}>
                     <View style={styles.creditsCostHeader}>
                       <View style={styles.creditsCostIcon}>
-                        <Coins size={20} color="#F59E0B" />
+                        <Coins size={20} color={swapType === 'teach' ? '#10B981' : '#F59E0B'} />
                       </View>
                       <View style={styles.creditsCostInfo}>
-                        <Text style={styles.creditsCostTitle}>Swap Request Cost</Text>
+                        <Text style={styles.creditsCostTitle}>
+                          {swapType === 'teach' ? 'Teaching Session' : 'Request Cost'}
+                        </Text>
                         <Text style={styles.creditsCostValue}>
-                          {swapCost === 0 ? (
+                          {swapType === 'teach' ? (
+                            <Text style={[styles.creditsFreeText, { color: '#10B981' }]}>Free — Earn on completion</Text>
+                          ) : swapCost === 0 ? (
                             <Text style={styles.creditsFreeText}>Free with Premium</Text>
                           ) : (
                             `${swapCost} Credits`
@@ -332,7 +541,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                         </Text>
                       </View>
                     </View>
-                    {!hasEnoughCredits && (
+                    {swapType !== 'teach' && !hasEnoughCredits && (
                       <View style={styles.creditsWarning}>
                         <AlertTriangle size={16} color="#F59E0B" />
                         <Text style={styles.creditsWarningText}>
@@ -340,10 +549,12 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                         </Text>
                       </View>
                     )}
-                    <View style={styles.creditsBalance}>
-                      <Text style={styles.creditsBalanceLabel}>Your Balance:</Text>
-                      <Text style={styles.creditsBalanceValue}>{currentUser?.credits} Credits</Text>
-                    </View>
+                    {swapType !== 'teach' && (
+                      <View style={styles.creditsBalance}>
+                        <Text style={styles.creditsBalanceLabel}>Your Balance:</Text>
+                        <Text style={styles.creditsBalanceValue}>{currentUser?.credits} Credits</Text>
+                      </View>
+                    )}
                   </View>
                   <Text style={styles.sectionLabel}>Location & intro note</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.locationRow}>
@@ -380,7 +591,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                     <Text style={styles.inputLabel}>Add a warm intro</Text>
                     <TextInput
                       style={[styles.input, styles.messageInput]}
-                      placeholder="Share context, goals, or what excites you about this swap"
+                      placeholder="Share context, goals, or what excites you about this session"
                       value={introMessage}
                       onChangeText={setIntroMessage}
                       multiline
@@ -407,7 +618,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
               styles.primaryButton,
               (!canAdvance || isSubmitting) && styles.primaryButtonDisabled,
             ]}
-            testID={step < 2 ? 'swap-continue-button' : 'swap-submit-button'}
+            testID={step < totalSteps - 1 ? 'swap-continue-button' : 'swap-submit-button'}
             disabled={!canAdvance || isSubmitting}
           >
             <LinearGradient
@@ -417,7 +628,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
               style={styles.primaryGradient}
             >
               <Text style={styles.primaryText}>
-                {isSubmitting ? 'Sending…' : step < 2 ? 'Continue' : 'Send Request'}
+                {isSubmitting ? 'Sending…' : step < totalSteps - 1 ? 'Continue' : 'Send Request'}
               </Text>
               {isSubmitting ? (
                 <ActivityIndicator size="small" color="#0B1220" />
@@ -757,5 +968,88 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700' as const,
     color: '#78350F',
+  },
+  // Swap type selector
+  typeOptions: {
+    gap: 12,
+  },
+  typeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: Colors.light.backgroundTertiary,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: Colors.light.borderLight,
+  },
+  typeIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  typeCardContent: {
+    flex: 1,
+  },
+  typeCardTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    marginBottom: 2,
+  },
+  typeCardSubtitle: {
+    fontSize: 13,
+    color: Colors.light.textSecondary,
+    fontWeight: '500' as const,
+  },
+  typeCheckCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  typeCostHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.light.backgroundTertiary,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+  },
+  typeCostText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
+  },
+  // Role badge
+  roleBanner: {
+    paddingHorizontal: 24,
+    paddingBottom: 8,
+    gap: 6,
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  roleBadgeText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+  },
+  roleDescription: {
+    fontSize: 13,
+    color: Colors.light.textSecondary,
+    fontWeight: '500' as const,
   },
 });

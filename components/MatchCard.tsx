@@ -1,10 +1,12 @@
-import { memo, useCallback, useMemo, useRef } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles, ArrowRight, BookOpen, GraduationCap } from 'lucide-react-native';
 import Colors from '../constants/colors';
 import type { MatchRecommendation } from '../types';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
+
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
 
 interface MatchCardProps {
   recommendation: MatchRecommendation;
@@ -14,6 +16,12 @@ interface MatchCardProps {
 
 const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps) => {
   const scale = useRef(new Animated.Value(1)).current;
+  const [avatarError, setAvatarError] = useState(false);
+
+  const avatarUri = useMemo(() => {
+    if (avatarError) return DEFAULT_AVATAR;
+    return resolveImageUrl(recommendation.user.avatarUrl, DEFAULT_AVATAR) || DEFAULT_AVATAR;
+  }, [recommendation.user.avatarUrl, avatarError]);
 
   const spotlightSkill = useMemo<string | null>(() => {
     const fallback = recommendation.user.skillsOffered[0]?.title ?? null;
@@ -76,8 +84,9 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
 
           <View style={styles.userRow}>
             <Image
-              source={{ uri: resolveImageUrl(recommendation.user.avatarUrl) }}
+              source={{ uri: avatarUri }}
               style={styles.avatar}
+              onError={() => setAvatarError(true)}
             />
             <View style={styles.userInfo}>
               <Text style={styles.userName}>
