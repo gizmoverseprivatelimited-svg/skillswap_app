@@ -158,6 +158,8 @@ export interface SkillSwapRequest {
   acceptedTimeId?: string;
   negotiationNotes: SwapMessage[];
   calendarEventId?: string;
+  recipientPaid?: boolean;
+  requesterPaid?: boolean;
 }
 
 export type VerificationStatus = 'none' | 'pending' | 'verified' | 'rejected';

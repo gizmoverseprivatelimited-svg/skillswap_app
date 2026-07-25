@@ -176,8 +176,8 @@ export default function SwapDetailScreen() {
     const isRequester = swap.requesterId === currentUser.id;
     const swapType = swap.swapType || 'swap';
 
-    const requesterSkill = swap.requesterSkillId ? skillsMap.get(swap.requesterSkillId) : null;
-    const recipientSkill = swap.recipientSkillId ? skillsMap.get(swap.recipientSkillId) : null;
+    const requesterSkill = swap.requesterSkillId ? (skillsMap.get(swap.requesterSkillId) || null) : null;
+    const recipientSkill = swap.recipientSkillId ? (skillsMap.get(swap.recipientSkillId) || null) : null;
 
     let teachingSkill: SkillWithUser | null = null;
     let learningSkill: SkillWithUser | null = null;

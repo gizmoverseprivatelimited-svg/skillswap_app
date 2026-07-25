@@ -1,7 +1,8 @@
-import { View, StyleSheet, Text, TouchableOpacity, Image, Platform } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Image, Platform, useWindowDimensions, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Video, PhoneOff, Mic, MicOff, Camera, CameraOff } from 'lucide-react-native';
 import { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface VideoCallScreenProps {
   partnerName: string;
@@ -12,17 +13,25 @@ interface VideoCallScreenProps {
 export default function VideoCallScreen({ partnerName, partnerImage, onEndCall }: VideoCallScreenProps) {
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isVideoOff, setIsVideoOff] = useState<boolean>(false);
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isLargeScreen = width > 768;
 
   return (
     <View style={styles.container}>
       <LinearGradient
         colors={['#1F2937', '#111827']}
-        style={styles.gradient}
+        style={[styles.gradient, { paddingTop: Math.max(insets.top, 20), paddingBottom: Math.max(insets.bottom, 20) }]}
       >
-        <View style={styles.header}>
-          <Text style={styles.statusText}>Connecting...</Text>
-          <Text style={styles.partnerName}>{partnerName}</Text>
-        </View>
+        <ScrollView 
+          contentContainerStyle={[styles.contentWrapper, isLargeScreen && styles.contentWrapperLarge]}
+          style={{ width: '100%' }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.header}>
+            <Text style={styles.statusText}>Connecting...</Text>
+            <Text style={styles.partnerName}>{partnerName}</Text>
+          </View>
 
         <View style={styles.videoContainer}>
           {partnerImage ? (
@@ -86,6 +95,7 @@ export default function VideoCallScreen({ partnerName, partnerImage, onEndCall }
               : 'This is a demo UI. Integrate with WebRTC or Agora for real calls.'}
           </Text>
         </View>
+        </ScrollView>
       </LinearGradient>
     </View>
   );
@@ -97,13 +107,22 @@ const styles = StyleSheet.create({
   },
   gradient: {
     flex: 1,
-    paddingVertical: 40,
     paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  contentWrapper: {
+    flexGrow: 1,
+    width: '100%',
+    justifyContent: 'space-between',
+    paddingVertical: 20,
+  },
+  contentWrapperLarge: {
+    maxWidth: 800,
+    width: '100%',
   },
   header: {
     alignItems: 'center',
     gap: 8,
-    marginTop: 20,
   },
   statusText: {
     fontSize: 14,
@@ -117,10 +136,11 @@ const styles = StyleSheet.create({
   },
   videoContainer: {
     flex: 1,
-    marginVertical: 40,
+    marginVertical: 20,
     borderRadius: 24,
     overflow: 'hidden' as const,
     position: 'relative' as const,
+    minHeight: 200,
   },
   partnerVideo: {
     width: '100%',

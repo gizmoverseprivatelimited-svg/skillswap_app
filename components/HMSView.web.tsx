@@ -24,7 +24,7 @@ export default function HMSView({ roomCode, userName, onLeave }: { roomCode: str
   }, [onLeave]);
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: '#000', zIndex: 9999 }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#000', zIndex: 9999 }}>
       <iframe
         src={webPrebuiltUrl}
         allow="camera; microphone; fullscreen; speaker; display-capture; autoplay; wake-lock; screen-wake-lock; compute-pressure"
