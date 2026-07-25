@@ -13,8 +13,10 @@
     },
     "production": {
       "autoIncrement": true,
+      "node": "20.x",
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "image": "latest"
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.skillswap.courses",
