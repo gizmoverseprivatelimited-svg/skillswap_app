@@ -106,7 +106,7 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
         bio: guestProfile.bio || 'Demo account. Explore all functionalities of SkillSwap!',
         location: guestProfile.location || 'New Delhi, India',
         skillsOffered: guestSkills,
-        skillsWanted: guestProfile.skillsWanted !== undefined ? guestProfile.skillsWanted : (activeUser?.skillsWanted || ['Cooking', 'Hindi', 'Guitar']),
+        skillsWanted: guestProfile.skillsWanted !== undefined ? guestProfile.skillsWanted : (activeUser?.skillsToLearn || ['Cooking', 'Hindi', 'Guitar']),
         rating: 4.8,
         totalSwaps: 5,
         joinedDate: '2026-01-01',

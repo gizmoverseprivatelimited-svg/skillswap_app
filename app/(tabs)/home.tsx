@@ -122,20 +122,6 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Modal
-        transparent
-        animationType="fade"
-        visible={isRefreshing}
-        onRequestClose={() => {}}
-      >
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={Colors.light.primary} />
-            <Text style={styles.loadingText}>Fetching latest data from backend...</Text>
-          </View>
-        </View>
-      </Modal>
-
       <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
