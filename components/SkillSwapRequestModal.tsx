@@ -107,8 +107,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
   const [selectedRecipientSkillId, setSelectedRecipientSkillId] = useState<string>('');
 
   const [selectedTimes, setSelectedTimes] = useState<TimeOption[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState<string>('Virtual Studio Lounge');
-  const [customLocation, setCustomLocation] = useState<string>('');
+  const [selectedLocation, setSelectedLocation] = useState<string>('Online Video Call');
   const [introMessage, setIntroMessage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
@@ -162,8 +161,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
       setSelectedRequesterSkillId(currentUser?.skillsOffered[0]?._id || currentUser?.skillsOffered[0]?.id || '');
       setSelectedRecipientSkillId(skill?._id || skill?.id || '');
       setSelectedTimes([]);
-      setSelectedLocation('Virtual Studio Lounge');
-      setCustomLocation('');
+      setSelectedLocation('Online Video Call');
       setIntroMessage('');
       setError(null);
       resetSwapMutation();
@@ -176,11 +174,8 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
   }, []);
 
   const mergedLocation = useMemo<string>(() => {
-    if (customLocation?.trim().length > 0) {
-      return customLocation?.trim();
-    }
-    return selectedLocation;
-  }, [customLocation, selectedLocation]);
+    return selectedLocation || 'Online Video Call';
+  }, [selectedLocation]);
 
   // Determine step roles
   const isTypeStep = step === 0;
@@ -277,23 +272,27 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
     return partnerSkills.find((candidate) => (candidate._id || candidate.id) === selectedRecipientSkillId) ?? null;
   }, [partnerSkills, selectedRecipientSkillId]);
 
+  const partnerName = useMemo(() => {
+    const target = latestPartner || skill.user;
+    if (!target) return 'Partner';
+    return target.username ? (target.username.startsWith('@') ? target.username : `@${target.username}`) : `@${target.name.toLowerCase().replace(/\s+/g, '')}`;
+  }, [latestPartner, skill.user]);
+
   const roleDescription = useMemo(() => {
     if (!swapType) return '';
-    const partnerName = (latestPartner?.name || skill.user.name).split(' ')[0];
     const learnedSkillTitle = activePartnerSkill?.title || skill.title;
     const taughtSkillTitle = activeMySkill?.title || 'your skill';
     if (swapType === 'learn') return `You will learn "${learnedSkillTitle}" from ${partnerName}`;
     if (swapType === 'teach') return `You will teach "${taughtSkillTitle}" to ${partnerName}`;
     return `You teach "${taughtSkillTitle}" & learn "${learnedSkillTitle}"`;
-  }, [swapType, skill, latestPartner, activePartnerSkill, activeMySkill]);
+  }, [swapType, skill, activePartnerSkill, activeMySkill, partnerName]);
 
   const headlineText = useMemo(() => {
-    const partnerName = (latestPartner?.name || skill.user.name).split(' ')[0];
     if (!swapType) return `Request a session with ${partnerName}`;
     if (swapType === 'learn') return `Learn from ${partnerName}`;
     if (swapType === 'teach') return `Teach ${partnerName}`;
     return `Swap with ${partnerName}`;
-  }, [swapType, skill, latestPartner]);
+  }, [swapType, partnerName]);
 
   return (
     <Modal
@@ -555,37 +554,6 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                         <Text style={styles.creditsBalanceValue}>{currentUser?.credits} Credits</Text>
                       </View>
                     )}
-                  </View>
-                  <Text style={styles.sectionLabel}>Location & intro note</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.locationRow}>
-                    {locationOptions.map((location, i) => {
-                      const isActive = location === selectedLocation && customLocation?.trim().length === 0;
-                      return (
-                        <Pressable
-                          key={i}
-                          onPress={() => {
-                            setSelectedLocation(location);
-                            setCustomLocation('');
-                          }}
-                          style={[styles.locationChip, isActive && styles.locationChipActive]}
-                          testID={`location-option-${location}`}
-                        >
-                          <MapPin size={16} color={isActive ? '#0B1220' : Colors.light.primary} />
-                          <Text style={[styles.locationText, isActive && styles.locationTextActive]}>{location}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Custom location</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Add a venue or video call link"
-                      value={customLocation}
-                      onChangeText={setCustomLocation}
-                      placeholderTextColor="rgba(148, 163, 184, 0.7)"
-                      testID="custom-location-input"
-                    />
                   </View>
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>Add a warm intro</Text>

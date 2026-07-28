@@ -34,7 +34,7 @@ const skillLevels: SkillLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'Expe
 const availabilityOptions = ['Weekday Mornings', 'Weekday Afternoons', 'Weekday Evenings', 'Weekends', 'Flexible'];
 const communicationOptions = ['Video Call', 'In Person', 'Chat', 'Mix of All'];
 
-type StepKey = 'welcome' | 'role' | 'teach' | 'experience' | 'learn' | 'availability' | 'preferences' | 'summary';
+type StepKey = 'welcome' | 'role' | 'teach' | 'experience' | 'learn' | 'availability' | 'summary';
 
 const ROLE_OPTIONS: {
   key: OnboardingRole;
@@ -59,6 +59,8 @@ export default function OnboardingScreen() {
 
   const [selectedTeachSkills, setSelectedTeachSkills] = useState<string[]>([]);
   const [selectedLearnSkills, setSelectedLearnSkills] = useState<string[]>([]);
+  const [customTeachCategory, setCustomTeachCategory] = useState<string>('');
+  const [customLearnCategory, setCustomLearnCategory] = useState<string>('');
   const [isCompleting, setIsCompleting] = useState<boolean>(false);
   const [experienceLevels, setExperienceLevels] = useState<Record<string, SkillLevel>>({});
   const [learningGoals, setLearningGoals] = useState<string[]>([]);
@@ -79,30 +81,39 @@ export default function OnboardingScreen() {
     if (role === 'learner' || role === 'swap') {
       list.push('learn');
     }
-    list.push('availability', 'preferences', 'summary');
+    list.push('availability', 'summary');
     return list;
   }, [role]);
 
   const currentStep = steps[stepIndex] ?? 'welcome';
   const totalSteps = steps.length;
 
+  const getFinalTeachSkills = () => selectedTeachSkills.map(s => s === 'Other' && customTeachCategory.trim() ? customTeachCategory.trim() : s);
+  const getFinalLearnSkills = () => selectedLearnSkills.map(s => s === 'Other' && customLearnCategory.trim() ? customLearnCategory.trim() : s);
+  const getFinalExperienceLevels = () => {
+    const finalExperienceLevels: Record<string, SkillLevel> = {};
+    Object.entries(experienceLevels).forEach(([skill, level]) => {
+      if (skill === 'Other' && customTeachCategory.trim()) {
+        finalExperienceLevels[customTeachCategory.trim()] = level;
+      } else {
+        finalExperienceLevels[skill] = level;
+      }
+    });
+    return finalExperienceLevels;
+  };
+
   const goToNextStep = () => {
     // Persist data when leaving relevant steps
     if (currentStep === 'role' && role) {
       updateOnboardingData({ role });
     } else if (currentStep === 'teach') {
-      updateOnboardingData({ skillsToTeach: selectedTeachSkills });
+      updateOnboardingData({ skillsToTeach: getFinalTeachSkills() });
     } else if (currentStep === 'experience') {
-      updateOnboardingData({ skillsToTeach: selectedTeachSkills, experienceLevels });
+      updateOnboardingData({ skillsToTeach: getFinalTeachSkills(), experienceLevels: getFinalExperienceLevels() });
     } else if (currentStep === 'learn') {
-      updateOnboardingData({ skillsToLearn: selectedLearnSkills, learningGoals });
+      updateOnboardingData({ skillsToLearn: getFinalLearnSkills(), learningGoals });
     } else if (currentStep === 'availability') {
       updateOnboardingData({ availability });
-    } else if (currentStep === 'preferences') {
-      updateOnboardingData({
-        communicationPreference: communication,
-        matchingPreferences: { location, virtual: virtualEnabled, inPerson: inPersonEnabled },
-      });
     }
 
     if (stepIndex < totalSteps - 1) {
@@ -121,9 +132,9 @@ export default function OnboardingScreen() {
 
     const fullData = {
       role: role ?? 'swap',
-      skillsToTeach: selectedTeachSkills,
-      skillsToLearn: selectedLearnSkills,
-      experienceLevels,
+      skillsToTeach: getFinalTeachSkills(),
+      skillsToLearn: getFinalLearnSkills(),
+      experienceLevels: getFinalExperienceLevels(),
       learningGoals,
       availability,
       communicationPreference: communication,
@@ -152,15 +163,13 @@ export default function OnboardingScreen() {
       case 'role':
         return role !== null;
       case 'teach':
-        return selectedTeachSkills.length > 0;
+        return selectedTeachSkills.length > 0 && (!selectedTeachSkills.includes('Other') || customTeachCategory.trim().length > 0);
       case 'experience':
         return selectedTeachSkills.every(skill => experienceLevels[skill]);
       case 'learn':
-        return selectedLearnSkills.length > 0;
+        return selectedLearnSkills.length > 0 && (!selectedLearnSkills.includes('Other') || customLearnCategory.trim().length > 0);
       case 'availability':
         return availability.length > 0;
-      case 'preferences':
-        return communication.length > 0 && (virtualEnabled || inPersonEnabled);
       case 'summary':
         return true;
       default:
@@ -324,16 +333,27 @@ export default function OnboardingScreen() {
       </Text>
       <ScrollView style={styles.optionsList} showsVerticalScrollIndicator={false}>
         {skillCategories.map((skill) => (
-          <TouchableOpacity
-            key={skill}
-            style={[styles.optionItem, selectedTeachSkills.includes(skill) && styles.optionItemSelected]}
-            onPress={() => toggleSkillSelection(skill, true)}
-          >
-            <Text style={[styles.optionText, selectedTeachSkills.includes(skill) && styles.optionTextSelected]}>
-              {skill}
-            </Text>
-            {selectedTeachSkills.includes(skill) && <CheckCircle2 size={20} color="#fff" />}
-          </TouchableOpacity>
+          <View key={skill}>
+            <TouchableOpacity
+              style={[styles.optionItem, selectedTeachSkills.includes(skill) && styles.optionItemSelected]}
+              onPress={() => toggleSkillSelection(skill, true)}
+            >
+              <Text style={[styles.optionText, selectedTeachSkills.includes(skill) && styles.optionTextSelected]}>
+                {skill}
+              </Text>
+              {selectedTeachSkills.includes(skill) && <CheckCircle2 size={20} color="#fff" />}
+            </TouchableOpacity>
+            {skill === 'Other' && selectedTeachSkills.includes('Other') && (
+              <TextInput
+                style={styles.customInput}
+                placeholder="Enter custom category"
+                placeholderTextColor="#999"
+                value={customTeachCategory}
+                onChangeText={setCustomTeachCategory}
+                autoFocus
+              />
+            )}
+          </View>
         ))}
       </ScrollView>
     </View>
@@ -344,9 +364,11 @@ export default function OnboardingScreen() {
       <Text style={styles.title}>Rate your expertise</Text>
       <Text style={styles.subtitle}>How would you rate your level in these skills?</Text>
       <ScrollView style={styles.optionsList} showsVerticalScrollIndicator={false}>
-        {selectedTeachSkills.map((skill) => (
+        {selectedTeachSkills.map((skill) => {
+          const displaySkill = skill === 'Other' && customTeachCategory.trim() ? customTeachCategory.trim() : skill;
+          return (
           <View key={skill} style={styles.skillLevelContainer}>
-            <Text style={styles.skillLevelTitle}>{skill}</Text>
+            <Text style={styles.skillLevelTitle}>{displaySkill}</Text>
             <View style={styles.levelButtons}>
               {skillLevels.map((level) => (
                 <TouchableOpacity
@@ -361,7 +383,8 @@ export default function OnboardingScreen() {
               ))}
             </View>
           </View>
-        ))}
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -375,16 +398,27 @@ export default function OnboardingScreen() {
       <Text style={styles.subtitle}>Select skills you&apos;re interested in learning</Text>
       <ScrollView style={styles.optionsList} showsVerticalScrollIndicator={false}>
         {skillCategories.map((skill) => (
-          <TouchableOpacity
-            key={skill}
-            style={[styles.optionItem, selectedLearnSkills.includes(skill) && styles.optionItemSelected]}
-            onPress={() => toggleSkillSelection(skill, false)}
-          >
-            <Text style={[styles.optionText, selectedLearnSkills.includes(skill) && styles.optionTextSelected]}>
-              {skill}
-            </Text>
-            {selectedLearnSkills.includes(skill) && <CheckCircle2 size={20} color="#fff" />}
-          </TouchableOpacity>
+          <View key={skill}>
+            <TouchableOpacity
+              style={[styles.optionItem, selectedLearnSkills.includes(skill) && styles.optionItemSelected]}
+              onPress={() => toggleSkillSelection(skill, false)}
+            >
+              <Text style={[styles.optionText, selectedLearnSkills.includes(skill) && styles.optionTextSelected]}>
+                {skill}
+              </Text>
+              {selectedLearnSkills.includes(skill) && <CheckCircle2 size={20} color="#fff" />}
+            </TouchableOpacity>
+            {skill === 'Other' && selectedLearnSkills.includes('Other') && (
+              <TextInput
+                style={styles.customInput}
+                placeholder="Enter custom category"
+                placeholderTextColor="#999"
+                value={customLearnCategory}
+                onChangeText={setCustomLearnCategory}
+                autoFocus
+              />
+            )}
+          </View>
         ))}
       </ScrollView>
 
@@ -509,22 +543,18 @@ export default function OnboardingScreen() {
           {(role === 'teacher' || role === 'swap') && selectedTeachSkills.length > 0 && (
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Teaching:</Text>
-              <Text style={styles.summaryValue}>{selectedTeachSkills.join(', ')}</Text>
+              <Text style={styles.summaryValue}>{getFinalTeachSkills().join(', ')}</Text>
             </View>
           )}
           {(role === 'learner' || role === 'swap') && selectedLearnSkills.length > 0 && (
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Learning:</Text>
-              <Text style={styles.summaryValue}>{selectedLearnSkills.join(', ')}</Text>
+              <Text style={styles.summaryValue}>{getFinalLearnSkills().join(', ')}</Text>
             </View>
           )}
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Availability:</Text>
             <Text style={styles.summaryValue}>{availability.join(', ')}</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Preference:</Text>
-            <Text style={styles.summaryValue}>{communication}</Text>
           </View>
         </View>
       </View>
@@ -539,7 +569,6 @@ export default function OnboardingScreen() {
       case 'experience': return renderExperienceLevelStep();
       case 'learn': return renderLearnSkillsStep();
       case 'availability': return renderAvailabilityStep();
-      case 'preferences': return renderPreferencesStep();
       case 'summary': return renderFinalStep();
       default: return null;
     }
@@ -623,6 +652,17 @@ const styles = StyleSheet.create({
   optionItemSelected: { backgroundColor: '#FF6B9D', borderColor: '#FF6B9D' },
   optionText: { fontSize: 16, color: '#333', fontWeight: '500' as const },
   optionTextSelected: { color: '#fff', fontWeight: '600' as const },
+  customInput: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: '#333',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    marginBottom: 12,
+    marginTop: -4,
+  },
   // Skill levels
   skillLevelContainer: { marginBottom: 24 },
   skillLevelTitle: { fontSize: 16, fontWeight: '600' as const, color: '#333', marginBottom: 12 },

@@ -71,16 +71,19 @@ export default function HomeScreen() {
   const topLearnMatches = useMemo(() => learnMatches.slice(0, 4), [learnMatches]);
   const topSwapMatches = useMemo(() => swapMatches.slice(0, 4), [swapMatches]);
   const hasMatches = topRecommendations.length > 0;
-  const firstName = useMemo(() => {
+  const userDisplayName = useMemo(() => {
     if (!currentUser) return '';
-    const [first] = currentUser.name.split(' ');
-    return first ?? currentUser.name;
-  }, [currentUser?.name]);
+    const username = currentUser.username;
+    if (username) {
+      return username.startsWith('@') ? username : `@${username}`;
+    }
+    return `@${currentUser.name.toLowerCase().replace(/\s+/g, '')}`;
+  }, [currentUser?.username, currentUser?.name]);
   const matchesSubtitle = useMemo(() => {
-    if (userRole === 'teacher') return `Learners who need ${firstName}'s skills`;
-    if (userRole === 'learner') return `Teachers who can help ${firstName} grow`;
-    return `Perfect swap partners for ${firstName}`;
-  }, [userRole, firstName]);
+    if (userRole === 'teacher') return `Learners who need ${userDisplayName}'s skills`;
+    if (userRole === 'learner') return `Teachers who can help ${userDisplayName} grow`;
+    return `Perfect swap partners for ${userDisplayName}`;
+  }, [userRole, userDisplayName]);
 
   const secondarySection = useMemo<{
     title: string;
@@ -134,7 +137,7 @@ export default function HomeScreen() {
         >
           <View style={styles.headerContent}>
             <View>
-              <Text style={styles.greeting}>Hi, {firstName}</Text>
+              <Text style={styles.greeting}>Hi, {userDisplayName}</Text>
               <Text style={styles.subtitle}>Curated swaps to accelerate your growth</Text>
             </View>
             <View style={styles.logo} />
@@ -211,7 +214,7 @@ export default function HomeScreen() {
                   <Image source={{ uri: DEFAULT_AVATAR }} style={styles.teachAvatar} />
                 )}
                 <View style={styles.teachInfo}>
-                  <Text style={styles.teachName}>{match.user.name}</Text>
+                  <Text style={styles.teachName}>{match.user.username ? (match.user.username.startsWith('@') ? match.user.username : `@${match.user.username}`) : `@${match.user.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
                   <View style={styles.teachSkillsRow}>
                     {secondarySection.chips(match).map((skill, index) => {
                       const skillText = typeof skill === 'string' ? skill : (skill as any)?.title || String(skill);
@@ -280,7 +283,7 @@ export default function HomeScreen() {
                         />
                         <View style={styles.featuredUserInfo}>
                           <Text style={styles.featuredUserName} numberOfLines={1}>
-                            {skill.user.name}
+                            {skill.user.username ? (skill.user.username.startsWith('@') ? skill.user.username : `@${skill.user.username}`) : `@${skill.user.name.toLowerCase().replace(/\s+/g, '')}`}
                           </Text>
                           <View style={styles.featuredRating}>
                             <Star size={10} fill={Colors.light.accent} color={Colors.light.accent} />
@@ -357,7 +360,7 @@ export default function HomeScreen() {
                           style={styles.userAvatar}
                         />
                         <Text style={styles.userName} numberOfLines={1}>
-                          {skill.user.name}
+                          {skill.user.username ? (skill.user.username.startsWith('@') ? skill.user.username : `@${skill.user.username}`) : `@${skill.user.name.toLowerCase().replace(/\s+/g, '')}`}
                         </Text>
                       </View>
                       <View style={styles.ratingContainer}>

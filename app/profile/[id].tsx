@@ -75,7 +75,7 @@ export default function UserProfileScreen() {
 
     const interval = setInterval(() => {
       fetchReviews(true);
-    }, 5000);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [fetchReviews]);
@@ -115,7 +115,7 @@ export default function UserProfileScreen() {
     } else {
       showAlert(
         'No Skills Available',
-        `${user.name} hasn't listed any skills yet. Check back later!`,
+        `${user.username ? (user.username.startsWith('@') ? user.username : `@${user.username}`) : `@${user.name.toLowerCase().replace(/\s+/g, '')}`} hasn't listed any skills yet. Check back later!`,
         [{ text: 'OK' }]
       );
     }
@@ -151,7 +151,7 @@ export default function UserProfileScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: user.name,
+          title: user.username ? (user.username.startsWith('@') ? user.username : `@${user.username}`) : `@${user.name.toLowerCase().replace(/\s+/g, '')}`,
           headerStyle: {
             backgroundColor: Colors.light.background,
           },
@@ -168,7 +168,7 @@ export default function UserProfileScreen() {
             source={{ uri: resolveImageUrl(user?.avatarUrl) }}
             style={styles.avatar}
           />
-          <Text style={styles.name}>{user.name}</Text>
+          <Text style={styles.name}>{user.username ? (user.username.startsWith('@') ? user.username : `@${user.username}`) : `@${user.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
           <View style={styles.locationRow}>
             <MapPin size={16} color={Colors.light.textSecondary} />
             <Text style={styles.location}>{user.location}</Text>

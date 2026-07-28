@@ -88,6 +88,32 @@ export default function SwapDetailScreen() {
   const [pendingSlotToAccept, setPendingSlotToAccept] = useState<string | null>(null);
   const [isAcceptingWithCredit, setIsAcceptingWithCredit] = useState<boolean>(false);
 
+  const [calendarModalVisible, setCalendarModalVisible] = useState<boolean>(false);
+  const [customDateTimeStr, setCustomDateTimeStr] = useState<string>(() => {
+    const tom = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    tom.setHours(14, 0, 0, 0);
+    return tom.toISOString().slice(0, 16);
+  });
+  const [pickerSelectedDate, setPickerSelectedDate] = useState<string>(
+    new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  );
+  const [pickerSelectedTime, setPickerSelectedTime] = useState<string>('14:00');
+
+  const next14Days = useMemo(() => {
+    const days: { dateStr: string; label: string; sublabel: string }[] = [];
+    const now = new Date();
+    for (let i = 1; i <= 14; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      const label = d.toLocaleDateString(undefined, { weekday: 'short' });
+      const sublabel = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      days.push({ dateStr, label, sublabel });
+    }
+    return days;
+  }, []);
+
+  const timeSlotOptions = ['09:00', '10:30', '12:00', '14:00', '16:00', '18:00', '19:30', '21:00'];
+
   const swap = useMemo(() => {
     if (!id) {
       return undefined;
@@ -152,19 +178,20 @@ export default function SwapDetailScreen() {
     if (!swap || !currentUser) return null;
     const isRequester = swap.requesterId === currentUser.id;
     const swapType = swap.swapType || 'swap';
+    const partnerLabel = partner?.username ? (partner.username.startsWith('@') ? partner.username : `@${partner.username}`) : (partner?.name ? `@${partner.name.toLowerCase().replace(/\s+/g, '')}` : 'Partner');
     if (swapType === 'learn') {
       if (isRequester) {
-        return { myRole: 'Learner', partnerRole: 'Teacher', color: '#6366F1', bg: '#EEF2FF', Icon: BookOpen, myLabel: 'You learn', partnerLabel: `${partner?.name?.split(' ')[0] || 'Partner'} teaches` };
+        return { myRole: 'Learner', partnerRole: 'Teacher', color: '#6366F1', bg: '#EEF2FF', Icon: BookOpen, myLabel: 'You learn', partnerLabel: `${partnerLabel} teaches` };
       }
-      return { myRole: 'Teacher', partnerRole: 'Learner', color: '#10B981', bg: '#ECFDF5', Icon: GraduationCap, myLabel: 'You teach', partnerLabel: `${partner?.name?.split(' ')[0] || 'Partner'} learns` };
+      return { myRole: 'Teacher', partnerRole: 'Learner', color: '#10B981', bg: '#ECFDF5', Icon: GraduationCap, myLabel: 'You teach', partnerLabel: `${partnerLabel} learns` };
     }
     if (swapType === 'teach') {
       if (isRequester) {
-        return { myRole: 'Teacher', partnerRole: 'Learner', color: '#10B981', bg: '#ECFDF5', Icon: GraduationCap, myLabel: 'You teach', partnerLabel: `${partner?.name?.split(' ')[0] || 'Partner'} learns` };
+        return { myRole: 'Teacher', partnerRole: 'Learner', color: '#10B981', bg: '#ECFDF5', Icon: GraduationCap, myLabel: 'You teach', partnerLabel: `${partnerLabel} learns` };
       }
-      return { myRole: 'Learner', partnerRole: 'Teacher', color: '#6366F1', bg: '#EEF2FF', Icon: BookOpen, myLabel: 'You learn', partnerLabel: `${partner?.name?.split(' ')[0] || 'Partner'} teaches` };
+      return { myRole: 'Learner', partnerRole: 'Teacher', color: '#6366F1', bg: '#EEF2FF', Icon: BookOpen, myLabel: 'You learn', partnerLabel: `${partnerLabel} teaches` };
     }
-    return { myRole: 'Swapper', partnerRole: 'Swapper', color: '#F59E0B', bg: '#FFFBEB', Icon: ArrowLeftRight, myLabel: 'You offer', partnerLabel: `${partner?.username ? `@${partner.username}` : partner?.name?.split(' ')[0] || 'Partner'} offers` };
+    return { myRole: 'Swapper', partnerRole: 'Swapper', color: '#F59E0B', bg: '#FFFBEB', Icon: ArrowLeftRight, myLabel: 'You offer', partnerLabel: `${partnerLabel} offers` };
   }, [swap, currentUser, partner]);
 
   // Computed exchange details: clearly separated Teaching & Learning skills
@@ -272,6 +299,59 @@ export default function SwapDetailScreen() {
     addMessage({ requestId: swap.id, authorId: currentUser?.id || "", body: messageDraft.trim() });
     setMessageDraft('');
   }, [addMessage, currentUser?.id, messageDraft, swap]);
+
+  const parseDateTimeString = (str: string): Date | null => {
+    if (!str) return null;
+    const direct = new Date(str);
+    if (!isNaN(direct.getTime())) return direct;
+    const parts = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})[T\s](\d{1,2}):(\d{1,2})/);
+    if (parts) {
+      const [, y, m, day, h, min] = parts.map(Number);
+      return new Date(y, m - 1, day, h, min);
+    }
+    return null;
+  };
+
+  const handleConfirmCalendarSlot = useCallback(() => {
+    setErrorBanner(null);
+    let start: Date | null = null;
+    if (customDateTimeStr) {
+      start = parseDateTimeString(customDateTimeStr);
+    }
+    if (!start || isNaN(start.getTime())) {
+      if (pickerSelectedDate && pickerSelectedTime) {
+        const [year, month, day] = pickerSelectedDate.split('-').map(Number);
+        const [hours, minutes] = pickerSelectedTime.split(':').map(Number);
+        start = new Date(year, month - 1, day, hours, minutes, 0, 0);
+      }
+    }
+
+    if (!start || isNaN(start.getTime())) {
+      showAlert('Invalid Selection ⚠️', 'Please select a valid date and time from the calendar.');
+      return;
+    }
+
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    const id = `custom-${start.getTime()}`;
+    const label = start.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    const newSuggestion: TimeSuggestion = {
+      id,
+      label,
+      startISO: start.toISOString(),
+      endISO: end.toISOString(),
+    };
+
+    setSelectedSuggestions((prev) => {
+      if (prev.some((s) => s.id === id)) return prev;
+      return [...prev, newSuggestion];
+    });
+    setCalendarModalVisible(false);
+  }, [customDateTimeStr, pickerSelectedDate, pickerSelectedTime, showAlert]);
 
   const handleSubmitCounter = useCallback(() => {
     if (!swap) {
@@ -510,7 +590,7 @@ export default function SwapDetailScreen() {
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
           <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>{partner?.username ? `@${partner.username}` : (partner?.name ?? 'Skill Partner')}</Text>
+            <Text style={styles.heroTitle}>{partner?.username ? (partner.username.startsWith('@') ? partner.username : `@${partner.username}`) : (partner?.name ? `@${partner.name.toLowerCase().replace(/\s+/g, '')}` : 'Skill Partner')}</Text>
             <Text style={styles.heroSubtitle}>{headerCopy?.title}</Text>
             <Text style={styles.heroBody}>{headerCopy?.description}</Text>
           </View>
@@ -580,7 +660,7 @@ export default function SwapDetailScreen() {
             <CalendarClock size={18} color={Colors.light.primary} />
           </View>
           <View style={styles.slotList}>
-            {swap.proposedTimes.map((slot,i) => {
+            {swap.proposedTimes.map((slot, i) => {
               const statusMeta = classifySlotStatus(slot);
               const isPending = slot.status === 'pending';
               return (
@@ -595,7 +675,7 @@ export default function SwapDetailScreen() {
                   {isPending && (
                     <TouchableOpacity
                       style={styles.acceptButton}
-                      onPress={() => handleAcceptSlot(slot._id|| "")}
+                      onPress={() => handleAcceptSlot(slot._id || "")}
                       activeOpacity={0.9}
                       testID={`accept-slot-${slot.id}`}
                     >
@@ -611,8 +691,10 @@ export default function SwapDetailScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionHeading}>Suggest new times</Text>
+
+          <Text style={styles.subHeadingLabel}>Quick options</Text>
           <View style={styles.suggestionRow}>
-            {timeSuggestions.map((suggestion,i) => {
+            {timeSuggestions.map((suggestion, i) => {
               const isActive = selectedSuggestions.some((item) => item.id === suggestion.id);
               return (
                 <TouchableOpacity
@@ -626,16 +708,44 @@ export default function SwapDetailScreen() {
               );
             })}
           </View>
-          <TextInput
+
+          {/* Interactive Calendar Date & Time Button */}
+          <TouchableOpacity
+            style={styles.openCalendarPickerBtn}
+            onPress={() => setCalendarModalVisible(true)}
+            activeOpacity={0.85}
+          >
+            <CalendarClock size={20} color="#38BDF8" />
+            <Text style={styles.openCalendarPickerText}>Choose Date & Time from Calendar 📅</Text>
+          </TouchableOpacity>
+
+          {/* Selected Slots Tag List */}
+          {selectedSuggestions.length > 0 && (
+            <View style={styles.selectedSlotsBox}>
+              <Text style={styles.selectedSlotsTitle}>Selected Counter Slots ({selectedSuggestions.length}):</Text>
+              <View style={styles.selectedSlotsRow}>
+                {selectedSuggestions.map((slot) => (
+                  <View key={slot.id} style={styles.selectedSlotTag}>
+                    <Text style={styles.selectedSlotTagText}>{slot.label}</Text>
+                    <TouchableOpacity onPress={() => handleToggleSuggestion(slot)}>
+                      <X size={14} color="#F8FAFC" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* <TextInput
             style={styles.textArea}
-            placeholder="Add context or preferred cadence"
+            placeholder="Add context or preferred cadence (optional)"
             value={counterNotes}
             onChangeText={setCounterNotes}
             multiline
             numberOfLines={3}
             placeholderTextColor="rgba(148, 163, 184, 0.65)"
             testID="counter-notes-input"
-          />
+          /> */}
           <View style={styles.counterActions}>
             <TouchableOpacity
               style={[styles.counterButton, styles.primaryButton]}
@@ -693,7 +803,7 @@ export default function SwapDetailScreen() {
             <Sparkles size={18} color={Colors.light.primary} />
           </View>
           <View style={styles.timeline}>
-            {sortedNotes.map((note,i) => {
+            {sortedNotes.map((note, i) => {
               const isSelf = note.authorId === currentUser?.id;
               return (
                 <View key={i} style={[styles.noteBubble, isSelf ? styles.noteSelf : styles.notePartner]}
@@ -781,20 +891,176 @@ export default function SwapDetailScreen() {
                 <Text style={styles.callButtonText}>Voice Call</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={[styles.counterButton, styles.completeButton]}
-              onPress={handleCompleteSwap}
-              activeOpacity={0.9}
-              testID="complete-swap"
-            >
-              <ShieldCheck size={18} color="#0F172A" />
-              <Text style={styles.completeText}>Mark swap as completed</Text>
-            </TouchableOpacity>
+            {roleInfo?.myRole !== 'Teacher' && (
+              <TouchableOpacity
+                style={[styles.counterButton, styles.completeButton]}
+                onPress={handleCompleteSwap}
+                activeOpacity={0.9}
+                testID="complete-swap"
+              >
+                <ShieldCheck size={18} color="#0F172A" />
+                <Text style={styles.completeText}>Mark swap as completed</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* 📅 Visual Calendar Date & Time Selector Modal */}
+      <Modal
+        visible={calendarModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCalendarModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <LinearGradient
+              colors={['#38BDF8', '#6366F1']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.modalTopBar}
+            />
+
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              onPress={() => setCalendarModalVisible(false)}
+            >
+              <X size={18} color={Colors.light.textSecondary} />
+            </TouchableOpacity>
+
+            <View style={styles.modalIconBox}>
+              <LinearGradient
+                colors={['#F0F9FF', '#E0F2FE']}
+                style={styles.modalIconCircle}
+              >
+                <CalendarClock size={32} color="#0284C7" />
+              </LinearGradient>
+            </View>
+
+            <Text style={styles.modalTitle}>Choose Date & Time 📅</Text>
+            <Text style={styles.modalDesc}>Select your preferred day and time slot to suggest for this swap.</Text>
+
+            {/* HTML Calendar Date & Time Input */}
+            <View style={styles.pickerSection}>
+              <Text style={styles.pickerSectionTitle}>Select Date & Time (Calendar)</Text>
+              {Platform.OS === 'web' ? (
+                // @ts-ignore - native HTML datetime-local input popover
+                <input
+                  type="datetime-local"
+                  value={customDateTimeStr}
+                  onChange={(e: any) => setCustomDateTimeStr(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    borderRadius: '14px',
+                    border: '1px solid rgba(56, 189, 248, 0.4)',
+                    backgroundColor: '#0F172A',
+                    color: '#F8FAFC',
+                    colorScheme: 'dark',
+                    fontSize: '15px',
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    cursor: 'pointer',
+                  }}
+                />
+              ) : (
+                <TextInput
+                  style={styles.customDateTimeInput}
+                  placeholder="YYYY-MM-DD HH:MM"
+                  placeholderTextColor="rgba(148, 163, 184, 0.65)"
+                  value={customDateTimeStr}
+                  onChangeText={setCustomDateTimeStr}
+                />
+              )}
+            </View>
+
+            {/* Quick Day Chips */}
+            <View style={styles.pickerSection}>
+              <Text style={styles.pickerSectionTitle}>Or Quick Select Day</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daysScroll}>
+                {next14Days.map((d) => {
+                  const isSelected = pickerSelectedDate === d.dateStr;
+                  return (
+                    <TouchableOpacity
+                      key={d.dateStr}
+                      style={[styles.dayCard, isSelected && styles.dayCardSelected]}
+                      onPress={() => {
+                        setPickerSelectedDate(d.dateStr);
+                        setCustomDateTimeStr(`${d.dateStr}T${pickerSelectedTime}`);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.dayCardLabel, isSelected && styles.dayCardLabelSelected]}>{d.label}</Text>
+                      <Text style={[styles.dayCardSublabel, isSelected && styles.dayCardSublabelSelected]}>{d.sublabel}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Quick Time Slot Grid */}
+            <View style={styles.pickerSection}>
+              <Text style={styles.pickerSectionTitle}>Or Quick Select Time</Text>
+              <View style={styles.timeGrid}>
+                {timeSlotOptions.map((time) => {
+                  const isSelected = pickerSelectedTime === time;
+                  const [h, m] = time.split(':').map(Number);
+                  const displayTime = new Date(2026, 0, 1, h, m).toLocaleTimeString(undefined, {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  });
+                  return (
+                    <TouchableOpacity
+                      key={time}
+                      style={[styles.timeSlotPill, isSelected && styles.timeSlotPillSelected]}
+                      onPress={() => {
+                        setPickerSelectedTime(time);
+                        setCustomDateTimeStr(`${pickerSelectedDate}T${time}`);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.timeSlotPillText, isSelected && styles.timeSlotPillTextSelected]}>
+                        {displayTime}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Actions */}
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelActionBtn}
+                onPress={() => setCalendarModalVisible(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.cancelActionText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.confirmActionBtn}
+                onPress={handleConfirmCalendarSlot}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={['#38BDF8', '#6366F1']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.confirmGradient}
+                >
+                  <PlusCircle size={16} color="#FFFFFF" />
+                  <Text style={styles.confirmActionText}>Confirm & Add Slot</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ⚡ Custom Credit Deduction Warning Modal */}
       <Modal
@@ -1505,5 +1771,146 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700' as const,
     color: '#FFFFFF',
+  },
+  subHeadingLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
+    marginBottom: 8,
+  },
+  openCalendarPickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#38BDF8',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginVertical: 12,
+  },
+  openCalendarPickerText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#38BDF8',
+  },
+  selectedSlotsBox: {
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+    marginBottom: 12,
+    gap: 8,
+  },
+  selectedSlotsTitle: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#38BDF8',
+  },
+  selectedSlotsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap' as const,
+    gap: 8,
+  },
+  selectedSlotTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#38BDF8',
+  },
+  selectedSlotTagText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#F8FAFC',
+  },
+  pickerSection: {
+    marginHorizontal: 20,
+    marginTop: 14,
+    gap: 8,
+  },
+  pickerSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.light.textSecondary,
+  },
+  daysScroll: {
+    flexDirection: 'row',
+  },
+  dayCard: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: Colors.light.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    marginRight: 8,
+    alignItems: 'center',
+    minWidth: 72,
+  },
+  dayCardSelected: {
+    backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
+  },
+  dayCardLabel: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    marginBottom: 2,
+  },
+  dayCardLabelSelected: {
+    color: '#FFFFFF',
+  },
+  dayCardSublabel: {
+    fontSize: 11,
+    fontWeight: '500' as const,
+    color: Colors.light.textSecondary,
+  },
+  dayCardSublabelSelected: {
+    color: 'rgba(255,255,255,0.85)',
+  },
+  timeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap' as const,
+    gap: 8,
+  },
+  timeSlotPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: Colors.light.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+  },
+  timeSlotPillSelected: {
+    backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
+  },
+  timeSlotPillText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.light.text,
+  },
+  timeSlotPillTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700' as const,
+  },
+  customDateTimeInput: {
+    width: '100%',
+    backgroundColor: '#0F172A',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
   },
 });

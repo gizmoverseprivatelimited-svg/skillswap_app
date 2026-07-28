@@ -63,6 +63,26 @@ export default function ExploreScreen() {
 
   const [skillsWithUsers, setSkillsWithUsers] = useState<SkillWithUser[]>([]);
 
+  const matchUserSearch = useCallback((user: User | undefined, query: string): boolean => {
+    if (!query || !user) return false;
+    const q = query.trim().toLowerCase();
+    const cleanQ = q.startsWith('@') ? q.slice(1) : q;
+    if (!cleanQ) return true;
+
+    const userName = user.name?.toLowerCase() || '';
+    const username = user.username?.toLowerCase() || '';
+    const cleanUsername = username.startsWith('@') ? username.slice(1) : username;
+    const derivedUsername = userName.replace(/\s+/g, '');
+
+    return (
+      userName.includes(q) ||
+      userName.includes(cleanQ) ||
+      username.includes(q) ||
+      cleanUsername.includes(cleanQ) ||
+      derivedUsername.includes(cleanQ)
+    );
+  }, []);
+
   const { currentUser, allUsers } = useCurrentUser();
 
   useEffect(() => {
@@ -98,7 +118,7 @@ export default function ExploreScreen() {
     let list = skillsWithUsers.filter((skill) => {
       const titleMatches = skill.title?.toLowerCase().includes(q) ?? false;
       const descMatches = skill.description?.toLowerCase().includes(q) ?? false;
-      const userNameMatches = skill.user?.name?.toLowerCase().includes(q) ?? false;
+      const userNameMatches = matchUserSearch(skill.user, q);
 
       const matchesSearch = q.length === 0 ? true : titleMatches || descMatches || userNameMatches;
       const matchesCategory = selectedCategory === 'All' || skill.category === (selectedCategory as any);
@@ -127,13 +147,17 @@ export default function ExploreScreen() {
   // --- LEARNERS: users wanting skills ---
   const filteredLearners = useMemo<User[]>(() => {
     const q = searchQuery.trim().toLowerCase();
+    const cleanQ = q.startsWith('@') ? q.slice(1) : q;
     let list = (otherUsers || []).filter((u) => (u.skillsWanted || []).length > 0);
     if (q.length > 0) {
       list = list.filter((u) => {
-        const nameMatch = u.name?.toLowerCase().includes(q) ?? false;
-        const skillMatch = (u.skillsWanted || []).some((s) => (typeof s === 'string' ? s : (s as any)?.title || '').toLowerCase().includes(q));
+        const userMatch = matchUserSearch(u, q);
+        const skillMatch = (u.skillsWanted || []).some((s) => {
+          const sText = (typeof s === 'string' ? s : (s as any)?.title || '').toLowerCase();
+          return sText.includes(q) || sText.includes(cleanQ);
+        });
         const locationMatch = u.location?.toLowerCase().includes(q) ?? false;
-        return nameMatch || skillMatch || locationMatch;
+        return userMatch || skillMatch || locationMatch;
       });
     }
     if (selectedCategory !== 'All') {
@@ -161,14 +185,21 @@ export default function ExploreScreen() {
   // --- SWAPPERS: users who both teach and learn ---
   const filteredSwappers = useMemo<User[]>(() => {
     const q = searchQuery.trim().toLowerCase();
+    const cleanQ = q.startsWith('@') ? q.slice(1) : q;
     let list = (otherUsers || []).filter((u) => (u.skillsOffered || []).length > 0 && (u.skillsWanted || []).length > 0);
     if (q.length > 0) {
       list = list.filter((u) => {
-        const nameMatch = u.name?.toLowerCase().includes(q) ?? false;
-        const teachMatch = (u.skillsOffered || []).some((s) => (typeof s === 'string' ? s : s.title || '').toLowerCase().includes(q));
-        const wantMatch = (u.skillsWanted || []).some((s) => (typeof s === 'string' ? s : (s as any)?.title || '').toLowerCase().includes(q));
+        const userMatch = matchUserSearch(u, q);
+        const teachMatch = (u.skillsOffered || []).some((s) => {
+          const sText = (typeof s === 'string' ? s : s.title || '').toLowerCase();
+          return sText.includes(q) || sText.includes(cleanQ);
+        });
+        const wantMatch = (u.skillsWanted || []).some((s) => {
+          const sText = (typeof s === 'string' ? s : (s as any)?.title || '').toLowerCase();
+          return sText.includes(q) || sText.includes(cleanQ);
+        });
         const locationMatch = u.location?.toLowerCase().includes(q) ?? false;
-        return nameMatch || teachMatch || wantMatch || locationMatch;
+        return userMatch || teachMatch || wantMatch || locationMatch;
       });
     }
     if (selectedCategory !== 'All') {
@@ -224,7 +255,7 @@ export default function ExploreScreen() {
           <View style={styles.userInfo}>
             <Image source={{ uri: resolveImageUrl(item.user.avatarUrl, DEFAULT_AVATAR) }} style={styles.userAvatar} />
             <View style={styles.userDetails}>
-              <Text style={styles.userName} numberOfLines={1}>{item.user.name}</Text>
+              <Text style={styles.userName} numberOfLines={1}>{item.user.username ? (item.user.username.startsWith('@') ? item.user.username : `@${item.user.username}`) : `@${item.user.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
               <View style={styles.ratingRow}>
                 <Star size={12} fill={Colors.light.accent} color={Colors.light.accent} />
                 <Text style={styles.ratingText}>{item.user.rating}</Text>
@@ -246,7 +277,7 @@ export default function ExploreScreen() {
       <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatar} />
       <View style={styles.personContent}>
         <View style={styles.personHeader}>
-          <Text style={styles.personName} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.personName} numberOfLines={1}>{item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
           <View style={styles.ratingPill}>
             <Star size={11} fill={Colors.light.accent} color={Colors.light.accent} />
             <Text style={styles.ratingPillText}>{item.rating}</Text>
@@ -278,7 +309,7 @@ export default function ExploreScreen() {
       <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatar} />
       <View style={styles.personContent}>
         <View style={styles.personHeader}>
-          <Text style={styles.personName} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.personName} numberOfLines={1}>{item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
           <View style={styles.ratingPill}>
             <Star size={11} fill={Colors.light.accent} color={Colors.light.accent} />
             <Text style={styles.ratingPillText}>{item.rating}</Text>

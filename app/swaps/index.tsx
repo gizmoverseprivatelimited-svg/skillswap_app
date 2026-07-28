@@ -181,7 +181,7 @@ export default function SwapsIndexScreen() {
           <View style={styles.swapPartnerRow}>
             <Image source={{ uri: resolveImageUrl(partner?.avatarUrl) }} style={styles.avatar} />
             <View style={styles.partnerInfo}>
-              <Text style={styles.partnerName}>{partner?.username ? `@${partner.username}` : (partner?.name ?? 'Skill Partner')}</Text>
+              <Text style={styles.partnerName}>{partner?.username ? (partner.username.startsWith('@') ? partner.username : `@${partner.username}`) : (partner?.name ? `@${partner.name.toLowerCase().replace(/\s+/g, '')}` : 'Skill Partner')}</Text>
               <Text style={styles.partnerSubtitle}>{nextAction}</Text>
             </View>
           </View>

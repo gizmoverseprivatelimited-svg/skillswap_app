@@ -148,7 +148,7 @@ export default function ProfileScreen() {
 
     const interval = setInterval(() => {
       fetchReviews(true);
-    }, 5000);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [fetchReviews, fetchVerifications]);

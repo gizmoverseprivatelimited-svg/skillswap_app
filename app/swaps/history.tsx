@@ -246,7 +246,7 @@ export default function SwapHistoryScreen() {
                       />
                       <View style={styles.partnerDetails}>
                         <Text style={styles.partnerName}>
-                          {partner?.name || (partner?.username ? `@${partner.username}` : 'Skill Partner')}
+                          {partner?.username ? (partner.username.startsWith('@') ? partner.username : `@${partner.username}`) : (partner?.name ? `@${partner.name.toLowerCase().replace(/\s+/g, '')}` : 'Skill Partner')}
                         </Text>
                         <Text style={styles.swapDateText}>
                           Updated {new Date(swap.updatedAt || Date.now()).toLocaleDateString()}

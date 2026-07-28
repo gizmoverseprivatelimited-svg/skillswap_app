@@ -153,8 +153,8 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
       timeoutId = setTimeout(() => {
         intervalId = setInterval(() => {
           loadUser(true);
-        }, 10000);
-      }, 2000);
+        }, 20000);
+      }, 5000);
     }
 
     return () => {

@@ -516,7 +516,7 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
                         <Text style={styles.avatarInitials}>{(review.reviewer?.username || review.reviewer?.name || 'US').slice(0, 2).toUpperCase()}</Text>
                       </View>
                       <View style={styles.reviewerInfo}>
-                        <Text style={styles.reviewerName}>{review.reviewer?.username ? `@${review.reviewer.username}` : review.reviewer?.name}</Text>
+                        <Text style={styles.reviewerName}>{review.reviewer?.username ? (review.reviewer.username.startsWith('@') ? review.reviewer.username : `@${review.reviewer.username}`) : `@${(review.reviewer?.name || 'user').toLowerCase().replace(/\s+/g, '')}`}</Text>
                         <Text style={styles.reviewDate}>{new Date(review.createdAt).toLocaleDateString()}</Text>
                       </View>
                     </View>

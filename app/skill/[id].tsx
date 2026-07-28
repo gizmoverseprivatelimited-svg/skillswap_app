@@ -252,7 +252,7 @@ export default function SkillDetailScreen() {
                 style={styles.teacherAvatar}
               />
               <View style={styles.teacherInfo}>
-                <Text style={styles.teacherName}>{skill.user.username ? `@${skill.user.username}` : skill.user.name}</Text>
+                <Text style={styles.teacherName}>{skill.user.username ? (skill.user.username.startsWith('@') ? skill.user.username : `@${skill.user.username}`) : `@${skill.user.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
                 <View style={styles.teacherStats}>
                   <View style={styles.statItem}>
                     <Star size={14} fill={Colors.light.accent} color={Colors.light.accent} />

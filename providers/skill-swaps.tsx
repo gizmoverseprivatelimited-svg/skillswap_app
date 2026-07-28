@@ -293,7 +293,7 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
         fetchSwaps(true);
         fetchAllSwaps(true);
       }, 4000);
-    }, 2000);
+    }, 5000);
 
     return () => {
       clearTimeout(timeoutId);

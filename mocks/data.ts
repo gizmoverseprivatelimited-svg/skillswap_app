@@ -9,7 +9,7 @@ console.log("Hey Hey", API_URL);
 async function apiGet<T>(endpoint: string): Promise<T> {
   const fullUrl = `${API_URL}${endpoint}`;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000);
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
   try {
     const res = await fetch(fullUrl, { signal: controller.signal });
     clearTimeout(timeoutId);
@@ -54,6 +54,7 @@ export const mockUsers: User[] = [
   {
     id: '1',
     name: 'User',
+    username: '@user',
     avatarUrl: 'https://i.pravatar.cc/150?img=1',
     bio: 'Passionate photographer and yoga instructor. Love connecting with people and learning new things!',
     location: 'Mumbai, Maharashtra',
@@ -69,6 +70,7 @@ export const mockUsers: User[] = [
   {
     id: '2',
     name: 'Rahul Verma',
+    username: '@rahulverma',
     avatarUrl: 'https://i.pravatar.cc/150?img=12',
     bio: 'Software engineer by day, chef by night. Always eager to share my coding knowledge!',
     location: 'Bengaluru, Karnataka',
@@ -83,6 +85,7 @@ export const mockUsers: User[] = [
   {
     id: '3',
     name: 'Ananya Reddy',
+    username: '@ananyareddy',
     avatarUrl: 'https://i.pravatar.cc/150?img=5',
     bio: 'Language enthusiast and guitar player. Teaching Telugu and Hindi for 5+ years!',
     location: 'Hyderabad, Telangana',
@@ -98,6 +101,7 @@ export const mockUsers: User[] = [
   {
     id: '4',
     name: 'Arjun Mehta',
+    username: '@arjunmehta',
     avatarUrl: 'https://i.pravatar.cc/150?img=13',
     bio: 'Piano teacher and fitness coach. Music is life!',
     location: 'Delhi NCR',
@@ -112,6 +116,7 @@ export const mockUsers: User[] = [
   {
     id: '5',
     name: 'Kavya Nair',
+    username: '@kavyanair',
     avatarUrl: 'https://i.pravatar.cc/150?img=9',
     bio: 'Digital artist and designer. Love teaching creative skills!',
     location: 'Chennai, Tamil Nadu',
@@ -127,6 +132,7 @@ export const mockUsers: User[] = [
   {
     id: '6',
     name: 'Vikram Singh',
+    username: '@vikramsingh',
     avatarUrl: 'https://i.pravatar.cc/150?img=14',
     bio: 'Web developer and tech enthusiast. Happy to help anyone learn to code!',
     location: 'Pune, Maharashtra',
@@ -275,6 +281,7 @@ export const categories = [
   'Photography',
   'Classical Arts',
   'Competitive Exams',
+  'Other',
 ];
 
 export const mockResources: ResourceMeta[] = [
