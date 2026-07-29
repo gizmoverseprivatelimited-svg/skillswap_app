@@ -12,11 +12,11 @@ import { Mail, Phone, Apple, Chrome, Sparkles, Lock, User, ArrowLeft } from 'luc
 import { useAuth } from '@/providers/auth';
 import url from '@/constants/backurl';
 import * as Linking from 'expo-linking';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { webAuth, nativeAuth, googleProvider, signInWithPopup } from '@/lib/firebase';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
 GoogleSignin.configure({
   webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
+  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_ID,
 });
 
 WebBrowser.maybeCompleteAuthSession();
@@ -289,46 +289,84 @@ export default function LoginScreen() {
       console.log('[Login] Google sign-in start');
 
       if (Platform.OS === 'web') {
-        if (!webAuth || !googleProvider || !signInWithPopup) {
-          throw new Error('Firebase web auth not initialized');
+        const clientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_ID;
+        if (!clientId) {
+          showAlert('Configuration Error', 'Google Client ID is missing');
+          return;
         }
-        const result = await signInWithPopup(webAuth, googleProvider);
-        const userInfo = result.user;
-        
-        await auth.signInWithOAuth('google', {
-          providerId: userInfo.uid,
-          email: userInfo.email || '',
-          name: userInfo.displayName || undefined,
-          avatar: userInfo.photoURL || undefined,
+
+        // Use Google Identity Services script client dynamically on web
+        const loadGis = () =>
+          new Promise<void>((resolve, reject) => {
+            if ((window as any).google?.accounts?.oauth2) {
+              resolve();
+              return;
+            }
+            const script = document.createElement('script');
+            script.src = 'https://accounts.google.com/gsi/client';
+            script.async = true;
+            script.onload = () => resolve();
+            script.onerror = (e) => reject(e);
+            document.body.appendChild(script);
+          });
+
+        await loadGis();
+
+        const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'profile email',
+          callback: async (tokenResponse: any) => {
+            if (tokenResponse.error) {
+              console.error('[Login] GIS token error', tokenResponse);
+              showAlert('Google Sign in failed', tokenResponse.error_description || tokenResponse.error);
+              return;
+            }
+
+            const token = tokenResponse.access_token;
+            if (token) {
+              const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              const userInfo = await userInfoResponse.json();
+
+              await auth.signInWithOAuth('google', {
+                providerId: userInfo.id,
+                email: userInfo.email,
+                name: userInfo.name,
+                avatar: userInfo.picture,
+              });
+
+              router.replace('/');
+            }
+          },
         });
-        
-        router.replace('/');
+
+        tokenClient.requestAccessToken();
+        return;
       } else {
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-        const signInResult = await GoogleSignin.signIn();
-        const idToken = signInResult.data?.idToken;
-        
-        if (!idToken) throw new Error('No idToken returned from Google');
-        
-        const googleCredential = nativeAuth.GoogleAuthProvider.credential(idToken);
-        const userCredential = await nativeAuth().signInWithCredential(googleCredential);
-        const userInfo = userCredential.user;
-        
+        const response = await GoogleSignin.signIn();
+        const user = response.data?.user;
+
+        if (!user) {
+          throw new Error('Could not retrieve user details from Google Sign-In');
+        }
+
         await auth.signInWithOAuth('google', {
-          providerId: userInfo.uid,
-          email: userInfo.email || '',
-          name: userInfo.displayName || undefined,
-          avatar: userInfo.photoURL || undefined,
+          providerId: user.id,
+          email: user.email,
+          name: user.name || undefined,
+          avatar: user.photo || undefined,
         });
 
         router.replace('/');
       }
     } catch (error: any) {
-      if (error?.code === 'SIGN_IN_CANCELLED' || error?.code === 'auth/popup-closed-by-user') {
+      if (error?.code === statusCodes.SIGN_IN_CANCELLED) {
         console.log('[Login] Google sign-in cancelled');
       } else {
         console.error('[Login] Google sign-in error', error);
-        showAlert('Google Sign in failed');
+        showAlert('Google Sign in failed', error.message || 'Please try again.');
       }
     }
   }, [router, auth, showAlert]);

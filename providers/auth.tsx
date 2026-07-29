@@ -183,9 +183,12 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
       body: JSON.stringify({ provider, ...data }),
     });
 
-    if (!res.ok) throw new Error('OAuth failed');
-
     const result = await res.json();
+    if (!res.ok) {
+      console.error('[Auth] OAuth backend error:', result);
+      throw new Error(result.message || 'OAuth failed');
+    }
+
     await saveToken(result.token, result.user);
   }, [saveToken]);
 
