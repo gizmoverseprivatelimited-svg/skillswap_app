@@ -36,7 +36,7 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
         const newSkills: Skill[] = data.skillsToTeach
           .filter(title => !existingTitles.has(title.toLowerCase()))
           .map((title, idx) => ({
-            id: `onboard-${prev.id}-${idx}`,
+            id: `onboard-${prev.id}-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 8)}`,
             title,
             category: title as SkillCategory,
             description: `Teaching ${title}`,

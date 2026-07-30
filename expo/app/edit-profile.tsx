@@ -9,11 +9,13 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { useState } from 'react';
-import { X, Plus, Camera } from 'lucide-react-native';
+import { useState, useEffect } from 'react';
+import { X, Plus, Camera, IndianRupee, Sparkles, TrendingUp } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Colors from '@/constants/colors';
 import { useCurrentUser } from '@/providers/current-user';
+import { formatPrice } from '@/constants/locale';
+import type { PricingModel } from '@/types';
 import { trpc } from '@/lib/trpc';
 
 export default function EditProfileScreen() {
@@ -29,6 +31,30 @@ export default function EditProfileScreen() {
   const [newSkillWanted, setNewSkillWanted] = useState<string>('');
   
   const [isSaving, setIsSaving] = useState<boolean>(false);
+
+  const teachSkills = currentUser.skillsOffered;
+  const [skillPricing, setSkillPricing] = useState<Record<string, { model: PricingModel; price: string; promoted: boolean; tagline: string }>>({});
+
+  useEffect(() => {
+    const map: Record<string, { model: PricingModel; price: string; promoted: boolean; tagline: string }> = {};
+    teachSkills.forEach(s => {
+      map[s.id] = {
+        model: s.pricingModel ?? 'free',
+        price: s.pricingModel === 'per_session' ? String(s.pricePerSession ?? '') : s.pricingModel === 'monthly' ? String(s.monthlyPrice ?? '') : '',
+        promoted: s.promoted ?? false,
+        tagline: s.promoTagline ?? '',
+      };
+    });
+    setSkillPricing(map);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teachSkills.length]);
+
+  const updateSkillPricing = (skillId: string, field: 'model' | 'price' | 'promoted' | 'tagline', value: string | boolean) => {
+    setSkillPricing(prev => ({
+      ...prev,
+      [skillId]: { ...prev[skillId], [field]: value },
+    }));
+  };
 
   const handleAddSkillWanted = () => {
     if (newSkillWanted.trim()) {
@@ -48,6 +74,17 @@ export default function EditProfileScreen() {
       Alert.alert('Error', 'Name is required');
       return;
     }
+
+    // Apply pricing changes to currentUser's skills
+    teachSkills.forEach(s => {
+      const p = skillPricing[s.id];
+      if (!p) return;
+      s.pricingModel = p.model;
+      s.pricePerSession = p.model === 'per_session' ? Number(p.price) || 0 : undefined;
+      s.monthlyPrice = p.model === 'monthly' ? Number(p.price) || 0 : undefined;
+      s.promoted = p.promoted;
+      s.promoTagline = p.promoted ? p.tagline.trim() || undefined : undefined;
+    });
 
     setIsSaving(true);
     
@@ -257,6 +294,90 @@ export default function EditProfileScreen() {
             </View>
           </View>
 
+          {/* TEACHER PRICING & PROMOTION SECTION */}
+          {teachSkills.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.pricingSectionHeader}>
+                <TrendingUp size={18} color="#10B981" />
+                <Text style={styles.pricingSectionTitle}>My Teaching Prices & Promotion</Text>
+              </View>
+              <Text style={styles.pricingSectionHint}>
+                Set your class prices and promote your skills to attract more learners.
+              </Text>
+
+              {teachSkills.map((skill) => {
+                const p = skillPricing[skill.id];
+                if (!p) return null;
+                return (
+                  <View key={skill.id} style={styles.skillPricingCard}>
+                    <Text style={styles.skillPricingTitle}>{skill.title}</Text>
+
+                    {/* Pricing model selector */}
+                    <View style={styles.pricingModelRow}>
+                      {(['free', 'per_session', 'monthly'] as PricingModel[]).map((m) => (
+                        <TouchableOpacity
+                          key={m}
+                          style={[styles.pricingModelChip, p.model === m && styles.pricingModelChipSelected]}
+                          onPress={() => updateSkillPricing(skill.id, 'model', m)}
+                        >
+                          <Text style={[styles.pricingModelChipText, p.model === m && styles.pricingModelChipTextSelected]}>
+                            {m === 'free' ? 'Free' : m === 'per_session' ? 'Per Session' : 'Monthly'}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {/* Price input */}
+                    {p.model !== 'free' && (
+                      <View style={styles.priceInputRow}>
+                        <Text style={styles.priceInputPrefix}>₹</Text>
+                        <TextInput
+                          style={styles.priceInputField}
+                          value={p.price}
+                          onChangeText={(v) => updateSkillPricing(skill.id, 'price', v)}
+                          placeholder={p.model === 'per_session' ? '500' : '2000'}
+                          placeholderTextColor={Colors.light.textTertiary}
+                          keyboardType="numeric"
+                          maxLength={6}
+                        />
+                        <Text style={styles.priceInputSuffix}>
+                          {p.model === 'per_session' ? '/ session' : '/ month'}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Promotion toggle */}
+                    <TouchableOpacity
+                      style={styles.promoteRow}
+                      onPress={() => updateSkillPricing(skill.id, 'promoted', !p.promoted)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.promoteLeft}>
+                        <Sparkles size={16} color="#F59E0B" />
+                        <Text style={styles.promoteLabel}>Promote this skill</Text>
+                      </View>
+                      <View style={[styles.toggleSwitch, p.promoted && styles.toggleSwitchOn]}>
+                        <View style={[styles.toggleKnob, p.promoted && styles.toggleKnobOn]} />
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* Promo tagline */}
+                    {p.promoted && (
+                      <TextInput
+                        style={[styles.input, styles.promoInput]}
+                        value={p.tagline}
+                        onChangeText={(v) => updateSkillPricing(skill.id, 'tagline', v)}
+                        placeholder="e.g. 20% off first session! Free trial week!"
+                        placeholderTextColor={Colors.light.textTertiary}
+                        maxLength={80}
+                      />
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
               Note: To edit your skills offered, please manage them individually from your profile.
@@ -413,6 +534,136 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.light.primary,
     lineHeight: 20,
+  },
+  // Pricing & promotion section
+  pricingSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  pricingSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  pricingSectionHint: {
+    fontSize: 13,
+    color: Colors.light.textSecondary,
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  skillPricingCard: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    marginBottom: 14,
+  },
+  skillPricingTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    marginBottom: 14,
+  },
+  pricingModelRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  pricingModelChip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: Colors.light.backgroundTertiary,
+    borderWidth: 1.5,
+    borderColor: Colors.light.borderLight,
+  },
+  pricingModelChipSelected: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#10B981',
+  },
+  pricingModelChipText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.light.textSecondary,
+  },
+  pricingModelChipTextSelected: {
+    color: '#10B981',
+  },
+  priceInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.light.backgroundTertiary,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+  },
+  priceInputPrefix: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  priceInputField: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+  },
+  priceInputSuffix: {
+    fontSize: 13,
+    color: Colors.light.textSecondary,
+    fontWeight: '500' as const,
+  },
+  promoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  promoteLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  promoteLabel: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.light.text,
+  },
+  toggleSwitch: {
+    width: 44,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: Colors.light.border,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  toggleSwitchOn: {
+    backgroundColor: '#F59E0B',
+  },
+  toggleKnob: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  toggleKnobOn: {
+    transform: [{ translateX: 18 }],
+  },
+  promoInput: {
+    marginTop: 12,
   },
   footer: {
     position: 'absolute',

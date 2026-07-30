@@ -1,0 +1,82 @@
+==============================================================================
+UBUNTU SERVER UPDATE COMMANDS (SkillSwap Backend & Frontend)
+==============================================================================
+
+------------------------------------------------------------------------------
+SECTION 1: BACKEND UPDATE (PM2)
+------------------------------------------------------------------------------
+Navigate to your backend project directory:
+  cd /path/to/your/backend-repo
+
+Pull latest code from GitHub:
+  git pull origin main
+
+Install dependencies:
+  npm install --production
+
+Restart your PM2 process:
+  pm2 restart all
+  (or use app name: pm2 restart <app-name>)
+
+Check PM2 logs/status:
+  pm2 status
+  pm2 logs
+
+
+------------------------------------------------------------------------------
+SECTION 2: FRONTEND UPDATE (/var/www/skillswap-frontend)
+------------------------------------------------------------------------------
+Option A: If building from source repository on server
+------------------------------------------------------
+1. Navigate to frontend source directory:
+     cd /path/to/your/frontend-repo
+
+2. Pull latest code from GitHub:
+     git pull origin main
+
+3. Install dependencies:
+     npm install
+
+4. Build project / export static files:
+     npx expo export --platform web
+     (or: npm run build)
+
+5. Clear old files from /var/www/skillswap-frontend:
+     sudo rm -rf /var/www/skillswap-frontend/*
+
+6. Copy new static output files to web folder:
+     sudo cp -r dist/* /var/www/skillswap-frontend/
+
+7. Reset permissions for Nginx / Apache:
+     sudo chown -R www-data:www-data /var/www/skillswap-frontend
+     sudo chmod -R 755 /var/www/skillswap-frontend
+
+
+Option B: If git repo is pulled directly into /var/www/skillswap-frontend
+-------------------------------------------------------------------------
+1. Clear old files / clean directory:
+     sudo rm -rf /var/www/skillswap-frontend/*
+
+2. Pull latest code:
+     cd /var/www/skillswap-frontend
+     git pull origin main
+
+3. Reset permissions:
+     sudo chown -R www-data:www-data /var/www/skillswap-frontend
+     sudo chmod -R 755 /var/www/skillswap-frontend
+
+
+------------------------------------------------------------------------------
+SECTION 3: RELOAD NGINX WEB SERVER
+------------------------------------------------------------------------------
+Reload Nginx to apply changes:
+  sudo systemctl reload nginx
+
+
+------------------------------------------------------------------------------
+SECTION 4: QUICK ONE-LINER COMMAND
+------------------------------------------------------------------------------
+Backend + Frontend Update One-Liner:
+
+cd /path/to/backend && git pull && npm install && pm2 restart all && cd /path/to/frontend && git pull && npm install && npx expo export --platform web && sudo rm -rf /var/www/skillswap-frontend/* && sudo cp -r dist/* /var/www/skillswap-frontend/ && sudo chown -R www-data:www-data /var/www/skillswap-frontend && sudo systemctl reload nginx
+==============================================================================

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { MapPin, Star, Users, ArrowRight, Award, Clock, CalendarCheck2 } from 'lucide-react-native';
+import { MapPin, Star, Users, ArrowRight, Award, Clock, CalendarCheck2, IndianRupee, Sparkles } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '../../constants/colors';
@@ -12,6 +12,7 @@ import SkillSwapRequestModal from '../../components/SkillSwapRequestModal';
 import { useSkillSwaps } from '../../providers/skill-swaps';
 import { useCurrentUser } from '../../providers/current-user';
 import type { SkillSwapStatus } from '../../types';
+import { formatPrice } from '../../constants/locale';
 
 const swapStatusPalette: Record<SkillSwapStatus | 'fallback', { bg: string; border: string }> = {
   pending: { bg: 'rgba(249, 115, 22, 0.15)', border: 'rgba(249, 115, 22, 0.4)' },
@@ -179,7 +180,36 @@ export default function SkillDetailScreen() {
           </View>
 
           <Text style={styles.title}>{skill.title}</Text>
-          
+
+          {(skill.promoted || skill.pricingModel) && (
+            <View style={styles.pricingCard}>
+              {skill.promoted && skill.promoTagline && (
+                <View style={styles.promoBanner}>
+                  <Sparkles size={16} color="#F59E0B" />
+                  <Text style={styles.promoText}>{skill.promoTagline}</Text>
+                </View>
+              )}
+              {skill.pricingModel && skill.pricingModel !== 'free' && (
+                <View style={styles.priceRow}>
+                  <IndianRupee size={20} color="#10B981" />
+                  <Text style={styles.priceValue}>
+                    {skill.pricingModel === 'per_session'
+                      ? `${formatPrice(skill.pricePerSession ?? 0)}`
+                      : `${formatPrice(skill.monthlyPrice ?? 0)}`}
+                  </Text>
+                  <Text style={styles.priceUnit}>
+                    {skill.pricingModel === 'per_session' ? '/ session' : '/ month'}
+                  </Text>
+                </View>
+              )}
+              {skill.pricingModel === 'free' && (
+                <View style={styles.priceRow}>
+                  <Text style={styles.freeTag}>Free — Skill Exchange</Text>
+                </View>
+              )}
+            </View>
+          )}
+
           <View style={styles.description}>
             <Text style={styles.descriptionText}>{skill.description}</Text>
           </View>
@@ -450,6 +480,53 @@ const styles = StyleSheet.create({
   },
   wantsSection: {
     marginBottom: 24,
+  },
+  pricingCard: {
+    backgroundColor: Colors.light.backgroundTertiary,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    gap: 12,
+  },
+  promoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  promoText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#92400E',
+    flex: 1,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  priceValue: {
+    fontSize: 28,
+    fontWeight: '800' as const,
+    color: '#10B981',
+  },
+  priceUnit: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: Colors.light.textSecondary,
+    marginLeft: 6,
+  },
+  freeTag: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#10B981',
   },
   wantsTags: {
     flexDirection: 'row',

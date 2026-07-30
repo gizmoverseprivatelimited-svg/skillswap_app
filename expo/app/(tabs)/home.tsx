@@ -8,10 +8,11 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { RefreshCcw, Star, TrendingUp, Users, Zap, GraduationCap, BookOpen, ArrowLeftRight } from 'lucide-react-native';
+import { RefreshCcw, Star, TrendingUp, Users, Zap, GraduationCap, BookOpen, ArrowLeftRight, Sparkles, IndianRupee } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '../../constants/colors';
 import { getSkillsWithUsers, categories } from '../../mocks/data';
+import { formatPrice } from '../../constants/locale';
 import MatchCard from '../../components/MatchCard';
 import { useCurrentUser } from '../../providers/current-user';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +29,7 @@ export default function HomeScreen() {
     : skillsWithUsers.filter(skill => skill.category === selectedCategory);
 
   const featuredSkills = skillsWithUsers.slice(0, 3);
+  const promotedSkills = useMemo(() => skillsWithUsers.filter(s => s.promoted).slice(0, 5), [skillsWithUsers]);
   const topTeachMatches = useMemo(() => teachMatches.slice(0, 4), [teachMatches]);
   const topLearnMatches = useMemo(() => learnMatches.slice(0, 4), [learnMatches]);
   const topSwapMatches = useMemo(() => swapMatches.slice(0, 4), [swapMatches]);
@@ -102,6 +104,68 @@ export default function HomeScreen() {
         </LinearGradient>
 
         <View style={styles.content}>
+          {promotedSkills.length > 0 && (
+            <View style={styles.promotedSection} testID="promoted-teachers-section">
+              <View style={styles.matchesHeader}>
+                <View style={styles.matchesTitleGroup}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Sparkles size={18} color="#F59E0B" />
+                    <Text style={styles.promotedTitle}>Promoted Teachers</Text>
+                  </View>
+                  <Text style={styles.matchesSubtitle}>Featured classes with special offers</Text>
+                </View>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.promotedScroll}
+              >
+                {promotedSkills.map((skill) => (
+                  <TouchableOpacity
+                    key={`promo-${skill.id}`}
+                    style={styles.promotedCard}
+                    onPress={() => router.push(`/skill/${skill.id}` as any)}
+                    activeOpacity={0.85}
+                  >
+                    <Image source={{ uri: skill.imageUrl }} style={styles.promotedImage} />
+                    <LinearGradient
+                      colors={['transparent', 'rgba(0,0,0,0.8)']}
+                      style={styles.promotedGradient}
+                    >
+                      <View style={styles.promotedBadgeRow}>
+                        <View style={styles.promotedBadge}>
+                          <Sparkles size={10} color="#F59E0B" />
+                          <Text style={styles.promotedBadgeText}>PROMOTED</Text>
+                        </View>
+                        {skill.pricingModel !== 'free' && (
+                          <View style={styles.promotedPriceBadge}>
+                            <Text style={styles.promotedPriceText}>
+                              {skill.pricingModel === 'per_session'
+                                ? `${formatPrice(skill.pricePerSession ?? 0)}/session`
+                                : `${formatPrice(skill.monthlyPrice ?? 0)}/mo`}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.promotedContent}>
+                        <Text style={styles.promotedSkillTitle} numberOfLines={1}>{skill.title}</Text>
+                        <Text style={styles.promotedTagline} numberOfLines={2}>{skill.promoTagline}</Text>
+                        <View style={styles.promotedTeacherRow}>
+                          <Image source={{ uri: skill.user.avatarUrl }} style={styles.promotedAvatar} />
+                          <Text style={styles.promotedTeacherName} numberOfLines={1}>{skill.user.name}</Text>
+                          <View style={styles.promotedRating}>
+                            <Star size={10} fill={Colors.light.accent} color={Colors.light.accent} />
+                            <Text style={styles.promotedRatingText}>{skill.user.rating}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           <View style={styles.matchesSection} testID="smart-matches-section">
             <View style={styles.matchesHeader}>
               <View style={styles.matchesTitleGroup}>
@@ -388,6 +452,117 @@ const styles = StyleSheet.create({
   matchesSection: {
     marginTop: 24,
     paddingBottom: 12,
+  },
+  // Promoted teachers
+  promotedSection: {
+    marginTop: 20,
+    paddingBottom: 12,
+  },
+  promotedTitle: {
+    fontSize: 22,
+    fontWeight: '800' as const,
+    color: Colors.light.text,
+  },
+  promotedScroll: {
+    paddingLeft: 20,
+    paddingRight: 12,
+  },
+  promotedCard: {
+    width: 280,
+    height: 340,
+    marginRight: 16,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: Colors.light.card,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  promotedImage: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+  },
+  promotedGradient: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'space-between',
+  },
+  promotedBadgeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  promotedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.95)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  promotedBadgeText: {
+    fontSize: 10,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  promotedPriceBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.95)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  promotedPriceText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  promotedContent: {
+    gap: 6,
+  },
+  promotedSkillTitle: {
+    fontSize: 20,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+  },
+  promotedTagline: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 18,
+  },
+  promotedTeacherRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  promotedAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  promotedTeacherName: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#FFFFFF',
+    flex: 1,
+  },
+  promotedRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  promotedRatingText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
   },
   matchesHeader: {
     flexDirection: 'row',

@@ -41,6 +41,7 @@ import { useCurrentUser } from '@/providers/current-user';
 import { useSkillSwaps } from '@/providers/skill-swaps';
 import { useEarnings } from '@/providers/earnings';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
+import { formatPrice } from '@/constants/locale';
 import url from '@/constants/backurl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -479,9 +480,26 @@ export default function ProfileScreen() {
                     <View style={[styles.skillImage, { backgroundColor: Colors.light.backgroundTertiary }]} />
                   )}
                   <LinearGradient
-                    colors={['transparent', 'rgba(0,0,0,0.8)']}
+                    colors={['transparent', 'rgba(0,0,0,0.85)']}
                     style={styles.skillOverlay}
                   >
+                    <View style={styles.skillBadgeRow}>
+                      {skill.promoted && (
+                        <View style={styles.skillPromotedBadge}>
+                          <Sparkles size={8} color="#F59E0B" />
+                          <Text style={styles.skillPromotedBadgeText}>PROMOTED</Text>
+                        </View>
+                      )}
+                      {skill.pricingModel && skill.pricingModel !== 'free' && (
+                        <View style={styles.skillPriceBadge}>
+                          <Text style={styles.skillPriceBadgeText}>
+                            {skill.pricingModel === 'per_session'
+                              ? `${formatPrice(skill.pricePerSession ?? 0)}/s`
+                              : `${formatPrice(skill.monthlyPrice ?? 0)}/m`}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={styles.skillCardTitle} numberOfLines={2}>
                       {skill.title}
                     </Text>
@@ -1013,6 +1031,37 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     justifyContent: 'space-between',
+  },
+  skillBadgeRow: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+  },
+  skillPromotedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.95)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  skillPromotedBadgeText: {
+    fontSize: 9,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  skillPriceBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.95)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  skillPriceBadgeText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
   },
   skillCardTitle: {
     fontSize: 20,

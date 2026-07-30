@@ -22,9 +22,16 @@ export interface Skill {
   level: SkillLevel;
   userId: string;
   imageUrl: string;
+  pricingModel?: PricingModel;
+  pricePerSession?: number;
+  monthlyPrice?: number;
+  promoted?: boolean;
+  promoTagline?: string;
 }
 
 export type OnboardingRole = 'teacher' | 'learner' | 'swap';
+
+export type PricingModel = 'free' | 'per_session' | 'monthly';
 
 export type PremiumTier = 'free' | 'basic' | 'premium' | 'elite';
 

@@ -20,10 +20,13 @@ import {
   ArrowLeftRight,
   Check,
   ArrowLeft,
+  Sparkles,
+  IndianRupee,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useCurrentUser } from '@/providers/current-user';
-import { SkillCategory, SkillLevel, Skill } from '@/types';
+import { SkillCategory, SkillLevel, Skill, PricingModel } from '@/types';
+import { formatPrice } from '@/constants/locale';
 
 type AddMode = 'teach' | 'learn' | 'swap';
 
@@ -76,6 +79,12 @@ const CATEGORIES: SkillCategory[] = [
 
 const LEVELS: SkillLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
 
+const PRICING_MODELS: { key: PricingModel; label: string; desc: string }[] = [
+  { key: 'free', label: 'Free', desc: 'No charge — pure skill exchange' },
+  { key: 'per_session', label: 'Per Session', desc: 'Charge for each class' },
+  { key: 'monthly', label: 'Monthly', desc: 'Recurring monthly subscription' },
+];
+
 const STOCK_IMAGES: Record<SkillCategory, string> = {
   'Arts & Crafts': 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800',
   'Technology': 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800',
@@ -99,6 +108,11 @@ export default function AddSkillScreen() {
   const [teachLevel, setTeachLevel] = useState<SkillLevel | null>(null);
   const [teachDescription, setTeachDescription] = useState<string>('');
   const [showTeachCategory, setShowTeachCategory] = useState<boolean>(false);
+  const [pricingModel, setPricingModel] = useState<PricingModel>('free');
+  const [pricePerSession, setPricePerSession] = useState<string>('');
+  const [monthlyPrice, setMonthlyPrice] = useState<string>('');
+  const [promoteSkill, setPromoteSkill] = useState<boolean>(false);
+  const [promoTagline, setPromoTagline] = useState<string>('');
 
   const [learnTitle, setLearnTitle] = useState<string>('');
   const [learnCategory, setLearnCategory] = useState<SkillCategory | null>(null);
@@ -117,6 +131,12 @@ export default function AddSkillScreen() {
       if (!teachTitle.trim()) return 'Please enter the skill you can teach.';
       if (!teachCategory) return 'Please select a category for your teach skill.';
       if (!teachLevel) return 'Please select your proficiency level.';
+      if (pricingModel === 'per_session' && (!pricePerSession.trim() || Number(pricePerSession) <= 0))
+        return 'Please set a valid per-session price.';
+      if (pricingModel === 'monthly' && (!monthlyPrice.trim() || Number(monthlyPrice) <= 0))
+        return 'Please set a valid monthly price.';
+      if (promoteSkill && !promoTagline.trim())
+        return 'Please add a promotional tagline or disable promotion.';
     }
     if (showLearnFields) {
       if (!learnTitle.trim()) return 'Please enter the skill you want to learn.';
@@ -144,6 +164,11 @@ export default function AddSkillScreen() {
           level: teachLevel,
           userId: currentUser.id,
           imageUrl: teachImageUrl ?? STOCK_IMAGES['Technology'],
+          pricingModel,
+          pricePerSession: pricingModel === 'per_session' ? Number(pricePerSession) : undefined,
+          monthlyPrice: pricingModel === 'monthly' ? Number(monthlyPrice) : undefined,
+          promoted: promoteSkill,
+          promoTagline: promoteSkill ? promoTagline.trim() : undefined,
         });
       }
 
@@ -179,6 +204,11 @@ export default function AddSkillScreen() {
     setTeachLevel(null);
     setTeachDescription('');
     setShowTeachCategory(false);
+    setPricingModel('free');
+    setPricePerSession('');
+    setMonthlyPrice('');
+    setPromoteSkill(false);
+    setPromoTagline('');
     setLearnTitle('');
     setLearnCategory(null);
     setShowLearnCategory(false);
@@ -372,6 +402,110 @@ export default function AddSkillScreen() {
                   maxLength={300}
                 />
                 <Text style={styles.charCount}>{teachDescription.length}/300</Text>
+              </View>
+
+              {/* PRICING SECTION */}
+              <View style={[styles.section, styles.pricingSection]}>
+                <View style={styles.pricingHeader}>
+                  <IndianRupee size={16} color="#10B981" />
+                  <Text style={styles.pricingTitle}>Class Pricing</Text>
+                </View>
+                <Text style={styles.pricingHint}>Choose how you want to charge for your classes</Text>
+                <View style={styles.pricingOptions}>
+                  {PRICING_MODELS.map((pm) => (
+                    <TouchableOpacity
+                      key={pm.key}
+                      style={[styles.pricingChip, pricingModel === pm.key && styles.pricingChipSelected]}
+                      onPress={() => setPricingModel(pm.key)}
+                    >
+                      <Text style={[styles.pricingChipLabel, pricingModel === pm.key && styles.pricingChipLabelSelected]}>
+                        {pm.label}
+                      </Text>
+                      <Text style={[styles.pricingChipDesc, pricingModel === pm.key && styles.pricingChipDescSelected]}>
+                        {pm.desc}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {pricingModel === 'per_session' && (
+                  <View style={styles.priceInputWrap}>
+                    <Text style={styles.pricePrefix}>{formatPrice(0).replace('0', '')}</Text>
+                    <TextInput
+                      style={styles.priceInput}
+                      value={pricePerSession}
+                      onChangeText={setPricePerSession}
+                      placeholder="500"
+                      placeholderTextColor={Colors.light.textTertiary}
+                      keyboardType="numeric"
+                      maxLength={6}
+                    />
+                    <Text style={styles.priceSuffix}>per session</Text>
+                  </View>
+                )}
+
+                {pricingModel === 'monthly' && (
+                  <View style={styles.priceInputWrap}>
+                    <Text style={styles.pricePrefix}>{formatPrice(0).replace('0', '')}</Text>
+                    <TextInput
+                      style={styles.priceInput}
+                      value={monthlyPrice}
+                      onChangeText={setMonthlyPrice}
+                      placeholder="2000"
+                      placeholderTextColor={Colors.light.textTertiary}
+                      keyboardType="numeric"
+                      maxLength={6}
+                    />
+                    <Text style={styles.priceSuffix}>per month</Text>
+                  </View>
+                )}
+
+                {pricingModel !== 'free' && Number(pricePerSession || monthlyPrice || 0) > 0 && (
+                  <View style={styles.pricePreview}>
+                    <Text style={styles.pricePreviewText}>
+                      Learners see: <Text style={styles.pricePreviewValue}>
+                        {pricingModel === 'per_session'
+                          ? `${formatPrice(Number(pricePerSession))} / session`
+                          : `${formatPrice(Number(monthlyPrice))} / month`}
+                      </Text>
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* PROMOTION SECTION */}
+              <View style={[styles.section, styles.promoteSection]}>
+                <TouchableOpacity
+                  style={styles.promoteToggleRow}
+                  onPress={() => setPromoteSkill(!promoteSkill)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.promoteToggleLeft}>
+                    <Sparkles size={18} color="#F59E0B" />
+                    <View>
+                      <Text style={styles.promoteToggleTitle}>Promote this skill</Text>
+                      <Text style={styles.promoteToggleDesc}>Get featured & stand out to learners</Text>
+                    </View>
+                  </View>
+                  <View style={[styles.toggleSwitch, promoteSkill && styles.toggleSwitchOn]}>
+                    <View style={[styles.toggleKnob, promoteSkill && styles.toggleKnobOn]} />
+                  </View>
+                </TouchableOpacity>
+
+                {promoteSkill && (
+                  <View style={styles.promoTaglineWrap}>
+                    <Text style={styles.label}>Promotional Tagline <Text style={styles.required}>*</Text></Text>
+                    <TextInput
+                      style={styles.input}
+                      value={promoTagline}
+                      onChangeText={setPromoTagline}
+                      placeholder="e.g. 20% off first session! / Free trial week!"
+                      placeholderTextColor={Colors.light.textTertiary}
+                      maxLength={80}
+                    />
+                    <Text style={styles.charCount}>{promoTagline.length}/80</Text>
+                  </View>
+                )}
               </View>
             </View>
           )}
@@ -679,6 +813,166 @@ const styles = StyleSheet.create({
   },
   levelChipTextSelected: {
     color: '#FFFFFF',
+  },
+  // Pricing section
+  pricingSection: {
+    marginTop: 4,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.borderLight,
+  },
+  pricingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  pricingTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  pricingHint: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    marginBottom: 12,
+  },
+  pricingOptions: {
+    gap: 8,
+  },
+  pricingChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.light.backgroundTertiary,
+    borderWidth: 1.5,
+    borderColor: Colors.light.borderLight,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  pricingChipSelected: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#10B981',
+  },
+  pricingChipLabel: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    minWidth: 90,
+  },
+  pricingChipLabelSelected: {
+    color: '#10B981',
+  },
+  pricingChipDesc: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    flex: 1,
+  },
+  pricingChipDescSelected: {
+    color: '#10B981',
+  },
+  priceInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.light.backgroundTertiary,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    marginTop: 10,
+  },
+  pricePrefix: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  priceInput: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+  },
+  priceSuffix: {
+    fontSize: 13,
+    color: Colors.light.textSecondary,
+    fontWeight: '500' as const,
+  },
+  pricePreview: {
+    marginTop: 10,
+    backgroundColor: '#ECFDF5',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  pricePreviewText: {
+    fontSize: 13,
+    color: Colors.light.textSecondary,
+  },
+  pricePreviewValue: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#10B981',
+  },
+  // Promotion section
+  promoteSection: {
+    marginTop: 4,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.borderLight,
+  },
+  promoteToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  promoteToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  promoteToggleTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    marginBottom: 2,
+  },
+  promoteToggleDesc: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+  },
+  toggleSwitch: {
+    width: 44,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: Colors.light.border,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  toggleSwitchOn: {
+    backgroundColor: '#F59E0B',
+  },
+  toggleKnob: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  toggleKnobOn: {
+    transform: [{ translateX: 18 }],
+  },
+  promoTaglineWrap: {
+    marginTop: 14,
   },
   footer: {
     position: 'absolute',

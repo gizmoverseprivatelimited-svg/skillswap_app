@@ -100,6 +100,10 @@ export const mockSkills: Skill[] = [
     level: 'Intermediate',
     userId: '1',
     imageUrl: 'https://images.unsplash.com/photo-1554048612-b6a482bc67e5?w=800',
+    pricingModel: 'per_session',
+    pricePerSession: 500,
+    promoted: true,
+    promoTagline: 'Award-winning photographer — 20% off first session!',
   },
   {
     id: '2',
@@ -109,6 +113,8 @@ export const mockSkills: Skill[] = [
     level: 'Beginner',
     userId: '1',
     imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800',
+    pricingModel: 'monthly',
+    monthlyPrice: 2000,
   },
   {
     id: '3',
@@ -118,6 +124,8 @@ export const mockSkills: Skill[] = [
     level: 'Intermediate',
     userId: '2',
     imageUrl: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800',
+    pricingModel: 'per_session',
+    pricePerSession: 800,
   },
   {
     id: '4',
@@ -127,6 +135,7 @@ export const mockSkills: Skill[] = [
     level: 'Beginner',
     userId: '2',
     imageUrl: 'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=800',
+    pricingModel: 'free',
   },
   {
     id: '5',
@@ -136,6 +145,10 @@ export const mockSkills: Skill[] = [
     level: 'Intermediate',
     userId: '3',
     imageUrl: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800',
+    pricingModel: 'monthly',
+    monthlyPrice: 1500,
+    promoted: true,
+    promoTagline: '5+ years teaching experience — first week free!',
   },
   {
     id: '6',
@@ -145,6 +158,8 @@ export const mockSkills: Skill[] = [
     level: 'Beginner',
     userId: '3',
     imageUrl: 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=800',
+    pricingModel: 'per_session',
+    pricePerSession: 600,
   },
   {
     id: '7',
@@ -154,6 +169,8 @@ export const mockSkills: Skill[] = [
     level: 'Beginner',
     userId: '4',
     imageUrl: 'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=800',
+    pricingModel: 'per_session',
+    pricePerSession: 400,
   },
   {
     id: '8',
@@ -163,6 +180,7 @@ export const mockSkills: Skill[] = [
     level: 'Intermediate',
     userId: '4',
     imageUrl: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800',
+    pricingModel: 'free',
   },
   {
     id: '9',
@@ -172,6 +190,10 @@ export const mockSkills: Skill[] = [
     level: 'Advanced',
     userId: '5',
     imageUrl: 'https://images.unsplash.com/photo-1596548438137-d51ea5c83ca4?w=800',
+    pricingModel: 'monthly',
+    monthlyPrice: 2500,
+    promoted: true,
+    promoTagline: 'Procreate masterclass — portfolio-ready in 4 weeks!',
   },
   {
     id: '10',
@@ -181,6 +203,8 @@ export const mockSkills: Skill[] = [
     level: 'Intermediate',
     userId: '5',
     imageUrl: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800',
+    pricingModel: 'per_session',
+    pricePerSession: 1000,
   },
   {
     id: '11',
@@ -190,6 +214,8 @@ export const mockSkills: Skill[] = [
     level: 'Advanced',
     userId: '6',
     imageUrl: 'https://images.unsplash.com/photo-1537432376769-00f5c2f4c8d2?w=800',
+    pricingModel: 'monthly',
+    monthlyPrice: 3000,
   },
   {
     id: '12',
@@ -199,6 +225,7 @@ export const mockSkills: Skill[] = [
     level: 'Intermediate',
     userId: '6',
     imageUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800',
+    pricingModel: 'free',
   },
 ];
 
