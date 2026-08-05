@@ -9,13 +9,19 @@ import type {
   PayoutRequest,
   PointTransaction,
 } from '../types';
+import {
+  EARNING_RULES as PAYMENT_EARNING_RULES,
+  TEACHER_EARNINGS,
+  LEARNER_SWAP_COMPLETION_BONUS,
+  creditsToRupees as creditsToRupeesHelper,
+  getPayoutRate as getPayoutRateHelper,
+  getTeacherSessionEarnings,
+  MIN_PAYOUT_CREDITS,
+} from '../lib/payments';
 
-export const EARNING_RULES: EarningRule[] = [
-  { source: 'class_taught', label: 'Per Class Taught', points: 50, description: 'Earn 50 points for every completed class or swap session.' },
-  { source: 'monthly_subscription', label: 'Monthly Subscription Bonus', points: 200, description: 'Premium subscribers earn 200 bonus points monthly.' },
-  { source: 'bonus', label: '5-Star Bonus', points: 25, description: 'Receive a 5-star review? Earn 25 bonus points.' },
-  { source: 'referral', label: 'Referral Reward', points: 100, description: 'Invite a friend who completes a swap — earn 100 points.' },
-];
+import { useSocket } from '@/providers/socket';
+
+export const EARNING_RULES: EarningRule[] = PAYMENT_EARNING_RULES;
 
 const POINTS_TO_CURRENCY_RATE = 0.02;
 
@@ -32,6 +38,7 @@ interface RequestPayoutInput {
   userName: string;
   userAvatar: string;
   points: number;
+  credits?: number;
   method: PayoutMethod;
   payoutDetails: PayoutRequest['payoutDetails'];
 }
@@ -43,22 +50,36 @@ interface AdminPayoutActionInput {
   transactionRef?: string;
 }
 
+interface ProcessClassPaymentInput {
+  teacherId: string;
+  learnerId: string;
+  sessionCredits: number;
+  swapId: string;
+  skillTitle: string;
+}
+
 interface EarningsContextValue {
   transactions: PointTransaction[];
   payouts: PayoutRequest[];
+  earningRules: EarningRule[];
   pointsToCurrencyRate: number;
   getSummary: (userId: string) => EarningsSummary;
   getUserTransactions: (userId: string) => PointTransaction[];
   getUserPayouts: (userId: string) => PayoutRequest[];
   awardPoints: (input: AwardPointsInput) => Promise<PointTransaction | null>;
+  processClassPayment: (input: ProcessClassPaymentInput) => { teacherEarned: number; learnerEarned: number };
   requestPayout: (input: RequestPayoutInput) => Promise<PayoutRequest | null>;
   approvePayout: (input: AdminPayoutActionInput) => Promise<void>;
   rejectPayout: (input: AdminPayoutActionInput) => Promise<void>;
   markPayoutCompleted: (input: AdminPayoutActionInput) => Promise<void>;
   pointsToCurrency: (points: number) => number;
+  creditsToRupees: (credits: number, method?: PayoutMethod) => number;
+  getPayoutRate: (method: PayoutMethod) => number;
   pendingPayoutsCount: number;
   totalPayoutsAmount: number;
+  minPayoutCredits: number;
   refreshEarnings: () => Promise<void>;
+  refreshUserEarnings: (userId: string) => Promise<void>;
 }
 
 export const [EarningsProvider, useEarnings] = createContextHook<EarningsContextValue>(() => {
@@ -76,7 +97,11 @@ export const [EarningsProvider, useEarnings] = createContextHook<EarningsContext
       const res = await fetch(`${url}/earnings/admin/payouts`);
       if (res.ok) {
         const data = await res.json();
-        setPayouts(data);
+        setPayouts((prev) => {
+          const map = new Map();
+          data.forEach((p: any) => map.set(p.id || p._id, p));
+          return Array.from(map.values());
+        });
       }
     } catch (err) {
       console.error('[EarningsProvider] Failed to fetch admin payouts:', err);
@@ -127,14 +152,67 @@ export const [EarningsProvider, useEarnings] = createContextHook<EarningsContext
       if (res.ok) {
         const data = await res.json();
         setPayouts((prev) => {
-          const others = prev.filter((p) => p.userId !== userId);
-          return [...data, ...others];
+          const map = new Map();
+          prev.forEach((p: any) => map.set(p.id || p._id, p));
+          data.forEach((p: any) => map.set(p.id || p._id, p));
+          return Array.from(map.values());
         });
       }
     } catch (err) {
       console.error('[EarningsProvider] Fetch payouts error:', err);
     }
   }, []);
+
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    if (socket) {
+      const handlePayoutEvent = (payload: any) => {
+        fetchAdminPayouts();
+        if (payload?.userId) {
+          fetchUserSummary(payload.userId);
+          fetchUserTransactions(payload.userId);
+          fetchUserPayouts(payload.userId);
+        }
+      };
+
+      const handleSwapEvent = (payload: any) => {
+        console.log('[EarningsProvider] Socket swap_updated event:', payload?._id || payload?.id);
+        const reqId = typeof payload?.requesterId === 'object' ? payload.requesterId._id : payload?.requesterId;
+        const recId = typeof payload?.recipientId === 'object' ? payload.recipientId._id : payload?.recipientId;
+
+        if (reqId) {
+          fetchUserSummary(String(reqId));
+          fetchUserTransactions(String(reqId));
+          fetchUserPayouts(String(reqId));
+        }
+        if (recId) {
+          fetchUserSummary(String(recId));
+          fetchUserTransactions(String(recId));
+          fetchUserPayouts(String(recId));
+        }
+      };
+
+      socket.on('admin_payout_updated', handlePayoutEvent);
+      socket.on('payout_updated', handlePayoutEvent);
+      socket.on('swap_updated', handleSwapEvent);
+
+      return () => {
+        socket.off('admin_payout_updated', handlePayoutEvent);
+        socket.off('payout_updated', handlePayoutEvent);
+        socket.off('swap_updated', handleSwapEvent);
+      };
+    }
+  }, [socket, fetchAdminPayouts, fetchUserSummary, fetchUserTransactions, fetchUserPayouts]);
+
+  const refreshUserEarnings = useCallback(async (userId: string) => {
+    if (!userId || userId === '1') return;
+    await Promise.all([
+      fetchUserSummary(userId),
+      fetchUserTransactions(userId),
+      fetchUserPayouts(userId),
+    ]);
+  }, [fetchUserSummary, fetchUserTransactions, fetchUserPayouts]);
 
   const getSummary = useCallback(
     (userId: string): EarningsSummary => {
@@ -161,12 +239,12 @@ export const [EarningsProvider, useEarnings] = createContextHook<EarningsContext
       const userPo = payouts.filter((p) => p.userId === userId);
 
       const totalEarnedPoints = userTx
-        .filter((t) => t.type === 'earned')
+        .filter((t) => t.type === 'earned' && (t.source === 'class_taught' || t.source === 'learner_bonus'))
         .reduce((sum, t) => sum + t.amount, 0);
 
       const redeemedPoints = userPo
         .filter((p) => p.status !== 'rejected')
-        .reduce((sum, p) => sum + p.points, 0);
+        .reduce((sum, p) => sum + (p.credits || p.points || 0), 0);
 
       const availablePoints = Math.max(0, totalEarnedPoints - redeemedPoints);
 
@@ -176,7 +254,12 @@ export const [EarningsProvider, useEarnings] = createContextHook<EarningsContext
 
       const currentMonthTx = userTx.filter((t) => {
         const d = new Date(t.timestamp || t.createdAt || Date.now());
-        return d.getMonth() === currentMonth && d.getFullYear() === currentYear && t.type === 'earned';
+        return (
+          d.getMonth() === currentMonth &&
+          d.getFullYear() === currentYear &&
+          t.type === 'earned' &&
+          (t.source === 'class_taught' || t.source === 'learner_bonus')
+        );
       });
 
       const currentMonthPoints = currentMonthTx.reduce((sum, t) => sum + t.amount, 0);
@@ -253,10 +336,11 @@ export const [EarningsProvider, useEarnings] = createContextHook<EarningsContext
   const requestPayout = useCallback(
     async (input: RequestPayoutInput): Promise<PayoutRequest | null> => {
       try {
+        const payload = { ...input, credits: input.credits ?? input.points };
         const res = await fetch(`${url}/earnings/payout-request`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(input),
+          body: JSON.stringify(payload),
         });
         if (res.ok) {
           const newPayout = await res.json();
@@ -273,6 +357,12 @@ export const [EarningsProvider, useEarnings] = createContextHook<EarningsContext
     [fetchUserSummary, fetchUserTransactions]
   );
 
+  const isSamePayoutId = (a: any, b: any) => {
+    const idA = a?.id || a?._id;
+    const idB = b?.id || b?._id;
+    return Boolean(idA && idB && String(idA) === String(idB));
+  };
+
   const approvePayout = useCallback(async (input: AdminPayoutActionInput) => {
     try {
       const res = await fetch(`${url}/earnings/admin/payouts/${input.payoutId}/approve`, {
@@ -282,7 +372,7 @@ export const [EarningsProvider, useEarnings] = createContextHook<EarningsContext
       });
       if (res.ok) {
         const updated = await res.json();
-        setPayouts((prev) => prev.map((p) => (p.id === updated.id || p.id === updated._id ? updated : p)));
+        setPayouts((prev) => prev.map((p) => (isSamePayoutId(p, updated) ? { ...p, ...updated } : p)));
       }
     } catch (err) {
       console.error('[EarningsProvider] Approve payout API error:', err);
@@ -298,7 +388,7 @@ export const [EarningsProvider, useEarnings] = createContextHook<EarningsContext
       });
       if (res.ok) {
         const updated = await res.json();
-        setPayouts((prev) => prev.map((p) => (p.id === updated.id || p.id === updated._id ? updated : p)));
+        setPayouts((prev) => prev.map((p) => (isSamePayoutId(p, updated) ? { ...p, ...updated } : p)));
       }
     } catch (err) {
       console.error('[EarningsProvider] Reject payout API error:', err);
@@ -314,7 +404,7 @@ export const [EarningsProvider, useEarnings] = createContextHook<EarningsContext
       });
       if (res.ok) {
         const updated = await res.json();
-        setPayouts((prev) => prev.map((p) => (p.id === updated.id || p.id === updated._id ? updated : p)));
+        setPayouts((prev) => prev.map((p) => (isSamePayoutId(p, updated) ? { ...p, ...updated } : p)));
       }
     } catch (err) {
       console.error('[EarningsProvider] Complete payout API error:', err);
@@ -331,21 +421,78 @@ export const [EarningsProvider, useEarnings] = createContextHook<EarningsContext
       .reduce((sum, p) => sum + (p.amount || p.amountCurrency || 0), 0);
   }, [payouts]);
 
+  /** Full payment processing for a completed class/swap session */
+  const processClassPayment = useCallback((input: ProcessClassPaymentInput) => {
+    const teacherEarned = getTeacherSessionEarnings(input.sessionCredits);
+    const learnerEarned = LEARNER_SWAP_COMPLETION_BONUS;
+
+    // 1. Deduct session cost from learner if paid session
+    if (input.sessionCredits > 0) {
+      awardPoints({
+        userId: input.learnerId,
+        amount: -input.sessionCredits,
+        source: 'swap_completed',
+        description: `Session fee for "${input.skillTitle}"`,
+        swapId: input.swapId,
+      });
+    }
+
+    // 2. Award 80% (or 50 free) to teacher
+    awardPoints({
+      userId: input.teacherId,
+      amount: teacherEarned,
+      source: 'class_taught',
+      description: input.sessionCredits > 0
+        ? `Taught "${input.skillTitle}" — 80% of ${input.sessionCredits} credits`
+        : `Taught "${input.skillTitle}" (free session bonus)`,
+      swapId: input.swapId,
+    });
+
+    // 3. Award +10 completion bonus to learner
+    awardPoints({
+      userId: input.learnerId,
+      amount: learnerEarned,
+      source: 'learner_bonus' as EarningSourceType,
+      description: `Completed "${input.skillTitle}" swap session`,
+      swapId: input.swapId,
+    });
+
+    console.log('[Earnings] Class payment processed', { teacherEarned, learnerEarned, sessionCredits: input.sessionCredits, swapId: input.swapId });
+    return { teacherEarned, learnerEarned };
+  }, [awardPoints]);
+
+  const convertCredits = useCallback(
+    (credits: number, method: PayoutMethod = 'store_credit'): number =>
+      creditsToRupeesHelper(credits, method),
+    [],
+  );
+
+  const getPayoutRateCb = useCallback(
+    (method: PayoutMethod): number => getPayoutRateHelper(method),
+    [],
+  );
+
   return {
     transactions,
     payouts,
+    earningRules: EARNING_RULES,
     pointsToCurrencyRate: POINTS_TO_CURRENCY_RATE,
     getSummary,
     getUserTransactions,
     getUserPayouts,
     awardPoints,
+    processClassPayment,
     requestPayout,
     approvePayout,
     rejectPayout,
     markPayoutCompleted,
     pointsToCurrency,
+    creditsToRupees: convertCredits,
+    getPayoutRate: getPayoutRateCb,
     pendingPayoutsCount,
     totalPayoutsAmount,
+    minPayoutCredits: MIN_PAYOUT_CREDITS,
     refreshEarnings,
+    refreshUserEarnings,
   };
 });

@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CalendarCheck2, Clock, MapPin, Sparkles, X, ArrowRight, Check, AlertTriangle, Coins, GraduationCap, BookOpen, ArrowLeftRight } from 'lucide-react-native';
+import { CalendarCheck2, Clock, MapPin, Sparkles, X, ArrowRight, Check, AlertTriangle, Coins, GraduationCap, BookOpen, ArrowLeftRight, IndianRupee } from 'lucide-react-native';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import Colors from '../constants/colors';
+import { formatPrice } from '../constants/locale';
 import type { SkillSwapRequest, SkillWithUser, SwapType } from '../types';
 import { useCurrentUser } from '../providers/current-user';
 import { useSkillSwaps } from '../providers/skill-swaps';
+import { getSwapRequestCost, getSessionCreditCost, getPlatformFee, formatCredits } from '../lib/payments';
 
 interface SkillSwapRequestModalProps {
   visible: boolean;
@@ -130,11 +132,15 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
   }, [skill, latestPartner]);
 
   // For 'teach' type, teacher pays nothing; for 'learn'/'swap', credits apply
-  const swapCost = useMemo(() => {
+  const platformFee = useMemo(() => {
     if (swapType === 'teach') return 0;
-    return currentUser?.premiumTier === 'free' ? 5 : 0;
-  }, [swapType, currentUser?.premiumTier]);
-  const hasEnoughCredits = (currentUser?.credits ?? 0) >= swapCost;
+    return getPlatformFee(currentUser || { premiumTier: 'free' });
+  }, [swapType, currentUser]);
+  const sessionCost = useMemo(() => getSessionCreditCost(skill), [skill]);
+  const swapCost = platformFee; // paid upfront at request time
+  const totalCost = swapCost;
+  const hasEnoughCredits = (currentUser?.credits ?? 0) >= totalCost;
+  const isPaidSession = sessionCost > 0;
 
   // Step titles — consistent 4 steps across all swap types
   const stepTitles = ['Request type', 'Choose skills', 'Pick session slots', 'Wrap-up details'];
@@ -526,32 +532,62 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                         <Coins size={20} color={swapType === 'teach' ? '#10B981' : '#F59E0B'} />
                       </View>
                       <View style={styles.creditsCostInfo}>
-                        <Text style={styles.creditsCostTitle}>
-                          {swapType === 'teach' ? 'Teaching Session' : 'Request Cost'}
-                        </Text>
-                        <Text style={styles.creditsCostValue}>
-                          {swapType === 'teach' ? (
-                            <Text style={[styles.creditsFreeText, { color: '#10B981' }]}>Free — Earn on completion</Text>
-                          ) : swapCost === 0 ? (
-                            <Text style={styles.creditsFreeText}>Free with Premium</Text>
-                          ) : (
-                            `${swapCost} Credits`
-                          )}
+                        <Text style={{ fontSize: 13, fontWeight: '600' as const, color: '#92400E', marginBottom: 2 }}>Payment Summary</Text>
+                        <Text style={{ fontSize: 18, fontWeight: '700' as const, color: '#78350F' }}>
+                          {swapType === 'teach' ? 'Free — Earn on completion' : totalCost === 0 ? 'Free Request' : `${totalCost} Credits`}
                         </Text>
                       </View>
                     </View>
-                    {swapType !== 'teach' && !hasEnoughCredits && (
+
+                    {swapType !== 'teach' && (
+                      <View style={{ gap: 8, paddingTop: 4 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={{ fontSize: 13, color: '#92400E' }}>Platform fee (request):</Text>
+                          <Text style={{ fontSize: 14, fontWeight: '600' as const, color: '#78350F' }}>
+                            {platformFee === 0 ? 'Free (Premium)' : `${platformFee} cr`}
+                          </Text>
+                        </View>
+                        {isPaidSession && (
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 13, color: '#92400E' }}>Session cost (at completion):</Text>
+                            <Text style={{ fontSize: 14, fontWeight: '600' as const, color: '#78350F' }}>
+                              {sessionCost} cr ({formatPrice(sessionCost)})
+                            </Text>
+                          </View>
+                        )}
+                        {!isPaidSession && (
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 13, color: '#92400E' }}>Session type:</Text>
+                            <Text style={{ fontSize: 14, fontWeight: '600' as const, color: '#15803D' }}>Free skill exchange</Text>
+                          </View>
+                        )}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTopWidth: 1, borderTopColor: '#FDE68A' }}>
+                          <Text style={{ fontSize: 13, fontWeight: '600' as const, color: '#92400E' }}>Pay now:</Text>
+                          <Text style={{ fontSize: 16, fontWeight: '800' as const, color: '#78350F' }}>
+                            {totalCost === 0 ? 'Free' : `${totalCost} cr`}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+
+                    {swapType !== 'teach' && !hasEnoughCredits && totalCost > 0 && (
                       <View style={styles.creditsWarning}>
                         <AlertTriangle size={16} color="#F59E0B" />
                         <Text style={styles.creditsWarningText}>
-                          You need {swapCost - (currentUser?.credits || 0)} more credits
+                          You need {totalCost - (currentUser?.credits || 0)} more credits
                         </Text>
                       </View>
                     )}
                     {swapType !== 'teach' && (
-                      <View style={styles.creditsBalance}>
-                        <Text style={styles.creditsBalanceLabel}>Your Balance:</Text>
-                        <Text style={styles.creditsBalanceValue}>{currentUser?.credits} Credits</Text>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#FDE68A' }}>
+                        <Text style={{ fontSize: 13, color: '#92400E' }}>Your Balance:</Text>
+                        <Text style={{ fontSize: 14, fontWeight: '700' as const, color: '#78350F' }}>{formatCredits(currentUser?.credits ?? 0)}</Text>
+                      </View>
+                    )}
+                    {isPaidSession && swapType !== 'teach' && (
+                      <View style={{ backgroundColor: '#F0FDF4', borderRadius: 10, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <IndianRupee size={14} color="#15803D" />
+                        <Text style={{ fontSize: 12, color: '#15803D', fontWeight: '500' as const }}>Session cost charged when swap completes. Teacher earns 80%.</Text>
                       </View>
                     )}
                   </View>

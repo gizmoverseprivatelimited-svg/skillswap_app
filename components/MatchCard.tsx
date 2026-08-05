@@ -16,7 +16,15 @@ interface MatchCardProps {
 
 const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps) => {
   const scale = useRef(new Animated.Value(1)).current;
+  const avatarErrorRef = useRef(false);
   const [avatarError, setAvatarError] = useState(false);
+
+  const handleAvatarError = useCallback(() => {
+    if (!avatarErrorRef.current) {
+      avatarErrorRef.current = true;
+      setAvatarError(true);
+    }
+  }, []);
 
   const avatarUri = useMemo(() => {
     if (avatarError) return DEFAULT_AVATAR;
@@ -86,7 +94,7 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
             <Image
               source={{ uri: avatarUri }}
               style={styles.avatar}
-              onError={() => setAvatarError(true)}
+              onError={avatarError ? undefined : handleAvatarError}
             />
             <View style={styles.userInfo}>
               <Text style={styles.userName}>

@@ -55,6 +55,7 @@ export interface User {
   reportCount?: number;
   email?:string;
   role?: OnboardingRole;
+  hasCompletedOnboarding?: boolean;
 }
 
 export interface SkillWithUser extends Skill {
@@ -250,7 +251,8 @@ export type EarningSourceType =
   | 'monthly_subscription'
   | 'bonus'
   | 'referral'
-  | 'admin_adjustment';
+  | 'admin_adjustment'
+  | 'learner_bonus';
 
 export type PayoutMethod = 'store_credit' | 'bank_transfer' | 'upi' | 'paypal';
 
@@ -280,6 +282,7 @@ export interface PayoutRequest {
   userName: string;
   userAvatar: string;
   points: number;
+  credits?: number;
   amount: number;
   amountCurrency?: number;
   currency: string;

@@ -58,19 +58,31 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
         return;
       }
 
+      const u = user as any;
+      const isAccountCompleted = Boolean(
+        u?.hasCompletedOnboarding ||
+        (Array.isArray(u?.skillsToTeach) && u.skillsToTeach.length > 0) ||
+        (Array.isArray(u?.skillsToLearn) && u.skillsToLearn.length > 0) ||
+        (Array.isArray(u?.skillsOffered) && u.skillsOffered.length > 0) ||
+        (Array.isArray(u?.skillsWanted) && u.skillsWanted.length > 0)
+      );
+
       const key = `${ONBOARDING_KEY}_${user.id}`;
-      const completed = await AsyncStorage.getItem(key);
-      const hasCompleted = completed === 'true';
+      const completedStorage = await AsyncStorage.getItem(key);
+      const hasCompleted = isAccountCompleted || completedStorage === 'true';
+
+      if (isAccountCompleted && completedStorage !== 'true') {
+        await AsyncStorage.setItem(key, 'true').catch(() => {});
+      }
       
       console.log('[Onboarding] Status:', { hasCompleted, userId: user.id });
       setHasCompletedOnboarding(hasCompleted);
     } catch (error) {
       console.error('[Onboarding] Failed to check status:', error);
-      // Don't reset to false on error — keep the previous value
     } finally {
       setIsChecking(false);
     }
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, user]);
 
   const updateOnboardingData = useCallback((data: Partial<OnboardingData>) => {
     console.log('[Onboarding] Updating data:', data);

@@ -48,8 +48,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchSkillsData();
-      refreshRecommendations();
-    }, [fetchSkillsData, refreshRecommendations])
+    }, [fetchSkillsData])
   );
 
   const handleRefresh = async () => {
@@ -70,12 +69,21 @@ export default function HomeScreen() {
     }
   };
 
-  const filteredSkills = selectedCategory === 'All' 
-    ? skillsWithUsers 
-    : skillsWithUsers.filter(skill => skill.category === selectedCategory);
+  const otherSkillsWithUsers = useMemo(() => {
+    if (!currentUser?.id) return skillsWithUsers;
+    const currentId = String(currentUser.id || (currentUser as any)._id || '');
+    return skillsWithUsers.filter((item) => {
+      const itemUserId = String(item.userId || item.user?.id || item.user?._id || '');
+      return itemUserId !== currentId;
+    });
+  }, [skillsWithUsers, currentUser]);
 
-  const featuredSkills = skillsWithUsers.slice(0, 3);
-  const promotedSkills = useMemo(() => skillsWithUsers.filter(s => s.promoted).slice(0, 5), [skillsWithUsers]);
+  const filteredSkills = selectedCategory === 'All' 
+    ? otherSkillsWithUsers 
+    : otherSkillsWithUsers.filter(skill => skill.category === selectedCategory);
+
+  const featuredSkills = otherSkillsWithUsers.slice(0, 3);
+  const promotedSkills = useMemo(() => otherSkillsWithUsers.filter(s => s.promoted).slice(0, 5), [otherSkillsWithUsers]);
   const topTeachMatches = useMemo(() => teachMatches.slice(0, 4), [teachMatches]);
   const topLearnMatches = useMemo(() => learnMatches.slice(0, 4), [learnMatches]);
   const topSwapMatches = useMemo(() => swapMatches.slice(0, 4), [swapMatches]);

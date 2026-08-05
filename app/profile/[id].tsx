@@ -25,12 +25,15 @@ import { getSkillsWithUsers } from '@/mocks/data';
 import { ReviewWithAuthor, SkillWithUser } from '@/types';
 import SkillSwapRequestModal from '@/components/SkillSwapRequestModal';
 
+import { useSocket } from '@/providers/socket';
+
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   // console.log(id);
 
   let { allUsers, currentUser } = useCurrentUser()
   const { showAlert } = useAlert();
+  const { socket } = useSocket();
   const [selectedSkill, setSelectedSkill] = useState<SkillWithUser | null>(null);
   const [swapModalVisible, setSwapModalVisible] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,12 +76,14 @@ export default function UserProfileScreen() {
   useEffect(() => {
     fetchReviews();
 
-    const interval = setInterval(() => {
-      fetchReviews(true);
-    }, 15000);
-
-    return () => clearInterval(interval);
-  }, [fetchReviews]);
+    if (socket) {
+      const handleReviewCreated = () => fetchReviews(true);
+      socket.on('review_created', handleReviewCreated);
+      return () => {
+        socket.off('review_created', handleReviewCreated);
+      };
+    }
+  }, [fetchReviews, socket]);
 
   const handleSendMessage = useCallback(async () => {
     if (currentUser?.id === '1') {
@@ -142,9 +147,10 @@ export default function UserProfileScreen() {
   const averageRating = reviews?.stats?.averageRating ?? user.rating ?? 0;
   const totalReviews = reviews?.stats?.totalReviews ?? 0;
 
-  let swapcount = (allSwaps?.filter((s: any) => {
-    return s.requesterId == user.id || s.recipientId == user.id
-  })).length;
+  const swapcount = Math.max(
+    user.totalSwaps || 0,
+    (allSwaps?.filter((s: any) => s.requesterId == user.id || s.recipientId == user.id) || []).length
+  );
 
   return (
     <View style={styles.container}>

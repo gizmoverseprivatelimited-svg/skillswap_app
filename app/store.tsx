@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { Stack } from 'expo-router';
-import { Coins, Crown, Zap, Check } from 'lucide-react-native';
+import { Coins, Crown, Zap, Check, Sparkles } from 'lucide-react-native';
 import { useState } from 'react';
 import Colors from '@/constants/colors';
 import { formatPrice } from '@/constants/locale';
@@ -8,13 +8,9 @@ import { useAlert } from '@/providers/alert';
 import url from '@/constants/backurl';
 import { useCurrentUser } from '@/providers/current-user';
 import * as WebBrowser from 'expo-web-browser';
+import { CREDIT_PACKAGES } from '@/lib/payments';
 
-const creditPackages = [
-  { id: 'starter' as const, credits: 25, price: 99, popular: false },
-  { id: 'popular' as const, credits: 60, price: 199, popular: true },
-  { id: 'best_value' as const, credits: 150, price: 449, popular: false },
-  { id: 'mega' as const, credits: 400, price: 999, popular: false },
-];
+const creditPackages = CREDIT_PACKAGES;
 
 const premiumTiers = [
   {
@@ -50,7 +46,7 @@ const premiumTiers = [
 export default function StoreScreen() {
   const [selectedTab, setSelectedTab] = useState<'credits' | 'premium'>('credits');
   const [selectedDuration, setSelectedDuration] = useState<'monthly' | 'yearly'>('monthly');
-  const { currentUser, loadUser } = useCurrentUser();
+  const { currentUser, loadUser, earnCredits } = useCurrentUser();
   const { showAlert } = useAlert();
   const [isProcessing, setIsProcessing] = useState(false);
   const [checkoutModalVisible, setCheckoutModalVisible] = useState(false);
@@ -74,8 +70,12 @@ export default function StoreScreen() {
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Purchase failed');
 
-        showAlert('Success!', `${data.creditsAdded} credits added to your account!`);
-        await loadUser();
+        const added = data.creditsAdded || 0;
+        if (earnCredits && added > 0) {
+          earnCredits(added);
+        }
+        showAlert('Success!', `${added} credits added to your account!`);
+        await loadUser(true);
       } catch (error: any) {
         showAlert('Error', error.message);
       } finally {
@@ -98,7 +98,7 @@ export default function StoreScreen() {
 
         const originParam = Platform.OS === 'web' && typeof window !== 'undefined' ? `&origin=${encodeURIComponent((window as any).location.origin)}` : '';
         const checkoutUrl = `${url}/payments/checkout?orderId=${data.orderId}&amount=${data.amount}&userId=${currentUser?.id}&purchaseType=credits&packageId=${packageId}${originParam}`;
-        
+
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           (window as any).location.href = checkoutUrl;
         } else {
@@ -124,8 +124,8 @@ export default function StoreScreen() {
     setCheckoutItem({
       type: 'credits',
       id: packageId,
-      name: `${pkg.credits} Credits Package`,
-      price: pkg.price,
+      name: `${pkg.credits + pkg.bonusCredits} Credits Package`,
+      price: pkg.priceRupees,
     });
     setCheckoutModalVisible(true);
   };
@@ -142,7 +142,11 @@ export default function StoreScreen() {
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Purchase failed');
 
-        showAlert('Success!', `Welcome to ${data.tier} tier! ${data.creditsAdded} bonus credits added!`);
+        const added = data.creditsAdded || 0;
+        if (earnCredits && added > 0) {
+          earnCredits(added);
+        }
+        showAlert('Success!', `Welcome to ${data.tier} tier! ${added} bonus credits added!`);
         await loadUser();
       } catch (error: any) {
         showAlert('Error', error.message);
@@ -167,7 +171,7 @@ export default function StoreScreen() {
 
         const originParam = Platform.OS === 'web' && typeof window !== 'undefined' ? `&origin=${encodeURIComponent((window as any).location.origin)}` : '';
         const checkoutUrl = `${url}/payments/checkout?orderId=${data.orderId}&amount=${data.amount}&userId=${currentUser?.id}&purchaseType=premium&tier=${tier}&duration=${duration}${originParam}`;
-        
+
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           (window as any).location.href = checkoutUrl;
         } else {
@@ -253,38 +257,47 @@ export default function StoreScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Credit Packages</Text>
             <Text style={styles.sectionDescription}>
-              Use credits to request skill swaps and unlock premium features
+              1 credit = ₹1 face value. Use credits to request sessions, unlock features, and tip teachers.
             </Text>
             <View style={styles.packagesGrid}>
-              {creditPackages.map((pkg) => (
-                <View key={pkg.id} style={styles.packageCard}>
-                  {pkg.popular && (
-                    <View style={styles.popularBadge}>
-                      <Zap size={12} color="#FFFFFF" fill="#FFFFFF" />
-                      <Text style={styles.popularText}>POPULAR</Text>
+              {creditPackages.map((pkg) => {
+                const totalCredits = pkg.credits + pkg.bonusCredits;
+                return (
+                  <View key={pkg.id} style={styles.packageCard}>
+                    {pkg.popular && (
+                      <View style={styles.popularBadge}>
+                        <Zap size={12} color="#FFFFFF" fill="#FFFFFF" />
+                        <Text style={styles.popularText}>POPULAR</Text>
+                      </View>
+                    )}
+                    <View style={styles.packageIcon}>
+                      <Coins size={32} color={Colors.light.primary} />
                     </View>
-                  )}
-                  <View style={styles.packageIcon}>
-                    <Coins size={32} color={Colors.light.primary} />
+                    <Text style={styles.packageCredits}>{totalCredits}</Text>
+                    <Text style={styles.packageLabel}>Credits</Text>
+                    {pkg.bonusCredits > 0 && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                        <Sparkles size={12} color="#F59E0B" />
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#F59E0B' }}>+{pkg.bonusCredits} bonus</Text>
+                      </View>
+                    )}
+                    <View style={styles.packageDivider} />
+                    <Text style={styles.packagePrice}>{formatPrice(pkg.priceRupees)}</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.packageButton,
+                        isProcessing && styles.packageButtonDisabled,
+                      ]}
+                      onPress={() => handlePurchaseCredits(pkg.id as any)}
+                      disabled={isProcessing}
+                    >
+                      <Text style={styles.packageButtonText}>
+                        {isProcessing ? 'Processing...' : 'Buy Now'}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                  <Text style={styles.packageCredits}>{pkg.credits}</Text>
-                  <Text style={styles.packageLabel}>Credits</Text>
-                  <View style={styles.packageDivider} />
-                  <Text style={styles.packagePrice}>{formatPrice(pkg.price)}</Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.packageButton,
-                      isProcessing && styles.packageButtonDisabled,
-                    ]}
-                    onPress={() => handlePurchaseCredits(pkg.id)}
-                    disabled={isProcessing}
-                  >
-                    <Text style={styles.packageButtonText}>
-                      {isProcessing ? 'Processing...' : 'Buy Now'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
+                );
+              })}
             </View>
           </View>
         ) : (
@@ -387,12 +400,6 @@ export default function StoreScreen() {
             </View>
           </View>
         )}
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            This is a demo payment system. No actual charges will be made.
-          </Text>
-        </View>
       </ScrollView>
 
       {/* Custom Checkout Modal Overlay */}

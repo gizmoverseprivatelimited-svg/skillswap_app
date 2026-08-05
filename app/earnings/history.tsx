@@ -20,10 +20,11 @@ type HistoryItem = {
 };
 
 const sourceLabels: Record<string, string> = {
-  swap_completed: 'Swap Completed',
-  class_taught: 'Class Taught',
+  swap_completed: 'Session Fee',
+  class_taught: 'Teaching Earnings',
+  learner_bonus: 'Completion Bonus',
   monthly_subscription: 'Subscription Bonus',
-  bonus: 'Bonus Points',
+  bonus: 'Bonus Credits',
   referral: 'Referral Reward',
   admin_adjustment: 'Admin Adjustment',
 };
@@ -51,15 +52,17 @@ export default function EarningsHistoryScreen() {
 
   const sections = useMemo(() => {
     const all: HistoryItem[] = [
-      ...transactions.map((t: any) => ({
-        id: t.id || t._id || Math.random().toString(),
-        type: 'earning' as const,
-        title: sourceLabels[t.source] ?? t.source,
-        subtitle: t.description,
-        points: t.amount,
-        date: t.timestamp || t.createdAt || new Date().toISOString(),
-        icon: 'plus' as const,
-      })),
+      ...transactions
+        .filter((t: any) => t.source === 'class_taught' || t.source === 'learner_bonus' || t.source === 'swap_completed')
+        .map((t: any) => ({
+          id: t.id || t._id || Math.random().toString(),
+          type: 'earning' as const,
+          title: sourceLabels[t.source] ?? t.source,
+          subtitle: t.description,
+          points: t.type === 'redeemed' ? -t.amount : t.amount,
+          date: t.timestamp || t.createdAt || new Date().toISOString(),
+          icon: (t.type === 'redeemed' ? 'minus' : 'plus') as 'plus' | 'minus',
+        })),
       ...payouts
         .filter((p) => p.status !== 'rejected' && p.status !== 'cancelled')
         .map((p: any) => ({
@@ -100,7 +103,7 @@ export default function EarningsHistoryScreen() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <ArrowLeft size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Points History</Text>
+        <Text style={s.headerTitle}>Credits History</Text>
         <View style={{ width: 44 }} />
       </View>
 
@@ -130,7 +133,7 @@ export default function EarningsHistoryScreen() {
             </View>
             <View style={s.itemRight}>
               <Text style={[s.itemPoints, { color: item.points > 0 ? '#10B981' : '#EF4444' }]}>
-                {item.points > 0 ? '+' : ''}{item.points} pts
+                {item.points > 0 ? '+' : ''}{item.points} credits
               </Text>
               {item.amount !== undefined && (
                 <Text style={s.itemAmount}>{formatPrice(item.amount)}</Text>

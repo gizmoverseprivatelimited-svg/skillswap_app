@@ -25,6 +25,7 @@ interface AddNotificationInput {
   body: string;
   category: NotificationCategory;
   metadata?: NotificationMetadata;
+  skipPopup?: boolean;
 }
 
 interface NotificationsContextValue {
@@ -49,10 +50,13 @@ const sortNotifications = (items: NotificationItem[]): NotificationItem[] => {
   });
 };
 
+import { useSocket } from '@/providers/socket';
+
 export const [NotificationsProvider, useNotifications] = createContextHook<NotificationsContextValue>(() => {
   const { currentUser, topRecommendations, allUsers } = useCurrentUser();
   const { swaps, scheduledSwaps } = useSkillSwaps();
   const { hasCompletedOnboarding } = useOnboarding();
+  const { socket } = useSocket();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const { expoPushToken, schedulePushNotification } = usePushNotifications();
 
@@ -61,6 +65,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   const reminderSeenRef = useRef<Set<string>>(new Set());
   const messageSeenRef = useRef<Set<string>>(new Set());
   const reviewSeenRef = useRef<Set<string>>(new Set());
+  const isInitialMatchLoadRef = useRef<boolean>(true);
+  const isInitialSwapsLoadRef = useRef<boolean>(true);
+  const isInitialRemindersLoadRef = useRef<boolean>(true);
   const isInitialLoadRef = useRef<boolean>(true);
   const isInitialReviewsLoadRef = useRef<boolean>(true);
   const prevUserIdRef = useRef<string | undefined>(currentUser?.id);
@@ -84,14 +91,21 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       title: input.title,
       body: input.body,
       category: input.category,
-      metadata: input.metadata,
+      metadata: {
+        ...input.metadata,
+        skipPopup: input.skipPopup,
+      },
       read: false,
-      createdAt: new Date().toISOString(),
+      createdAt: input.skipPopup
+        ? new Date(Date.now() - 60 * 1000).toISOString()
+        : new Date().toISOString(),
     };
     setNotifications((prev) => sortNotifications([payload, ...prev]));
     console.log('[Notifications] Added notification', payload);
     
-    schedulePushNotification(input.title, input.body, input.metadata ?? {});
+    if (!input.skipPopup) {
+      schedulePushNotification(input.title, input.body, input.metadata ?? {});
+    }
   }, [schedulePushNotification]);
 
   const markAsRead = useCallback((id: string) => {
@@ -119,6 +133,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
   useEffect(() => {
     if (!hasCompletedOnboarding) return;
+    const isInitial = isInitialMatchLoadRef.current;
     topRecommendations.forEach((recommendation) => {
       if (matchSeenRef.current.has(recommendation.user.id)) {
         return;
@@ -131,12 +146,17 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         metadata: {
           userId: recommendation.user.id,
         },
+        skipPopup: isInitial,
       });
     });
+    if (isInitial && topRecommendations.length > 0) {
+      isInitialMatchLoadRef.current = false;
+    }
   }, [addNotification, topRecommendations, hasCompletedOnboarding]);
 
   useEffect(() => {
     if (!hasCompletedOnboarding) return;
+    const isInitial = isInitialSwapsLoadRef.current;
     swaps.forEach((swap) => {
       // Ensure the swap actually belongs to the current user
       if (swap.requesterId !== currentUser?.id && swap.recipientId !== currentUser?.id) {
@@ -159,6 +179,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
+          skipPopup: isInitial,
         });
         return;
       }
@@ -172,6 +193,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
+          skipPopup: isInitial,
         });
         return;
       }
@@ -185,6 +207,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
+          skipPopup: isInitial,
         });
       }
 
@@ -197,13 +220,18 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
+          skipPopup: isInitial,
         });
       }
     });
+    if (isInitial && swaps.length > 0) {
+      isInitialSwapsLoadRef.current = false;
+    }
   }, [addNotification, allUsers, currentUser?.id, swaps, hasCompletedOnboarding]);
 
   useEffect(() => {
     if (!hasCompletedOnboarding) return;
+    const isInitial = isInitialRemindersLoadRef.current;
     const createReminderNotifications = () => {
       const now = Date.now();
       scheduledSwaps.forEach((swap) => {
@@ -241,31 +269,25 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
                 swapId: swap.id,
                 startsAt: acceptedSlot.startISO,
               },
+              skipPopup: isInitial,
             });
           }
         });
       });
-    };
-
-    let interval: any;
-    const timeout = setTimeout(() => {
-      createReminderNotifications();
-      interval = globalThis.setInterval(createReminderNotifications, 60 * 1000);
-    }, 2000);
-
-    return () => {
-      clearTimeout(timeout);
-      if (typeof interval === 'number') {
-        globalThis.clearInterval(interval);
-      } else if (interval) {
-        clearInterval(interval);
+      if (isInitial && scheduledSwaps.length > 0) {
+        isInitialRemindersLoadRef.current = false;
       }
     };
+
+    createReminderNotifications();
   }, [addNotification, allUsers, currentUser?.id, scheduledSwaps, hasCompletedOnboarding]);
 
   // Reset initial load and message/review refs when currentUser changes
   useEffect(() => {
     if (prevUserIdRef.current !== currentUser?.id || !hasCompletedOnboarding) {
+      isInitialMatchLoadRef.current = true;
+      isInitialSwapsLoadRef.current = true;
+      isInitialRemindersLoadRef.current = true;
       isInitialLoadRef.current = true;
       isInitialReviewsLoadRef.current = true;
       messageSeenRef.current.clear();
@@ -391,17 +413,19 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       }
     };
 
-    let interval: any;
-    const timeout = setTimeout(() => {
-      checkNewReviews();
-      interval = setInterval(checkNewReviews, 15000);
-    }, 2000);
+    checkNewReviews();
 
-    return () => {
-      clearTimeout(timeout);
-      if (interval) clearInterval(interval);
-    };
-  }, [currentUser?.id, addNotification, hasCompletedOnboarding]);
+    if (socket) {
+      const handleNewReview = () => {
+        console.log('[Socket.IO] review_created received, checking reviews');
+        checkNewReviews();
+      };
+      socket.on('review_created', handleNewReview);
+      return () => {
+        socket.off('review_created', handleNewReview);
+      };
+    }
+  }, [currentUser?.id, addNotification, hasCompletedOnboarding, socket]);
 
   const unreadCount = useMemo(() => {
     return notifications.filter((notification) => !notification.read).length;

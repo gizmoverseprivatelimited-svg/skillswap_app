@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { MapPin, Star, Users, ArrowRight, Award, Clock, CalendarCheck2, IndianRupee, Sparkles } from 'lucide-react-native';
+import { MapPin, Star, Users, ArrowRight, Award, Clock, CalendarCheck2, IndianRupee, Sparkles, Coins } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '../../constants/colors';
@@ -13,6 +13,7 @@ import { useCurrentUser } from '../../providers/current-user';
 import { useAlert } from '../../providers/alert';
 import type { SkillSwapStatus, SkillWithUser } from '../../types';
 import { formatPrice } from '@/constants/locale';
+import { formatCredits, getSessionCreditCost } from '@/lib/payments';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import url from '@/constants/backurl';
 
@@ -42,7 +43,7 @@ export default function SkillDetailScreen() {
   // const [skillsWithUsers, setSkillsWithUsers] = useState<SkillWithUser[]>([])
   const [skill, setSkill] = useState<SkillWithUser>();
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const { swaps, fetchSwaps } = useSkillSwaps();
+  const { swaps, allSwaps, fetchSwaps } = useSkillSwaps();
 
   useEffect(() => {
     fetchSwaps();
@@ -56,29 +57,44 @@ export default function SkillDetailScreen() {
 
 
 
-  const { currentUser } = useCurrentUser();
+  const { currentUser, allUsers } = useCurrentUser();
   const { showAlert } = useAlert();
   const [isSwapModalVisible, setSwapModalVisible] = useState<boolean>(false);
 
-
+  const teacherUser = useMemo(() => {
+    if (!skill?.user?.id) return skill?.user;
+    return allUsers.find(u => u.id === skill.user.id) || skill.user;
+  }, [allUsers, skill?.user]);
 
   const [reviewsStats, setReviewsStats] = useState<{ averageRating: number; totalReviews: number } | null>(null);
 
   useEffect(() => {
-    if (!skill?.user?.id || !skill?.id) return;
-    fetch(`${url}/reviews?revieweeId=${skill.user.id}&skillId=${skill.id}`)
+    const targetUserId = teacherUser?.id || skill?.user?.id;
+    if (!targetUserId) return;
+    fetch(`${url}/reviews?revieweeId=${targetUserId}`)
       .then((res) => res.json())
       .then((data) => {
-        setReviewsStats({
-          averageRating: data.stats.averageRating,
-          totalReviews: data.stats.totalReviews,
-        });
+        if (data?.stats) {
+          setReviewsStats({
+            averageRating: data.stats.averageRating || 0,
+            totalReviews: data.stats.totalReviews || 0,
+          });
+        }
       })
       .catch((err) => console.error('[SkillDetail] Failed to fetch review stats:', err));
-  }, [skill?.id, skill?.user?.id]);
+  }, [teacherUser?.id, skill?.user?.id]);
 
-  const skillAverageRating = reviewsStats?.averageRating ?? skill?.user.rating;
+  const skillAverageRating = reviewsStats?.averageRating ?? teacherUser?.rating ?? skill?.user?.rating ?? 0;
   const skillTotalReviews = reviewsStats?.totalReviews ?? 0;
+
+  const teacherTotalSwaps = useMemo(() => {
+    const targetUser = teacherUser || skill?.user;
+    if (!targetUser?.id) return 0;
+    const count = (allSwaps || []).filter(
+      (s: any) => s.requesterId === targetUser.id || s.recipientId === targetUser.id
+    ).length;
+    return Math.max(targetUser.totalSwaps || 0, count);
+  }, [allSwaps, teacherUser, skill?.user]);
 
   const activeSwap = useMemo(() => {
     return swaps.find((candidate) => {
@@ -242,16 +258,24 @@ export default function SkillDetailScreen() {
                 </View>
               )}
               {skill.pricingModel && skill.pricingModel !== 'free' && (
-                <View style={styles.priceRow}>
-                  <IndianRupee size={20} color="#10B981" />
-                  <Text style={styles.priceValue}>
-                    {skill.pricingModel === 'per_session'
-                      ? `${formatPrice(skill.pricePerSession ?? 0)}`
-                      : `${formatPrice(skill.monthlyPrice ?? 0)}`}
-                  </Text>
-                  <Text style={styles.priceUnit}>
-                    {skill.pricingModel === 'per_session' ? '/ session' : '/ month'}
-                  </Text>
+                <View>
+                  <View style={styles.priceRow}>
+                    <IndianRupee size={20} color="#10B981" />
+                    <Text style={styles.priceValue}>
+                      {skill.pricingModel === 'per_session'
+                        ? `${formatPrice(skill.pricePerSession ?? 0)}`
+                        : `${formatPrice(skill.monthlyPrice ?? 0)}`}
+                    </Text>
+                    <Text style={styles.priceUnit}>
+                      {skill.pricingModel === 'per_session' ? '/ session' : '/ month'}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                    <Coins size={14} color="#F59E0B" />
+                    <Text style={{ fontSize: 13, color: Colors.light.textSecondary, fontWeight: '500' }}>
+                      = {formatCredits(getSessionCreditCost(skill))} — teacher earns 80%
+                    </Text>
+                  </View>
                 </View>
               )}
               {skill.pricingModel === 'free' && (
@@ -278,7 +302,7 @@ export default function SkillDetailScreen() {
               onPress={() => router.push(`/profile/${skill?.user?.id}` as any)}
             >
               <Image
-                source={{ uri: resolveImageUrl(skill.user?.avatarUrl, 'https://i.pravatar.cc/150?img=5') }}
+                source={{ uri: resolveImageUrl(skill.user?.avatarUrl) }}
                 style={styles.teacherAvatar}
               />
               <View style={styles.teacherInfo}>
@@ -291,7 +315,7 @@ export default function SkillDetailScreen() {
                   <View style={styles.statDivider} />
                   <View style={styles.statItem}>
                     <Users size={14} color={Colors.light.textSecondary} />
-                    <Text style={styles.statText}>{skill.user.totalSwaps} swaps</Text>
+                    <Text style={styles.statText}>{teacherTotalSwaps} swaps</Text>
                   </View>
                 </View>
                 <View style={styles.locationRow}>

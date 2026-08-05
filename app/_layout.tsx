@@ -295,6 +295,7 @@ function RootLayoutNav() {
 
 import { EarningsProvider } from "../providers/earnings";
 import { AlertProvider } from "../providers/alert";
+import { SocketProvider } from "../providers/socket";
 
 export default function RootLayout() {
   useEffect(() => {
@@ -307,22 +308,24 @@ export default function RootLayout() {
         <AuthProvider>
           <OnboardingProvider>
             <CurrentUserProvider>
-              <EarningsProvider>
-                <SkillSwapsProvider>
-                  <AdminProvider>
-                    <NotificationsProvider>
-                      <ResourcesProvider>
-                        <ErrorBoundary>
-                          <GestureHandlerRootView style={styles.container}>
-                            <RootLayoutNav />
-                            <InAppNotificationBanner />
-                          </GestureHandlerRootView>
-                        </ErrorBoundary>
-                      </ResourcesProvider>
-                    </NotificationsProvider>
-                  </AdminProvider>
-                </SkillSwapsProvider>
-              </EarningsProvider>
+              <SocketProvider>
+                <EarningsProvider>
+                  <SkillSwapsProvider>
+                    <AdminProvider>
+                      <NotificationsProvider>
+                        <ResourcesProvider>
+                          <ErrorBoundary>
+                            <GestureHandlerRootView style={styles.container}>
+                              <RootLayoutNav />
+                              <InAppNotificationBanner />
+                            </GestureHandlerRootView>
+                          </ErrorBoundary>
+                        </ResourcesProvider>
+                      </NotificationsProvider>
+                    </AdminProvider>
+                  </SkillSwapsProvider>
+                </EarningsProvider>
+              </SocketProvider>
             </CurrentUserProvider>
           </OnboardingProvider>
         </AuthProvider>

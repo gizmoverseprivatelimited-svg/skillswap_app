@@ -23,6 +23,10 @@ import type { ResourceMeta, ResourceType, SkillCategory, SkillLevel } from '@/ty
 import { useResources, type ResourceDraft } from '@/providers/resources';
 import { useCurrentUser } from '@/providers/current-user';
 import url from '@/constants/backurl';
+import { resolveImageUrl } from '@/lib/resolveImageUrl';
+
+const MOCK_RESOURCE_COVER = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800';
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
 
 const RESOURCE_TYPES: ResourceType[] = ['Article', 'Video', 'Document', 'Collection'];
 const DIFFICULTY_OPTIONS: (SkillLevel | 'All Levels')[] = ['All Levels', 'Beginner', 'Intermediate', 'Advanced', 'Expert'];
@@ -63,6 +67,36 @@ interface ResourceCardProps {
 
 const ResourceCardItem = memo(({ resource, isSaved, difficultyText, onOpen, onToggleSave, onEndorse }: ResourceCardProps) => {
   const scale = useRef(new Animated.Value(1)).current;
+  const coverErrorRef = useRef(false);
+  const avatarErrorRef = useRef(false);
+  const [coverError, setCoverError] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+
+  const handleCoverError = useCallback(() => {
+    if (!coverErrorRef.current) {
+      coverErrorRef.current = true;
+      setCoverError(true);
+    }
+  }, []);
+
+  const handleAvatarError = useCallback(() => {
+    if (!avatarErrorRef.current) {
+      avatarErrorRef.current = true;
+      setAvatarError(true);
+    }
+  }, []);
+
+  const coverUri = useMemo(() => {
+    if (coverError) return MOCK_RESOURCE_COVER;
+    return resolveImageUrl(resource.coverImageUrl, MOCK_RESOURCE_COVER);
+  }, [resource.coverImageUrl, coverError]);
+
+  const avatarUri = useMemo(() => {
+    if (avatarError) return DEFAULT_AVATAR;
+    const raw = resource.contributorAvatarUrl;
+    const full = raw ? (raw.startsWith('/uploads') ? `${url}${raw}` : raw) : '';
+    return resolveImageUrl(full, DEFAULT_AVATAR);
+  }, [resource.contributorAvatarUrl, avatarError]);
 
   const animate = useCallback((value: number) => {
     Animated.sequence([
@@ -94,7 +128,12 @@ const ResourceCardItem = memo(({ resource, isSaved, difficultyText, onOpen, onTo
   return (
     <Animated.View style={[styles.resourceCard, { transform: [{ scale }] }]} testID={`resource-${resource._id}`}>
       <Pressable onPress={onOpen} testID={`resource-open-${resource._id}`}>
-        <ImageBackground source={{ uri: resource.coverImageUrl }} style={styles.cardImage} imageStyle={styles.cardImageRadius}>
+        <ImageBackground
+          source={{ uri: coverUri }}
+          style={styles.cardImage}
+          imageStyle={styles.cardImageRadius}
+          onError={coverError ? undefined : handleCoverError}
+        >
           <LinearGradient colors={overlayGradient} style={styles.cardOverlay}>
             <View style={styles.cardHeaderRow}>
               <View style={styles.badgePill}>
@@ -112,7 +151,12 @@ const ResourceCardItem = memo(({ resource, isSaved, difficultyText, onOpen, onTo
               <Text style={styles.cardSubtitle} numberOfLines={2}>{resource.description}</Text>
               <View style={styles.metaRow}>
                 <View style={styles.metaLeft}>
-                  <ImageBackground source={{ uri: resource.contributorAvatarUrl ? (resource.contributorAvatarUrl.startsWith('/uploads') ? `${url}${resource.contributorAvatarUrl}` : resource.contributorAvatarUrl) : 'https://i.pravatar.cc/150?img=5' }} style={styles.avatar} imageStyle={styles.avatarImage} />
+                  <ImageBackground
+                    source={{ uri: avatarUri }}
+                    style={styles.avatar}
+                    imageStyle={styles.avatarImage}
+                    onError={avatarError ? undefined : handleAvatarError}
+                  />
                   <View style={styles.metaTextBlock}>
                     <Text style={styles.contributorName}>{resource.contributorName}</Text>
                     <Text style={styles.contributorSubtitle}>{difficultyText}</Text>
@@ -150,6 +194,49 @@ const ResourceCardItem = memo(({ resource, isSaved, difficultyText, onOpen, onTo
   );
 });
 ResourceCardItem.displayName = 'ResourceCardItem';
+
+const FeaturedResourceCard = memo(({ resource, onOpen }: { resource: ResourceMeta; onOpen: () => void }) => {
+  const coverErrorRef = useRef(false);
+  const [coverError, setCoverError] = useState(false);
+
+  const handleCoverError = useCallback(() => {
+    if (!coverErrorRef.current) {
+      coverErrorRef.current = true;
+      setCoverError(true);
+    }
+  }, []);
+
+  const coverUri = useMemo(() => {
+    if (coverError) return MOCK_RESOURCE_COVER;
+    return resolveImageUrl(resource.coverImageUrl, MOCK_RESOURCE_COVER);
+  }, [resource.coverImageUrl, coverError]);
+
+  return (
+    <Pressable style={styles.featuredCard} onPress={onOpen} testID={`featured-${resource._id}`}>
+      <ImageBackground
+        source={{ uri: coverUri }}
+        style={styles.featuredImage}
+        imageStyle={styles.featuredImageRadius}
+        onError={coverError ? undefined : handleCoverError}
+      >
+        <LinearGradient colors={overlayGradient} style={styles.featuredOverlay}>
+          <View style={styles.featuredBadgeRow}>
+            <View style={styles.badgePill}>
+              <Layers size={13} color="#E0E7FF" />
+              <Text style={styles.badgeText}>{resource.type}</Text>
+            </View>
+            <View style={styles.badgeAccent}>
+              <Text style={styles.badgeAccentText}>{resource.difficulty}</Text>
+            </View>
+          </View>
+          <Text style={styles.featuredTitle} numberOfLines={3}>{resource.title}</Text>
+          <Text style={styles.featuredCaption} numberOfLines={2}>{resource.description}</Text>
+        </LinearGradient>
+      </ImageBackground>
+    </Pressable>
+  );
+});
+FeaturedResourceCard.displayName = 'FeaturedResourceCard';
 
 export default function ResourcesScreen() {
   const insets = useSafeAreaInsets();
@@ -342,23 +429,11 @@ export default function ResourcesScreen() {
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredScroll}>
               {featuredResources.map((resource, i) => (
-                <Pressable key={`featured-${i}`} style={styles.featuredCard} onPress={() => handleVisitResource(resource.url)} testID={`featured-${resource._id}`}>
-                  <ImageBackground source={{ uri: resource.coverImageUrl }} style={styles.featuredImage} imageStyle={styles.featuredImageRadius}>
-                    <LinearGradient colors={overlayGradient} style={styles.featuredOverlay}>
-                      <View style={styles.featuredBadgeRow}>
-                        <View style={styles.badgePill}>
-                          <Layers size={13} color="#E0E7FF" />
-                          <Text style={styles.badgeText}>{resource.type}</Text>
-                        </View>
-                        <View style={styles.badgeAccent}>
-                          <Text style={styles.badgeAccentText}>{resource.difficulty}</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.featuredTitle} numberOfLines={3}>{resource.title}</Text>
-                      <Text style={styles.featuredCaption} numberOfLines={2}>{resource.description}</Text>
-                    </LinearGradient>
-                  </ImageBackground>
-                </Pressable>
+                <FeaturedResourceCard
+                  key={`featured-${i}`}
+                  resource={resource}
+                  onOpen={() => handleVisitResource(resource.url)}
+                />
               ))}
             </ScrollView>
           </View>

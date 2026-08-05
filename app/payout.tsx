@@ -8,20 +8,21 @@ import { useCurrentUser } from '@/providers/current-user';
 import { useEarnings } from '@/providers/earnings';
 import { useAlert } from '@/providers/alert';
 import type { PayoutMethod } from '@/types';
+import { getPayoutRate, MIN_PAYOUT_CREDITS } from '@/lib/payments';
 
 type Method = PayoutMethod;
 
-const METHODS: { id: Method; label: string; icon: typeof Wallet; desc: string }[] = [
-  { id: 'store_credit', label: 'Store Credit', icon: Wallet, desc: 'Convert to in-app credits instantly' },
-  { id: 'upi', label: 'UPI Transfer', icon: Smartphone, desc: 'Direct transfer to UPI ID' },
-  { id: 'bank_transfer', label: 'Bank Transfer', icon: Building2, desc: 'NEFT/IMPS to your bank account' },
-  { id: 'paypal', label: 'PayPal', icon: Globe, desc: 'International PayPal transfer' },
+const METHODS: { id: Method; label: string; icon: typeof Wallet; rate: string; desc: string; notes: string }[] = [
+  { id: 'store_credit', label: 'Store Credit', icon: Wallet, rate: '₹1.00/credit', desc: 'Convert to in-app credits instantly', notes: 'Instant, no fee' },
+  { id: 'upi', label: 'UPI Transfer', icon: Smartphone, rate: '₹0.80/credit', desc: 'Direct transfer to UPI ID', notes: '3-5 business days' },
+  { id: 'bank_transfer', label: 'Bank Transfer', icon: Building2, rate: '₹0.80/credit', desc: 'NEFT/IMPS to bank account', notes: '3-5 business days' },
+  { id: 'paypal', label: 'PayPal', icon: Globe, rate: '₹0.75/credit', desc: 'International PayPal transfer', notes: 'International fee' },
 ];
 
 export default function PayoutScreen() {
   const router = useRouter();
   const { currentUser } = useCurrentUser();
-  const { getSummary, pointsToCurrency, requestPayout } = useEarnings();
+  const { getSummary, creditsToRupees, requestPayout, minPayoutCredits } = useEarnings();
   const { showAlert } = useAlert();
 
   const summary = useMemo(
@@ -47,8 +48,9 @@ export default function PayoutScreen() {
   const [paypalEmail, setPaypalEmail] = useState<string>('');
 
   const requestedPoints = parseInt(pointsInput || '0', 10);
+  const minCredits = minPayoutCredits || MIN_PAYOUT_CREDITS;
   const isValid =
-    requestedPoints > 0 &&
+    requestedPoints >= minCredits &&
     requestedPoints <= summary.availablePoints &&
     (selectedMethod === 'store_credit' ||
       (selectedMethod === 'upi' && upiId.trim().length > 4) ||
@@ -82,7 +84,7 @@ export default function PayoutScreen() {
     });
     showAlert(
       'Request Submitted!',
-      `Your payout of ${requestedPoints} points (≈ ${formatPrice(pointsToCurrency(requestedPoints))}) is pending review.`,
+      `Your payout of ${requestedPoints} credits (≈ ${formatPrice(creditsToRupees(requestedPoints, selectedMethod))}) is pending review.`,
       [{ text: 'OK', onPress: () => router.replace('/earnings' as any) }]
     );
   };
@@ -94,7 +96,7 @@ export default function PayoutScreen() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <ArrowLeft size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Redeem Points</Text>
+        <Text style={s.headerTitle}>Redeem Credits</Text>
         <View style={{ width: 44 }} />
       </View>
 
@@ -103,8 +105,8 @@ export default function PayoutScreen() {
           <Coins size={24} color="#6366F1" />
           <View style={{ flex: 1 }}>
             <Text style={s.balanceLabel}>Available Balance</Text>
-            <Text style={s.balanceValue}>{summary.availablePoints.toLocaleString()} points</Text>
-            <Text style={s.balanceCurrency}>≈ {formatPrice(pointsToCurrency(summary.availablePoints))}</Text>
+            <Text style={s.balanceValue}>{summary.availablePoints.toLocaleString()} credits</Text>
+            <Text style={s.balanceCurrency}>≈ {formatPrice(creditsToRupees(summary.availablePoints, selectedMethod))}</Text>
           </View>
         </View>
 
@@ -123,8 +125,13 @@ export default function PayoutScreen() {
                   <m.icon size={20} color={active ? Colors.light.primary : Colors.light.textSecondary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.methodLabel, active && s.methodLabelActive]}>{m.label}</Text>
-                  <Text style={s.methodDesc}>{m.desc}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={[s.methodLabel, active && s.methodLabelActive]}>{m.label}</Text>
+                    <View style={{ backgroundColor: active ? Colors.light.primary : '#E2E8F0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: active ? '#FFFFFF' : '#475569' }}>{m.rate}</Text>
+                    </View>
+                  </View>
+                  <Text style={s.methodDesc}>{m.desc} • <Text style={{ fontWeight: '600' }}>{m.notes}</Text></Text>
                 </View>
                 {active && <Check size={20} color={Colors.light.primary} />}
               </TouchableOpacity>
@@ -132,14 +139,14 @@ export default function PayoutScreen() {
           })}
         </View>
 
-        <Text style={s.label}>Points to Redeem</Text>
+        <Text style={s.label}>Credits to Redeem (Min. {minCredits} credits)</Text>
         <View style={s.inputWrap}>
           <Coins size={18} color={Colors.light.textSecondary} />
           <TextInput
             style={s.input}
             value={pointsInput}
             onChangeText={setPointsInput}
-            placeholder="Enter points amount"
+            placeholder="Enter credit amount"
             placeholderTextColor={Colors.light.textTertiary}
             keyboardType="numeric"
           />
@@ -150,7 +157,7 @@ export default function PayoutScreen() {
         {requestedPoints > 0 && (
           <View style={s.previewCard}>
             <Text style={s.previewLabel}>You'll receive</Text>
-            <Text style={s.previewValue}>{formatPrice(pointsToCurrency(requestedPoints))}</Text>
+            <Text style={s.previewValue}>{formatPrice(creditsToRupees(requestedPoints, selectedMethod))}</Text>
           </View>
         )}
 
@@ -199,11 +206,29 @@ export default function PayoutScreen() {
         </TouchableOpacity>
 
         <View style={s.noteCard}>
-          <Text style={s.noteText}>
-            • Store credit payouts are instant.{'\n'}
-            • UPI/Bank transfers take 3-5 business days after approval.{'\n'}
-            • Minimum 100 points per payout request.
-          </Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.text, marginBottom: 8 }}>Payout Rates & Rules</Text>
+          <View style={{ gap: 6 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={s.noteText}>• Store Credit:</Text>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>₹1.00/credit (Instant, no fee)</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={s.noteText}>• UPI Transfer:</Text>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: Colors.light.text }}>₹0.80/credit (3-5 business days)</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={s.noteText}>• Bank Transfer:</Text>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: Colors.light.text }}>₹0.80/credit (3-5 business days)</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={s.noteText}>• PayPal:</Text>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: Colors.light.text }}>₹0.75/credit (International fee)</Text>
+            </View>
+            <View style={{ height: 1, backgroundColor: Colors.light.borderLight, marginVertical: 4 }} />
+            <Text style={{ fontSize: 12, color: Colors.light.textSecondary, fontWeight: '600' }}>
+              • Minimum payout requirement: {minCredits} credits (₹{creditsToRupees(minCredits, selectedMethod).toFixed(2)} value)
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </View>

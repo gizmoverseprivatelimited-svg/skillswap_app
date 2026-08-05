@@ -25,7 +25,7 @@ export default function EarningsDashboard() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { currentUser } = useCurrentUser();
-  const { getSummary, pointsToCurrency, getUserPayouts } = useEarnings();
+  const { getSummary, creditsToRupees, getUserPayouts } = useEarnings();
 
   const summary = useMemo(
     () => (currentUser?.id ? getSummary(currentUser.id) : {
@@ -47,7 +47,7 @@ export default function EarningsDashboard() {
   );
   const recentPayouts = userPayouts.slice(0, 3);
 
-  const currencyValue = pointsToCurrency(summary.availablePoints);
+  const currencyValue = creditsToRupees ? creditsToRupees(summary.availablePoints) : summary.availablePoints;
 
   return (
     <View style={s.container}>
@@ -69,7 +69,7 @@ export default function EarningsDashboard() {
               <Coins size={26} color="#FFFFFF" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.heroLabel}>Available Points</Text>
+              <Text style={s.heroLabel}>Available Credits</Text>
               <Text style={s.heroPoints}>{summary.availablePoints.toLocaleString()}</Text>
               <Text style={s.heroValue}>≈ {formatPrice(currencyValue)}</Text>
             </View>
@@ -135,7 +135,7 @@ export default function EarningsDashboard() {
                 </View>
                 <View style={s.rulePointsWrap}>
                   <Text style={s.rulePoints}>+{rule.points}</Text>
-                  <Text style={s.rulePointsUnit}>pts</Text>
+                  <Text style={s.rulePointsUnit}>cr</Text>
                 </View>
               </View>
             ))}

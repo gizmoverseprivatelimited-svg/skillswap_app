@@ -27,13 +27,12 @@ export function InAppNotificationBanner() {
     if (notifications.length === 0) return;
     const latest = notifications[0];
 
-    // If it's a new notification and we haven't seen/shown it yet
+    // Only show it if it was created in the last 15 seconds and not marked as skipPopup
     if (latest.id !== lastSeenIdRef.current) {
       lastSeenIdRef.current = latest.id;
 
-      // Only show it if it was created in the last 15 seconds (to avoid showing old ones on mount)
       const diffMs = Date.now() - new Date(latest.createdAt).getTime();
-      if (diffMs < 15000) {
+      if (diffMs < 15000 && !latest.metadata?.skipPopup) {
         setActiveNotification(latest);
 
         // Slide down

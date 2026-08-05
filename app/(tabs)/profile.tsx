@@ -1,3 +1,4 @@
+// Profile screen component
 import {
   StyleSheet,
   Text,
@@ -7,7 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import {
   MapPin,
   Star,
@@ -20,7 +21,6 @@ import {
   Crown,
   ShoppingBag,
   ShieldCheck,
-  RefreshCw,
   Settings,
   Plus,
   HelpCircle,
@@ -32,7 +32,6 @@ import {
   History,
 } from 'lucide-react-native';
 import { useAuth } from '@/providers/auth';
-import { useOnboarding } from '@/providers/onboarding';
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '@/constants/colors';
 import { TrustScoreBadge } from '@/components/TrustScoreBadge';
@@ -45,13 +44,17 @@ import { formatPrice } from '@/constants/locale';
 import url from '@/constants/backurl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { useSocket } from '@/providers/socket';
+
 export default function ProfileScreen() {
   const router = useRouter();
   const auth = useAuth();
-  const { resetOnboarding } = useOnboarding();
-  const { currentUser, loadUser } = useCurrentUser();
+  const currentUserContext = useCurrentUser();
+  const currentUser = currentUserContext?.currentUser;
+  const loadUser = currentUserContext?.loadUser;
   const { swaps } = useSkillSwaps();
-  const { getSummary } = useEarnings();
+  const { getSummary, refreshUserEarnings } = useEarnings();
+  const { socket } = useSocket();
 
   const [verifications, setVerifications] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -147,34 +150,19 @@ export default function ProfileScreen() {
     fetchReviews();
     fetchVerifications();
 
-    const interval = setInterval(() => {
-      fetchReviews(true);
-    }, 15000);
-
-    return () => clearInterval(interval);
-  }, [fetchReviews, fetchVerifications]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadUser(true);
-      fetchReviews(true);
-      fetchVerifications();
-      if (currentUser?.id) {
-        getSummary(currentUser.id);
-      }
-    }, [loadUser, fetchReviews, fetchVerifications, currentUser?.id, getSummary])
-  );
+    if (socket) {
+      const handleReviewCreated = () => fetchReviews(true);
+      socket.on('review_created', handleReviewCreated);
+      return () => {
+        socket.off('review_created', handleReviewCreated);
+      };
+    }
+  }, [fetchReviews, fetchVerifications, socket]);
 
   const handleSignOut = async () => {
     console.log('[Profile] Signing out');
     await auth.signOut();
     router.replace('/login');
-  };
-
-  const handleRestartOnboarding = async () => {
-    console.log('[Profile] Restarting onboarding');
-    await resetOnboarding();
-    router.replace('/onboarding');
   };
 
   if (isLoading) {
@@ -274,8 +262,8 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.earningsInfo}>
                 <Text style={styles.earningsLabel}>Teaching Earnings</Text>
-                <Text style={styles.earningsPoints}>{earningsSummary.availablePoints.toLocaleString()} points available</Text>
-                <Text style={styles.earningsSub}>This month: +{earningsSummary.currentMonthPoints} pts · {earningsSummary.currentMonthClasses} classes</Text>
+                <Text style={styles.earningsPoints}>{earningsSummary.availablePoints.toLocaleString()} credits available</Text>
+                <Text style={styles.earningsSub}>This month: +{earningsSummary.currentMonthPoints} cr · {earningsSummary.currentMonthClasses} classes</Text>
               </View>
               <View style={styles.earningsArrow}>
                 <Text style={styles.earningsArrowText}>View →</Text>
@@ -379,14 +367,6 @@ export default function ProfileScreen() {
               <Text style={styles.adminTitle}>Admin Panel</Text>
               <Text style={styles.adminSubtitle}>Manage users, reviews & more</Text>
             </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.restartOnboardingButton}
-            onPress={handleRestartOnboarding}
-          >
-            <RefreshCw size={18} color={Colors.light.primary} />
-            <Text style={styles.restartOnboardingText}>Restart Onboarding</Text>
           </TouchableOpacity>
 
           <View style={styles.section}>
@@ -934,23 +914,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.7)',
     fontWeight: '500' as const,
-  },
-  restartOnboardingButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.light.card,
-    paddingVertical: 14,
-    borderRadius: 16,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: Colors.light.borderLight,
-  },
-  restartOnboardingText: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.light.primary,
   },
   section: {
     marginBottom: 24,

@@ -22,6 +22,7 @@ interface AuthUser {
   credits: number;
   premiumTier: PremiumTier;
   premiumExpiresAt?: number;
+  hasCompletedOnboarding?: boolean;
 }
 
 interface AuthContextValue {

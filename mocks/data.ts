@@ -8,19 +8,15 @@ console.log("Hey Hey", API_URL);
 
 async function apiGet<T>(endpoint: string): Promise<T> {
   const fullUrl = `${API_URL}${endpoint}`;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
   try {
-    const res = await fetch(fullUrl, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const res = await fetch(fullUrl);
     if (!res.ok) {
       throw new Error(`API error: ${res.status}`);
     }
     const text = await res.text();
     return JSON.parse(text) as T;
   } catch (err) {
-    clearTimeout(timeoutId);
-    console.error(`[apiGet] Fetch error for ${fullUrl}:`, err);
+    console.warn(`[apiGet] Backend fetch warning for ${fullUrl}:`, (err as any)?.message || err);
     return [] as unknown as T;
   }
 }

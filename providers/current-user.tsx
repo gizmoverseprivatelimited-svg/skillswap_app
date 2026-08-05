@@ -19,6 +19,8 @@ interface CurrentUserContextValue {
   userRole: OnboardingRole;
   applyOnboardingData: (data: Partial<OnboardingData>) => void;
   refreshRecommendations: () => void;
+  earnCredits: (amount: number) => void;
+  spendCredits: (amount: number) => void;
   isLoading: boolean;
 }
 
@@ -117,9 +119,9 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
     }
 
     try {
-      let data = await getUsers()
-      if (data) {
-        setUsers(data)
+      let data = await getUsers();
+      if (Array.isArray(data)) {
+        setUsers(data);
         if (!currentId) {
           setCurrentUser(null);
           return;
@@ -145,27 +147,16 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
     if (!user?.id) {
       setCurrentUser(null);
     }
-
-    // Poll users list every 10 seconds to detect new users and update matches, start after 2s if logged in
-    let intervalId: any;
-    let timeoutId: any;
-    if (user?.id) {
-      timeoutId = setTimeout(() => {
-        intervalId = setInterval(() => {
-          loadUser(true);
-        }, 20000);
-      }, 5000);
-    }
-
-    return () => {
-      clearTimeout(timeoutId);
-      if (intervalId) clearInterval(intervalId);
-    };
   }, [user?.id, loadUser]);
 
   const otherUsers = useMemo<User[]>(() => {
-    return users.filter((user) => user.id !== currentUser?.id);
-  }, [currentUser?.id, refreshCounter, users]);
+    if (!currentUser?.id) return users;
+    const currentId = String(currentUser.id || (currentUser as any)._id || '');
+    return users.filter((user) => {
+      const uId = String(user.id || (user as any)._id || '');
+      return uId !== currentId;
+    });
+  }, [currentUser, refreshCounter, users]);
 
   const recommendations = useMemo<MatchRecommendation[]>(() => {
     if (!currentUser) {
@@ -208,6 +199,36 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
     setRefreshCounter((value) => value + 1);
   }, [loadUser]);
 
+  const earnCredits = useCallback((amount: number) => {
+    setCurrentUser((prev) => {
+      if (!prev) return prev;
+      const updatedCredits = (prev.credits || 0) + amount;
+      if (prev.id === '1') {
+        AsyncStorage.getItem('@skillswap/user').then((stored) => {
+          const parsed = stored ? JSON.parse(stored) : {};
+          parsed.credits = updatedCredits;
+          AsyncStorage.setItem('@skillswap/user', JSON.stringify(parsed)).catch(() => {});
+        }).catch(() => {});
+      }
+      return { ...prev, credits: updatedCredits };
+    });
+  }, []);
+
+  const spendCredits = useCallback((amount: number) => {
+    setCurrentUser((prev) => {
+      if (!prev) return prev;
+      const updatedCredits = Math.max(0, (prev.credits || 0) - amount);
+      if (prev.id === '1') {
+        AsyncStorage.getItem('@skillswap/user').then((stored) => {
+          const parsed = stored ? JSON.parse(stored) : {};
+          parsed.credits = updatedCredits;
+          AsyncStorage.setItem('@skillswap/user', JSON.stringify(parsed)).catch(() => {});
+        }).catch(() => {});
+      }
+      return { ...prev, credits: updatedCredits };
+    });
+  }, []);
+
   const value = useMemo<CurrentUserContextValue>(() => {
     return {
       loadUser,
@@ -221,9 +242,11 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
       userRole,
       applyOnboardingData,
       refreshRecommendations,
+      earnCredits,
+      spendCredits,
       isLoading,
     };
-  }, [recommendations, loadUser, users, currentUser, topRecommendations, teachMatches, learnMatches, swapMatches, userRole, applyOnboardingData, refreshRecommendations, isLoading]);
+  }, [recommendations, loadUser, users, currentUser, topRecommendations, teachMatches, learnMatches, swapMatches, userRole, applyOnboardingData, refreshRecommendations, earnCredits, spendCredits, isLoading]);
 
   return value;
 });
