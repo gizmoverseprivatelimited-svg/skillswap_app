@@ -69,21 +69,49 @@ export default function HomeScreen() {
     }
   };
 
+  const allAvailableSkills = useMemo(() => {
+    const list = [...skillsWithUsers];
+    if (currentUser?.skillsOffered) {
+      currentUser.skillsOffered.forEach((userSkill) => {
+        const skillId = String(userSkill.id || userSkill._id || '');
+        const exists = list.some((item) => String(item.id || item._id || '') === skillId);
+        if (!exists) {
+          list.unshift({
+            ...userSkill,
+            id: userSkill.id || userSkill._id,
+            user: currentUser,
+          });
+        } else {
+          const idx = list.findIndex((item) => String(item.id || item._id || '') === skillId);
+          if (idx !== -1) {
+            list[idx] = {
+              ...list[idx],
+              promoted: userSkill.promoted ?? list[idx].promoted,
+              promoTagline: userSkill.promoTagline ?? list[idx].promoTagline,
+              user: list[idx].user || currentUser,
+            };
+          }
+        }
+      });
+    }
+    return list;
+  }, [skillsWithUsers, currentUser]);
+
   const otherSkillsWithUsers = useMemo(() => {
-    if (!currentUser?.id) return skillsWithUsers;
+    if (!currentUser?.id) return allAvailableSkills;
     const currentId = String(currentUser.id || (currentUser as any)._id || '');
-    return skillsWithUsers.filter((item) => {
+    return allAvailableSkills.filter((item) => {
       const itemUserId = String(item.userId || item.user?.id || item.user?._id || '');
       return itemUserId !== currentId;
     });
-  }, [skillsWithUsers, currentUser]);
+  }, [allAvailableSkills, currentUser]);
 
   const filteredSkills = selectedCategory === 'All' 
     ? otherSkillsWithUsers 
     : otherSkillsWithUsers.filter(skill => skill.category === selectedCategory);
 
   const featuredSkills = otherSkillsWithUsers.slice(0, 3);
-  const promotedSkills = useMemo(() => otherSkillsWithUsers.filter(s => s.promoted).slice(0, 5), [otherSkillsWithUsers]);
+  const promotedSkills = useMemo(() => allAvailableSkills.filter(s => s.promoted).slice(0, 10), [allAvailableSkills]);
   const topTeachMatches = useMemo(() => teachMatches.slice(0, 4), [teachMatches]);
   const topLearnMatches = useMemo(() => learnMatches.slice(0, 4), [learnMatches]);
   const topSwapMatches = useMemo(() => swapMatches.slice(0, 4), [swapMatches]);
