@@ -8,7 +8,9 @@ export type SkillCategory =
   | 'Business'
   | 'Photography'
   | 'Classical Arts'
-  | 'Competitive Exams';
+  | 'Competitive Exams'
+  | 'Other'
+  | (string & {});
 
 export type SkillLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
 

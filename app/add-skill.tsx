@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ChevronDown,
@@ -67,7 +67,7 @@ const MODE_OPTIONS: {
   },
 ];
 
-const CATEGORIES: SkillCategory[] = [
+const DEFAULT_CATEGORIES: string[] = [
   'Arts & Crafts',
   'Technology',
   'Fitness & Wellness',
@@ -88,7 +88,7 @@ const PRICING_MODELS: { key: PricingModel; label: string; desc: string }[] = [
   { key: 'monthly', label: 'Monthly', desc: 'Recurring monthly subscription' },
 ];
 
-const STOCK_IMAGES: Record<SkillCategory, string> = {
+const STOCK_IMAGES: Record<string, string> = {
   'Arts & Crafts': 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800',
   'Technology': 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800',
   'Fitness & Wellness': 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800',
@@ -107,8 +107,10 @@ export default function AddSkillScreen() {
   const { showAlert } = useAlert();
 
   const [mode, setMode] = useState<AddMode | null>(null);
+  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [teachTitle, setTeachTitle] = useState<string>('');
   const [teachCategory, setTeachCategory] = useState<SkillCategory | null>(null);
+  const [customTeachCategory, setCustomTeachCategory] = useState<string>('');
   const [teachLevel, setTeachLevel] = useState<SkillLevel | null>(null);
   const [teachDescription, setTeachDescription] = useState<string>('');
   const [showTeachCategory, setShowTeachCategory] = useState<boolean>(false);
@@ -120,20 +122,46 @@ export default function AddSkillScreen() {
 
   const [learnTitle, setLearnTitle] = useState<string>('');
   const [learnCategory, setLearnCategory] = useState<SkillCategory | null>(null);
+  const [customLearnCategory, setCustomLearnCategory] = useState<string>('');
   const [showLearnCategory, setShowLearnCategory] = useState<boolean>(false);
 
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch(`${url}/skills/categories`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setCategories((prev) => Array.from(new Set([...prev, ...data])));
+          }
+        }
+      } catch (err) {
+        console.warn('[AddSkill] Failed to fetch categories from backend:', err);
+      }
+    };
+    void fetchCategories();
+  }, []);
+
+  const categoryOptions = useMemo(() => {
+    const base = categories.filter((c) => c !== 'Other');
+    return [...base, 'Other'];
+  }, [categories]);
+
   const showTeachFields = mode === 'teach' || mode === 'swap';
   const showLearnFields = mode === 'learn' || mode === 'swap';
 
-  const teachImageUrl = teachCategory ? STOCK_IMAGES[teachCategory] : null;
+  const effectiveTeachCategory = (teachCategory === 'Other' ? customTeachCategory.trim() : teachCategory) as SkillCategory | null;
+  const teachImageUrl = effectiveTeachCategory ? (STOCK_IMAGES[effectiveTeachCategory] ?? STOCK_IMAGES['Technology']) : null;
 
   const validate = (): string | null => {
     if (!mode) return 'Please choose an option to continue.';
     if (showTeachFields) {
       if (!teachTitle.trim()) return 'Please enter the skill you can teach.';
       if (!teachCategory) return 'Please select a category for your teach skill.';
+      if (teachCategory === 'Other' && !customTeachCategory.trim())
+        return 'Please enter a custom category name.';
       if (!teachLevel) return 'Please select your proficiency level.';
       if (pricingModel === 'per_session' && (!pricePerSession.trim() || Number(pricePerSession) <= 0))
         return 'Please set a valid per-session price.';
@@ -144,6 +172,8 @@ export default function AddSkillScreen() {
     }
     if (showLearnFields) {
       if (!learnTitle.trim()) return 'Please enter the skill you want to learn.';
+      if (learnCategory === 'Other' && !customLearnCategory.trim())
+        return 'Please enter a custom category name.';
     }
     return null;
   };
@@ -158,16 +188,18 @@ export default function AddSkillScreen() {
     setIsSaving(true);
     try {
       const newSkills: Skill[] = [];
+      const finalTeachCat = (teachCategory === 'Other' ? customTeachCategory.trim() : teachCategory) as SkillCategory;
+      const finalLearnCat = (learnCategory === 'Other' ? customLearnCategory.trim() : learnCategory) as SkillCategory;
 
-      if (showTeachFields && teachTitle.trim() && teachCategory && teachLevel) {
+      if (showTeachFields && teachTitle.trim() && finalTeachCat && teachLevel) {
         const skillPayload: Skill = {
           id: `skill-${Date.now()}`,
           title: teachTitle.trim(),
-          category: teachCategory,
+          category: finalTeachCat,
           description: teachDescription.trim() || `Teaching ${teachTitle.trim()}`,
           level: teachLevel,
           userId: currentUser?.id || '',
-          imageUrl: teachImageUrl ?? STOCK_IMAGES['Technology'],
+          imageUrl: (STOCK_IMAGES[finalTeachCat] || teachImageUrl) ?? STOCK_IMAGES['Technology'],
           pricingModel,
           pricePerSession: pricingModel === 'per_session' ? Number(pricePerSession) : undefined,
           monthlyPrice: pricingModel === 'monthly' ? Number(monthlyPrice) : undefined,
@@ -199,12 +231,18 @@ export default function AddSkillScreen() {
         } else {
           newSkills.push(skillPayload);
         }
+
+        // Add custom category to local categories list so it appears dynamically
+        setCategories((prev) => Array.from(new Set([...prev, finalTeachCat])));
       }
 
       if (showLearnFields && learnTitle.trim() && currentUser) {
         const alreadyWants = currentUser.skillsWanted.includes(learnTitle.trim());
         if (!alreadyWants) {
           currentUser.skillsWanted.push(learnTitle.trim());
+        }
+        if (finalLearnCat) {
+          setCategories((prev) => Array.from(new Set([...prev, finalLearnCat])));
         }
       }
 
@@ -262,6 +300,7 @@ export default function AddSkillScreen() {
     setMode(null);
     setTeachTitle('');
     setTeachCategory(null);
+    setCustomTeachCategory('');
     setTeachLevel(null);
     setTeachDescription('');
     setShowTeachCategory(false);
@@ -272,6 +311,7 @@ export default function AddSkillScreen() {
     setPromoTagline('');
     setLearnTitle('');
     setLearnCategory(null);
+    setCustomLearnCategory('');
     setShowLearnCategory(false);
   };
 
@@ -285,6 +325,22 @@ export default function AddSkillScreen() {
             headerStyle: { backgroundColor: Colors.light.background },
             headerTintColor: Colors.light.text,
             headerShadowVisible: false,
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => {
+                  if (router.canGoBack()) {
+                    router.back();
+                  } else {
+                    router.replace('/(tabs)/profile');
+                  }
+                }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={{ paddingRight: 12 }}
+                testID="add-skill-back-btn"
+              >
+                <ArrowLeft size={22} color={Colors.light.text} />
+              </TouchableOpacity>
+            ),
           }}
         />
         <View style={styles.container}>
@@ -408,19 +464,23 @@ export default function AddSkillScreen() {
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.pickerButtonText, !teachCategory && styles.pickerPlaceholder]}>
-                    {teachCategory ?? 'Select a category'}
+                    {teachCategory === 'Other'
+                      ? (customTeachCategory.trim() ? `Other (${customTeachCategory.trim()})` : 'Other')
+                      : (teachCategory ?? 'Select a category')}
                   </Text>
                   <ChevronDown size={20} color={Colors.light.textSecondary} />
                 </TouchableOpacity>
                 {showTeachCategory && (
                   <View style={styles.optionsGrid}>
-                    {CATEGORIES.map((cat) => (
+                    {categoryOptions.map((cat) => (
                       <TouchableOpacity
                         key={cat}
                         style={[styles.optionChip, teachCategory === cat && styles.optionChipSelected]}
                         onPress={() => {
                           setTeachCategory(cat);
-                          setShowTeachCategory(false);
+                          if (cat !== 'Other') {
+                            setShowTeachCategory(false);
+                          }
                         }}
                       >
                         <Text style={[styles.optionChipText, teachCategory === cat && styles.optionChipTextSelected]}>
@@ -428,6 +488,18 @@ export default function AddSkillScreen() {
                         </Text>
                       </TouchableOpacity>
                     ))}
+                  </View>
+                )}
+                {teachCategory === 'Other' && (
+                  <View style={styles.customCategoryWrap}>
+                    <TextInput
+                      style={styles.customCategoryInput}
+                      placeholder="Enter custom category"
+                      placeholderTextColor={Colors.light.textTertiary}
+                      value={customTeachCategory}
+                      onChangeText={setCustomTeachCategory}
+                      autoFocus
+                    />
                   </View>
                 )}
               </View>
@@ -600,19 +672,23 @@ export default function AddSkillScreen() {
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.pickerButtonText, !learnCategory && styles.pickerPlaceholder]}>
-                    {learnCategory ?? 'Select a category'}
+                    {learnCategory === 'Other'
+                      ? (customLearnCategory.trim() ? `Other (${customLearnCategory.trim()})` : 'Other')
+                      : (learnCategory ?? 'Select a category')}
                   </Text>
                   <ChevronDown size={20} color={Colors.light.textSecondary} />
                 </TouchableOpacity>
                 {showLearnCategory && (
                   <View style={styles.optionsGrid}>
-                    {CATEGORIES.map((cat) => (
+                    {categoryOptions.map((cat) => (
                       <TouchableOpacity
                         key={cat}
                         style={[styles.optionChip, learnCategory === cat && styles.optionChipSelected]}
                         onPress={() => {
                           setLearnCategory(cat);
-                          setShowLearnCategory(false);
+                          if (cat !== 'Other') {
+                            setShowLearnCategory(false);
+                          }
                         }}
                       >
                         <Text style={[styles.optionChipText, learnCategory === cat && styles.optionChipTextSelected]}>
@@ -620,6 +696,18 @@ export default function AddSkillScreen() {
                         </Text>
                       </TouchableOpacity>
                     ))}
+                  </View>
+                )}
+                {learnCategory === 'Other' && (
+                  <View style={styles.customCategoryWrap}>
+                    <TextInput
+                      style={styles.customCategoryInput}
+                      placeholder="Enter custom category"
+                      placeholderTextColor={Colors.light.textTertiary}
+                      value={customLearnCategory}
+                      onChangeText={setCustomLearnCategory}
+                      autoFocus
+                    />
                   </View>
                 )}
               </View>
@@ -1083,5 +1171,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700' as const,
     color: '#FFFFFF',
+  },
+  customCategoryWrap: {
+    marginTop: 10,
+  },
+  customCategoryInput: {
+    backgroundColor: Colors.light.backgroundTertiary,
+    borderWidth: 1,
+    borderColor: Colors.light.primary,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    color: Colors.light.text,
   },
 });

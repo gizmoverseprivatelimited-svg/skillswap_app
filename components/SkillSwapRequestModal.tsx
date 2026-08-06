@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View, ScrollView } from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View, ScrollView, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CalendarCheck2, Clock, MapPin, Sparkles, X, ArrowRight, Check, AlertTriangle, Coins, GraduationCap, BookOpen, ArrowLeftRight, IndianRupee } from 'lucide-react-native';
+import { CalendarCheck2, Clock, MapPin, Sparkles, X, ArrowRight, Check, AlertTriangle, Coins, GraduationCap, BookOpen, ArrowLeftRight, IndianRupee, CalendarClock } from 'lucide-react-native';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import Colors from '../constants/colors';
@@ -113,6 +113,70 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
   const [introMessage, setIntroMessage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
+  // Calendar picker state
+  const [calendarModalVisible, setCalendarModalVisible] = useState<boolean>(false);
+  const [customDateTimeStr, setCustomDateTimeStr] = useState<string>(() => {
+    const tom = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    tom.setHours(14, 0, 0, 0);
+    return tom.toISOString().slice(0, 16);
+  });
+  const [pickerSelectedDate, setPickerSelectedDate] = useState<string>(
+    new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  );
+  const [pickerSelectedTime, setPickerSelectedTime] = useState<string>('14:00');
+
+  const next14Days = useMemo(() => {
+    const days: { dateStr: string; label: string; sublabel: string }[] = [];
+    const now = new Date();
+    for (let i = 1; i <= 14; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      const label = d.toLocaleDateString(undefined, { weekday: 'short' });
+      const sublabel = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      days.push({ dateStr, label, sublabel });
+    }
+    return days;
+  }, []);
+
+  const timeSlotOptions = ['09:00', '10:30', '12:00', '14:00', '16:00', '18:00', '19:30', '21:00'];
+
+  const handleConfirmCalendarSlot = useCallback(() => {
+    let start: Date | null = null;
+    if (customDateTimeStr) {
+      start = new Date(customDateTimeStr);
+    }
+    if (!start || isNaN(start.getTime())) {
+      if (pickerSelectedDate && pickerSelectedTime) {
+        const [year, month, day] = pickerSelectedDate.split('-').map(Number);
+        const [hours, minutes] = pickerSelectedTime.split(':').map(Number);
+        start = new Date(year, month - 1, day, hours, minutes, 0, 0);
+      }
+    }
+
+    if (!start || isNaN(start.getTime())) {
+      setError('Please select a valid date and time from the calendar.');
+      return;
+    }
+
+    const id = `custom-${start.getTime()}`;
+    const label = formatTimeLabel(start.toISOString());
+    const newOption: TimeOption = {
+      id,
+      label,
+      startISO: start.toISOString(),
+      endISO: new Date(start.getTime() + 60 * 60 * 1000).toISOString(),
+    };
+
+    setSelectedTimes((prev) => {
+      if (prev.some((s) => s.id === id)) return prev;
+      if (prev.length >= 3) {
+        return [...prev.slice(1), newOption];
+      }
+      return [...prev, newOption];
+    });
+    setCalendarModalVisible(false);
+  }, [customDateTimeStr, pickerSelectedDate, pickerSelectedTime]);
+
   // Latest partner data from backend (via allUsers)
   const latestPartner = useMemo(() => {
     if (!skill?.user?.id) return skill?.user;
@@ -170,6 +234,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
       setSelectedLocation('Online Video Call');
       setIntroMessage('');
       setError(null);
+      setCalendarModalVisible(false);
       resetSwapMutation();
     }
     wasVisible.current = visible;
@@ -492,6 +557,8 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
               {isTimeStep && (
                 <View style={styles.stepSection}>
                   <Text style={styles.sectionLabel}>Suggest up to 3 slots</Text>
+
+                  <Text style={styles.subHeadingLabel}>Quick options</Text>
                   <View style={styles.timeGrid}>
                     {timeOptions.map((option, i) => {
                       const isSelected = selectedTimes.some((item) => item.id === option.id);
@@ -509,13 +576,28 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                       );
                     })}
                   </View>
+
+                  {/* Interactive Calendar Date & Time Button */}
+                  <TouchableOpacity
+                    style={styles.openCalendarPickerBtn}
+                    onPress={() => setCalendarModalVisible(true)}
+                    activeOpacity={0.85}
+                    testID="open-calendar-picker-btn"
+                  >
+                    <CalendarClock size={20} color="#38BDF8" />
+                    <Text style={styles.openCalendarPickerText}>Choose Date & Time from Calendar 📅</Text>
+                  </TouchableOpacity>
+
                   {selectedTimes.length > 0 && (
                     <View style={styles.selectedPreview}>
-                      <Text style={styles.sectionLabel}>Selected</Text>
+                      <Text style={styles.sectionLabel}>Selected ({selectedTimes.length}/3)</Text>
                       {selectedTimes.map((slot, i) => (
                         <View key={`preview-${i}`} style={styles.selectedRow}>
                           <CalendarCheck2 size={16} color={Colors.light.primary} />
                           <Text style={styles.selectedText}>{formatTimeLabel(slot.startISO)}</Text>
+                          <Pressable onPress={() => handleSelectTime(slot)} style={{ marginLeft: 'auto', padding: 4 }}>
+                            <X size={14} color="#94A3B8" />
+                          </Pressable>
                         </View>
                       ))}
                     </View>
@@ -643,6 +725,162 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
           </Pressable>
         </View>
       </View>
+
+      {/* 📅 Visual Calendar Date & Time Selector Modal */}
+      <Modal
+        visible={calendarModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCalendarModalVisible(false)}
+      >
+        <View style={styles.calModalOverlay}>
+          <View style={styles.calModalCard}>
+            <LinearGradient
+              colors={['#38BDF8', '#6366F1']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.calModalTopBar}
+            />
+
+            <TouchableOpacity
+              style={styles.calModalCloseBtn}
+              onPress={() => setCalendarModalVisible(false)}
+              testID="close-calendar-modal-btn"
+            >
+              <X size={18} color={Colors.light.textSecondary} />
+            </TouchableOpacity>
+
+            <View style={styles.calModalIconBox}>
+              <LinearGradient
+                colors={['#F0F9FF', '#E0F2FE']}
+                style={styles.calModalIconCircle}
+              >
+                <CalendarClock size={32} color="#0284C7" />
+              </LinearGradient>
+            </View>
+
+            <Text style={styles.calModalTitle}>Choose Date & Time 📅</Text>
+            <Text style={styles.calModalDesc}>Select your preferred day and time slot to suggest for this swap.</Text>
+
+            {/* HTML Calendar Date & Time Input */}
+            <View style={styles.pickerSection}>
+              <Text style={styles.pickerSectionTitle}>Select Date & Time (Calendar)</Text>
+              {Platform.OS === 'web' ? (
+                // @ts-ignore - native HTML datetime-local input popover
+                <input
+                  type="datetime-local"
+                  value={customDateTimeStr}
+                  onChange={(e: any) => setCustomDateTimeStr(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    borderRadius: '14px',
+                    border: '1px solid rgba(56, 189, 248, 0.4)',
+                    backgroundColor: '#0F172A',
+                    color: '#F8FAFC',
+                    colorScheme: 'dark',
+                    fontSize: '15px',
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    cursor: 'pointer',
+                  }}
+                />
+              ) : (
+                <TextInput
+                  style={styles.customDateTimeInput}
+                  placeholder="YYYY-MM-DD HH:MM"
+                  placeholderTextColor="rgba(148, 163, 184, 0.65)"
+                  value={customDateTimeStr}
+                  onChangeText={setCustomDateTimeStr}
+                />
+              )}
+            </View>
+
+            {/* Quick Day Chips */}
+            <View style={styles.pickerSection}>
+              <Text style={styles.pickerSectionTitle}>Or Quick Select Day</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daysScroll}>
+                {next14Days.map((d) => {
+                  const isSelected = pickerSelectedDate === d.dateStr;
+                  return (
+                    <TouchableOpacity
+                      key={d.dateStr}
+                      style={[styles.dayCard, isSelected && styles.dayCardSelected]}
+                      onPress={() => {
+                        setPickerSelectedDate(d.dateStr);
+                        setCustomDateTimeStr(`${d.dateStr}T${pickerSelectedTime}`);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.dayCardLabel, isSelected && styles.dayCardLabelSelected]}>{d.label}</Text>
+                      <Text style={[styles.dayCardSublabel, isSelected && styles.dayCardSublabelSelected]}>{d.sublabel}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Quick Time Slot Grid */}
+            <View style={styles.pickerSection}>
+              <Text style={styles.pickerSectionTitle}>Or Quick Select Time</Text>
+              <View style={styles.timeGrid}>
+                {timeSlotOptions.map((time) => {
+                  const isSelected = pickerSelectedTime === time;
+                  const [h, m] = time.split(':').map(Number);
+                  const displayTime = new Date(2026, 0, 1, h, m).toLocaleTimeString(undefined, {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  });
+                  return (
+                    <TouchableOpacity
+                      key={time}
+                      style={[styles.timeSlotPill, isSelected && styles.timeSlotPillSelected]}
+                      onPress={() => {
+                        setPickerSelectedTime(time);
+                        setCustomDateTimeStr(`${pickerSelectedDate}T${time}`);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.timeSlotPillText, isSelected && styles.timeSlotPillTextSelected]}>
+                        {displayTime}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Actions */}
+            <View style={styles.calModalActions}>
+              <TouchableOpacity
+                style={styles.cancelActionBtn}
+                onPress={() => setCalendarModalVisible(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.cancelActionText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.confirmActionBtn}
+                onPress={handleConfirmCalendarSlot}
+                activeOpacity={0.85}
+                testID="confirm-calendar-slot-btn"
+              >
+                <LinearGradient
+                  colors={['#38BDF8', '#6366F1']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.confirmGradient}
+                >
+                  <CalendarCheck2 size={18} color="#FFFFFF" />
+                  <Text style={styles.confirmActionText}>Add Slot</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
@@ -1055,5 +1293,210 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.light.textSecondary,
     fontWeight: '500' as const,
+  },
+  subHeadingLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  openCalendarPickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#38BDF8',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginVertical: 12,
+  },
+  openCalendarPickerText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#38BDF8',
+  },
+  calModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  calModalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: Colors.light.card,
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  calModalTopBar: {
+    height: 6,
+    width: '100%',
+  },
+  calModalCloseBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.light.backgroundSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calModalIconBox: {
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  calModalIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FDE68A',
+  },
+  calModalTitle: {
+    fontSize: 20,
+    fontWeight: '800' as const,
+    color: Colors.light.text,
+    textAlign: 'center',
+    marginTop: 14,
+  },
+  calModalDesc: {
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    marginTop: 6,
+    lineHeight: 20,
+  },
+  pickerSection: {
+    marginHorizontal: 20,
+    marginTop: 14,
+    gap: 8,
+  },
+  pickerSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.light.textSecondary,
+  },
+  daysScroll: {
+    flexDirection: 'row',
+  },
+  dayCard: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: Colors.light.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    marginRight: 8,
+    alignItems: 'center',
+    minWidth: 72,
+  },
+  dayCardSelected: {
+    backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
+  },
+  dayCardLabel: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    marginBottom: 2,
+  },
+  dayCardLabelSelected: {
+    color: '#FFFFFF',
+  },
+  dayCardSublabel: {
+    fontSize: 11,
+    fontWeight: '500' as const,
+    color: Colors.light.textSecondary,
+  },
+  dayCardSublabelSelected: {
+    color: 'rgba(255,255,255,0.85)',
+  },
+  timeSlotPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: Colors.light.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+  },
+  timeSlotPillSelected: {
+    backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
+  },
+  timeSlotPillText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.light.text,
+  },
+  timeSlotPillTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700' as const,
+  },
+  customDateTimeInput: {
+    width: '100%',
+    backgroundColor: '#0F172A',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+  },
+  calModalActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 20,
+  },
+  cancelActionBtn: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 14,
+    backgroundColor: Colors.light.backgroundSecondary,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+  },
+  cancelActionText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
+  },
+  confirmActionBtn: {
+    flex: 1.4,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  confirmGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  confirmActionText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
   },
 });

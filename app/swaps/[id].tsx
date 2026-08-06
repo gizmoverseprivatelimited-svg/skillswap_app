@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Platfo
 import { useAlert } from '@/providers/alert';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { MapPin, Clock, Check, X, Send, Sparkles, CalendarClock, PlusCircle, ArrowLeft, ShieldCheck, Video, Phone, CalendarPlus, Download, GraduationCap, BookOpen, ArrowLeftRight, Coins, Zap, AlertTriangle } from 'lucide-react-native';
+import { MapPin, Clock, Check, X, Send, Sparkles, CalendarClock, PlusCircle, ArrowLeft, ShieldCheck, Video, CalendarPlus, Download, GraduationCap, BookOpen, ArrowLeftRight, Coins, Zap, AlertTriangle } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 import { useSkillSwaps } from '../../providers/skill-swaps';
 import { useCurrentUser } from '../../providers/current-user';
@@ -645,12 +645,6 @@ export default function SwapDetailScreen() {
                 </Text>
               </View>
             </View>
-            {swap.locationPreference && (
-              <View style={styles.overviewLocation}>
-                <MapPin size={16} color={Colors.light.primary} />
-                <Text style={styles.locationLabel}>{swap.locationPreference}</Text>
-              </View>
-            )}
           </View>
         </View>
 
@@ -769,35 +763,6 @@ export default function SwapDetailScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionHeading}>Location</Text>
-          <View style={styles.locationCard}>
-            <View style={styles.locationHeader}>
-              <MapPin size={18} color={Colors.light.primary} />
-              <Text style={styles.locationHeading}>Preferred space</Text>
-            </View>
-            <Text style={styles.locationValue}>{swap.locationPreference ?? 'No location yet'}</Text>
-            <View style={styles.locationEditor}>
-              <TextInput
-                style={styles.locationInput}
-                placeholder="Add or update meetup details"
-                value={locationDraft}
-                onChangeText={setLocationDraft}
-                placeholderTextColor="rgba(148, 163, 184, 0.65)"
-                testID="location-input"
-              />
-              <TouchableOpacity
-                style={styles.saveLocationButton}
-                onPress={handleLocationUpdate}
-                activeOpacity={0.9}
-                testID="save-location"
-              >
-                <Text style={styles.saveLocationText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionHeading}>Negotiation thread</Text>
             <Sparkles size={18} color={Colors.light.primary} />
@@ -875,20 +840,6 @@ export default function SwapDetailScreen() {
               >
                 <Video size={20} color="#FFFFFF" />
                 <Text style={styles.callButtonText}>Video Call</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.callButton, styles.voiceCallButton]}
-                onPress={() => {
-                  if (typeof document !== 'undefined' && document.activeElement) {
-                    (document.activeElement as HTMLElement).blur();
-                  }
-                  router.push(`/call/${swap.id}`);
-                }}
-                activeOpacity={0.9}
-                testID="start-voice-call"
-              >
-                <Phone size={20} color="#FFFFFF" />
-                <Text style={styles.callButtonText}>Voice Call</Text>
               </TouchableOpacity>
             </View>
             {roleInfo?.myRole !== 'Teacher' && (
