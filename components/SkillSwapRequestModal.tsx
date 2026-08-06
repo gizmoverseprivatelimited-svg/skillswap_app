@@ -200,7 +200,12 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
     if (swapType === 'teach') return 0;
     return getPlatformFee(currentUser || { premiumTier: 'free' });
   }, [swapType, currentUser]);
-  const sessionCost = useMemo(() => getSessionCreditCost(skill), [skill]);
+  const targetLearnedSkill = useMemo(() => {
+    return activePartnerSkill || skill;
+  }, [activePartnerSkill, skill]);
+
+  const sessionCost = useMemo(() => getSessionCreditCost(targetLearnedSkill), [targetLearnedSkill]);
+  const isMonthlySkill = targetLearnedSkill?.pricingModel === 'monthly';
   const swapCost = platformFee; // paid upfront at request time
   const totalCost = swapCost;
   const hasEnoughCredits = (currentUser?.credits ?? 0) >= totalCost;
@@ -631,9 +636,11 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                         </View>
                         {isPaidSession && (
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Text style={{ fontSize: 13, color: '#92400E' }}>Session cost (at completion):</Text>
+                            <Text style={{ fontSize: 13, color: '#92400E' }}>
+                              {isMonthlySkill ? 'Monthly subscription:' : 'Session cost (at completion):'}
+                            </Text>
                             <Text style={{ fontSize: 14, fontWeight: '600' as const, color: '#78350F' }}>
-                              {sessionCost} cr ({formatPrice(sessionCost)})
+                              {sessionCost} cr ({formatPrice(sessionCost)}){isMonthlySkill ? '/month' : ''}
                             </Text>
                           </View>
                         )}
@@ -669,7 +676,11 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                     {isPaidSession && swapType !== 'teach' && (
                       <View style={{ backgroundColor: '#F0FDF4', borderRadius: 10, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <IndianRupee size={14} color="#15803D" />
-                        <Text style={{ fontSize: 12, color: '#15803D', fontWeight: '500' as const }}>Session cost charged when swap completes. Teacher earns 80%.</Text>
+                        <Text style={{ fontSize: 12, color: '#15803D', fontWeight: '500' as const, flex: 1 }}>
+                          {isMonthlySkill
+                            ? 'Monthly subscription fee is auto-debited each month while active. Teacher earns 80%.'
+                            : 'Session cost charged when swap completes. Teacher earns 80%.'}
+                        </Text>
                       </View>
                     )}
                   </View>
