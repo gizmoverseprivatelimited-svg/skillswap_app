@@ -64,6 +64,7 @@ interface SkillSwapsContextValue {
   completeSwap: (requestId: string) => void;
   getSwapById: (requestId: string) => SkillSwapRequest | undefined;
   setCalendarEventId: (requestId: string, eventId: string) => void;
+  triggerMonthlyDebit: (requestId: string) => Promise<void>;
   fetchSwaps: any;
   loading: boolean;
 }
@@ -1168,7 +1169,25 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
     []
   );
 
-
+  const triggerMonthlyDebit = useCallback(
+    async (requestId: string) => {
+      try {
+        const response = await fetch(`${url}/swaps/${requestId}/trigger-monthly-debit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (response.ok) {
+          await fetchSwaps(true);
+          if (loadUser) {
+            await loadUser(true);
+          }
+        }
+      } catch (err) {
+        console.error('[SkillSwaps] Trigger monthly debit error:', err);
+      }
+    },
+    [fetchSwaps, loadUser],
+  );
 
   const value: SkillSwapsContextValue = useMemo(() => {
     return {
@@ -1189,6 +1208,7 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
       completeSwap,
       getSwapById,
       setCalendarEventId,
+      triggerMonthlyDebit,
       loading,
     };
   }, [
@@ -1209,6 +1229,7 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
     completeSwap,
     getSwapById,
     setCalendarEventId,
+    triggerMonthlyDebit,
     loading,
   ]);
 

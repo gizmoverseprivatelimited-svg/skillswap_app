@@ -170,6 +170,7 @@ export interface SkillSwapRequest {
   calendarEventId?: string;
   recipientPaid?: boolean;
   requesterPaid?: boolean;
+  lastAutoDebitedAt?: string;
 }
 
 export type VerificationStatus = 'none' | 'pending' | 'verified' | 'rejected';
