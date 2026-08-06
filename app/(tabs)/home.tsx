@@ -111,7 +111,7 @@ export default function HomeScreen() {
     : otherSkillsWithUsers.filter(skill => skill.category === selectedCategory);
 
   const featuredSkills = otherSkillsWithUsers.slice(0, 3);
-  const promotedSkills = useMemo(() => allAvailableSkills.filter(s => s.promoted).slice(0, 10), [allAvailableSkills]);
+  const promotedSkills = useMemo(() => otherSkillsWithUsers.filter(s => s.promoted).slice(0, 10), [otherSkillsWithUsers]);
   const topTeachMatches = useMemo(() => teachMatches.slice(0, 4), [teachMatches]);
   const topLearnMatches = useMemo(() => learnMatches.slice(0, 4), [learnMatches]);
   const topSwapMatches = useMemo(() => swapMatches.slice(0, 4), [swapMatches]);
