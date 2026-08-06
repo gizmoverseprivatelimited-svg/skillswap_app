@@ -80,3 +80,7 @@ Backend + Frontend Update One-Liner:
 
 cd /path/to/backend && git pull && npm install && pm2 restart all && cd /path/to/frontend && git pull && npm install && npx expo export --platform web && sudo rm -rf /var/www/skillswap-frontend/* && sudo cp -r dist/* /var/www/skillswap-frontend/ && sudo chown -R www-data:www-data /var/www/skillswap-frontend && sudo systemctl reload nginx
 ==============================================================================
+
+
+
+there is updated code from github in expo folder for root project and only take the updated code parts from expo folder and write in root folder which is related to the new update only and our root project code should not change only get update code parts and following are the updates in the expo folder

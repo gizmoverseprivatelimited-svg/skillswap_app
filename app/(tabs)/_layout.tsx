@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, Compass, User, BookOpen, Bell } from "lucide-react-native";
+import { Home, Compass, User, BookOpen, Bell, Users } from "lucide-react-native";
 import React, { useMemo } from "react";
 
 import Colors from "../../constants/colors";
@@ -76,6 +76,21 @@ export default function TabLayout() {
             <Compass 
               size={24} 
               color={color} 
+              fill={focused ? color : 'none'}
+              strokeWidth={focused ? 2 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="classes"
+        options={{
+          title: "Classes",
+          headerShown: false,
+          tabBarIcon: ({ color, focused }) => (
+            <Users
+              size={24}
+              color={color}
               fill={focused ? color : 'none'}
               strokeWidth={focused ? 2 : 2}
             />

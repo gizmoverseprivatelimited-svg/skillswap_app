@@ -6,7 +6,7 @@ import { usePushNotifications } from '../lib/push-notifications';
 import { useOnboarding } from './onboarding';
 import url from '@/constants/backurl';
 
-type NotificationCategory = 'match' | 'swap' | 'reminder' | 'system';
+type NotificationCategory = 'match' | 'swap' | 'reminder' | 'system' | 'class';
 
 type NotificationMetadata = Record<string, unknown>;
 

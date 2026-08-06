@@ -30,6 +30,7 @@ import {
   Info,
   Wallet,
   History,
+  Users,
 } from 'lucide-react-native';
 import { useAuth } from '@/providers/auth';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -372,6 +373,28 @@ export default function ProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Support & Info</Text>
             <View style={styles.supportGrid}>
+              {(currentUser?.role === 'teacher' || currentUser?.role === 'swap') && (
+                <TouchableOpacity
+                  style={styles.supportCard}
+                  onPress={() => router.push('/class/create' as any)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.supportIcon, { backgroundColor: Colors.light.accent + '20' }]}>
+                    <Plus size={22} color={Colors.light.accent} />
+                  </View>
+                  <Text style={styles.supportLabel}>Create a Group Class</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.supportCard}
+                onPress={() => router.push('/class/my' as any)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.supportIcon, { backgroundColor: Colors.light.primary + '20' }]}>
+                  <Users size={22} color={Colors.light.primary} />
+                </View>
+                <Text style={styles.supportLabel}>My Classes</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.supportCard}
                 onPress={() => router.push('/help' as any)}

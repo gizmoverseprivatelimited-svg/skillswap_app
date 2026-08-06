@@ -8,6 +8,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "../providers/auth";
 import { CurrentUserProvider } from "../providers/current-user";
 import { SkillSwapsProvider } from "../providers/skill-swaps";
+import { ClassesProvider } from "../providers/classes";
 import { NotificationsProvider } from "../providers/notifications";
 import { ResourcesProvider } from "../providers/resources";
 import { OnboardingProvider, useOnboarding } from "../providers/onboarding";
@@ -127,6 +128,33 @@ function RootLayoutNav() {
         options={{
           headerShown: false,
           presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="class/[id]"
+        options={{
+          headerShown: true,
+          title: 'Class Details',
+        }}
+      />
+      <Stack.Screen
+        name="class/create"
+        options={{
+          headerShown: true,
+          title: 'Create Class',
+        }}
+      />
+      <Stack.Screen
+        name="class/my"
+        options={{
+          headerShown: true,
+          title: 'My Classes',
+        }}
+      />
+      <Stack.Screen
+        name="admin/classes"
+        options={{
+          headerShown: false,
         }}
       />
       <Stack.Screen
@@ -313,14 +341,16 @@ export default function RootLayout() {
                   <SkillSwapsProvider>
                     <AdminProvider>
                       <NotificationsProvider>
-                        <ResourcesProvider>
-                          <ErrorBoundary>
-                            <GestureHandlerRootView style={styles.container}>
-                              <RootLayoutNav />
-                              <InAppNotificationBanner />
-                            </GestureHandlerRootView>
-                          </ErrorBoundary>
-                        </ResourcesProvider>
+                        <ClassesProvider>
+                          <ResourcesProvider>
+                            <ErrorBoundary>
+                              <GestureHandlerRootView style={styles.container}>
+                                <RootLayoutNav />
+                                <InAppNotificationBanner />
+                              </GestureHandlerRootView>
+                            </ErrorBoundary>
+                          </ResourcesProvider>
+                        </ClassesProvider>
                       </NotificationsProvider>
                     </AdminProvider>
                   </SkillSwapsProvider>

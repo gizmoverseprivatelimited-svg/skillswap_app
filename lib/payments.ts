@@ -141,3 +141,24 @@ export function getPayoutRate(method: PayoutMethod): number {
 export function formatCredits(amount: number): string {
   return `${amount.toLocaleString('en-IN')} credit${amount === 1 ? '' : 's'}`;
 }
+
+// ============================================================
+//  Group Class Helpers
+// ============================================================
+
+/** Get the seat price in credits for a group class (0 = free) */
+export function getClassSeatPrice(seatPriceCredits: number): number {
+  return Math.max(0, seatPriceCredits);
+}
+
+/** Cost for a student to enroll in a class (seat price, no platform fee) */
+export function getClassEnrollmentCost(seatPriceCredits: number): number {
+  return getClassSeatPrice(seatPriceCredits);
+}
+
+/** Calculate teacher earnings when a group class completes */
+export function getClassTeacherEarnings(seatPriceCredits: number, enrolledCount: number): number {
+  const seat = getClassSeatPrice(seatPriceCredits);
+  if (seat <= 0) return TEACHER_EARNINGS.freeClassBonus * enrolledCount;
+  return Math.round(seat * enrolledCount * (1 - PLATFORM_COMMISSION_RATE));
+}

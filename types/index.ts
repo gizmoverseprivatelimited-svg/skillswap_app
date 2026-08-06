@@ -328,3 +328,41 @@ export interface EarningRule {
   points: number;
   description: string;
 }
+
+// ============================================================
+//  Group Classes
+// ============================================================
+
+export type ClassStatus = 'open' | 'completed' | 'cancelled';
+export type EnrollmentStatus = 'enrolled' | 'cancelled' | 'attended';
+
+export interface GroupClass {
+  id: string;
+  teacherId: string;
+  title: string;
+  description: string;
+  category: SkillCategory;
+  level: SkillLevel;
+  coverImageUrl: string;
+  startISO: string;
+  endISO: string;
+  maxCapacity: number;
+  seatPriceCredits: number;
+  status: ClassStatus;
+  createdAt: string;
+}
+
+export interface ClassEnrollment {
+  id: string;
+  classId: string;
+  studentId: string;
+  enrolledAt: string;
+  status: EnrollmentStatus;
+  paymentTxnId?: string;
+}
+
+export interface ClassWithTeacher extends GroupClass {
+  teacher: User;
+  enrolledCount: number;
+  enrollments: ClassEnrollment[];
+}

@@ -1,5 +1,5 @@
 import url from '@/constants/backurl';
-import { User, Skill, SkillWithUser, ResourceMeta } from '@/types';
+import { User, Skill, SkillWithUser, ResourceMeta, GroupClass, ClassEnrollment } from '@/types';
 
 const API_URL = url;
 
@@ -425,3 +425,122 @@ export const mockResources: ResourceMeta[] = [
 export const getResources = (): ResourceMeta[] => {
   return mockResources;
 };
+
+// ============================================================
+//  Group Classes mock data
+// ============================================================
+
+const now = Date.now();
+const DAY = 86400000;
+const HOUR = 3600000;
+
+export const mockClasses: GroupClass[] = [
+  {
+    id: 'cls-1',
+    teacherId: '1',
+    title: 'Sunrise Portrait Photography Workshop',
+    description: 'Join a hands-on outdoor session capturing golden-hour portraits. Learn natural lighting, posing, and composition. Bring your own camera or phone!',
+    category: 'Photography',
+    level: 'Intermediate',
+    coverImageUrl: 'https://images.unsplash.com/photo-1500534314209-a25ddb2abe4e?w=800',
+    startISO: new Date(now + 2 * DAY).toISOString(),
+    endISO: new Date(now + 2 * DAY + 2 * HOUR).toISOString(),
+    maxCapacity: 8,
+    seatPriceCredits: 150,
+    status: 'open',
+    createdAt: new Date(now - 3 * DAY).toISOString(),
+  },
+  {
+    id: 'cls-2',
+    teacherId: '3',
+    title: 'Hindi Conversation Circle — Beginners Welcome',
+    description: 'Practice speaking Hindi in a friendly group setting. We cover everyday scenarios: introductions, shopping, travel. No prior experience needed!',
+    category: 'Languages',
+    level: 'Beginner',
+    coverImageUrl: 'https://images.unsplash.com/photo-1532619675605-1ede6c2ad753?w=800',
+    startISO: new Date(now + 5 * DAY).toISOString(),
+    endISO: new Date(now + 5 * DAY + 90 * 60 * 1000).toISOString(),
+    maxCapacity: 15,
+    seatPriceCredits: 50,
+    status: 'open',
+    createdAt: new Date(now - 2 * DAY).toISOString(),
+  },
+  {
+    id: 'cls-3',
+    teacherId: '2',
+    title: 'React Fundamentals — Live Coding Bootcamp',
+    description: 'A 3-hour intensive covering React components, hooks, state management, and API integration. Perfect for developers transitioning to React.',
+    category: 'Technology',
+    level: 'Intermediate',
+    coverImageUrl: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800',
+    startISO: new Date(now + 7 * DAY).toISOString(),
+    endISO: new Date(now + 7 * DAY + 3 * HOUR).toISOString(),
+    maxCapacity: 20,
+    seatPriceCredits: 300,
+    status: 'open',
+    createdAt: new Date(now - 1 * DAY).toISOString(),
+  },
+  {
+    id: 'cls-4',
+    teacherId: '4',
+    title: 'Morning HIIT — Free Community Session',
+    description: 'Start your day with a high-energy 30-minute HIIT workout. All fitness levels welcome. No equipment needed — just a mat and water!',
+    category: 'Fitness & Wellness',
+    level: 'Beginner',
+    coverImageUrl: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800',
+    startISO: new Date(now + 1 * DAY).toISOString(),
+    endISO: new Date(now + 1 * DAY + 30 * 60 * 1000).toISOString(),
+    maxCapacity: 30,
+    seatPriceCredits: 0,
+    status: 'open',
+    createdAt: new Date(now - 5 * DAY).toISOString(),
+  },
+  {
+    id: 'cls-5',
+    teacherId: '5',
+    title: 'Digital Illustration Masterclass — Procreate',
+    description: 'Learn advanced Procreate techniques: custom brushes, layer management, color grading. Create a portfolio-ready piece by the end.',
+    category: 'Arts & Crafts',
+    level: 'Advanced',
+    coverImageUrl: 'https://images.unsplash.com/photo-1596548438137-d51ea5c83ca4?w=800',
+    startISO: new Date(now + 10 * DAY).toISOString(),
+    endISO: new Date(now + 10 * DAY + 2.5 * HOUR).toISOString(),
+    maxCapacity: 12,
+    seatPriceCredits: 250,
+    status: 'open',
+    createdAt: new Date(now - 4 * DAY).toISOString(),
+  },
+  {
+    id: 'cls-6',
+    teacherId: '3',
+    title: 'Bharatanatyam Intro — Classical Dance Basics',
+    description: 'Discover the beauty of Bharatanatyam. Learn basic adavus, hand mudras, and expressions. Open to all ages and backgrounds.',
+    category: 'Classical Arts',
+    level: 'Beginner',
+    coverImageUrl: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800',
+    startISO: new Date(now + 3 * DAY).toISOString(),
+    endISO: new Date(now + 3 * DAY + 90 * 60 * 1000).toISOString(),
+    maxCapacity: 10,
+    seatPriceCredits: 100,
+    status: 'open',
+    createdAt: new Date(now - 6 * DAY).toISOString(),
+  },
+];
+
+export const mockEnrollments: ClassEnrollment[] = [
+  { id: 'enr-1', classId: 'cls-1', studentId: '2', enrolledAt: new Date(now - 2 * DAY).toISOString(), status: 'enrolled' },
+  { id: 'enr-2', classId: 'cls-1', studentId: '3', enrolledAt: new Date(now - 2 * DAY).toISOString(), status: 'enrolled' },
+  { id: 'enr-3', classId: 'cls-1', studentId: '5', enrolledAt: new Date(now - 1 * DAY).toISOString(), status: 'enrolled' },
+  { id: 'enr-4', classId: 'cls-2', studentId: '4', enrolledAt: new Date(now - 1 * DAY).toISOString(), status: 'enrolled' },
+  { id: 'enr-5', classId: 'cls-2', studentId: '6', enrolledAt: new Date(now - 1 * DAY).toISOString(), status: 'enrolled' },
+  { id: 'enr-6', classId: 'cls-2', studentId: '1', enrolledAt: new Date(now - 12 * HOUR).toISOString(), status: 'enrolled' },
+  { id: 'enr-7', classId: 'cls-4', studentId: '2', enrolledAt: new Date(now - 3 * DAY).toISOString(), status: 'enrolled' },
+  { id: 'enr-8', classId: 'cls-4', studentId: '3', enrolledAt: new Date(now - 3 * DAY).toISOString(), status: 'enrolled' },
+  { id: 'enr-9', classId: 'cls-4', studentId: '5', enrolledAt: new Date(now - 2 * DAY).toISOString(), status: 'enrolled' },
+  { id: 'enr-10', classId: 'cls-4', studentId: '6', enrolledAt: new Date(now - 1 * DAY).toISOString(), status: 'enrolled' },
+  { id: 'enr-11', classId: 'cls-3', studentId: '5', enrolledAt: new Date(now - 18 * HOUR).toISOString(), status: 'enrolled' },
+  { id: 'enr-12', classId: 'cls-5', studentId: '1', enrolledAt: new Date(now - 2 * DAY).toISOString(), status: 'enrolled' },
+];
+
+export const getClasses = (): GroupClass[] => mockClasses;
+export const getEnrollments = (): ClassEnrollment[] => mockEnrollments;

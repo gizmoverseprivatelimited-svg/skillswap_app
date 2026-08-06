@@ -120,6 +120,14 @@ export default function AdminDashboard() {
       route: '/admin/payouts',
       badge: pendingPayoutsCount > 0 ? pendingPayoutsCount : undefined,
     },
+    {
+      title: 'Class Management',
+      subtitle: 'Monitor and cancel group classes',
+      icon: Users,
+      color: '#F97316',
+      bg: '#FFF7ED',
+      route: '/admin/classes',
+    },
   ];
 
   if (isLoading) {
