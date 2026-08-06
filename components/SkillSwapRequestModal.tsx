@@ -200,6 +200,14 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
     if (swapType === 'teach') return 0;
     return getPlatformFee(currentUser || { premiumTier: 'free' });
   }, [swapType, currentUser]);
+  const activeMySkill = useMemo(() => {
+    return currentUser?.skillsOffered.find((candidate) => (candidate._id || candidate.id) === selectedRequesterSkillId) ?? null;
+  }, [currentUser?.skillsOffered, selectedRequesterSkillId]);
+
+  const activePartnerSkill = useMemo(() => {
+    return partnerSkills.find((candidate) => (candidate._id || candidate.id) === selectedRecipientSkillId) ?? null;
+  }, [partnerSkills, selectedRecipientSkillId]);
+
   const targetLearnedSkill = useMemo(() => {
     return activePartnerSkill || skill;
   }, [activePartnerSkill, skill]);
@@ -339,14 +347,6 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
     };
     void submit();
   }, [canAdvance, introMessage, isSubmitting, mergedLocation, onClose, router, selectedRequesterSkillId, selectedRecipientSkillId, selectedTimes, skill.id, skill.user.id, step, totalSteps, swapType, swapCost, hasEnoughCredits, currentUser?.credits, createSwapRequest]);
-
-  const activeMySkill = useMemo(() => {
-    return currentUser?.skillsOffered.find((candidate) => (candidate._id || candidate.id) === selectedRequesterSkillId) ?? null;
-  }, [currentUser?.skillsOffered, selectedRequesterSkillId]);
-
-  const activePartnerSkill = useMemo(() => {
-    return partnerSkills.find((candidate) => (candidate._id || candidate.id) === selectedRecipientSkillId) ?? null;
-  }, [partnerSkills, selectedRecipientSkillId]);
 
   const partnerName = useMemo(() => {
     const target = latestPartner || skill.user;
