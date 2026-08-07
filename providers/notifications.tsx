@@ -427,6 +427,34 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     }
   }, [currentUser?.id, addNotification, hasCompletedOnboarding, socket]);
 
+  // Real-time socket notification for class enrollment alerts to class teacher
+  useEffect(() => {
+    if (!hasCompletedOnboarding || !currentUser?.id || !socket) return;
+
+    const handleClassUpdated = (data: { classId: string; action: string; studentId: string; teacherId?: string; classTitle?: string }) => {
+      if (data && data.action === 'enrolled') {
+        const isTeacher = String(data.teacherId) === String(currentUser.id);
+        const isSelf = String(data.studentId) === String(currentUser.id);
+
+        if (isTeacher && !isSelf) {
+          const studentUser = allUsers.find(u => String(u.id) === String(data.studentId));
+          const studentName = studentUser?.username ? `@${studentUser.username}` : (studentUser?.name || 'A student');
+          const titleName = data.classTitle || 'your class';
+          addNotification({
+            category: 'class',
+            title: 'New enrollment',
+            body: `${studentName} enrolled in your class "${titleName}"`,
+          });
+        }
+      }
+    };
+
+    socket.on('class_updated', handleClassUpdated);
+    return () => {
+      socket.off('class_updated', handleClassUpdated);
+    };
+  }, [hasCompletedOnboarding, currentUser?.id, socket, allUsers, addNotification]);
+
   const unreadCount = useMemo(() => {
     return notifications.filter((notification) => !notification.read).length;
   }, [notifications]);

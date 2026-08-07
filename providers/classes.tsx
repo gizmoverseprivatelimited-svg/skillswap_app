@@ -256,26 +256,23 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
       })
       .catch(err => console.error('[ClassesProvider] Enroll API error:', err));
 
-    // Record payment transaction locally
-    if (cost > 0) {
-      awardPoints({
-        userId: currentUser.id,
-        amount: -cost,
-        source: 'class_taught',
-        description: `Enrolled in "${cls.title}"`,
+    // Notify user / teacher
+    if (String(cls.teacherId) === String(currentUser.id)) {
+      addNotification({
+        title: 'New enrollment',
+        body: `${currentUser.name} enrolled in your class "${cls.title}"`,
+        category: 'class',
+      });
+    } else {
+      addNotification({
+        title: 'Enrolled in class',
+        body: `You enrolled in "${cls.title}"`,
+        category: 'class',
       });
     }
 
-    // Notify teacher
-    const teacherName = currentUser.name;
-    addNotification({
-      title: 'New enrollment',
-      body: `${teacherName} enrolled in your class "${cls.title}"`,
-      category: 'class',
-    });
-
     return { success: true };
-  }, [classes, isEnrolled, currentUser, activeEnrollments, spendCredits, awardPoints, addNotification, loadUser, refreshUserEarnings]);
+  }, [classes, isEnrolled, currentUser, activeEnrollments, spendCredits, addNotification, loadUser, refreshUserEarnings]);
 
   const cancelEnrollment = useCallback((classId: string) => {
     if (!currentUser) return;
@@ -303,6 +300,7 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
     })
       .then(() => {
         if (loadUser) loadUser();
+        if (refreshUserEarnings) refreshUserEarnings(currentUser.id);
       })
       .catch(err => console.error('[ClassesProvider] Cancel enrollment API error:', err));
 
@@ -311,7 +309,7 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
       body: `You cancelled enrollment in "${cls.title}". ${cost > 0 ? `${cost} credits refunded.` : ''}`,
       category: 'class',
     });
-  }, [classes, currentUser, earnCredits, addNotification, loadUser]);
+  }, [classes, currentUser, earnCredits, addNotification, loadUser, refreshUserEarnings]);
 
   const completeClass = useCallback((classId: string) => {
     if (!currentUser) return;
@@ -338,6 +336,13 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
       earnCredits(teacherEarned);
     }
 
+    // Award learner bonus locally if current user is student
+    active.forEach(enr => {
+      if (String(enr.studentId) === String(currentUser.id)) {
+        earnCredits(10);
+      }
+    });
+
     // Backend sync
     fetch(`${url}/classes/${cls.id}/complete`, {
       method: 'POST',
@@ -349,47 +354,26 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
       })
       .catch(err => console.error('[ClassesProvider] Complete class API error:', err));
 
-    // Record teacher earning transaction
-    awardPoints({
-      userId: cls.teacherId,
-      amount: teacherEarned,
-      source: 'class_taught',
-      description: `Taught group class "${cls.title}" — ${enrolledCount} student${enrolledCount === 1 ? '' : 's'}`,
-    });
-
-    // Award learner bonus to each enrolled student
-    active.forEach(enr => {
-      awardPoints({
-        userId: enr.studentId,
-        amount: 10,
-        source: 'learner_bonus',
-        description: `Completed group class "${cls.title}"`,
-      });
-      if (String(enr.studentId) === String(currentUser.id)) {
-        earnCredits(10);
-      }
-    });
-
     addNotification({
       title: 'Class completed',
       body: `"${cls.title}" marked complete. ${enrolledCount} student${enrolledCount === 1 ? '' : 's'} attended. You earned ${teacherEarned} credits.`,
       category: 'class',
     });
-  }, [classes, activeEnrollments, currentUser, earnCredits, awardPoints, addNotification, loadUser, refreshUserEarnings]);
+  }, [classes, activeEnrollments, currentUser, earnCredits, addNotification, loadUser, refreshUserEarnings]);
 
   const cancelClass = useCallback((classId: string) => {
-    if (!currentUser) return;
-    const cls = classes.find(c => String(c.id) === String(classId) || String((c as any)._id) === String(classId));
+    const targetId = String(classId);
+    const cls = classes.find(c => String(c.id) === targetId || String((c as any)._id) === targetId);
     if (!cls || cls.status !== 'open') return;
 
     const active = activeEnrollments(classId);
 
     setClasses(prev =>
-      prev.map(c => String(c.id) === String(classId) ? { ...c, status: 'cancelled' as ClassStatus } : c),
+      prev.map(c => (String(c.id) === targetId || String((c as any)._id) === targetId) ? { ...c, status: 'cancelled' as ClassStatus } : c),
     );
     setEnrollments(prev =>
       prev.map(e =>
-        String(e.classId) === String(classId) && e.status === 'enrolled'
+        String(e.classId) === targetId && e.status === 'enrolled'
           ? { ...e, status: 'cancelled' as const }
           : e,
       ),
@@ -398,24 +382,22 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
     // Refund all enrolled students
     const cost = getClassEnrollmentCost(cls.seatPriceCredits);
     active.forEach(enr => {
-      if (String(enr.studentId) === String(currentUser.id) && cost > 0) {
+      if (currentUser && String(enr.studentId) === String(currentUser.id) && cost > 0) {
         earnCredits(cost);
       }
-      awardPoints({
-        userId: enr.studentId,
-        amount: cost > 0 ? -cost : 0,
-        source: 'class_taught',
-        description: `Class "${cls.title}" cancelled — refund`,
-      });
     });
 
     // Backend sync
-    fetch(`${url}/classes/${cls.id}/cancel`, {
+    const apiClassId = (cls as any)._id || cls.id;
+    fetch(`${url}/classes/${apiClassId}/cancel`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     })
+      .then(res => res.json())
       .then(() => {
-        if (loadUser) loadUser();
+        if (loadUser) void loadUser();
+        if (currentUser && refreshUserEarnings) void refreshUserEarnings(currentUser.id);
+        void fetchClassesFromBackend();
       })
       .catch(err => console.error('[ClassesProvider] Cancel class API error:', err));
 
@@ -424,7 +406,7 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
       body: `"${cls.title}" has been cancelled. ${active.length} student${active.length === 1 ? '' : 's'} refunded.`,
       category: 'class',
     });
-  }, [classes, activeEnrollments, currentUser, earnCredits, awardPoints, addNotification, loadUser]);
+  }, [classes, activeEnrollments, currentUser, earnCredits, addNotification, loadUser, refreshUserEarnings, fetchClassesFromBackend]);
 
   const value: ClassesContextValue = useMemo(() => ({
     classes,

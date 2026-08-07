@@ -163,13 +163,20 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
       });
     }
 
-    // Notify teacher
-    const teacherName = currentUser.name;
-    addNotification({
-      title: 'New enrollment',
-      body: `${teacherName} enrolled in your class "${cls.title}"`,
-      category: 'class',
-    });
+    // Notify user / teacher
+    if (String(cls.teacherId) === String(currentUser.id)) {
+      addNotification({
+        title: 'New enrollment',
+        body: `${currentUser.name} enrolled in your class "${cls.title}"`,
+        category: 'class',
+      });
+    } else {
+      addNotification({
+        title: 'Enrolled in class',
+        body: `You enrolled in "${cls.title}"`,
+        category: 'class',
+      });
+    }
 
     return { success: true };
   }, [classes, isEnrolled, currentUser.id, currentUser.name, activeEnrollments, spendCredits, awardPoints, addNotification]);
@@ -271,15 +278,17 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
     // Refund all enrolled students
     const cost = getClassEnrollmentCost(cls.seatPriceCredits);
     active.forEach(enr => {
-      if (enr.studentId === currentUser.id && cost > 0) {
+      if (currentUser && enr.studentId === currentUser.id && cost > 0) {
         earnCredits(cost);
       }
-      awardPoints({
-        userId: enr.studentId,
-        amount: cost > 0 ? -cost : 0,
-        source: 'class_taught',
-        description: `Class "${cls.title}" cancelled — refund`,
-      });
+      if (cost > 0) {
+        awardPoints({
+          userId: enr.studentId,
+          amount: cost,
+          source: 'class_taught',
+          description: `Class "${cls.title}" cancelled — refund`,
+        });
+      }
     });
 
     addNotification({

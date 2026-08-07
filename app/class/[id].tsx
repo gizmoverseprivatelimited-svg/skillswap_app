@@ -11,6 +11,9 @@ import { useCurrentUser } from '@/providers/current-user';
 import { useAlert } from '@/providers/alert';
 import { formatCredits, getClassEnrollmentCost } from '@/lib/payments';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
+import { useSkillSwaps } from '@/providers/skill-swaps';
+import { useSocket } from '@/providers/socket';
+import url from '@/constants/backurl';
 
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800';
 const DEFAULT_AVATAR = 'https://i.pravatar.cc/150?img=1';
@@ -36,6 +39,8 @@ export default function ClassDetailScreen() {
   const { getClassById, enrollInClass, cancelEnrollment, completeClass, cancelClass, isEnrolled, refreshClasses } = useClasses();
   const { currentUser, allUsers } = useCurrentUser();
   const { showAlert } = useAlert();
+  const { allSwaps } = useSkillSwaps();
+  const { socket } = useSocket();
 
   useEffect(() => {
     if (refreshClasses) {
@@ -204,14 +209,55 @@ export default function ClassDetailScreen() {
     return `${start} — ${end}`;
   };
 
+  const teacherId = teacherUser?.id || (teacherUser as any)?._id || cls?.teacherId || cls?.teacher?.id;
+
+  const [reviewsStats, setReviewsStats] = useState<{ averageRating: number; totalReviews: number } | null>(null);
+
+  const fetchTeacherReviews = useCallback(async () => {
+    if (!teacherId) return;
+    try {
+      const res = await fetch(`${url}/reviews?revieweeId=${teacherId}`);
+      if (!res.ok) throw new Error('Failed to fetch reviews');
+      const data = await res.json();
+      if (data?.stats) {
+        setReviewsStats({
+          averageRating: data.stats.averageRating || 0,
+          totalReviews: data.stats.totalReviews || 0,
+        });
+      }
+    } catch (err) {
+      console.error('[ClassDetail] Failed to fetch review stats:', err);
+    }
+  }, [teacherId]);
+
+  useEffect(() => {
+    fetchTeacherReviews();
+    if (socket) {
+      const handleReviewCreated = () => fetchTeacherReviews();
+      socket.on('review_created', handleReviewCreated);
+      return () => {
+        socket.off('review_created', handleReviewCreated);
+      };
+    }
+  }, [fetchTeacherReviews, socket]);
+
   const teacherRating = useMemo(() => {
-    const raw = teacherUser?.rating ?? cls?.teacher?.rating ?? 5.0;
-    return (typeof raw === 'number' && !isNaN(raw)) ? raw.toFixed(1) : '5.0';
-  }, [teacherUser, cls]);
+    const raw = reviewsStats?.averageRating ?? teacherUser?.rating ?? cls?.teacher?.rating ?? 0;
+    return (typeof raw === 'number' && !isNaN(raw)) ? raw.toFixed(1) : '0.0';
+  }, [reviewsStats, teacherUser, cls]);
+
+  const teacherTotalReviews = useMemo(() => {
+    return reviewsStats?.totalReviews ?? 0;
+  }, [reviewsStats]);
 
   const teacherTotalSwaps = useMemo(() => {
-    return teacherUser?.totalSwaps ?? cls?.teacher?.totalSwaps ?? 0;
-  }, [teacherUser, cls]);
+    if (!teacherId) return 0;
+    const swapCount = (allSwaps || []).filter(
+      (s: any) => String(s.requesterId) === String(teacherId) || String(s.recipientId) === String(teacherId)
+    ).length;
+    const baseSwaps = teacherUser?.totalSwaps ?? cls?.teacher?.totalSwaps ?? 0;
+    return Math.max(baseSwaps, swapCount);
+  }, [allSwaps, teacherId, teacherUser, cls]);
 
   return (
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
@@ -255,7 +301,7 @@ export default function ClassDetailScreen() {
 
         <TouchableOpacity
           style={s.teacherCard}
-          onPress={() => router.push(`/profile/${teacherUser?.id || cls.teacher.id}` as any)}
+          onPress={() => router.push(`/profile/${teacherId || cls.teacher.id}` as any)}
           activeOpacity={0.7}
         >
           <Image
@@ -268,7 +314,8 @@ export default function ClassDetailScreen() {
             <View style={s.teacherMeta}>
               <Star size={12} fill={Colors.light.accent} color={Colors.light.accent} />
               <Text style={s.teacherRating}>{teacherRating}</Text>
-              <Text style={s.teacherSwaps}>· {teacherTotalSwaps} swap{teacherTotalSwaps === 1 ? '' : 's'}</Text>
+              <Text style={s.teacherReviews}> ({teacherTotalReviews})</Text>
+              <Text style={s.teacherSwaps}> · {teacherTotalSwaps} swap{teacherTotalSwaps === 1 ? '' : 's'}</Text>
             </View>
           </View>
           <View style={s.teacherAction}>
@@ -395,6 +442,7 @@ const s = StyleSheet.create({
   teacherName: { fontSize: 16, fontWeight: '700' as const, color: Colors.light.text, marginBottom: 4 },
   teacherMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   teacherRating: { fontSize: 13, fontWeight: '600' as const, color: Colors.light.text },
+  teacherReviews: { fontSize: 13, color: Colors.light.textTertiary },
   teacherSwaps: { fontSize: 13, color: Colors.light.textTertiary },
   teacherAction: { paddingHorizontal: 8 },
   teacherActionText: { fontSize: 14, fontWeight: '600' as const, color: Colors.light.primary },

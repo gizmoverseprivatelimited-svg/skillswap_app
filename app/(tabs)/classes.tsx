@@ -22,6 +22,8 @@ function ClassCardItem({ item, router }: { item: ClassWithTeacher; router: any }
   const seatsLeft = item.maxCapacity - item.enrolledCount;
   const fillPct = Math.round((item.enrolledCount / item.maxCapacity) * 100);
   const isFree = item.seatPriceCredits === 0;
+  const isCancelled = item.status === 'cancelled';
+  const isCompleted = item.status === 'completed';
 
   const [coverUrl, setCoverUrl] = useState(() => resolveImageUrl(item.coverImageUrl, DEFAULT_COVER) || DEFAULT_COVER);
   const [avatarUrl, setAvatarUrl] = useState(() => resolveImageUrl(item.teacher.avatarUrl, DEFAULT_AVATAR) || DEFAULT_AVATAR);
@@ -36,19 +38,35 @@ function ClassCardItem({ item, router }: { item: ClassWithTeacher; router: any }
 
   return (
     <TouchableOpacity
-      style={s.card}
+      style={[s.card, isCancelled && s.cardCancelled]}
       onPress={() => router.push(`/class/${item.id}` as any)}
       activeOpacity={0.85}
     >
-      <Image
-        source={{ uri: coverUrl }}
-        style={s.cover}
-        onError={() => setCoverUrl(DEFAULT_COVER)}
-      />
+      <View style={s.coverWrap}>
+        <Image
+          source={{ uri: coverUrl }}
+          style={s.cover}
+          onError={() => setCoverUrl(DEFAULT_COVER)}
+        />
+        {isCancelled && (
+          <View style={s.cancelledBadge}>
+            <Text style={s.cancelledBadgeText}>CANCELLED</Text>
+          </View>
+        )}
+      </View>
       <View style={s.cardBody}>
         <View style={s.cardHeader}>
           <Text style={s.catBadge}>{item.category}</Text>
-          <View style={s.levelPill}><Text style={s.levelText}>{item.level}</Text></View>
+          <View style={s.rightBadges}>
+            <View style={s.levelPill}><Text style={s.levelText}>{item.level}</Text></View>
+            {isCancelled ? (
+              <View style={s.statusCancelledPill}><Text style={s.statusCancelledText}>Cancelled</Text></View>
+            ) : isCompleted ? (
+              <View style={s.statusCompletedPill}><Text style={s.statusCompletedText}>Completed</Text></View>
+            ) : (
+              <View style={s.statusOpenPill}><Text style={s.statusOpenText}>Open</Text></View>
+            )}
+          </View>
         </View>
         <Text style={s.title} numberOfLines={2}>{item.title}</Text>
         <View style={s.metaRow}>
@@ -65,18 +83,26 @@ function ClassCardItem({ item, router }: { item: ClassWithTeacher; router: any }
           />
           <Text style={s.teacherName} numberOfLines={1}>{item.teacher.name}</Text>
         </View>
-        <View style={s.seatRow}>
-          <View style={s.seatInfo}>
-            <Users size={14} color={Colors.light.primary} />
-            <Text style={s.seatText}>{item.enrolledCount}/{item.maxCapacity} enrolled</Text>
-          </View>
-          <Text style={s.seatsLeft}>{seatsLeft} seat{seatsLeft === 1 ? '' : 's'} left</Text>
-        </View>
-        <View style={s.progressBar}>
-          <View style={[s.progressFill, { width: `${fillPct}%` }]} />
-        </View>
+        {!isCancelled && (
+          <>
+            <View style={s.seatRow}>
+              <View style={s.seatInfo}>
+                <Users size={14} color={Colors.light.primary} />
+                <Text style={s.seatText}>{item.enrolledCount}/{item.maxCapacity} enrolled</Text>
+              </View>
+              <Text style={s.seatsLeft}>{seatsLeft} seat{seatsLeft === 1 ? '' : 's'} left</Text>
+            </View>
+            <View style={s.progressBar}>
+              <View style={[s.progressFill, { width: `${fillPct}%` }]} />
+            </View>
+          </>
+        )}
         <View style={s.priceRow}>
-          {isFree ? (
+          {isCancelled ? (
+            <View style={s.cancelledPriceTag}>
+              <Text style={s.cancelledPriceText}>Enrollment Closed</Text>
+            </View>
+          ) : isFree ? (
             <View style={s.freeTag}><Sparkles size={13} color="#10B981" /><Text style={s.freeText}>Free</Text></View>
           ) : (
             <View style={s.priceTag}><Coins size={14} color="#F59E0B" /><Text style={s.priceText}>{formatCredits(item.seatPriceCredits)}</Text></View>
@@ -119,13 +145,16 @@ export default function ClassesScreen() {
   const filteredClasses = useMemo(() => {
     const q = search.trim().toLowerCase();
     return allClasses.filter(cls => {
-      if (cls.status !== 'open') return false;
       const matchSearch = q.length === 0 ||
         cls.title.toLowerCase().includes(q) ||
         cls.description.toLowerCase().includes(q) ||
         cls.teacher.name.toLowerCase().includes(q);
       const matchCat = selectedCat === 'All' || cls.category === selectedCat;
       return matchSearch && matchCat;
+    }).sort((a, b) => {
+      if (a.status === 'open' && b.status !== 'open') return -1;
+      if (a.status !== 'open' && b.status === 'open') return 1;
+      return 0;
     });
   }, [allClasses, search, selectedCat]);
 
@@ -235,12 +264,23 @@ const s = StyleSheet.create({
   myClassesLink: { fontSize: 14, fontWeight: '700' as const, color: Colors.light.primary },
   listContent: { paddingHorizontal: 20, paddingBottom: 40 },
   card: { backgroundColor: Colors.light.card, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: Colors.light.borderLight, shadowColor: Colors.light.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
+  cardCancelled: { opacity: 0.85, borderColor: 'rgba(239,68,68,0.3)' },
+  coverWrap: { position: 'relative' },
   cover: { width: '100%', height: 180, backgroundColor: Colors.light.backgroundTertiary },
+  cancelledBadge: { position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(239,68,68,0.95)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  cancelledBadgeText: { fontSize: 11, fontWeight: '800' as const, color: '#FFFFFF', letterSpacing: 0.8 },
   cardBody: { padding: 16 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   catBadge: { fontSize: 11, fontWeight: '700' as const, color: Colors.light.secondary, textTransform: 'uppercase' as const, letterSpacing: 1 },
+  rightBadges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   levelPill: { backgroundColor: Colors.light.backgroundTertiary, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   levelText: { fontSize: 11, fontWeight: '700' as const, color: Colors.light.primary },
+  statusCancelledPill: { backgroundColor: 'rgba(239,68,68,0.12)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  statusCancelledText: { fontSize: 11, fontWeight: '700' as const, color: Colors.light.error },
+  statusCompletedPill: { backgroundColor: 'rgba(139,92,246,0.12)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  statusCompletedText: { fontSize: 11, fontWeight: '700' as const, color: '#8B5CF6' },
+  statusOpenPill: { backgroundColor: 'rgba(16,185,129,0.12)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  statusOpenText: { fontSize: 11, fontWeight: '700' as const, color: '#10B981' },
   title: { fontSize: 17, fontWeight: '700' as const, color: Colors.light.text, marginBottom: 10, lineHeight: 23 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
   metaText: { fontSize: 13, color: Colors.light.textTertiary, fontWeight: '500' as const, marginRight: 8 },
@@ -254,6 +294,8 @@ const s = StyleSheet.create({
   progressBar: { height: 5, backgroundColor: Colors.light.borderLight, borderRadius: 3, marginBottom: 12 },
   progressFill: { height: '100%', backgroundColor: Colors.light.primary, borderRadius: 3 },
   priceRow: { flexDirection: 'row', alignItems: 'center' },
+  cancelledPriceTag: { backgroundColor: 'rgba(239,68,68,0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+  cancelledPriceText: { fontSize: 13, fontWeight: '700' as const, color: Colors.light.error },
   freeTag: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(16,185,129,0.12)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
   freeText: { fontSize: 13, fontWeight: '700' as const, color: '#10B981' },
   priceTag: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(245,158,11,0.12)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },

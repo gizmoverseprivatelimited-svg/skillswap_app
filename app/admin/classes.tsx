@@ -7,6 +7,7 @@ import Colors from '@/constants/colors';
 import { mockUsers } from '@/mocks/data';
 import { useClasses } from '@/providers/classes';
 import { useAdmin } from '@/providers/admin';
+import { useAlert } from '@/providers/alert';
 import type { ClassWithTeacher } from '@/types';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
@@ -74,6 +75,7 @@ export default function AdminClassesScreen() {
   const insets = useSafeAreaInsets();
   const { isAdminAuthenticated } = useAdmin();
   const { getClassesWithTeachers, cancelClass } = useClasses();
+  const { showAlert } = useAlert();
   const [search, setSearch] = useState('');
 
   const allClasses = useMemo(() => getClassesWithTeachers(), [getClassesWithTeachers]);
@@ -89,7 +91,7 @@ export default function AdminClassesScreen() {
   }, [allClasses, search]);
 
   const handleCancelClass = useCallback((cls: ClassWithTeacher) => {
-    Alert.alert(
+    showAlert(
       'Cancel this class?',
       `"${cls.title}" by ${cls.teacher.name}. ${cls.enrolledCount} student${cls.enrolledCount === 1 ? '' : 's'} will be refunded.`,
       [
@@ -99,12 +101,12 @@ export default function AdminClassesScreen() {
           style: 'destructive',
           onPress: () => {
             cancelClass(cls.id);
-            Alert.alert('Done', 'Class cancelled and students refunded.');
+            showAlert('Done', 'Class cancelled and students refunded.');
           },
         },
       ],
     );
-  }, [cancelClass]);
+  }, [cancelClass, showAlert]);
 
   const renderItem = useCallback(({ item }: { item: ClassWithTeacher }) => (
     <AdminClassCardItem item={item} handleCancelClass={handleCancelClass} />
