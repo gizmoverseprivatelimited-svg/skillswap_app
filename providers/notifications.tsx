@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
+import { useRouter } from 'expo-router';
 import { useCurrentUser } from './current-user';
 import { useSkillSwaps } from './skill-swaps';
 import { usePushNotifications } from '../lib/push-notifications';
 import { useOnboarding } from './onboarding';
+import { useAlert } from './alert';
 import url from '@/constants/backurl';
 
 type NotificationCategory = 'match' | 'swap' | 'reminder' | 'system' | 'class';
@@ -57,6 +59,8 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   const { swaps, scheduledSwaps } = useSkillSwaps();
   const { hasCompletedOnboarding } = useOnboarding();
   const { socket } = useSocket();
+  const { showAlert } = useAlert();
+  const router = useRouter();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const { expoPushToken, schedulePushNotification } = usePushNotifications();
 
@@ -454,6 +458,57 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       socket.off('class_updated', handleClassUpdated);
     };
   }, [hasCompletedOnboarding, currentUser?.id, socket, allUsers, addNotification]);
+
+  // Real-time socket notification for when teacher starts a live class
+  useEffect(() => {
+    if (!hasCompletedOnboarding || !currentUser?.id || !socket) return;
+
+    const handleClassStarted = (data: {
+      classId: string;
+      classTitle: string;
+      teacherName: string;
+      teacherId: string;
+      enrolledStudentIds?: string[];
+    }) => {
+      if (data && data.classId) {
+        const isTeacher = String(data.teacherId) === String(currentUser.id);
+        const isEnrolled = data.enrolledStudentIds && Array.isArray(data.enrolledStudentIds)
+          ? data.enrolledStudentIds.some(id => String(id) === String(currentUser.id))
+          : !isTeacher;
+
+        if (!isTeacher && isEnrolled) {
+          const teacher = data.teacherName || 'Teacher';
+          const title = data.classTitle || 'Group Class';
+
+          addNotification({
+            category: 'class',
+            title: '📹 Live Class Started!',
+            body: `${teacher} has started "${title}". Tap to join now!`,
+            metadata: { classId: data.classId, action: 'join_class' },
+          });
+
+          if (showAlert) {
+            showAlert(
+              '🎥 Live Class Started!',
+              `${teacher} has started "${title}". Join the live session now!`,
+              [
+                { text: 'Later', style: 'cancel' },
+                {
+                  text: 'Join Class Now',
+                  onPress: () => router.push(`/class/call/${data.classId}` as any),
+                },
+              ]
+            );
+          }
+        }
+      }
+    };
+
+    socket.on('class_started', handleClassStarted);
+    return () => {
+      socket.off('class_started', handleClassStarted);
+    };
+  }, [hasCompletedOnboarding, currentUser?.id, socket, addNotification, showAlert, router]);
 
   const unreadCount = useMemo(() => {
     return notifications.filter((notification) => !notification.read).length;

@@ -55,7 +55,14 @@ export default function NotificationsScreen() {
       markAsRead(item.id);
     }
     const swapId = typeof item.metadata?.swapId === 'string' ? item.metadata.swapId : null;
+    const classId = typeof item.metadata?.classId === 'string' ? item.metadata.classId : null;
     const userId = typeof item.metadata?.userId === 'string' ? item.metadata.userId : null;
+
+    if (classId) {
+      console.log('[Notifications] Navigating to class call', classId);
+      router.push(`/class/call/${classId}` as never);
+      return;
+    }
     if (swapId) {
       console.log('[Notifications] Navigating to swap', swapId);
       router.push(`/swaps/${swapId}` as never);

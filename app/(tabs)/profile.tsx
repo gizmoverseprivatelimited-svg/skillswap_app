@@ -373,7 +373,7 @@ export default function ProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Support & Info</Text>
             <View style={styles.supportGrid}>
-              {(currentUser?.role === 'teacher' || currentUser?.role === 'swap') && (
+              {Boolean(currentUser?.skillsOffered && currentUser.skillsOffered.length > 0) && (
                 <TouchableOpacity
                   style={styles.supportCard}
                   onPress={() => router.push('/class/create' as any)}

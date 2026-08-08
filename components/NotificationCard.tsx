@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
-import { BellRing, CalendarClock, Sparkles, Repeat } from 'lucide-react-native';
+import { BellRing, CalendarClock, Sparkles, Repeat, Video } from 'lucide-react-native';
 import Colors from '../constants/colors';
 import type { NotificationItem } from '../providers/notifications';
 
@@ -29,6 +29,8 @@ const NotificationCardComponent = ({ notification, onPress, testID }: Notificati
 
   const { IconComponent, accent } = useMemo(() => {
     switch (notification.category) {
+      case 'class':
+        return { IconComponent: Video, accent: Colors.light.primary };
       case 'match':
         return { IconComponent: Sparkles, accent: Colors.light.primary };
       case 'reminder':

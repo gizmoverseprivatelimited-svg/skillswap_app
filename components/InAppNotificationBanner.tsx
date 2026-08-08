@@ -59,11 +59,14 @@ export function InAppNotificationBanner() {
     dismissBanner();
 
     const swapId = activeNotification.metadata?.swapId;
+    const classId = activeNotification.metadata?.classId;
     const userId = activeNotification.metadata?.userId;
     const type = activeNotification.metadata?.type;
     
     if (type === 'video-call' && swapId) {
       router.push(`/call/${swapId}?isJoining=true` as never);
+    } else if (classId) {
+      router.push(`/class/call/${classId}` as never);
     } else if (swapId) {
       router.push(`/swaps/${swapId}` as never);
     } else if (userId) {

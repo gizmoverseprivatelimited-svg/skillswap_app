@@ -1,9 +1,21 @@
 import React, { useEffect } from 'react';
 import { View } from 'react-native';
 
-export default function HMSView({ roomCode, userName, onLeave }: { roomCode: string; userName: string; onLeave: () => void }) {
-  // Removed skip_preview=true so the browser can require a user click (fixing AutoplayBlocked)
-  const webPrebuiltUrl = `https://gizmoverse-videoconf-1656.app.100ms.live/meeting/${roomCode}?name=${encodeURIComponent(userName)}`;
+export default function HMSView({ 
+  roomCode, 
+  userName, 
+  onLeave,
+  authToken,
+  isTeacher
+}: { 
+  roomCode: string; 
+  userName: string; 
+  onLeave: () => void;
+  authToken?: string;
+  isTeacher?: boolean;
+}) {
+  const tokenParam = authToken ? `&token=${encodeURIComponent(authToken)}` : '';
+  const webPrebuiltUrl = `https://gizmoverse-videoconf-1656.app.100ms.live/meeting/${roomCode}?name=${encodeURIComponent(userName)}${tokenParam}`;
   
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {

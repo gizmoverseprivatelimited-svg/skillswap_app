@@ -349,6 +349,8 @@ export interface GroupClass {
   maxCapacity: number;
   seatPriceCredits: number;
   status: ClassStatus;
+  isLive?: boolean;
+  hmsRoomId?: string;
   createdAt: string;
 }
 

@@ -3,7 +3,7 @@ import {
   StyleSheet, Text, View, FlatList, TouchableOpacity, Image, TextInput, RefreshControl, ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Search, X, Calendar, Clock, Users, Coins, Sparkles } from 'lucide-react-native';
+import { Search, X, Calendar, Clock, Users, Coins, Sparkles, Video, CheckCircle2, Layers, RotateCcw } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
@@ -37,79 +37,93 @@ function ClassCardItem({ item, router }: { item: ClassWithTeacher; router: any }
   };
 
   return (
-    <TouchableOpacity
-      style={[s.card, isCancelled && s.cardCancelled]}
-      onPress={() => router.push(`/class/${item.id}` as any)}
-      activeOpacity={0.85}
-    >
-      <View style={s.coverWrap}>
-        <Image
-          source={{ uri: coverUrl }}
-          style={s.cover}
-          onError={() => setCoverUrl(DEFAULT_COVER)}
-        />
-        {isCancelled && (
-          <View style={s.cancelledBadge}>
-            <Text style={s.cancelledBadgeText}>CANCELLED</Text>
+    <View style={[s.card, isCancelled && s.cardCancelled]}>
+      <TouchableOpacity
+        onPress={() => router.push(`/class/${item.id}` as any)}
+        activeOpacity={0.85}
+      >
+        <View style={s.coverWrap}>
+          <Image
+            source={{ uri: coverUrl }}
+            style={s.cover}
+            onError={() => setCoverUrl(DEFAULT_COVER)}
+          />
+          {isCancelled && (
+            <View style={s.cancelledBadge}>
+              <Text style={s.cancelledBadgeText}>CANCELLED</Text>
+            </View>
+          )}
+        </View>
+        <View style={s.cardBody}>
+          <View style={s.cardHeader}>
+            <Text style={s.catBadge}>{item.category}</Text>
+            <View style={s.rightBadges}>
+              <View style={s.levelPill}><Text style={s.levelText}>{item.level}</Text></View>
+              {isCancelled ? (
+                <View style={s.statusCancelledPill}><Text style={s.statusCancelledText}>Cancelled</Text></View>
+              ) : isCompleted ? (
+                <View style={s.statusCompletedPill}><Text style={s.statusCompletedText}>Completed</Text></View>
+              ) : item.isLive ? (
+                <View style={s.statusLivePill}><Text style={s.statusLiveText}>🔴 Live</Text></View>
+              ) : (
+                <View style={s.statusOpenPill}><Text style={s.statusOpenText}>Open</Text></View>
+              )}
+            </View>
           </View>
-        )}
-      </View>
-      <View style={s.cardBody}>
-        <View style={s.cardHeader}>
-          <Text style={s.catBadge}>{item.category}</Text>
-          <View style={s.rightBadges}>
-            <View style={s.levelPill}><Text style={s.levelText}>{item.level}</Text></View>
+          <Text style={s.title} numberOfLines={2}>{item.title}</Text>
+          <View style={s.metaRow}>
+            <Calendar size={13} color={Colors.light.textTertiary} />
+            <Text style={s.metaText}>{formatDate(item.startISO)}</Text>
+            <Clock size={13} color={Colors.light.textTertiary} />
+            <Text style={s.metaText}>{formatTime(item.startISO)}</Text>
+          </View>
+          <View style={s.teacherRow}>
+            <Image
+              source={{ uri: avatarUrl }}
+              style={s.teacherAvatar}
+              onError={() => setAvatarUrl(DEFAULT_AVATAR)}
+            />
+            <Text style={s.teacherName} numberOfLines={1}>{item.teacher.name}</Text>
+          </View>
+          {!isCancelled && (
+            <>
+              <View style={s.seatRow}>
+                <View style={s.seatInfo}>
+                  <Users size={14} color={Colors.light.primary} />
+                  <Text style={s.seatText}>{item.enrolledCount}/{item.maxCapacity} enrolled</Text>
+                </View>
+                <Text style={s.seatsLeft}>{seatsLeft} seat{seatsLeft === 1 ? '' : 's'} left</Text>
+              </View>
+              <View style={s.progressBar}>
+                <View style={[s.progressFill, { width: `${fillPct}%` }]} />
+              </View>
+            </>
+          )}
+          <View style={s.priceRow}>
             {isCancelled ? (
-              <View style={s.statusCancelledPill}><Text style={s.statusCancelledText}>Cancelled</Text></View>
-            ) : isCompleted ? (
-              <View style={s.statusCompletedPill}><Text style={s.statusCompletedText}>Completed</Text></View>
+              <View style={s.cancelledPriceTag}>
+                <Text style={s.cancelledPriceText}>Enrollment Closed</Text>
+              </View>
+            ) : isFree ? (
+              <View style={s.freeTag}><Sparkles size={13} color="#10B981" /><Text style={s.freeText}>Free</Text></View>
             ) : (
-              <View style={s.statusOpenPill}><Text style={s.statusOpenText}>Open</Text></View>
+              <View style={s.priceTag}><Coins size={14} color="#F59E0B" /><Text style={s.priceText}>{formatCredits(item.seatPriceCredits)}</Text></View>
+            )}
+
+            {Boolean(item.isLive) && !isCancelled && !isCompleted && (
+              <TouchableOpacity
+                style={s.joinCardBtn}
+                onPress={() => router.push(`/class/call/${item.id}` as any)}
+                activeOpacity={0.8}
+              >
+                <Video size={13} color="#FFFFFF" />
+                <Text style={s.joinCardBtnText}>+ Join Class</Text>
+              </TouchableOpacity>
             )}
           </View>
         </View>
-        <Text style={s.title} numberOfLines={2}>{item.title}</Text>
-        <View style={s.metaRow}>
-          <Calendar size={13} color={Colors.light.textTertiary} />
-          <Text style={s.metaText}>{formatDate(item.startISO)}</Text>
-          <Clock size={13} color={Colors.light.textTertiary} />
-          <Text style={s.metaText}>{formatTime(item.startISO)}</Text>
-        </View>
-        <View style={s.teacherRow}>
-          <Image
-            source={{ uri: avatarUrl }}
-            style={s.teacherAvatar}
-            onError={() => setAvatarUrl(DEFAULT_AVATAR)}
-          />
-          <Text style={s.teacherName} numberOfLines={1}>{item.teacher.name}</Text>
-        </View>
-        {!isCancelled && (
-          <>
-            <View style={s.seatRow}>
-              <View style={s.seatInfo}>
-                <Users size={14} color={Colors.light.primary} />
-                <Text style={s.seatText}>{item.enrolledCount}/{item.maxCapacity} enrolled</Text>
-              </View>
-              <Text style={s.seatsLeft}>{seatsLeft} seat{seatsLeft === 1 ? '' : 's'} left</Text>
-            </View>
-            <View style={s.progressBar}>
-              <View style={[s.progressFill, { width: `${fillPct}%` }]} />
-            </View>
-          </>
-        )}
-        <View style={s.priceRow}>
-          {isCancelled ? (
-            <View style={s.cancelledPriceTag}>
-              <Text style={s.cancelledPriceText}>Enrollment Closed</Text>
-            </View>
-          ) : isFree ? (
-            <View style={s.freeTag}><Sparkles size={13} color="#10B981" /><Text style={s.freeText}>Free</Text></View>
-          ) : (
-            <View style={s.priceTag}><Coins size={14} color="#F59E0B" /><Text style={s.priceText}>{formatCredits(item.seatPriceCredits)}</Text></View>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -121,6 +135,7 @@ export default function ClassesScreen() {
   const [search, setSearch] = useState('');
   const [categoriesList, setCategoriesList] = useState<string[]>(() => defaultCategories);
   const [selectedCat, setSelectedCat] = useState('All');
+  const [statusFilter, setStatusFilter] = useState<'upcoming' | 'completed' | 'all'>('upcoming');
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -142,9 +157,25 @@ export default function ClassesScreen() {
 
   const allClasses = useMemo(() => getClassesWithTeachers(), [getClassesWithTeachers]);
 
+  const statusCounts = useMemo(() => {
+    const valid = allClasses.filter(c => c.status !== 'cancelled');
+    const upcomingCount = valid.filter(c => c.status !== 'completed').length;
+    const completedCount = valid.filter(c => c.status === 'completed').length;
+    return {
+      upcoming: upcomingCount,
+      completed: completedCount,
+      all: valid.length,
+    };
+  }, [allClasses]);
+
   const filteredClasses = useMemo(() => {
     const q = search.trim().toLowerCase();
     return allClasses.filter(cls => {
+      if (cls.status === 'cancelled') return false;
+
+      if (statusFilter === 'upcoming' && cls.status === 'completed') return false;
+      if (statusFilter === 'completed' && cls.status !== 'completed') return false;
+
       const matchSearch = q.length === 0 ||
         cls.title.toLowerCase().includes(q) ||
         cls.description.toLowerCase().includes(q) ||
@@ -156,7 +187,7 @@ export default function ClassesScreen() {
       if (a.status !== 'open' && b.status === 'open') return 1;
       return 0;
     });
-  }, [allClasses, search, selectedCat]);
+  }, [allClasses, search, selectedCat, statusFilter]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -198,21 +229,112 @@ export default function ClassesScreen() {
         </View>
       </LinearGradient>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catScroll} contentContainerStyle={s.catContainer}>
-        {categoriesList.map(cat => (
+      {/* Premium Filter Section */}
+      <View style={s.filterSection}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catScroll} contentContainerStyle={s.catContainer}>
+          {categoriesList.map(cat => (
+            <TouchableOpacity
+              key={cat}
+              style={[s.catPill, selectedCat === cat && s.catPillActive]}
+              onPress={() => setSelectedCat(cat)}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.catPillText, selectedCat === cat && s.catPillTextActive]}>{cat}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.segmentScroll} contentContainerStyle={s.segmentedControl}>
           <TouchableOpacity
-            key={cat}
-            style={[s.catPill, selectedCat === cat && s.catPillActive]}
-            onPress={() => setSelectedCat(cat)}
-            activeOpacity={0.7}
+            style={[s.segmentTab, statusFilter === 'upcoming' && s.segmentTabActive]}
+            onPress={() => setStatusFilter('upcoming')}
+            activeOpacity={0.85}
           >
-            <Text style={[s.catPillText, selectedCat === cat && s.catPillTextActive]}>{cat}</Text>
+            {statusFilter === 'upcoming' ? (
+              <LinearGradient
+                colors={['#6366F1', '#4F46E5']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={s.segmentGradient}
+              >
+                <Sparkles size={13} color="#FFFFFF" />
+                <Text style={s.segmentTextActive}>Upcoming</Text>
+                <View style={s.activeBadge}>
+                  <Text style={s.activeBadgeText}>{statusCounts.upcoming}</Text>
+                </View>
+              </LinearGradient>
+            ) : (
+              <View style={s.segmentTabInner}>
+                <Sparkles size={13} color={Colors.light.textTertiary} />
+                <Text style={s.segmentText}>Upcoming</Text>
+                <View style={s.inactiveBadge}>
+                  <Text style={s.inactiveBadgeText}>{statusCounts.upcoming}</Text>
+                </View>
+              </View>
+            )}
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+
+          <TouchableOpacity
+            style={[s.segmentTab, statusFilter === 'completed' && s.segmentTabActive]}
+            onPress={() => setStatusFilter('completed')}
+            activeOpacity={0.85}
+          >
+            {statusFilter === 'completed' ? (
+              <LinearGradient
+                colors={['#10B981', '#059669']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={s.segmentGradient}
+              >
+                <CheckCircle2 size={13} color="#FFFFFF" />
+                <Text style={s.segmentTextActive}>Completed</Text>
+                <View style={s.activeBadge}>
+                  <Text style={s.activeBadgeText}>{statusCounts.completed}</Text>
+                </View>
+              </LinearGradient>
+            ) : (
+              <View style={s.segmentTabInner}>
+                <CheckCircle2 size={13} color={Colors.light.textTertiary} />
+                <Text style={s.segmentText}>Completed</Text>
+                <View style={s.inactiveBadge}>
+                  <Text style={s.inactiveBadgeText}>{statusCounts.completed}</Text>
+                </View>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[s.segmentTab, statusFilter === 'all' && s.segmentTabActive]}
+            onPress={() => setStatusFilter('all')}
+            activeOpacity={0.85}
+          >
+            {statusFilter === 'all' ? (
+              <LinearGradient
+                colors={['#8B5CF6', '#7C3AED']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={s.segmentGradient}
+              >
+                <Layers size={13} color="#FFFFFF" />
+                <Text style={s.segmentTextActive}>All</Text>
+                <View style={s.activeBadge}>
+                  <Text style={s.activeBadgeText}>{statusCounts.all}</Text>
+                </View>
+              </LinearGradient>
+            ) : (
+              <View style={s.segmentTabInner}>
+                <Layers size={13} color={Colors.light.textTertiary} />
+                <Text style={s.segmentText}>All</Text>
+                <View style={s.inactiveBadge}>
+                  <Text style={s.inactiveBadgeText}>{statusCounts.all}</Text>
+                </View>
+              </View>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
 
       <View style={s.resultsHeader}>
-        <Text style={s.resultsText}>{filteredClasses.length} upcoming class{filteredClasses.length === 1 ? '' : 'es'}</Text>
+        <Text style={s.resultsText}>
+          {filteredClasses.length} {statusFilter === 'upcoming' ? 'upcoming' : statusFilter === 'completed' ? 'completed' : 'total'} class{filteredClasses.length === 1 ? '' : 'es'}
+        </Text>
         <TouchableOpacity onPress={() => router.push('/class/my' as any)}>
           <Text style={s.myClassesLink}>My Classes →</Text>
         </TouchableOpacity>
@@ -229,7 +351,9 @@ export default function ClassesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.light.primary} />}
         ListEmptyComponent={
           <View style={s.emptyWrap}>
-            <Text style={s.emptyText}>No upcoming classes match your filters.</Text>
+            <Text style={s.emptyText}>
+              No {statusFilter === 'upcoming' ? 'upcoming' : statusFilter === 'completed' ? 'completed' : ''} classes match your filters.
+            </Text>
           </View>
         }
       />
@@ -253,16 +377,139 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14,
   },
   searchInput: { flex: 1, fontSize: 15, color: '#FFFFFF' },
-  catScroll: { flexGrow: 0, backgroundColor: Colors.light.background, marginTop: 12, marginBottom: 4, borderTopWidth: 1, borderTopColor: Colors.light.borderLight, borderBottomWidth: 1, borderBottomColor: Colors.light.borderLight },
-  catContainer: { paddingHorizontal: 16, paddingVertical: 12, gap: 8, alignItems: 'center' },
-  catPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: Colors.light.backgroundTertiary, borderWidth: 1, borderColor: Colors.light.border },
-  catPillActive: { backgroundColor: Colors.light.primary, borderColor: Colors.light.primary },
-  catPillText: { fontSize: 13, fontWeight: '600' as const, color: Colors.light.textSecondary },
-  catPillTextActive: { color: '#FFFFFF' },
+  filterSection: {
+    backgroundColor: Colors.light.background,
+    paddingTop: 12,
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.borderLight,
+  },
+  segmentScroll: {
+    flexGrow: 0,
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 8,
+    alignItems: 'center',
+  },
+  segmentTab: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: Colors.light.backgroundTertiary,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  segmentTabActive: {
+    borderColor: 'transparent',
+    shadowColor: Colors.light.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  segmentGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+  },
+  segmentTabInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+  },
+  segmentText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
+  },
+  segmentTextActive: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  activeBadge: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  activeBadgeText: {
+    fontSize: 10,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+  },
+  inactiveBadge: {
+    backgroundColor: Colors.light.borderLight,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  inactiveBadgeText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: Colors.light.textTertiary,
+  },
+  catScroll: {
+    flexGrow: 0,
+    backgroundColor: Colors.light.background,
+  },
+  catContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+    alignItems: 'center',
+  },
+  catPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 12,
+    backgroundColor: Colors.light.backgroundTertiary,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  catPillActive: {
+    backgroundColor: '#1E293B',
+    borderColor: '#1E293B',
+  },
+  catPillText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
+  },
+  catPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700' as const,
+  },
+  resetPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.2)',
+  },
+  resetPillText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.light.error,
+  },
   resultsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
   resultsText: { fontSize: 14, fontWeight: '600' as const, color: Colors.light.textSecondary },
   myClassesLink: { fontSize: 14, fontWeight: '700' as const, color: Colors.light.primary },
-  listContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 100 },
   card: { backgroundColor: Colors.light.card, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: Colors.light.borderLight, shadowColor: Colors.light.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
   cardCancelled: { opacity: 0.85, borderColor: 'rgba(239,68,68,0.3)' },
   coverWrap: { position: 'relative' },
@@ -275,6 +522,8 @@ const s = StyleSheet.create({
   rightBadges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   levelPill: { backgroundColor: Colors.light.backgroundTertiary, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   levelText: { fontSize: 11, fontWeight: '700' as const, color: Colors.light.primary },
+  statusLivePill: { backgroundColor: 'rgba(239,68,68,0.12)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  statusLiveText: { fontSize: 11, fontWeight: '700' as const, color: '#EF4444' },
   statusCancelledPill: { backgroundColor: 'rgba(239,68,68,0.12)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   statusCancelledText: { fontSize: 11, fontWeight: '700' as const, color: Colors.light.error },
   statusCompletedPill: { backgroundColor: 'rgba(139,92,246,0.12)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
@@ -293,13 +542,15 @@ const s = StyleSheet.create({
   seatsLeft: { fontSize: 12, color: Colors.light.textTertiary },
   progressBar: { height: 5, backgroundColor: Colors.light.borderLight, borderRadius: 3, marginBottom: 12 },
   progressFill: { height: '100%', backgroundColor: Colors.light.primary, borderRadius: 3 },
-  priceRow: { flexDirection: 'row', alignItems: 'center' },
+  priceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cancelledPriceTag: { backgroundColor: 'rgba(239,68,68,0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
   cancelledPriceText: { fontSize: 13, fontWeight: '700' as const, color: Colors.light.error },
   freeTag: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(16,185,129,0.12)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
   freeText: { fontSize: 13, fontWeight: '700' as const, color: '#10B981' },
   priceTag: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(245,158,11,0.12)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
   priceText: { fontSize: 13, fontWeight: '700' as const, color: '#F59E0B' },
+  joinCardBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#10B981', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
+  joinCardBtnText: { fontSize: 12, fontWeight: '700' as const, color: '#FFFFFF' },
   emptyWrap: { paddingVertical: 60, alignItems: 'center' },
   emptyText: { fontSize: 15, color: Colors.light.textTertiary, fontWeight: '500' as const },
 });

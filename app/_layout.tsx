@@ -152,6 +152,13 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="class/call/[classId]"
+        options={{
+          headerShown: false,
+          presentation: 'fullScreenModal',
+        }}
+      />
+      <Stack.Screen
         name="admin/classes"
         options={{
           headerShown: false,

@@ -3,11 +3,15 @@ import React from 'react';
 export default function HMSView({ 
   roomCode, 
   userName, 
-  onLeave 
+  onLeave,
+  authToken,
+  isTeacher
 }: { 
   roomCode: string; 
   userName: string; 
-  onLeave: () => void 
+  onLeave: () => void;
+  authToken?: string;
+  isTeacher?: boolean;
 }) {
   return null;
 }

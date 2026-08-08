@@ -88,8 +88,10 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
     };
 
     socket.on('class_updated', handleClassUpdated);
+    socket.on('class_started', handleClassUpdated);
     return () => {
       socket.off('class_updated', handleClassUpdated);
+      socket.off('class_started', handleClassUpdated);
     };
   }, [socket, fetchClassesFromBackend]);
 
