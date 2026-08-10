@@ -247,17 +247,38 @@ The Express backend routes are mounted under the following path prefixes:
 
 Create `.env` in the root folder:
 ```env
-EXPO_PUBLIC_API_URL=http://localhost:3201
-EXPO_PUBLIC_HMS_SUBDOMAIN=your-100ms-subdomain
+EXPO_PUBLIC_RORK_API_BASE_URL=https://api.example.com
+EXPO_PUBLIC_API_URL=https://api.example.com
+
+EXPO_PUBLIC_GOOGLE_WEB_ID=YOUR_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_ANDROID_ID=YOUR_GOOGLE_ANDROID_CLIENT_ID.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_IOS_ID=YOUR_GOOGLE_IOS_CLIENT_ID.apps.googleusercontent.com
+
 ```
 
 Create `.env` in the `server/` directory:
 ```env
 PORT=3201
-MONGO_URI=mongodb://localhost:27017/skillswap
-JWT_SECRET=your_jwt_secret_key
-HMS_ACCESS_KEY=your_100ms_access_key
-HMS_SECRET=your_100ms_secret
+MONGODB_URI='mongodb+srv://YOUR_DB_USER:YOUR_DB_PASSWORD@cluster.mongodb.net/skillswap?appName=skillswap'
+JWT_SECRET='YOUR_JWT_SECRET_KEY_HERE'
+RAZORPAY_KEY_ID=rzp_test_YOUR_RAZORPAY_KEY_ID
+RAZORPAY_KEY_SECRET=YOUR_RAZORPAY_KEY_SECRET
+TWO_FACTOR_API_KEY=YOUR_2FACTOR_API_KEY
+HMS_ACCESS_KEY=YOUR_HMS_ACCESS_KEY
+HMS_SECRET=YOUR_HMS_SECRET
+
+# Swap Page Video Call Template
+HMS_SWAP_TEMPLATE_ID=YOUR_HMS_SWAP_TEMPLATE_ID
+HMS_TEMPLATE_ID=YOUR_HMS_TEMPLATE_ID
+
+# Teacher-Student Class Video Call Template
+HMS_TEACHER_CLASS_TEMPLATE_ID=YOUR_HMS_TEACHER_CLASS_TEMPLATE_ID
+HMS_GROUP_CLASS_TEMPLATE_ID=YOUR_HMS_GROUP_CLASS_TEMPLATE_ID
+HMS_GROUP_CLASS_HOST_ROOM_CODE=xxx-xxxx-xxx
+HMS_GROUP_CLASS_STUDENT_ROOM_CODE=xxx-xxxx-xxx
+HMS_GROUP_CLASS_ROOM_CODE=xxx-xxxx-xxx
+HMS_GROUP_CLASS_AUTH_TOKEN=YOUR_HMS_GROUP_CLASS_AUTH_TOKEN
+
 ```
 
 ### 2. Running the Backend Server
@@ -275,13 +296,13 @@ In the project root directory:
 
 ```bash
 # Install dependencies
-bun install
+npm install
 
 # Start development server
-bun run start
+npx expo start
 
 # Start web preview directly in browser
-bun run start-web
+npx expo start --web
 ```
 
 ---
