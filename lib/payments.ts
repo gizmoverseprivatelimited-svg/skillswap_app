@@ -1,4 +1,4 @@
-import type { PayoutMethod, Skill, SkillWithUser, User, EarningRule } from '@/types';
+import type { PayoutMethod, Skill, SkillWithUser, User, EarningRule, ClassSessionType, ClassBillingCycle } from '@/types';
 
 // ============================================================
 //  LearnSwap Credit System — Single Source of Truth
@@ -47,7 +47,7 @@ export const EARNING_RULES: EarningRule[] = [
     source: 'class_taught',
     label: 'Per Class Taught',
     points: TEACHER_EARNINGS.freeClassBonus,
-    description: 'Teach a free swap session → 50 credits. Paid sessions → 80% of session price (20% platform fee).',
+    description: 'Teach a free class → 50 credits/student. Paid classes → 80% of billed amount (20% platform fee) for single or recurring sessions.',
   },
   {
     source: 'monthly_subscription',
@@ -161,4 +161,22 @@ export function getClassTeacherEarnings(seatPriceCredits: number, enrolledCount:
   const seat = getClassSeatPrice(seatPriceCredits);
   if (seat <= 0) return TEACHER_EARNINGS.freeClassBonus * enrolledCount;
   return Math.round(seat * enrolledCount * (1 - PLATFORM_COMMISSION_RATE));
+}
+
+/** Format a schedule summary for display (e.g., "Daily, 8 sessions" or "Weekly Mon/Wed, 4 sessions") */
+export function formatClassSchedule(
+  sessionType?: ClassSessionType,
+  sessionCount?: number,
+  scheduleDays?: string[],
+): string {
+  if (!sessionType || sessionType === 'single') return 'Single session';
+  const count = sessionCount ?? 1;
+  if (sessionType === 'daily') return `Daily, ${count} session${count === 1 ? '' : 's'}`;
+  const days = scheduleDays?.join('/') ?? 'weekly';
+  return `Weekly ${days}, ${count} session${count === 1 ? '' : 's'}`;
+}
+
+/** Format billing cycle for display */
+export function formatBillingCycle(cycle?: ClassBillingCycle): string {
+  return cycle === 'monthly' ? 'Monthly' : 'One-time';
 }

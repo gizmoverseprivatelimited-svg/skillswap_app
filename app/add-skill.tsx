@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { useState, useEffect, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -103,10 +103,17 @@ const STOCK_IMAGES: Record<string, string> = {
 
 export default function AddSkillScreen() {
   const router = useRouter();
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const { currentUser, loadUser } = useCurrentUser();
   const { showAlert } = useAlert();
 
-  const [mode, setMode] = useState<AddMode | null>(null);
+  const isEditMode = Boolean(id);
+  const editingSkill = useMemo(() => {
+    if (!id || !currentUser?.skillsOffered) return null;
+    return currentUser.skillsOffered.find((s) => String(s.id) === String(id) || String((s as any)._id) === String(id));
+  }, [id, currentUser?.skillsOffered]);
+
+  const [mode, setMode] = useState<AddMode | null>(isEditMode ? 'teach' : null);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [teachTitle, setTeachTitle] = useState<string>('');
   const [teachCategory, setTeachCategory] = useState<SkillCategory | null>(null);
@@ -126,6 +133,29 @@ export default function AddSkillScreen() {
   const [showLearnCategory, setShowLearnCategory] = useState<boolean>(false);
 
   const [isSaving, setIsSaving] = useState<boolean>(false);
+
+  // Populate form fields if editing an existing skill
+  useEffect(() => {
+    if (editingSkill) {
+      setMode('teach');
+      setTeachTitle(editingSkill.title || '');
+      setTeachDescription(editingSkill.description || '');
+      setTeachLevel(editingSkill.level || 'Beginner');
+
+      if (DEFAULT_CATEGORIES.includes(editingSkill.category)) {
+        setTeachCategory(editingSkill.category as SkillCategory);
+      } else {
+        setTeachCategory('Other');
+        setCustomTeachCategory(editingSkill.category || '');
+      }
+
+      setPricingModel(editingSkill.pricingModel || 'free');
+      if (editingSkill.pricePerSession) setPricePerSession(String(editingSkill.pricePerSession));
+      if (editingSkill.monthlyPrice) setMonthlyPrice(String(editingSkill.monthlyPrice));
+      setPromoteSkill(Boolean(editingSkill.promoted));
+      setPromoTagline(editingSkill.promoTagline || '');
+    }
+  }, [editingSkill]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -193,7 +223,7 @@ export default function AddSkillScreen() {
 
       if (showTeachFields && teachTitle.trim() && finalTeachCat && teachLevel) {
         const skillPayload: Skill = {
-          id: `skill-${Date.now()}`,
+          id: isEditMode && editingSkill ? editingSkill.id : `skill-${Date.now()}`,
           title: teachTitle.trim(),
           category: finalTeachCat,
           description: teachDescription.trim() || `Teaching ${teachTitle.trim()}`,
@@ -209,8 +239,10 @@ export default function AddSkillScreen() {
 
         if (currentUser && currentUser.id !== '1') {
           try {
-            const res = await fetch(`${url}/skills`, {
-              method: 'POST',
+            const fetchUrl = isEditMode && id ? `${url}/skills/${id}` : `${url}/skills`;
+            const fetchMethod = isEditMode ? 'PUT' : 'POST';
+            const res = await fetch(fetchUrl, {
+              method: fetchMethod,
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(skillPayload),
             });
@@ -225,7 +257,7 @@ export default function AddSkillScreen() {
               newSkills.push(skillPayload);
             }
           } catch (err) {
-            console.warn('[AddSkill] Backend /skills POST failed, updating locally:', err);
+            console.warn('[AddSkill] Backend /skills fetch failed, updating locally:', err);
             newSkills.push(skillPayload);
           }
         } else {
@@ -247,7 +279,14 @@ export default function AddSkillScreen() {
       }
 
       if (currentUser) {
-        newSkills.forEach((s) => currentUser.skillsOffered.push(s));
+        if (isEditMode && editingSkill) {
+          const index = currentUser.skillsOffered.findIndex((s) => String(s.id) === String(id) || String((s as any)._id) === String(id));
+          if (index !== -1 && newSkills[0]) {
+            currentUser.skillsOffered[index] = newSkills[0];
+          }
+        } else {
+          newSkills.forEach((s) => currentUser.skillsOffered.push(s));
+        }
 
         if (currentUser.id === '1') {
           try {
@@ -394,13 +433,23 @@ export default function AddSkillScreen() {
     <>
       <Stack.Screen
         options={{
-          title: activeMode.title,
+          title: isEditMode ? 'Edit Skill' : activeMode.title,
           headerStyle: { backgroundColor: Colors.light.background },
           headerTintColor: Colors.light.text,
           headerShadowVisible: false,
           headerLeft: () => (
             <TouchableOpacity
-              onPress={resetFields}
+              onPress={() => {
+                if (isEditMode) {
+                  if (router.canGoBack()) {
+                    router.back();
+                  } else {
+                    router.replace('/(tabs)/profile');
+                  }
+                } else {
+                  resetFields();
+                }
+              }}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
               <ArrowLeft size={22} color={Colors.light.text} />

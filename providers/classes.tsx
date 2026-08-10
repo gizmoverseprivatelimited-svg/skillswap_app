@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
 import { mockUsers, mockClasses, mockEnrollments } from '../mocks/data';
-import type { GroupClass, ClassEnrollment, ClassWithTeacher, ClassStatus, SkillCategory, SkillLevel } from '../types';
+import type { GroupClass, ClassEnrollment, ClassWithTeacher, ClassStatus, ClassSessionType, ClassBillingCycle, SkillCategory, SkillLevel } from '../types';
 import { useCurrentUser } from './current-user';
 import { useEarnings } from './earnings';
 import { useNotifications } from './notifications';
@@ -17,8 +17,34 @@ interface CreateClassInput {
   coverImageUrl: string;
   startISO: string;
   endISO: string;
+  sessionType?: ClassSessionType;
+  billingCycle?: ClassBillingCycle;
+  scheduleDays?: string[];
   maxCapacity: number;
   seatPriceCredits: number;
+}
+
+function computeSessionCount(
+  sessionType?: ClassSessionType,
+  startISO?: string,
+  endISO?: string,
+  scheduleDays?: string[],
+): number {
+  if (!sessionType || sessionType === 'single') return 1;
+  if (!startISO || !endISO) return 1;
+  const start = new Date(startISO);
+  const end = new Date(endISO);
+  const dayMs = 86400000;
+  const days = Math.max(1, Math.floor((end.getTime() - start.getTime()) / dayMs) + 1);
+  if (sessionType === 'daily') return days;
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const selected = scheduleDays?.length ? scheduleDays : ['Mon'];
+  let count = 0;
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start.getTime() + i * dayMs);
+    if (selected.includes(dayNames[d.getDay()])) count++;
+  }
+  return count || 1;
 }
 
 interface ClassesContextValue {
@@ -161,6 +187,10 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
   const createClass = useCallback((input: CreateClassInput): GroupClass => {
     const currentUserId = currentUser?.id ?? '1';
     const tempId = generateId('class');
+    const sType = input.sessionType ?? 'single';
+    const bCycle = input.billingCycle ?? 'one_time';
+    const sCount = computeSessionCount(sType, input.startISO, input.endISO, input.scheduleDays);
+
     const cls: GroupClass = {
       id: tempId,
       teacherId: currentUserId,
@@ -171,6 +201,10 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
       coverImageUrl: input.coverImageUrl,
       startISO: input.startISO,
       endISO: input.endISO,
+      sessionType: sType,
+      billingCycle: bCycle,
+      sessionCount: sCount,
+      scheduleDays: sType === 'weekly' ? input.scheduleDays : undefined,
       maxCapacity: input.maxCapacity,
       seatPriceCredits: input.seatPriceCredits,
       status: 'open',
@@ -192,6 +226,10 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
         coverImageUrl: input.coverImageUrl,
         startISO: input.startISO,
         endISO: input.endISO,
+        sessionType: sType,
+        billingCycle: bCycle,
+        sessionCount: sCount,
+        scheduleDays: sType === 'weekly' ? input.scheduleDays : undefined,
         maxCapacity: input.maxCapacity,
         seatPriceCredits: input.seatPriceCredits,
       }),

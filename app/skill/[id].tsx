@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { MapPin, Star, Users, ArrowRight, Award, Clock, CalendarCheck2, IndianRupee, Sparkles, Coins } from 'lucide-react-native';
+import { MapPin, Star, Users, ArrowRight, Award, Clock, CalendarCheck2, IndianRupee, Sparkles, Coins, Trash2, Edit } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '../../constants/colors';
@@ -10,6 +10,7 @@ import ReviewsSection from '../../components/ReviewsSection';
 import SkillSwapRequestModal from '../../components/SkillSwapRequestModal';
 import { useSkillSwaps } from '../../providers/skill-swaps';
 import { useCurrentUser } from '../../providers/current-user';
+import { useClasses } from '@/providers/classes';
 import { useAlert } from '../../providers/alert';
 import type { SkillSwapStatus, SkillWithUser } from '../../types';
 import { formatPrice } from '@/constants/locale';
@@ -57,9 +58,26 @@ export default function SkillDetailScreen() {
 
 
 
-  const { currentUser, allUsers } = useCurrentUser();
+  const { currentUser, allUsers, removeSkill } = useCurrentUser();
+  const { classes } = useClasses();
   const { showAlert } = useAlert();
   const [isSwapModalVisible, setSwapModalVisible] = useState<boolean>(false);
+
+  const isOwner = skill?.userId === currentUser?.id || skill?.user?.id === currentUser?.id;
+
+  const hasActiveClassForSkill = useMemo(() => {
+    if (!skill || !classes) return false;
+    return classes.some((cls) => {
+      const isSameTeacher = String(cls.teacherId) === String(skill.user?.id || skill.userId);
+      const isSameTitleOrCategory =
+        cls.title.trim().toLowerCase() === skill.title.trim().toLowerCase() ||
+        cls.category.trim().toLowerCase() === skill.category.trim().toLowerCase();
+      const isOpenOrLive = cls.status === 'open' || Boolean(cls.isLive);
+      return isSameTeacher && isSameTitleOrCategory && isOpenOrLive;
+    });
+  }, [skill, classes]);
+
+  const canCreateGroupClass = isOwner && !hasActiveClassForSkill;
 
   const teacherUser = useMemo(() => {
     if (!skill?.user?.id) return skill?.user;
@@ -163,6 +181,24 @@ export default function SkillDetailScreen() {
     }
     setSwapModalVisible(true);
   }, [activeSwap, router, currentUser?.id, showAlert]);
+
+  const handleDeleteSkill = useCallback(() => {
+    showAlert(
+      'Delete Skill',
+      `Remove "${skill?.title}" from your teaching skills? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            if (skill) removeSkill(skill._id || skill.id);
+            router.back();
+          },
+        },
+      ],
+    );
+  }, [skill, removeSkill, router, showAlert]);
   const contentContainerStyle = useMemo(() => {
     return {
       paddingBottom: insets.bottom + 140,
@@ -247,7 +283,29 @@ export default function SkillDetailScreen() {
             </View>
           </View>
 
-          <Text style={styles.title}>{skill.title}</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{skill.title}</Text>
+            {isOwner && (
+              <View style={styles.ownerActionsRow}>
+                <TouchableOpacity
+                  onPress={() => router.push(`/add-skill?id=${skill._id || skill.id}` as any)}
+                  style={styles.editButton}
+                  activeOpacity={0.7}
+                  testID="edit-skill-button"
+                >
+                  <Edit size={18} color={Colors.light.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleDeleteSkill}
+                  style={styles.deleteButton}
+                  activeOpacity={0.7}
+                  testID="delete-skill-button"
+                >
+                  <Trash2 size={18} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
 
           {(skill.promoted || skill.pricingModel) && (
             <View style={styles.pricingCard}>
@@ -361,21 +419,40 @@ export default function SkillDetailScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.requestButton, activeSwap && styles.requestButtonActive]}
-          onPress={handleRequestPress}
-          activeOpacity={0.85}
-          testID="request-swap-button"
-        >
-          <LinearGradient
-            colors={activeSwap ? ['#38BDF8', '#6366F1'] : [Colors.light.primary, Colors.light.primaryLight]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.requestButtonGradient}
+        {canCreateGroupClass && (
+          <TouchableOpacity
+            style={styles.groupClassButton}
+            onPress={() => router.push(`/class/create?skillId=${skill.id}` as any)}
+            activeOpacity={0.85}
           >
-            <Text style={styles.requestButtonText}>{activeSwap ? 'Open Swap Thread' : 'Request Skill Swap'}</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={['#10B981', '#34D399']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.groupClassButtonGradient}
+            >
+              <Users size={20} color="#FFFFFF" />
+              <Text style={styles.groupClassButtonText}>Create Group Class</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+        {!isOwner && (
+          <TouchableOpacity
+            style={[styles.requestButton, activeSwap && styles.requestButtonActive]}
+            onPress={handleRequestPress}
+            activeOpacity={0.85}
+            testID="request-swap-button"
+          >
+            <LinearGradient
+              colors={activeSwap ? ['#38BDF8', '#6366F1'] : [Colors.light.primary, Colors.light.primaryLight]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.requestButtonGradient}
+            >
+              <Text style={styles.requestButtonText}>{activeSwap ? 'Open Swap Thread' : 'Request Skill Swap'}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
       </View>
 
       <SkillSwapRequestModal
@@ -447,12 +524,41 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: Colors.light.primary,
   },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    gap: 12,
+  },
   title: {
+    flex: 1,
     fontSize: 30,
     fontWeight: '800' as const,
     color: Colors.light.text,
-    marginBottom: 16,
     lineHeight: 38,
+  },
+  ownerActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  editButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: Colors.light.primaryLight + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   description: {
     marginBottom: 24,
@@ -637,6 +743,7 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: Colors.light.background,
     padding: 20,
+    paddingBottom: 32,
     borderTopWidth: 1,
     borderTopColor: Colors.light.borderLight,
     shadowColor: Colors.light.shadow,
@@ -644,6 +751,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 8,
+    gap: 10,
+  },
+  groupClassButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  groupClassButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+  },
+  groupClassButtonText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
   },
   requestButton: {
     borderRadius: 20,

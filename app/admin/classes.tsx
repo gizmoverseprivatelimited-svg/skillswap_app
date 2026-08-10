@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View, FlatList, TouchableOpacity, Image, ScrollView, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Users, Calendar, Coins, XCircle, ArrowLeft, Search, Sparkles } from 'lucide-react-native';
+import { Users, Calendar, Coins, XCircle, ArrowLeft, Search, Sparkles, Repeat, CreditCard } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
 import { mockUsers } from '@/mocks/data';
@@ -9,6 +9,7 @@ import { useClasses } from '@/providers/classes';
 import { useAdmin } from '@/providers/admin';
 import { useAlert } from '@/providers/alert';
 import type { ClassWithTeacher } from '@/types';
+import { formatClassSchedule, formatBillingCycle } from '@/lib/payments';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800';
@@ -17,6 +18,7 @@ const DEFAULT_AVATAR = 'https://i.pravatar.cc/150?img=1';
 function AdminClassCardItem({ item, handleCancelClass }: { item: ClassWithTeacher; handleCancelClass: (cls: ClassWithTeacher) => void }) {
   const [coverUrl, setCoverUrl] = useState(() => resolveImageUrl(item.coverImageUrl, DEFAULT_COVER) || DEFAULT_COVER);
   const [avatarUrl, setAvatarUrl] = useState(() => resolveImageUrl(item.teacher.avatarUrl, DEFAULT_AVATAR) || DEFAULT_AVATAR);
+  const isRecurring = item.sessionType && item.sessionType !== 'single';
 
   const formatDate = (iso: string) => {
     return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
@@ -48,7 +50,11 @@ function AdminClassCardItem({ item, handleCancelClass }: { item: ClassWithTeache
         <View style={s.metaRow}>
           <View style={s.metaItem}>
             <Calendar size={13} color={Colors.light.textTertiary} />
-            <Text style={s.metaText}>{formatDate(item.startISO)}</Text>
+            <Text style={s.metaText}>
+              {isRecurring
+                ? `${formatDate(item.startISO)} — ${formatDate(item.endISO)}`
+                : formatDate(item.startISO)}
+            </Text>
           </View>
           <View style={s.metaItem}>
             <Users size={13} color={Colors.light.primary} />
@@ -57,6 +63,16 @@ function AdminClassCardItem({ item, handleCancelClass }: { item: ClassWithTeache
           <View style={s.metaItem}>
             {item.seatPriceCredits === 0 ? <Sparkles size={13} color="#10B981" /> : <Coins size={13} color="#F59E0B" />}
             <Text style={s.metaText}>{item.seatPriceCredits === 0 ? 'Free' : `${item.seatPriceCredits}cr`}</Text>
+          </View>
+        </View>
+        <View style={s.metaRow}>
+          <View style={s.metaItem}>
+            <Repeat size={13} color={Colors.light.primary} />
+            <Text style={[s.metaText, { color: Colors.light.primary }]}>{formatClassSchedule(item.sessionType, item.sessionCount, item.scheduleDays)}</Text>
+          </View>
+          <View style={s.metaItem}>
+            <CreditCard size={13} color={Colors.light.secondary} />
+            <Text style={[s.metaText, { color: Colors.light.secondary }]}>{formatBillingCycle(item.billingCycle)}</Text>
           </View>
         </View>
         {item.status === 'open' && (

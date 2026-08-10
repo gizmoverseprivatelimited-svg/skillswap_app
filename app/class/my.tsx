@@ -1,14 +1,14 @@
 import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Calendar, Clock, Users, Coins, Plus, CheckCircle2, XCircle, Sparkles } from 'lucide-react-native';
+import { Calendar, Clock, Users, Coins, Plus, CheckCircle2, XCircle, Sparkles, Repeat, CreditCard } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
 import { useClasses } from '@/providers/classes';
 import { useCurrentUser } from '@/providers/current-user';
 import type { ClassWithTeacher } from '@/types';
-import { formatCredits } from '@/lib/payments';
+import { formatCredits, formatClassSchedule, formatBillingCycle } from '@/lib/payments';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
 type Segment = 'teaching' | 'enrolled';
@@ -18,6 +18,7 @@ const DEFAULT_COVER = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b
 function MyClassCardItem({ item, currentUserId, router }: { item: ClassWithTeacher; currentUserId?: string; router: any }) {
   const isFree = item.seatPriceCredits === 0;
   const isTeacher = item.teacherId === currentUserId;
+  const isRecurring = item.sessionType && item.sessionType !== 'single';
   const [coverUrl, setCoverUrl] = useState(() => resolveImageUrl(item.coverImageUrl, DEFAULT_COVER) || DEFAULT_COVER);
 
   const formatDate = (iso: string) => {
@@ -26,6 +27,9 @@ function MyClassCardItem({ item, currentUserId, router }: { item: ClassWithTeach
   };
   const formatTime = (iso: string) => {
     return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  };
+  const formatShortDate = (iso: string) => {
+    return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   };
 
   return (
@@ -49,9 +53,21 @@ function MyClassCardItem({ item, currentUserId, router }: { item: ClassWithTeach
         <Text style={s.title} numberOfLines={2}>{item.title}</Text>
         <View style={s.metaRow}>
           <Calendar size={13} color={Colors.light.textTertiary} />
-          <Text style={s.metaText}>{formatDate(item.startISO)}</Text>
+          <Text style={s.metaText}>
+            {isRecurring
+              ? `${formatShortDate(item.startISO)} — ${formatShortDate(item.endISO)}`
+              : formatDate(item.startISO)}
+          </Text>
+        </View>
+        <View style={s.metaRow}>
           <Clock size={13} color={Colors.light.textTertiary} />
           <Text style={s.metaText}>{formatTime(item.startISO)}</Text>
+          <Repeat size={13} color={Colors.light.primary} />
+          <Text style={[s.metaText, { color: Colors.light.primary }]}>{formatClassSchedule(item.sessionType, item.sessionCount, item.scheduleDays)}</Text>
+        </View>
+        <View style={s.metaRow}>
+          <CreditCard size={13} color={Colors.light.secondary} />
+          <Text style={[s.metaText, { color: Colors.light.secondary }]}>{formatBillingCycle(item.billingCycle)}</Text>
         </View>
         {isTeacher ? (
           <View style={s.seatRow}>

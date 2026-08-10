@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Platform, Modal, Pressable, Image, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Calendar as CalendarIcon, Clock as ClockIcon, Users, Coins, Image as ImageIcon, Check, Sparkles, X, ChevronLeft, ChevronRight, CalendarDays, Clock3, Upload, Camera } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,11 +8,43 @@ import * as ImagePicker from 'expo-image-picker';
 import Colors from '@/constants/colors';
 import { categories as defaultCategories } from '@/mocks/data';
 import { useClasses } from '@/providers/classes';
-import type { SkillCategory, SkillLevel } from '@/types';
+import { useCurrentUser } from '@/providers/current-user';
+import type { SkillCategory, SkillLevel, ClassSessionType, ClassBillingCycle, Skill } from '@/types';
 import url from '@/constants/backurl';
 
+import { resolveImageUrl } from '@/lib/resolveImageUrl';
+
 const LEVELS: SkillLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
+const SESSION_TYPES: { key: ClassSessionType; label: string }[] = [
+  { key: 'single', label: 'Single Session' },
+  { key: 'daily', label: 'Daily Course' },
+  { key: 'weekly', label: 'Weekly Course' },
+];
+const BILLING_CYCLES: { key: ClassBillingCycle; label: string }[] = [
+  { key: 'one_time', label: 'One-time' },
+  { key: 'monthly', label: 'Monthly' },
+];
+const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1497486751825-1233686d5d80?w=800';
+
+function SkillChipItem({ sk, isSelected, onSelect }: { sk: Skill; isSelected: boolean; onSelect: () => void }) {
+  const [imgUrl, setImgUrl] = useState(() => resolveImageUrl(sk.imageUrl, DEFAULT_COVER) || DEFAULT_COVER);
+
+  return (
+    <TouchableOpacity
+      style={[s.skillChipBtn, isSelected && s.chipActive]}
+      onPress={onSelect}
+      activeOpacity={0.7}
+    >
+      <Image
+        source={{ uri: imgUrl }}
+        style={s.skillChipThumb}
+        onError={() => setImgUrl(DEFAULT_COVER)}
+      />
+      <Text style={[s.chipText, isSelected && s.chipTextActive]} numberOfLines={1}>{sk.title}</Text>
+    </TouchableOpacity>
+  );
+}
 
 const COMMON_TIME_SLOTS = [
   '08:00', '09:00', '10:00', '11:00', '12:00',
@@ -59,7 +91,11 @@ export default function CreateClassScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { createClass } = useClasses();
+  const { currentUser } = useCurrentUser();
+  const { skillId } = useLocalSearchParams<{ skillId?: string }>();
+  const offeredSkills = useMemo(() => Array.isArray(currentUser?.skillsOffered) ? currentUser.skillsOffered : [], [currentUser]);
 
+  const [pickedSkillId, setPickedSkillId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [categoriesList, setCategoriesList] = useState<string[]>(() => defaultCategories.filter(c => c !== 'All'));
@@ -68,12 +104,78 @@ export default function CreateClassScreen() {
   const [level, setLevel] = useState<SkillLevel>('Beginner');
   const [coverUrl, setCoverUrl] = useState(DEFAULT_COVER);
   const [uploadingCover, setUploadingCover] = useState(false);
+
+  const [sessionType, setSessionType] = useState<ClassSessionType>('single');
+  const [billingCycle, setBillingCycle] = useState<ClassBillingCycle>('one_time');
+  const [startDate, setStartDate] = useState<string>(getTomorrowDateStr());
+  const [endDate, setEndDate] = useState<string>('');
+  const [scheduleDays, setScheduleDays] = useState<string[]>([]);
+
   const [dateStr, setDateStr] = useState<string>(getTomorrowDateStr());
   const [startTime, setStartTime] = useState<string>('14:00');
   const [endTime, setEndTime] = useState<string>('15:30');
   const [capacity, setCapacity] = useState('10');
   const [seatPrice, setSeatPrice] = useState('0');
   const [submitting, setSubmitting] = useState(false);
+
+  const isWeekly = sessionType === 'weekly';
+  const isRecurring = sessionType !== 'single';
+
+  const sessionCount = useMemo(() => {
+    if (sessionType === 'single') return 1;
+    const startD = startDate || dateStr;
+    if (!startD || !endDate) return 0;
+    const start = new Date(`${startD}T00:00:00`).getTime();
+    const end = new Date(`${endDate}T00:00:00`).getTime();
+    if (Number.isNaN(start) || Number.isNaN(end) || end < start) return 0;
+    const days = Math.floor((end - start) / 86400000) + 1;
+    if (sessionType === 'daily') return days;
+    if (scheduleDays.length === 0) return 0;
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    let count = 0;
+    for (let i = 0; i < days; i++) {
+      const d = new Date(start + i * 86400000);
+      if (scheduleDays.includes(dayNames[d.getDay()])) count++;
+    }
+    return count;
+  }, [sessionType, startDate, dateStr, endDate, scheduleDays]);
+
+  const selectSkill = useCallback((skill: Skill | null) => {
+    if (!skill) {
+      setPickedSkillId(null);
+      return;
+    }
+    const skId = skill.id || (skill as any)._id || null;
+    setPickedSkillId(skId);
+    setTitle(skill.title);
+    setDescription(skill.description);
+    setCategory(skill.category);
+    setLevel(skill.level);
+    if (skill.imageUrl) setCoverUrl(skill.imageUrl);
+    if (skill.pricingModel === 'free') {
+      setSeatPrice('0');
+      setBillingCycle('one_time');
+    } else if (skill.pricingModel === 'per_session') {
+      setSeatPrice(String(skill.pricePerSession ?? 0));
+      setBillingCycle('one_time');
+    } else if (skill.pricingModel === 'monthly') {
+      setSeatPrice(String(skill.monthlyPrice ?? 0));
+      setBillingCycle('monthly');
+    }
+  }, []);
+
+  // Auto-select skill if passed via search param
+  useEffect(() => {
+    if (!skillId || offeredSkills.length === 0) return;
+    const targetSkill = offeredSkills.find(s => (s.id || (s as any)._id) === skillId);
+    if (targetSkill) {
+      selectSkill(targetSkill);
+    }
+  }, [skillId, offeredSkills, selectSkill]);
+
+  const toggleDay = (day: string) => {
+    setScheduleDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+  };
 
   // Upload image to Multer backend
   const uploadCoverImage = useCallback(async (fileUri: string) => {
@@ -160,6 +262,7 @@ export default function CreateClassScreen() {
   const [showDatePickerModal, setShowDatePickerModal] = useState(false);
   const [showTimePickerModal, setShowTimePickerModal] = useState(false);
   const [activeTimeTarget, setActiveTimeTarget] = useState<'start' | 'end'>('start');
+  const [activeDateTarget, setActiveDateTarget] = useState<'single' | 'start' | 'end'>('single');
 
   // Calendar month view state
   const todayObj = useMemo(() => new Date(), []);
@@ -240,16 +343,28 @@ export default function CreateClassScreen() {
   }, [viewMonth]);
 
   // Open calendar pop-up
-  const handleOpenDatePicker = useCallback(() => {
-    if (dateStr) {
-      const [y, m] = dateStr.split('-').map(Number);
+  const handleOpenDatePicker = useCallback((target: 'single' | 'start' | 'end' = 'single') => {
+    setActiveDateTarget(target);
+    const targetDate = target === 'start' ? startDate : target === 'end' ? endDate : dateStr;
+    if (targetDate) {
+      const [y, m] = targetDate.split('-').map(Number);
       if (y && m) {
         setViewYear(y);
         setViewMonth(m - 1);
       }
     }
     setShowDatePickerModal(true);
-  }, [dateStr]);
+  }, [dateStr, startDate, endDate]);
+
+  const handleSelectDate = useCallback((selectedDate: string) => {
+    if (activeDateTarget === 'start') {
+      setStartDate(selectedDate);
+    } else if (activeDateTarget === 'end') {
+      setEndDate(selectedDate);
+    } else {
+      setDateStr(selectedDate);
+    }
+  }, [activeDateTarget]);
 
   // Open time pop-up
   const handleOpenTimePicker = useCallback((target: 'start' | 'end') => {
@@ -307,10 +422,17 @@ export default function CreateClassScreen() {
     if (price < 0) { Alert.alert('Invalid price', 'Price cannot be negative.'); return; }
 
     const finalCategory = (category === 'Other' ? customCategory.trim() : category) as SkillCategory;
+    const startD = startDate || dateStr;
+    const endD = isRecurring ? endDate : startD;
+
+    if (!startD || !startD.match(/^\d{4}-\d{2}-\d{2}$/)) { Alert.alert('Invalid start date', 'Please pick a valid start date.'); return; }
+    if (isRecurring && (!endD || !endD.match(/^\d{4}-\d{2}-\d{2}$/))) { Alert.alert('Invalid end date', 'Please pick a valid end date.'); return; }
+    if (isWeekly && scheduleDays.length === 0) { Alert.alert('Select days', 'Pick at least one weekday for the weekly course.'); return; }
+    if (sessionCount === 0) { Alert.alert('Invalid schedule', 'Check start/end dates and selected days.'); return; }
 
     // Build ISO timestamps
-    const startISO = new Date(`${dateStr}T${startTime}:00`).toISOString();
-    const endISO = new Date(`${dateStr}T${endTime}:00`).toISOString();
+    const startISO = new Date(`${startD}T${startTime}:00`).toISOString();
+    const endISO = new Date(`${endD}T${endTime}:00`).toISOString();
     if (new Date(endISO) <= new Date(startISO)) { Alert.alert('Invalid time range', 'End time must be after start time.'); return; }
 
     setSubmitting(true);
@@ -322,6 +444,9 @@ export default function CreateClassScreen() {
       coverImageUrl: coverUrl.trim() || DEFAULT_COVER,
       startISO,
       endISO,
+      sessionType,
+      billingCycle,
+      scheduleDays: isWeekly ? scheduleDays : undefined,
       maxCapacity: cap,
       seatPriceCredits: price,
     });
@@ -336,7 +461,7 @@ export default function CreateClassScreen() {
       ]);
       router.back();
     }
-  }, [title, description, category, customCategory, level, coverUrl, dateStr, startTime, endTime, capacity, seatPrice, createClass, router]);
+  }, [title, description, category, customCategory, level, coverUrl, dateStr, startDate, endDate, isRecurring, isWeekly, scheduleDays, sessionCount, startTime, endTime, capacity, seatPrice, sessionType, billingCycle, createClass, router]);
 
   return (
     <ScrollView style={s.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -350,6 +475,33 @@ export default function CreateClassScreen() {
       </LinearGradient>
 
       <View style={s.form}>
+        {offeredSkills.length > 0 && (
+          <View style={{ marginBottom: 20 }}>
+            <Text style={s.label}>Base on Your Skill (Optional)</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
+              <TouchableOpacity
+                style={[s.chip, !pickedSkillId && s.chipActive]}
+                onPress={() => selectSkill(null)}
+                activeOpacity={0.7}
+              >
+                <Text style={[s.chipText, !pickedSkillId && s.chipTextActive]}>Blank</Text>
+              </TouchableOpacity>
+              {offeredSkills.map((sk, idx) => {
+                const skId = sk.id || (sk as any)._id || `sk-${idx}`;
+                const isSelected = pickedSkillId === skId;
+                return (
+                  <SkillChipItem
+                    key={skId}
+                    sk={sk}
+                    isSelected={isSelected}
+                    onSelect={() => selectSkill(sk)}
+                  />
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
         <Text style={s.label}>Class Title</Text>
         <TextInput style={s.input} value={title} onChangeText={setTitle} placeholder="e.g. Intro to Watercolor Painting" placeholderTextColor={Colors.light.textTertiary} />
 
@@ -422,18 +574,101 @@ export default function CreateClassScreen() {
           </View>
         </View>
 
-        {/* 📅 Date Picker Touch Field */}
-        <Text style={s.label}>Class Date</Text>
-        <TouchableOpacity style={s.selectorBtn} onPress={handleOpenDatePicker} activeOpacity={0.8}>
-          <CalendarDays size={20} color={Colors.light.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.selectorBtnText}>{formatDateLabel(dateStr)}</Text>
-            <Text style={s.selectorBtnSubtext}>Tap to open calendar popup</Text>
+        <Text style={s.label}>Session Type</Text>
+        <View style={s.chipRow}>
+          {SESSION_TYPES.map(st => (
+            <TouchableOpacity
+              key={st.key}
+              style={[s.chip, sessionType === st.key && s.chipActive]}
+              onPress={() => setSessionType(st.key)}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.chipText, sessionType === st.key && s.chipTextActive]}>{st.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={s.label}>Billing Model</Text>
+        <View style={s.chipRow}>
+          {BILLING_CYCLES.map(bc => (
+            <TouchableOpacity
+              key={bc.key}
+              style={[s.chip, billingCycle === bc.key && s.chipActive]}
+              onPress={() => setBillingCycle(bc.key)}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.chipText, billingCycle === bc.key && s.chipTextActive]}>{bc.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* 📅 Date Inputs */}
+        {isRecurring ? (
+          <View style={s.timeRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.label}>Start Date</Text>
+              <TouchableOpacity style={s.selectorBtnCompact} onPress={() => handleOpenDatePicker('start')} activeOpacity={0.8}>
+                <CalendarDays size={18} color={Colors.light.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.selectorBtnTextCompact}>{startDate ? formatDateLabel(startDate) : 'Select Start Date'}</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+            <View style={{ width: 12 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.label}>End Date</Text>
+              <TouchableOpacity style={s.selectorBtnCompact} onPress={() => handleOpenDatePicker('end')} activeOpacity={0.8}>
+                <CalendarDays size={18} color={Colors.light.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.selectorBtnTextCompact}>{endDate ? formatDateLabel(endDate) : 'Select End Date'}</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={s.badgeChip}>
-            <Text style={s.badgeChipText}>Calendar</Text>
+        ) : (
+          <>
+            <Text style={s.label}>Class Date</Text>
+            <TouchableOpacity style={s.selectorBtn} onPress={() => handleOpenDatePicker('single')} activeOpacity={0.8}>
+              <CalendarDays size={20} color={Colors.light.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.selectorBtnText}>{formatDateLabel(dateStr)}</Text>
+                <Text style={s.selectorBtnSubtext}>Tap to open calendar popup</Text>
+              </View>
+              <View style={s.badgeChip}>
+                <Text style={s.badgeChipText}>Calendar</Text>
+              </View>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {isWeekly && (
+          <View style={{ marginTop: 12 }}>
+            <Text style={s.label}>Weekly Session Days</Text>
+            <View style={s.chipRow}>
+              {WEEK_DAYS.map(day => {
+                const active = scheduleDays.includes(day);
+                return (
+                  <TouchableOpacity
+                    key={day}
+                    style={[s.chip, active && s.chipActive]}
+                    onPress={() => toggleDay(day)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.chipText, active && s.chipTextActive]}>{day}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
-        </TouchableOpacity>
+        )}
+
+        {isRecurring && sessionCount > 0 && (
+          <View style={s.sessionCountNote}>
+            <Text style={s.sessionCountText}>
+              🗓️ {sessionCount} session{sessionCount === 1 ? '' : 's'} scheduled for this course
+            </Text>
+          </View>
+        )}
 
         {/* ⏰ Start & End Time Touch Fields */}
         <View style={s.timeRow}>
@@ -512,8 +747,16 @@ export default function CreateClassScreen() {
               <View style={s.modalHeaderContent}>
                 <CalendarDays size={24} color="#FFFFFF" />
                 <View style={{ flex: 1 }}>
-                  <Text style={s.modalTitle}>Choose Class Date</Text>
-                  <Text style={s.modalSubTitle}>Select when your class takes place</Text>
+                  <Text style={s.modalTitle}>
+                    {activeDateTarget === 'start' ? 'Choose Start Date' : activeDateTarget === 'end' ? 'Choose End Date' : 'Choose Class Date'}
+                  </Text>
+                  <Text style={s.modalSubTitle}>
+                    {activeDateTarget === 'start'
+                      ? 'Select when your course begins'
+                      : activeDateTarget === 'end'
+                      ? 'Select when your course ends'
+                      : 'Select when your class takes place'}
+                  </Text>
                 </View>
                 <TouchableOpacity style={s.modalCloseBtn} onPress={() => setShowDatePickerModal(false)}>
                   <X size={20} color="#FFFFFF" />
@@ -526,12 +769,13 @@ export default function CreateClassScreen() {
               <Text style={s.modalSectionTitle}>Quick Selection</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
                 {quickDays.map((qd) => {
-                  const isSelected = dateStr === qd.dateStr;
+                  const activeVal = activeDateTarget === 'start' ? startDate : activeDateTarget === 'end' ? endDate : dateStr;
+                  const isSelected = activeVal === qd.dateStr;
                   return (
                     <TouchableOpacity
                       key={qd.dateStr}
                       style={[s.quickDayChip, isSelected && s.quickDayChipSelected]}
-                      onPress={() => { setDateStr(qd.dateStr); }}
+                      onPress={() => { handleSelectDate(qd.dateStr); }}
                       activeOpacity={0.7}
                     >
                       <Text style={[s.quickDayLabel, isSelected && s.quickDayLabelSelected]}>{qd.label}</Text>
@@ -565,7 +809,8 @@ export default function CreateClassScreen() {
                   if (cell.dayNumber === null || !cell.dateStr) {
                     return <View key={`empty-${idx}`} style={s.calendarCellEmpty} />;
                   }
-                  const isSelected = cell.dateStr === dateStr;
+                  const activeVal = activeDateTarget === 'start' ? startDate : activeDateTarget === 'end' ? endDate : dateStr;
+                  const isSelected = cell.dateStr === activeVal;
                   const isToday = cell.dateStr === todayStr;
 
                   return (
@@ -579,7 +824,7 @@ export default function CreateClassScreen() {
                         isSelected && s.calendarCellSelected,
                       ]}
                       onPress={() => {
-                        if (cell.dateStr) setDateStr(cell.dateStr);
+                        if (cell.dateStr) handleSelectDate(cell.dateStr);
                       }}
                       activeOpacity={0.7}
                     >
@@ -604,8 +849,8 @@ export default function CreateClassScreen() {
                   {/* @ts-ignore */}
                   <input
                     type="date"
-                    value={dateStr}
-                    onChange={(e: any) => { if (e.target.value) setDateStr(e.target.value); }}
+                    value={activeDateTarget === 'start' ? startDate : activeDateTarget === 'end' ? endDate : dateStr}
+                    onChange={(e: any) => { if (e.target.value) handleSelectDate(e.target.value); }}
                     style={{
                       width: '100%',
                       padding: '12px 14px',
@@ -628,7 +873,9 @@ export default function CreateClassScreen() {
             <View style={s.modalFooter}>
               <TouchableOpacity style={s.modalConfirmBtn} onPress={() => setShowDatePickerModal(false)}>
                 <Check size={18} color="#FFFFFF" />
-                <Text style={s.modalConfirmBtnText}>Confirm Date ({dateStr})</Text>
+                <Text style={s.modalConfirmBtnText}>
+                  Confirm Date ({activeDateTarget === 'start' ? startDate : activeDateTarget === 'end' ? endDate : dateStr})
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -801,12 +1048,16 @@ const s = StyleSheet.create({
   selectorBtnCompact: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.light.backgroundTertiary, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13, borderWidth: 1.5, borderColor: Colors.light.primary },
   selectorBtnTextCompact: { fontSize: 13, fontWeight: '700' as const, color: Colors.light.text },
 
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap' as const, gap: 8 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap' as const, gap: 8, alignItems: 'center' },
   chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: Colors.light.backgroundTertiary, borderWidth: 1, borderColor: Colors.light.border },
+  skillChipBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 6, paddingRight: 14, paddingVertical: 6, borderRadius: 12, backgroundColor: Colors.light.backgroundTertiary, borderWidth: 1, borderColor: Colors.light.border },
+  skillChipThumb: { width: 26, height: 26, borderRadius: 6, backgroundColor: Colors.light.borderLight },
   chipActive: { backgroundColor: Colors.light.primary, borderColor: Colors.light.primary },
   chipText: { fontSize: 13, fontWeight: '600' as const, color: Colors.light.textSecondary },
   chipTextActive: { color: '#FFFFFF' },
   timeRow: { flexDirection: 'row' },
+  sessionCountNote: { backgroundColor: Colors.light.primaryLight + '20', borderRadius: 12, padding: 12, marginTop: 12 },
+  sessionCountText: { fontSize: 13, color: Colors.light.primary, fontWeight: '600' as const, textAlign: 'center' },
   freeNote: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(16,185,129,0.1)', borderRadius: 12, padding: 12, marginTop: 16 },
   freeNoteText: { fontSize: 13, color: '#10B981', fontWeight: '500' as const, flex: 1 },
   paidNote: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(245,158,11,0.1)', borderRadius: 12, padding: 12, marginTop: 16 },

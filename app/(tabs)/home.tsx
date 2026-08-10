@@ -10,13 +10,14 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { RefreshCcw, Star, TrendingUp, Users, Zap, GraduationCap, BookOpen, ArrowLeftRight, Sparkles } from 'lucide-react-native';
+import { RefreshCcw, Star, TrendingUp, Users, Zap, GraduationCap, BookOpen, ArrowLeftRight, Sparkles, Bell } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '../../constants/colors';
 import { getSkillsWithUsers, categories } from '../../mocks/data';
 import { formatPrice } from '../../constants/locale';
 import MatchCard from '../../components/MatchCard';
 import { useCurrentUser } from '../../providers/current-user';
+import { useNotifications } from '../../providers/notifications';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resolveImageUrl } from '../../lib/resolveImageUrl';
 
@@ -29,6 +30,7 @@ export default function HomeScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [skillsWithUsers, setSkillsWithUsers] = useState<any[]>([]);
 
+  const { unreadCount } = useNotifications();
   const { currentUser, topRecommendations, teachMatches, learnMatches, swapMatches, userRole, refreshRecommendations } = useCurrentUser();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -181,11 +183,25 @@ export default function HomeScreen() {
           style={[styles.header, { paddingTop: insets.top + 24 }]}
         >
           <View style={styles.headerContent}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.greeting}>Hi, {userDisplayName}</Text>
               <Text style={styles.subtitle}>Curated swaps to accelerate your growth</Text>
             </View>
-            <View style={styles.logo} />
+            <TouchableOpacity
+              style={styles.bellButton}
+              onPress={() => router.push('/(tabs)/notifications' as any)}
+              activeOpacity={0.8}
+              testID="home-alerts-bell-button"
+            >
+              <Bell size={22} color="#FFFFFF" />
+              {unreadCount > 0 && (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
         </LinearGradient>
 
@@ -521,6 +537,34 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 12,
     backgroundColor: '#FFFFFF20',
+  },
+  bellButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  bellBadgeText: {
+    fontSize: 10,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
   },
   content: {
     marginTop: -16,

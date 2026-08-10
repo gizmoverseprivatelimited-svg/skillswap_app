@@ -335,6 +335,8 @@ export interface EarningRule {
 
 export type ClassStatus = 'open' | 'completed' | 'cancelled';
 export type EnrollmentStatus = 'enrolled' | 'cancelled' | 'attended';
+export type ClassSessionType = 'single' | 'daily' | 'weekly';
+export type ClassBillingCycle = 'one_time' | 'monthly';
 
 export interface GroupClass {
   id: string;
@@ -346,6 +348,10 @@ export interface GroupClass {
   coverImageUrl: string;
   startISO: string;
   endISO: string;
+  sessionType?: ClassSessionType;
+  billingCycle?: ClassBillingCycle;
+  sessionCount?: number;
+  scheduleDays?: string[];
   maxCapacity: number;
   seatPriceCredits: number;
   status: ClassStatus;

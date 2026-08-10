@@ -156,25 +156,8 @@ export default function TabLayout() {
         <Tabs.Screen
           name="notifications"
           options={{
-            title: "Alerts",
+            href: null,
             headerShown: false,
-            tabBarBadge: notificationsBadge,
-            tabBarBadgeStyle: notificationsBadge
-              ? {
-                backgroundColor: Colors.light.accent,
-                color: '#FFFFFF',
-                fontSize: 11,
-                fontWeight: '700',
-              }
-              : undefined,
-            tabBarIcon: ({ color, focused }) => (
-              <Bell
-                size={24}
-                color={color}
-                fill={focused ? color : 'none'}
-                strokeWidth={focused ? 2 : 2}
-              />
-            ),
           }}
         />
         <Tabs.Screen

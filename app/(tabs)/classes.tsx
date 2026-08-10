@@ -11,19 +11,20 @@ import { categories as defaultCategories } from '@/mocks/data';
 import { useClasses } from '@/providers/classes';
 import { useCurrentUser } from '@/providers/current-user';
 import type { ClassWithTeacher } from '@/types';
-import { formatCredits } from '@/lib/payments';
+import { formatCredits, formatClassSchedule, formatBillingCycle } from '@/lib/payments';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import url from '@/constants/backurl';
 
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800';
 const DEFAULT_AVATAR = 'https://i.pravatar.cc/150?img=1';
 
-function ClassCardItem({ item, router }: { item: ClassWithTeacher; router: any }) {
+function ClassCardItem({ item, router, isEnrolledUser }: { item: ClassWithTeacher; router: any; isEnrolledUser: boolean }) {
   const seatsLeft = item.maxCapacity - item.enrolledCount;
   const fillPct = Math.round((item.enrolledCount / item.maxCapacity) * 100);
   const isFree = item.seatPriceCredits === 0;
   const isCancelled = item.status === 'cancelled';
   const isCompleted = item.status === 'completed';
+  const isRecurring = item.sessionType && item.sessionType !== 'single';
 
   const [coverUrl, setCoverUrl] = useState(() => resolveImageUrl(item.coverImageUrl, DEFAULT_COVER) || DEFAULT_COVER);
   const [avatarUrl, setAvatarUrl] = useState(() => resolveImageUrl(item.teacher.avatarUrl, DEFAULT_AVATAR) || DEFAULT_AVATAR);
@@ -34,6 +35,9 @@ function ClassCardItem({ item, router }: { item: ClassWithTeacher; router: any }
   };
   const formatTime = (iso: string) => {
     return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  };
+  const formatShortDate = (iso: string) => {
+    return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   };
 
   return (
@@ -73,10 +77,21 @@ function ClassCardItem({ item, router }: { item: ClassWithTeacher; router: any }
           <Text style={s.title} numberOfLines={2}>{item.title}</Text>
           <View style={s.metaRow}>
             <Calendar size={13} color={Colors.light.textTertiary} />
-            <Text style={s.metaText}>{formatDate(item.startISO)}</Text>
+            <Text style={s.metaText}>
+              {isRecurring
+                ? `${formatShortDate(item.startISO)} — ${formatShortDate(item.endISO)}`
+                : formatDate(item.startISO)}
+            </Text>
             <Clock size={13} color={Colors.light.textTertiary} />
             <Text style={s.metaText}>{formatTime(item.startISO)}</Text>
           </View>
+          {isRecurring && (
+            <View style={s.metaRow}>
+              <Text style={[s.metaText, { color: Colors.light.primary, fontWeight: '600' }]}>
+                {formatClassSchedule(item.sessionType, item.sessionCount, item.scheduleDays)}
+              </Text>
+            </View>
+          )}
           <View style={s.teacherRow}>
             <Image
               source={{ uri: avatarUrl }}
@@ -107,10 +122,17 @@ function ClassCardItem({ item, router }: { item: ClassWithTeacher; router: any }
             ) : isFree ? (
               <View style={s.freeTag}><Sparkles size={13} color="#10B981" /><Text style={s.freeText}>Free</Text></View>
             ) : (
-              <View style={s.priceTag}><Coins size={14} color="#F59E0B" /><Text style={s.priceText}>{formatCredits(item.seatPriceCredits)}</Text></View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={s.priceTag}><Coins size={14} color="#F59E0B" /><Text style={s.priceText}>{formatCredits(item.seatPriceCredits)}</Text></View>
+                {item.billingCycle && (
+                  <View style={s.levelPill}>
+                    <Text style={[s.levelText, { color: Colors.light.secondary }]}>{formatBillingCycle(item.billingCycle)}</Text>
+                  </View>
+                )}
+              </View>
             )}
 
-            {Boolean(item.isLive) && !isCancelled && !isCompleted && (
+            {Boolean(item.isLive) && !isCancelled && !isCompleted && isEnrolledUser && (
               <TouchableOpacity
                 style={s.joinCardBtn}
                 onPress={() => router.push(`/class/call/${item.id}` as any)}
@@ -130,7 +152,7 @@ function ClassCardItem({ item, router }: { item: ClassWithTeacher; router: any }
 export default function ClassesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { getClassesWithTeachers } = useClasses();
+  const { getClassesWithTeachers, isEnrolled } = useClasses();
   const { currentUser } = useCurrentUser();
   const [search, setSearch] = useState('');
   const [categoriesList, setCategoriesList] = useState<string[]>(() => defaultCategories);
@@ -194,9 +216,10 @@ export default function ClassesScreen() {
     setTimeout(() => setRefreshing(false), 600);
   }, []);
 
-  const renderClassCard = useCallback(({ item }: { item: ClassWithTeacher }) => (
-    <ClassCardItem item={item} router={router} />
-  ), [router]);
+  const renderClassCard = useCallback(({ item }: { item: ClassWithTeacher }) => {
+    const enrolledUser = currentUser?.id ? isEnrolled(item.id, currentUser.id) || String(item.teacherId) === String(currentUser.id) : false;
+    return <ClassCardItem item={item} router={router} isEnrolledUser={enrolledUser} />;
+  }, [router, currentUser?.id, isEnrolled]);
 
   return (
     <View style={s.container}>

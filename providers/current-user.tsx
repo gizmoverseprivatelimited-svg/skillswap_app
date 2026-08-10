@@ -6,6 +6,7 @@ import { computeMatchRecommendations, getUserRole } from '../lib/matching';
 import type { OnboardingData } from './onboarding';
 import { useAuth } from './auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import url from '@/constants/backurl';
 
 interface CurrentUserContextValue {
   loadUser: any
@@ -21,6 +22,7 @@ interface CurrentUserContextValue {
   refreshRecommendations: () => void;
   earnCredits: (amount: number) => void;
   spendCredits: (amount: number) => void;
+  removeSkill: (skillId: string) => void;
   isLoading: boolean;
 }
 
@@ -229,6 +231,44 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
     });
   }, []);
 
+  const removeSkill = useCallback(async (skillId: string) => {
+    setCurrentUser((prev) => {
+      if (!prev) return prev;
+      const updatedOffered = (prev.skillsOffered || []).filter(
+        (s) => String(s.id) !== String(skillId) && String(s._id) !== String(skillId),
+      );
+      return { ...prev, skillsOffered: updatedOffered };
+    });
+
+    if (currentUser?.id === '1') {
+      try {
+        const storedGuestSkills = await AsyncStorage.getItem('@skillswap/guest_skills_offered');
+        if (storedGuestSkills) {
+          const parsed: Skill[] = JSON.parse(storedGuestSkills);
+          const filtered = parsed.filter((s) => String(s.id) !== String(skillId) && String((s as any)._id) !== String(skillId));
+          await AsyncStorage.setItem('@skillswap/guest_skills_offered', JSON.stringify(filtered));
+        }
+      } catch (err) {
+        console.error('[CurrentUserProvider] Delete guest skill error:', err);
+      }
+    } else if (skillId) {
+      try {
+        const res = await fetch(`${url}/skills/${skillId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!res.ok) {
+          console.warn('[CurrentUserProvider] DELETE /skills/:id responded with status', res.status);
+        }
+        if (loadUser) {
+          await loadUser(true);
+        }
+      } catch (err) {
+        console.error('[CurrentUserProvider] Delete skill backend error:', err);
+      }
+    }
+  }, [currentUser?.id, loadUser]);
+
   const value = useMemo<CurrentUserContextValue>(() => {
     return {
       loadUser,
@@ -244,9 +284,10 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
       refreshRecommendations,
       earnCredits,
       spendCredits,
+      removeSkill,
       isLoading,
     };
-  }, [recommendations, loadUser, users, currentUser, topRecommendations, teachMatches, learnMatches, swapMatches, userRole, applyOnboardingData, refreshRecommendations, earnCredits, spendCredits, isLoading]);
+  }, [recommendations, loadUser, users, currentUser, topRecommendations, teachMatches, learnMatches, swapMatches, userRole, applyOnboardingData, refreshRecommendations, earnCredits, spendCredits, removeSkill, isLoading]);
 
   return value;
 });

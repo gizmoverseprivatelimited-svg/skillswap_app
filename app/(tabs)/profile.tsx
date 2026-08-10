@@ -7,6 +7,7 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -31,6 +32,8 @@ import {
   Wallet,
   History,
   Users,
+  Edit,
+  Trash2,
 } from 'lucide-react-native';
 import { useAuth } from '@/providers/auth';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -38,6 +41,7 @@ import Colors from '@/constants/colors';
 import { TrustScoreBadge } from '@/components/TrustScoreBadge';
 import ReviewsSection from '@/components/ReviewsSection';
 import { useCurrentUser } from '@/providers/current-user';
+import { useAlert } from '@/providers/alert';
 import { useSkillSwaps } from '@/providers/skill-swaps';
 import { useEarnings } from '@/providers/earnings';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
@@ -50,9 +54,11 @@ import { useSocket } from '@/providers/socket';
 export default function ProfileScreen() {
   const router = useRouter();
   const auth = useAuth();
+  const { showAlert } = useAlert();
   const currentUserContext = useCurrentUser();
   const currentUser = currentUserContext?.currentUser;
   const loadUser = currentUserContext?.loadUser;
+  const removeSkill = currentUserContext?.removeSkill;
   const { swaps } = useSkillSwaps();
   const { getSummary, refreshUserEarnings } = useEarnings();
   const { socket } = useSocket();
@@ -468,50 +474,91 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
             <View style={styles.skillsGrid}>
-              {(currentUser?.skillsOffered || []).map((skill, index) => (
-                <TouchableOpacity
-                  key={skill._id || skill.id || index}
-                  style={styles.skillCard}
-                  onPress={() => router.push(`/skill/${skill._id || skill.id}` as any)}
-                >
-                  {skill.imageUrl ? (
-                    <Image
-                      source={{ uri: resolveImageUrl(skill.imageUrl, 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800') }}
-                      style={styles.skillImage}
-                    />
-                  ) : (
-                    <View style={[styles.skillImage, { backgroundColor: Colors.light.backgroundTertiary }]} />
-                  )}
-                  <LinearGradient
-                    colors={['transparent', 'rgba(0,0,0,0.85)']}
-                    style={styles.skillOverlay}
+              {(currentUser?.skillsOffered || []).map((skill, index) => {
+                const skId = skill._id || skill.id;
+                return (
+                  <TouchableOpacity
+                    key={skId || index}
+                    style={styles.skillCard}
+                    onPress={() => router.push(`/skill/${skId}` as any)}
+                    activeOpacity={0.85}
                   >
-                    <View style={styles.skillBadgeRow}>
-                      {skill.promoted && (
-                        <View style={styles.skillPromotedBadge}>
-                          <Sparkles size={8} color="#F59E0B" />
-                          <Text style={styles.skillPromotedBadgeText}>PROMOTED</Text>
-                        </View>
-                      )}
-                      {skill.pricingModel && skill.pricingModel !== 'free' && (
-                        <View style={styles.skillPriceBadge}>
-                          <Text style={styles.skillPriceBadgeText}>
-                            {skill.pricingModel === 'per_session'
-                              ? `${formatPrice(skill.pricePerSession ?? 0)}/s`
-                              : `${formatPrice(skill.monthlyPrice ?? 0)}/m`}
-                          </Text>
-                        </View>
-                      )}
+                    {skill.imageUrl ? (
+                      <Image
+                        source={{ uri: resolveImageUrl(skill.imageUrl, 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800') }}
+                        style={styles.skillImage}
+                      />
+                    ) : (
+                      <View style={[styles.skillImage, { backgroundColor: Colors.light.backgroundTertiary }]} />
+                    )}
+                    <LinearGradient
+                      colors={['transparent', 'rgba(0,0,0,0.85)']}
+                      style={styles.skillOverlay}
+                    >
+                      <View style={styles.skillBadgeRow}>
+                        {skill.promoted && (
+                          <View style={styles.skillPromotedBadge}>
+                            <Sparkles size={8} color="#F59E0B" />
+                            <Text style={styles.skillPromotedBadgeText}>PROMOTED</Text>
+                          </View>
+                        )}
+                        {skill.pricingModel && skill.pricingModel !== 'free' && (
+                          <View style={styles.skillPriceBadge}>
+                            <Text style={styles.skillPriceBadgeText}>
+                              {skill.pricingModel === 'per_session'
+                                ? `${formatPrice(skill.pricePerSession ?? 0)}/s`
+                                : `${formatPrice(skill.monthlyPrice ?? 0)}/m`}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.skillCardTitle} numberOfLines={2}>
+                        {skill.title}
+                      </Text>
+                      <View style={styles.skillCardBadge}>
+                        <Text style={styles.skillCardBadgeText}>{skill.level}</Text>
+                      </View>
+                    </LinearGradient>
+
+                    {/* Top Right Action Buttons: Edit & Delete */}
+                    <View style={styles.cardActionsOverlay}>
+                      <TouchableOpacity
+                        style={styles.cardActionBtnEdit}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          router.push(`/add-skill?id=${skId}` as any);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Edit size={12} color="#FFFFFF" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.cardActionBtnDelete}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          showAlert(
+                            'Delete Skill',
+                            `Remove "${skill.title}" from your offered skills?`,
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Delete',
+                                style: 'destructive',
+                                onPress: () => {
+                                  if (removeSkill && skId) removeSkill(skId);
+                                },
+                              },
+                            ],
+                          );
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Trash2 size={12} color="#FFFFFF" />
+                      </TouchableOpacity>
                     </View>
-                    <Text style={styles.skillCardTitle} numberOfLines={2}>
-                      {skill.title}
-                    </Text>
-                    <View style={styles.skillCardBadge}>
-                      <Text style={styles.skillCardBadgeText}>{skill.level}</Text>
-                    </View>
-                  </LinearGradient>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
@@ -1065,6 +1112,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700' as const,
     color: '#FFFFFF',
+  },
+  cardActionsOverlay: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    zIndex: 10,
+  },
+  cardActionBtnEdit: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  cardActionBtnDelete: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(239, 68, 68, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   wantsList: {
     gap: 10,
