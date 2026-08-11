@@ -54,6 +54,7 @@ interface ClassesContextValue {
   getClassesWithTeachers: () => ClassWithTeacher[];
   getClassById: (id: string) => ClassWithTeacher | undefined;
   getMyTeachingClasses: () => ClassWithTeacher[];
+  getClassesByTeacher: (teacherId: string) => ClassWithTeacher[];
   getMyEnrolledClasses: () => ClassWithTeacher[];
   getEnrollmentsForClass: (classId: string) => ClassEnrollment[];
   isEnrolled: (classId: string, studentId: string) => boolean;
@@ -171,6 +172,15 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
     if (!currentUser) return [];
     return classes.filter(c => String(c.teacherId) === String(currentUser.id)).map(buildClassWithTeacher);
   }, [classes, currentUser, buildClassWithTeacher]);
+
+  const getClassesByTeacher = useCallback(
+    (teacherId: string): ClassWithTeacher[] => {
+      return classes
+        .filter(c => (String(c.teacherId) === String(teacherId) || String((c as any)._id) === String(teacherId)) && c.status === 'open')
+        .map(buildClassWithTeacher);
+    },
+    [classes, buildClassWithTeacher],
+  );
 
   const getMyEnrolledClasses = useCallback((): ClassWithTeacher[] => {
     if (!currentUser) return [];
@@ -455,6 +465,7 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
     getClassesWithTeachers,
     getClassById,
     getMyTeachingClasses,
+    getClassesByTeacher,
     getMyEnrolledClasses,
     getEnrollmentsForClass,
     isEnrolled,
@@ -466,7 +477,7 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
     refreshClasses: fetchClassesFromBackend,
   }), [
     classes, enrollments, openClasses, getClassesWithTeachers, getClassById,
-    getMyTeachingClasses, getMyEnrolledClasses, getEnrollmentsForClass, isEnrolled,
+    getMyTeachingClasses, getClassesByTeacher, getMyEnrolledClasses, getEnrollmentsForClass, isEnrolled,
     createClass, enrollInClass, cancelEnrollment, completeClass, cancelClass, fetchClassesFromBackend,
   ]);
 
