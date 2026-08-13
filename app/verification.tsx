@@ -756,7 +756,7 @@ export default function VerificationScreen() {
           <View style={styles.infoContent}>
             <Text style={styles.infoTitle}>Why verify your account?</Text>
             <Text style={styles.infoDescription}>
-              Verified users get more swap requests and build stronger connections
+              Verified users get more exchange requests and build stronger connections
             </Text>
           </View>
           <ChevronRight size={20} color={Colors.light.textSecondary} />

@@ -303,7 +303,7 @@ export default function FeatureAuditScreen() {
         style={[styles.hero, { paddingTop: insets.top + 32 }]}
       >
         <View style={styles.heroHeader}>
-          <Text style={styles.heroEyebrow}>SkillSwap Roadmap Intel</Text>
+          <Text style={styles.heroEyebrow}>Leteski Roadmap Intel</Text>
           <Text style={styles.heroTitle}>Latest product opportunities</Text>
           <Text style={styles.heroSubtitle}>
             A heatmap of high-leverage features modern skill marketplaces expect in 2025.

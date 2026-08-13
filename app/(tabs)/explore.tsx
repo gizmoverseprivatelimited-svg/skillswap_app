@@ -49,7 +49,7 @@ const SORT_OPTIONS: SortBy[] = ['Relevance', 'Rating', 'Swaps', 'Newest'];
 const ROLE_TABS: { key: RoleTab; label: string; icon: typeof GraduationCap }[] = [
   { key: 'teachers', label: 'Teachers', icon: GraduationCap },
   { key: 'learners', label: 'Learners', icon: BookOpen },
-  { key: 'swappers', label: 'Swappers', icon: ArrowLeftRight },
+  { key: 'swappers', label: 'Exchangers', icon: ArrowLeftRight },
 ];
 
 export default function ExploreScreen() {
@@ -259,7 +259,7 @@ export default function ExploreScreen() {
               <View style={styles.ratingRow}>
                 <Star size={12} fill={Colors.light.accent} color={Colors.light.accent} />
                 <Text style={styles.ratingText}>{item.user.rating}</Text>
-                <Text style={styles.swapsText}>• {item.user.totalSwaps} swaps</Text>
+                <Text style={styles.swapsText}>• {item.user.totalSwaps} exchanges</Text>
               </View>
             </View>
           </View>
@@ -295,7 +295,7 @@ export default function ExploreScreen() {
             </View>
           ))}
         </View>
-        <Text style={styles.personSwaps}>{item.totalSwaps} swaps completed</Text>
+        <Text style={styles.personSwaps}>{item.totalSwaps} exchanges completed</Text>
       </View>
     </TouchableOpacity>
   ), [router]);
@@ -349,7 +349,7 @@ export default function ExploreScreen() {
             </View>
           </View>
         </View>
-        <Text style={styles.personSwaps}>{item.totalSwaps} swaps completed</Text>
+        <Text style={styles.personSwaps}>{item.totalSwaps} exchanges completed</Text>
       </View>
     </TouchableOpacity>
   ), [router]);

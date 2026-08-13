@@ -32,27 +32,27 @@ interface FaqItem {
 
 const FAQ_ITEMS: FaqItem[] = [
   {
-    question: 'How does skill swapping work?',
+    question: 'How does skill exchange work?',
     answer:
-      'Skill Swap connects you with people who want to learn what you know, and who can teach you what you want to learn. Browse skills on the Explore tab, find a match, and send a swap request. Both participants teach each other their skills in scheduled sessions — no money changes hands, just knowledge.',
+      'Leteski connects you with people who want to learn what you know, and who can teach you what you want to learn. Browse skills on the Explore tab, find a match, and send an exchange request. Both participants teach each other their skills in scheduled sessions — no money changes hands, just knowledge.',
     icon: <Users size={20} color={Colors.light.primary} />,
   },
   {
     question: 'How do credits work?',
     answer:
-      'Credits let you unlock premium features, boost your profile visibility, and access exclusive resources. You can earn free credits by completing swaps, leaving reviews, and verifying your account. Additional credits can be purchased from the Store.',
+      'Credits let you unlock premium features, boost your profile visibility, and access exclusive resources. You can earn free credits by completing exchanges, leaving reviews, and verifying your account. Additional credits can be purchased from the Store.',
     icon: <Coins size={20} color={Colors.light.accent} />,
   },
   {
     question: 'How do I schedule a session?',
     answer:
-      'Once a swap request is accepted, you can propose times through the chat in the swap detail screen. Both participants agree on a time, and the session is added to your calendar. You can also use the built-in video call feature when it\'s time to meet.',
+      'Once an exchange request is accepted, you can propose times through the chat in the exchange detail screen. Both participants agree on a time, and the session is added to your calendar. You can also use the built-in video call feature when it\'s time to meet.',
     icon: <Calendar size={20} color={Colors.light.secondary} />,
   },
   {
     question: 'What is the Trust Score?',
     answer:
-      'Your Trust Score reflects how reliable and verified you are on the platform. It\'s based on completed verifications (identity, email, phone, LinkedIn, portfolio), positive reviews from swap partners, and your swap completion rate. A higher score helps you get more swap requests.',
+      'Your Trust Score reflects how reliable and verified you are on the platform. It\'s based on completed verifications (identity, email, phone, LinkedIn, portfolio), positive reviews from exchange partners, and your exchange completion rate. A higher score helps you get more exchange requests.',
     icon: <Shield size={20} color={Colors.light.primary} />,
   },
   {

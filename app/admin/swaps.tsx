@@ -85,7 +85,7 @@ export default function SwapOversight() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ headerShown: true, title: 'Swap Oversight', headerStyle: { backgroundColor: '#0F172A' }, headerTintColor: '#F8FAFC' }} />
+      <Stack.Screen options={{ headerShown: true, title: 'Exchange Oversight', headerStyle: { backgroundColor: '#0F172A' }, headerTintColor: '#F8FAFC' }} />
 
       <View style={styles.summaryRow}>
         <View style={[styles.summaryCard, { backgroundColor: '#EFF6FF' }]}>
@@ -169,7 +169,7 @@ export default function SwapOversight() {
         {filteredSwaps.length === 0 && (
           <View style={styles.empty}>
             <Handshake size={40} color="#CBD5E1" />
-            <Text style={styles.emptyTitle}>No swaps found</Text>
+            <Text style={styles.emptyTitle}>No exchanges found</Text>
             <Text style={styles.emptySubtitle}>Try a different filter</Text>
           </View>
         )}

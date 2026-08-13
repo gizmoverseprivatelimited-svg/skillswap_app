@@ -40,7 +40,7 @@ const SECTIONS: PolicySection[] = [
   },
   {
     title: 'Your Rights',
-    body: 'You have the right to: (a) access and download your personal data; (b) correct inaccurate information; (c) delete your account and associated data; (d) object to certain processing activities; (e) withdraw consent where processing is based on consent. To exercise these rights, contact us through the app or at privacy@skillswap.app.',
+    body: 'You have the right to: (a) access and download your personal data; (b) correct inaccurate information; (c) delete your account and associated data; (d) object to certain processing activities; (e) withdraw consent where processing is based on consent. To exercise these rights, contact us through the app or at privacy@leteski.com.',
     icon: <Shield size={20} color={Colors.light.secondary} />,
   },
   {
@@ -65,7 +65,7 @@ const SECTIONS: PolicySection[] = [
   },
   {
     title: 'Contact Us',
-    body: 'If you have questions or concerns about this Privacy Policy or our data practices, please contact us at privacy@skillswap.app or through the Contact Us page in the app.',
+    body: 'If you have questions or concerns about this Privacy Policy or our data practices, please contact us at privacy@leteski.com or through the Contact Us page in the app.',
     icon: <Shield size={20} color={Colors.light.textSecondary} />,
   },
 ];

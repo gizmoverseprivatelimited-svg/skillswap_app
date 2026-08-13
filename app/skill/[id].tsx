@@ -373,7 +373,7 @@ export default function SkillDetailScreen() {
                   <View style={styles.statDivider} />
                   <View style={styles.statItem}>
                     <Users size={14} color={Colors.light.textSecondary} />
-                    <Text style={styles.statText}>{teacherTotalSwaps} swaps</Text>
+                    <Text style={styles.statText}>{teacherTotalSwaps} exchanges</Text>
                   </View>
                 </View>
                 <View style={styles.locationRow}>
@@ -449,7 +449,7 @@ export default function SkillDetailScreen() {
               end={{ x: 1, y: 0 }}
               style={styles.requestButtonGradient}
             >
-              <Text style={styles.requestButtonText}>{activeSwap ? 'Open Swap Thread' : 'Request Skill Swap'}</Text>
+              <Text style={styles.requestButtonText}>{activeSwap ? 'Open Exchange Thread' : 'Request Skill Exchange'}</Text>
             </LinearGradient>
           </TouchableOpacity>
         )}

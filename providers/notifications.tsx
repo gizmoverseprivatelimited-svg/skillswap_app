@@ -178,8 +178,8 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         const counterpart = allUsers.find((user) => user.id === counterpartId);
         addNotification({
           category: 'swap',
-          title: 'New swap request',
-          body: `${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'A community member')} sent you a new skill swap request. Review their proposal now.`,
+          title: 'New exchange request',
+          body: `${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'A community member')} sent you a new skill exchange request. Review their proposal now.`,
           metadata: {
             swapId: swap.id,
           },
@@ -193,7 +193,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         addNotification({
           category: 'swap',
           title: 'Counter proposal received',
-          body: `${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'Your partner')} shared new time options for your swap.`,
+          body: `${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'Your partner')} shared new time options for your exchange.`,
           metadata: {
             swapId: swap.id,
           },
@@ -206,7 +206,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         const counterpart = allUsers.find((user) => user.id === counterpartId);
         addNotification({
           category: 'swap',
-          title: 'Swap confirmed',
+          title: 'Exchange confirmed',
           body: `Your session with ${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'your partner')} is confirmed. Add it to your calendar and get ready!`,
           metadata: {
             swapId: swap.id,
@@ -219,8 +219,8 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         const counterpart = allUsers.find((user) => user.id === counterpartId);
         addNotification({
           category: 'swap',
-          title: 'Swap completed',
-          body: `Nice work! Your swap with ${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'your partner')} is done. Leave a review to help the community.`,
+          title: 'Exchange completed',
+          body: `Nice work! Your exchange with ${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'your partner')} is done. Leave a review to help the community.`,
           metadata: {
             swapId: swap.id,
           },
@@ -267,8 +267,8 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             const humanReadable = threshold >= 1 ? `${threshold} hour${threshold === 1 ? '' : 's'}` : 'soon';
             addNotification({
               category: 'reminder',
-              title: 'Upcoming swap reminder',
-              body: `Your swap with ${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'your partner')} starts in ${humanReadable}. Pull up your prep notes!`,
+              title: 'Upcoming exchange reminder',
+              body: `Your exchange with ${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'your partner')} starts in ${humanReadable}. Pull up your prep notes!`,
               metadata: {
                 swapId: swap.id,
                 startsAt: acceptedSlot.startISO,

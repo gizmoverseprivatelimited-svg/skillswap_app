@@ -21,9 +21,9 @@ type TimeSuggestion = {
 const statusCopy: Record<SkillSwapStatus, { title: string; accent: string; description: string }> = {
   pending: { title: 'Waiting for confirmation', accent: '#F97316', description: 'Your invite is in their inbox. Add a nudge if needed.' },
   negotiating: { title: 'Crafting the exchange', accent: '#60A5FA', description: 'Both sides are fine-tuning the schedule and venue.' },
-  scheduled: { title: 'Session confirmed', accent: '#34D399', description: 'Everything is locked. Get ready to swap skills.' },
-  declined: { title: 'Swap declined', accent: '#F87171', description: 'This swap was declined. You can explore other partners.' },
-  completed: { title: 'Swap completed', accent: '#A855F7', description: 'Mark reflections and share a review with your partner.' },
+  scheduled: { title: 'Session confirmed', accent: '#34D399', description: 'Everything is locked. Get ready to exchange skills.' },
+  declined: { title: 'Exchange declined', accent: '#F87171', description: 'This exchange was declined. You can explore other partners.' },
+  completed: { title: 'Exchange completed', accent: '#A855F7', description: 'Mark reflections and share a review with your partner.' },
 };
 
 const buildTimeSuggestions = (): TimeSuggestion[] => {
@@ -191,7 +191,7 @@ export default function SwapDetailScreen() {
       }
       return { myRole: 'Learner', partnerRole: 'Teacher', color: '#6366F1', bg: '#EEF2FF', Icon: BookOpen, myLabel: 'You learn', partnerLabel: `${partnerLabel} teaches` };
     }
-    return { myRole: 'Swapper', partnerRole: 'Swapper', color: '#F59E0B', bg: '#FFFBEB', Icon: ArrowLeftRight, myLabel: 'You offer', partnerLabel: `${partnerLabel} offers` };
+    return { myRole: 'Exchanger', partnerRole: 'Exchanger', color: '#F59E0B', bg: '#FFFBEB', Icon: ArrowLeftRight, myLabel: 'You offer', partnerLabel: `${partnerLabel} offers` };
   }, [swap, currentUser, partner]);
 
   // Computed exchange details: clearly separated Teaching & Learning skills
@@ -580,7 +580,7 @@ export default function SwapDetailScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Swap details',
+          title: 'Exchange details',
         }}
       />
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>

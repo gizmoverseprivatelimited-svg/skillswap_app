@@ -129,7 +129,7 @@ export default function SwapsIndexScreen() {
         return { myRole: 'Learner', partnerRole: 'Teacher', myLabel: 'You learn', partnerLabel: 'They teach', color: '#6366F1', bg: '#EEF2FF', Icon: BookOpen };
       }
       // swap
-      return { myRole: 'Swapper', partnerRole: 'Swapper', myLabel: 'You share', partnerLabel: 'You learn', color: '#F59E0B', bg: '#FFFBEB', Icon: ArrowLeftRight };
+      return { myRole: 'Exchanger', partnerRole: 'Exchanger', myLabel: 'You share', partnerLabel: 'You learn', color: '#F59E0B', bg: '#FFFBEB', Icon: ArrowLeftRight };
     };
     const roleInfo = getRoleInfo();
 
@@ -147,7 +147,7 @@ export default function SwapsIndexScreen() {
         return 'Share feedback & reviews';
       }
       if (swap.status === 'declined') {
-        return 'Swap closed';
+        return 'Exchange closed';
       }
       return 'Stay in touch';
     })();
@@ -196,7 +196,7 @@ export default function SwapsIndexScreen() {
         <View style={[styles.swapRoleBadge, { backgroundColor: roleInfo.bg, borderColor: roleInfo.color }]}>
           <roleInfo.Icon size={14} color={roleInfo.color} />
           <Text style={[styles.swapRoleText, { color: roleInfo.color }]}>
-            {roleInfo.myRole === 'Swapper' ? 'Mutual Swap' : `You are the ${roleInfo.myRole}`}
+            {roleInfo.myRole === 'Exchanger' ? 'Mutual Exchange' : `You are the ${roleInfo.myRole}`}
           </Text>
         </View>
 

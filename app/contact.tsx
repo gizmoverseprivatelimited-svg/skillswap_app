@@ -84,7 +84,7 @@ export default function ContactScreen() {
               <View style={styles.contactInfoCard}>
                 <Mail size={22} color={Colors.light.primary} />
                 <Text style={styles.contactInfoLabel}>Email</Text>
-                <Text style={styles.contactInfoValue}>support@skillswap.app</Text>
+                <Text style={styles.contactInfoValue}>support@leteski.com</Text>
               </View>
               <View style={styles.contactInfoCard}>
                 <Clock size={22} color={Colors.light.secondary} />

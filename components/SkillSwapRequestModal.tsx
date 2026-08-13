@@ -89,7 +89,7 @@ const SWAP_TYPE_OPTIONS: {
   },
   {
     key: 'swap',
-    title: 'Skill Swap',
+    title: 'Skill Exchange',
     subtitle: 'Teach & learn together',
     icon: ArrowLeftRight,
     color: '#F59E0B',
@@ -367,7 +367,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
     if (!swapType) return `Request a session with ${partnerName}`;
     if (swapType === 'learn') return `Learn from ${partnerName}`;
     if (swapType === 'teach') return `Teach ${partnerName}`;
-    return `Swap with ${partnerName}`;
+    return `Exchange with ${partnerName}`;
   }, [swapType, partnerName]);
 
   return (

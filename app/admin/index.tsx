@@ -73,7 +73,7 @@ export default function AdminDashboard() {
     { label: 'Total Users', value: stats.totalUsers, icon: Users, color: '#3B82F6' },
     { label: 'Active', value: stats.activeUsers, icon: Activity, color: '#10B981' },
     { label: 'Banned', value: stats.bannedUsers, icon: AlertTriangle, color: '#EF4444' },
-    { label: 'Total Swaps', value: stats.totalSwaps, icon: ArrowLeftRight, color: '#8B5CF6' },
+    { label: 'Total Exchanges', value: stats.totalSwaps, icon: ArrowLeftRight, color: '#8B5CF6' },
   ];
 
   const menuItems = [
@@ -95,8 +95,8 @@ export default function AdminDashboard() {
       badge: stats.pendingReviews > 0 ? stats.pendingReviews : undefined,
     },
     {
-      title: 'Swap Oversight',
-      subtitle: 'Monitor active swaps',
+      title: 'Exchange Oversight',
+      subtitle: 'Monitor active exchanges',
       icon: ArrowLeftRight,
       color: '#8B5CF6',
       bg: '#F5F3FF',

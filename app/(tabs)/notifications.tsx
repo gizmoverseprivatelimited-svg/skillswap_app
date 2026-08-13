@@ -166,7 +166,7 @@ export default function NotificationsScreen() {
                 </View>
                 <Text style={styles.emptyTitle}>Nothing new yet</Text>
                 <Text style={styles.emptySubtitle}>
-                  Stay tuned—new matches, swap updates, and reminders will land here the moment they happen.
+                  Stay tuned—new matches, exchange updates, and reminders will land here the moment they happen.
                 </Text>
               </LinearGradient>
             </View>

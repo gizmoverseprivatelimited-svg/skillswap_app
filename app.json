@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "SkillSwap Community",
-    "slug": "skillswap-community-90mlx56",
+    "name": "Leteski",
+    "slug": "leteski-community-90mlx56",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.skillswap-community-90mlx56",
+      "bundleIdentifier": "com.leteski-community-90mlx56",
       "usesAppleSignIn": true,
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
@@ -22,7 +22,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.skillswap_community_90mlx56",
+      "package": "com.leteski_community_90mlx56",
       "googleServicesFile": "./google-services.json"
     },
     "web": {

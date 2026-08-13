@@ -175,14 +175,14 @@ function RootLayoutNav() {
         name="swaps/index"
         options={{
           headerShown: true,
-          title: 'Skill Swaps',
+          title: 'Skill Exchanges',
         }}
       />
       <Stack.Screen
         name="swaps/[id]"
         options={{
           headerShown: false,
-          title: 'Swap Detail',
+          title: 'Exchange Detail',
         }}
       />
       <Stack.Screen
@@ -255,7 +255,7 @@ function RootLayoutNav() {
         name="admin/swaps"
         options={{
           headerShown: false,
-          title: 'Swap Oversight',
+          title: 'Exchange Oversight',
         }}
       />
       <Stack.Screen

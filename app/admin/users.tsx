@@ -212,7 +212,7 @@ export default function UserManagement() {
               </View>
               <View style={styles.statItem}>
                 <ArrowLeftRight size={13} color="#8B5CF6" />
-                <Text style={styles.statText}>{user.totalSwaps} swaps</Text>
+                <Text style={styles.statText}>{user.totalSwaps} exchanges</Text>
               </View>
               <View style={styles.statItem}>
                 <Coins size={13} color="#10B981" />

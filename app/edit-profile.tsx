@@ -106,7 +106,7 @@ export default function EditProfileScreen() {
           `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${currentLocation.coords.latitude}&lon=${currentLocation.coords.longitude}`,
           {
             headers: {
-              'User-Agent': 'SkillSwapCommunityApp',
+              'User-Agent': 'LeteskiCommunityApp',
             },
           }
         );
@@ -290,7 +290,7 @@ export default function EditProfileScreen() {
           avatarUrl: avatarUrl,
           skillsWanted: cleanedSkillsWanted,
         };
-        await AsyncStorage.setItem('@skillswap/guest_user_profile', JSON.stringify(guestData));
+        await AsyncStorage.setItem('@leteski/guest_user_profile', JSON.stringify(guestData));
         await loadUser();
         
         showAlert('Success', 'Profile updated successfully', [

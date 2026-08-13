@@ -43,7 +43,7 @@ const statusPalette: Record<SkillSwapStatus | 'fallback', { bg: string; text: st
 };
 
 const filterTabs = [
-  { key: 'all', label: 'All Swaps' },
+  { key: 'all', label: 'All Exchanges' },
   { key: 'ongoing', label: 'Ongoing' },
   { key: 'completed', label: 'Completed' },
   { key: 'declined', label: 'Declined' },
@@ -122,7 +122,7 @@ export default function SwapHistoryScreen() {
     <>
       <Stack.Screen
         options={{
-          title: 'Swap History',
+          title: 'Exchange History',
           headerStyle: { backgroundColor: Colors.light.background },
           headerTintColor: Colors.light.text,
           headerShadowVisible: false,
@@ -141,7 +141,7 @@ export default function SwapHistoryScreen() {
               <History size={24} color="#6366F1" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.heroTitle}>Swap Activity Log</Text>
+              <Text style={styles.heroTitle}>Exchange Activity Log</Text>
               <Text style={styles.heroSubtitle}>Track and view all your skill exchange sessions</Text>
             </View>
           </View>
@@ -186,11 +186,11 @@ export default function SwapHistoryScreen() {
           ) : filteredSwaps.length === 0 ? (
             <View style={styles.emptyContainer}>
               <History size={48} color={Colors.light.borderLight} />
-              <Text style={styles.emptyTitle}>No swaps found</Text>
+              <Text style={styles.emptyTitle}>No exchanges found</Text>
               <Text style={styles.emptySubtitle}>
                 {selectedFilter === 'all'
-                  ? 'You have not initiated or received any skill swaps yet.'
-                  : `No ${selectedFilter} swaps to show.`}
+                  ? 'You have not initiated or received any skill exchanges yet.'
+                  : `No ${selectedFilter} exchanges to show.`}
               </Text>
             </View>
           ) : (
@@ -215,7 +215,7 @@ export default function SwapHistoryScreen() {
                   }
                   return { myRole: 'Learner', myLabel: 'You learn', partnerLabel: 'They teach', color: '#6366F1', bg: '#EEF2FF', Icon: BookOpen };
                 }
-                return { myRole: 'Mutual Swap', myLabel: 'You share', partnerLabel: 'You learn', color: '#F59E0B', bg: '#FFFBEB', Icon: ArrowLeftRight };
+                return { myRole: 'Mutual Exchange', myLabel: 'You share', partnerLabel: 'You learn', color: '#F59E0B', bg: '#FFFBEB', Icon: ArrowLeftRight };
               };
               const roleInfo = getRoleInfo();
               const badgeStyle = buildStatusBadge(swap.status);

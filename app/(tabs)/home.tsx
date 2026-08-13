@@ -129,7 +129,7 @@ export default function HomeScreen() {
   const matchesSubtitle = useMemo(() => {
     if (userRole === 'teacher') return `Learners who need ${userDisplayName}'s skills`;
     if (userRole === 'learner') return `Teachers who can help ${userDisplayName} grow`;
-    return `Perfect swap partners for ${userDisplayName}`;
+    return `Perfect exchange partners for ${userDisplayName}`;
   }, [userRole, userDisplayName]);
 
   const secondarySection = useMemo<{
@@ -161,7 +161,7 @@ export default function HomeScreen() {
       };
     }
     return {
-      title: 'Mutual skill swaps',
+      title: 'Mutual skill exchanges',
       subtitle: 'Teach each other — give & get',
       items: topSwapMatches,
       chips: (m) => [...m.youCanLearn.slice(0, 1), ...m.theyCanLearn.slice(0, 1)],
@@ -185,7 +185,7 @@ export default function HomeScreen() {
           <View style={styles.headerContent}>
             <View style={{ flex: 1 }}>
               <Text style={styles.greeting}>Hi, {userDisplayName}</Text>
-              <Text style={styles.subtitle}>Curated swaps to accelerate your growth</Text>
+              <Text style={styles.subtitle}>Curated exchanges to accelerate your growth</Text>
             </View>
             <TouchableOpacity
               style={styles.bellButton}

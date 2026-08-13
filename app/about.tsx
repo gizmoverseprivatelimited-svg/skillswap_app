@@ -30,7 +30,7 @@ const VALUES: ValueItem[] = [
     icon: <Globe size={24} color={Colors.light.secondary} />,
     title: 'Accessible to All',
     description:
-      'Learning shouldn\'t be limited by money. Skill Swap makes education accessible through the power of barter — trade your skills, not your wallet.',
+      'Learning shouldn\'t be limited by money. Leteski makes education accessible through the power of barter — trade your skills, not your wallet.',
   },
   {
     icon: <Shield size={24} color={Colors.light.primary} />,
@@ -68,7 +68,7 @@ export default function AboutScreen() {
           style={styles.header}
         >
           <Heart size={48} color="#FFFFFF" fill="#FFFFFF" />
-          <Text style={styles.headerTitle}>About Skill Swap</Text>
+          <Text style={styles.headerTitle}>About Leteski</Text>
           <Text style={styles.headerSubtitle}>
             Building a world where knowledge knows no boundaries
           </Text>
@@ -79,7 +79,7 @@ export default function AboutScreen() {
             <Zap size={28} color={Colors.light.primary} />
             <Text style={styles.missionTitle}>Our Mission</Text>
             <Text style={styles.missionText}>
-              Skill Swap was born from a simple idea: everyone has something to teach and
+              Leteski was born from a simple idea: everyone has something to teach and
               something to learn. We're breaking down the barriers of traditional education by
               creating a community where knowledge flows freely between people — no money
               required, just a willingness to share and grow together.
@@ -100,7 +100,7 @@ export default function AboutScreen() {
             <Text style={styles.sectionTitle}>Our Story</Text>
             <View style={styles.storyCard}>
               <Text style={styles.storyText}>
-                Skill Swap started in 2024 when a group of passionate learners realized that
+                Leteski started in 2024 when a group of passionate learners realized that
                 the best education often happens person-to-person. Traditional learning
                 platforms charge high fees, while so many talented people are eager to share
                 their skills in exchange for learning something new.
@@ -108,8 +108,8 @@ export default function AboutScreen() {
               <Text style={styles.storyText}>
                 We built this platform to connect those dots — to create a marketplace where
                 the currency is knowledge itself. Whether you're a master guitarist wanting to
-                learn photography, or a coding expert hoping to pick up a new language, Skill
-                Swap makes it happen.
+                learn photography, or a coding expert hoping to pick up a new language,
+                Leteski makes it happen.
               </Text>
               <Text style={styles.storyText}>
                 Today, we're proud to facilitate skill exchanges across the globe, proving
@@ -166,9 +166,9 @@ export default function AboutScreen() {
                   <Text style={styles.stepNumberText}>3</Text>
                 </View>
                 <View style={styles.stepContent}>
-                  <Text style={styles.stepTitle}>Swap & Learn</Text>
+                  <Text style={styles.stepTitle}>Exchange & Learn</Text>
                   <Text style={styles.stepDescription}>
-                    Send a swap request, schedule a session, and start learning from each
+                    Send an exchange request, schedule a session, and start learning from each
                     other. Use our built-in video calls or meet in person — it's up to you.
                   </Text>
                 </View>
@@ -179,7 +179,7 @@ export default function AboutScreen() {
           <View style={styles.closingCard}>
             <Heart size={24} color={Colors.light.error} fill={Colors.light.error} />
             <Text style={styles.closingText}>
-              Thank you for being part of the Skill Swap community. Together, we're making
+              Thank you for being part of the Leteski community. Together, we're making
               learning accessible, personal, and free.
             </Text>
           </View>

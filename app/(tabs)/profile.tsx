@@ -284,7 +284,7 @@ export default function ProfileScreen() {
                 <TrendingUp size={20} color={Colors.light.primary} />
               </View>
               <Text style={styles.statValue}>{displayTotalSwaps}</Text>
-              <Text style={styles.statLabel}>Total Swaps</Text>
+              <Text style={styles.statLabel}>Total Exchanges</Text>
             </View>
             <View style={styles.statCard}>
               <View style={styles.statIconContainer}>
@@ -312,9 +312,9 @@ export default function ProfileScreen() {
               <History size={24} color="#6366F1" />
             </View>
             <View style={styles.verificationContent}>
-              <Text style={styles.verificationTitle}>Swap History</Text>
+              <Text style={styles.verificationTitle}>Exchange History</Text>
               <Text style={styles.verificationSubtitle}>
-                {swaps.length > 0 ? `${swaps.length} total swaps (ongoing & completed)` : 'View all past and ongoing swaps'}
+                {swaps.length > 0 ? `${swaps.length} total exchanges (ongoing & completed)` : 'View all past and ongoing exchanges'}
               </Text>
             </View>
             <Text style={[styles.verificationAction, { color: '#6366F1' }]}>View →</Text>

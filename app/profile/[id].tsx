@@ -228,7 +228,7 @@ export default function UserProfileScreen() {
           <View style={styles.statsRow}>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{swapcount}</Text>
-              <Text style={styles.statLabel}>Total Swaps</Text>
+              <Text style={styles.statLabel}>Total Exchanges</Text>
             </View>
             <View style={styles.statCard}>
               <View style={styles.ratingRow}>

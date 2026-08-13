@@ -460,7 +460,7 @@ export default function LoginScreen() {
               <Sparkles size={24} color="#FFFFFF" style={styles.sparkle1} />
               <Sparkles size={16} color="rgba(255,255,255,0.6)" style={styles.sparkle2} />
             </View>
-            <Text style={styles.title}>SkillSwap</Text>
+            <Text style={styles.title}>Leteski</Text>
             <Text style={styles.subtitle}>Learn, teach, and grow together</Text>
           </LinearGradient>
 

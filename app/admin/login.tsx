@@ -62,7 +62,7 @@ export default function AdminLoginScreen() {
   }, [email, password, adminLogin, router]);
 
   const handleFillDemo = useCallback(() => {
-    setEmail('admin@skillswap.app');
+    setEmail('admin@leteski.com');
     setPassword('admin123');
     setError(null);
   }, []);
@@ -116,7 +116,7 @@ export default function AdminLoginScreen() {
                 <Mail size={18} color="#64748B" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="admin@skillswap.app"
+                  placeholder="admin@leteski.com"
                   placeholderTextColor="#94A3B8"
                   value={email}
                   onChangeText={setEmail}
@@ -185,7 +185,7 @@ export default function AdminLoginScreen() {
               testID="admin-fill-demo"
             >
               <Text style={styles.demoText}>
-                Use demo credentials (admin@skillswap.app / admin123)
+                Use demo credentials (admin@leteski.com / admin123)
               </Text>
             </TouchableOpacity>
           </View>

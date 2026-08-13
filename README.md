@@ -1,6 +1,6 @@
-# SkillSwap — Peer-to-Peer Skill Exchange & Workshop Platform
+# Leteski — Peer-to-Peer Skill Exchange & Workshop Platform
 
-SkillSwap is a cross-platform mobile and web application built with **React Native**, **Expo Router**, **Node.js/Express**, **MongoDB**, and **100ms Live Video SDK**.
+Leteski is a cross-platform mobile and web application built with **React Native**, **Expo Router**, **Node.js/Express**, **MongoDB**, and **100ms Live Video SDK**.
 
 It allows users to learn new skills from peers through 1-on-1 reciprocal skill swaps, attend live video workshops hosted by community experts, share educational resources, and participate in a point-based knowledge economy.
 
