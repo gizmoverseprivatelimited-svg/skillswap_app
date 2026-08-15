@@ -10,7 +10,7 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { RefreshCcw, Star, TrendingUp, Users, Zap, GraduationCap, BookOpen, ArrowLeftRight, Sparkles, Bell } from 'lucide-react-native';
+import { RefreshCcw, Star, TrendingUp, Users, Zap, GraduationCap, BookOpen, ArrowLeftRight, Sparkles, Bell, Bot } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '../../constants/colors';
 import { getSkillsWithUsers, categories } from '../../mocks/data';
@@ -20,6 +20,7 @@ import { useCurrentUser } from '../../providers/current-user';
 import { useNotifications } from '../../providers/notifications';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resolveImageUrl } from '../../lib/resolveImageUrl';
+import { useSafety } from '@/providers/safety';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
 const DEFAULT_SKILL_IMAGE = 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800';
@@ -32,6 +33,7 @@ export default function HomeScreen() {
 
   const { unreadCount } = useNotifications();
   const { currentUser, topRecommendations, teachMatches, learnMatches, swapMatches, userRole, refreshRecommendations } = useCurrentUser();
+  const { isBlocked } = useSafety();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchSkillsData = useCallback(async () => {
@@ -104,9 +106,11 @@ export default function HomeScreen() {
     const currentId = String(currentUser.id || (currentUser as any)._id || '');
     return allAvailableSkills.filter((item) => {
       const itemUserId = String(item.userId || item.user?.id || item.user?._id || '');
-      return itemUserId !== currentId;
+      if (itemUserId === currentId) return false;
+      if (isBlocked(itemUserId, currentId)) return false;
+      return true;
     });
-  }, [allAvailableSkills, currentUser]);
+  }, [allAvailableSkills, currentUser, isBlocked]);
 
   const filteredSkills = selectedCategory === 'All' 
     ? otherSkillsWithUsers 
@@ -500,6 +504,22 @@ export default function HomeScreen() {
           <View style={styles.bottomSpacer} />
         </View>
       </ScrollView>
+
+      <TouchableOpacity
+        style={styles.aiFab}
+        onPress={() => router.push('/assistant' as any)}
+        activeOpacity={0.85}
+      >
+        <LinearGradient
+          colors={['#6366F1', '#818CF8']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.aiFabGradient}
+        >
+          <Bot size={22} color="#FFF" />
+          <Text style={styles.aiFabText}>AI</Text>
+        </LinearGradient>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -1094,5 +1114,29 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600' as const,
     color: Colors.light.text,
+  },
+  aiFab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 20,
+    borderRadius: 28,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  aiFabGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 28,
+  },
+  aiFabText: {
+    fontSize: 15,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
   },
 });

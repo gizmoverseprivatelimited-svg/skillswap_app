@@ -6,6 +6,7 @@ import { computeMatchRecommendations, getUserRole } from '../lib/matching';
 import type { OnboardingData } from './onboarding';
 import { useAuth } from './auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafety } from './safety';
 import url from '@/constants/backurl';
 
 interface CurrentUserContextValue {
@@ -151,18 +152,22 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
     }
   }, [user?.id, loadUser]);
 
+  const { isBlocked } = useSafety();
+
   const otherUsers = useMemo<User[]>(() => {
     if (!currentUser?.id) return users;
     const currentId = String(currentUser.id || (currentUser as any)._id || '');
     return users.filter((user) => {
       const uId = String(user.id || (user as any)._id || '');
-      return uId !== currentId;
+      if (uId === currentId) return false;
+      if (isBlocked(uId, currentId)) return false;
+      return true;
     });
-  }, [currentUser, refreshCounter, users]);
+  }, [currentUser, refreshCounter, users, isBlocked]);
 
   const recommendations = useMemo<MatchRecommendation[]>(() => {
     if (!currentUser) {
-      return []
+      return [];
     }
     return computeMatchRecommendations(currentUser, otherUsers);
   }, [currentUser, otherUsers, refreshCounter]);

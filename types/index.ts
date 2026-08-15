@@ -374,3 +374,45 @@ export interface ClassWithTeacher extends GroupClass {
   enrolledCount: number;
   enrollments: ClassEnrollment[];
 }
+
+// ============================================================
+//  Safety & Moderation
+// ============================================================
+
+export type ReportReason =
+  | 'harassment'
+  | 'inappropriate_content'
+  | 'spam_or_scam'
+  | 'fake_profile'
+  | 'hate_speech'
+  | 'threats'
+  | 'other';
+
+export type ReportStatus = 'pending' | 'reviewing' | 'actioned' | 'dismissed';
+
+export type ReportAction = 'warning' | 'suspend' | 'ban' | 'dismiss';
+
+export interface UserReport {
+  id: string;
+  reporterId: string;
+  reporterName: string;
+  reporterAvatar: string;
+  reportedUserId: string;
+  reportedUserName: string;
+  reportedUserAvatar: string;
+  reason: ReportReason;
+  description: string;
+  status: ReportStatus;
+  action?: ReportAction;
+  createdAt: string;
+  reviewedAt?: string;
+  adminNote?: string;
+}
+
+export interface BlockedUser {
+  id: string;
+  blockedUserId: string;
+  blockedUserName: string;
+  blockedUserAvatar: string;
+  blockedAt: string;
+}

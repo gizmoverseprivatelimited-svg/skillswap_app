@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { MapPin, Star, Users, ArrowRight, Award, Clock, CalendarCheck2, IndianRupee, Sparkles, Coins, Trash2, Edit } from 'lucide-react-native';
+import { MapPin, Star, Users, ArrowRight, Award, Clock, CalendarCheck2, IndianRupee, Sparkles, Coins, Trash2, Edit, Calendar, Repeat, CreditCard } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '../../constants/colors';
@@ -12,11 +12,13 @@ import { useSkillSwaps } from '../../providers/skill-swaps';
 import { useCurrentUser } from '../../providers/current-user';
 import { useClasses } from '@/providers/classes';
 import { useAlert } from '../../providers/alert';
-import type { SkillSwapStatus, SkillWithUser } from '../../types';
+import type { ClassWithTeacher, SkillSwapStatus, SkillWithUser } from '../../types';
 import { formatPrice } from '@/constants/locale';
-import { formatCredits, getSessionCreditCost } from '@/lib/payments';
+import { formatCredits, formatClassSchedule, formatBillingCycle, getClassEnrollmentCost, getSessionCreditCost } from '@/lib/payments';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import url from '@/constants/backurl';
+
+import { useSafety } from '@/providers/safety';
 
 const swapStatusPalette: Record<SkillSwapStatus | 'fallback', { bg: string; border: string }> = {
   pending: { bg: 'rgba(249, 115, 22, 0.15)', border: 'rgba(249, 115, 22, 0.4)' },
@@ -56,14 +58,23 @@ export default function SkillDetailScreen() {
     });
   }, [id]);
 
-
-
   const { currentUser, allUsers, removeSkill } = useCurrentUser();
-  const { classes } = useClasses();
+  const { isBlocked } = useSafety();
+  const { classes, getClassesByTeacher, enrollInClass, isEnrolled } = useClasses();
   const { showAlert } = useAlert();
   const [isSwapModalVisible, setSwapModalVisible] = useState<boolean>(false);
 
   const isOwner = skill?.userId === currentUser?.id || skill?.user?.id === currentUser?.id;
+
+  const teacherUser = useMemo(() => {
+    if (!skill?.user?.id) return skill?.user;
+    return allUsers.find(u => u.id === skill.user.id) || skill.user;
+  }, [allUsers, skill?.user]);
+
+  const teacherClasses = useMemo(() => {
+    const targetUserId = teacherUser?.id || skill?.userId || skill?.user?.id;
+    return targetUserId ? getClassesByTeacher(targetUserId) : [];
+  }, [teacherUser?.id, skill?.userId, skill?.user?.id, getClassesByTeacher]);
 
   const hasActiveClassForSkill = useMemo(() => {
     if (!skill || !classes) return false;
@@ -79,10 +90,47 @@ export default function SkillDetailScreen() {
 
   const canCreateGroupClass = isOwner && !hasActiveClassForSkill;
 
-  const teacherUser = useMemo(() => {
-    if (!skill?.user?.id) return skill?.user;
-    return allUsers.find(u => u.id === skill.user.id) || skill.user;
-  }, [allUsers, skill?.user]);
+  const handleQuickEnroll = useCallback((cls: ClassWithTeacher) => {
+    if (!currentUser || currentUser.id === '1') {
+      showAlert('Sign In Required', 'Please sign in to your account to enroll in group classes.');
+      return;
+    }
+    const targetUserId = skill?.userId || skill?.user?.id;
+    if (targetUserId && isBlocked(targetUserId)) {
+      showAlert('Action Blocked', 'You cannot enroll in classes hosted by a user you have blocked.');
+      return;
+    }
+    const cost = getClassEnrollmentCost(cls.seatPriceCredits);
+    const userCredits = currentUser.credits ?? 0;
+    const balanceAfter = userCredits - cost;
+    if (cost > 0 && balanceAfter < 0) {
+      showAlert('Not enough credits', `You need ${cost} credits but have ${userCredits}. Top up in the Store to enroll.`);
+      return;
+    }
+    showAlert(
+      'Confirm Enrollment',
+      cost > 0
+        ? `Pay ${cost} credits to enroll in "${cls.title}"?\n\nCurrent balance: ${userCredits}\nAfter enrollment: ${balanceAfter}`
+        : `Enroll in "${cls.title}" for free?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Enroll',
+          onPress: () => {
+            const result = enrollInClass(cls.id);
+            if (result.success) {
+              showAlert('Enrolled!', `You're signed up for "${cls.title}".`, [
+                { text: 'OK' },
+                { text: 'View Class', onPress: () => router.push(`/class/${cls.id}` as any) },
+              ]);
+            } else {
+              showAlert('Cannot enroll', result.error ?? 'Something went wrong.');
+            }
+          },
+        },
+      ],
+    );
+  }, [currentUser, skill, isBlocked, enrollInClass, router, showAlert]);
 
   const [reviewsStats, setReviewsStats] = useState<{ averageRating: number; totalReviews: number } | null>(null);
 
@@ -175,12 +223,17 @@ export default function SkillDetailScreen() {
       showAlert('Login Required', 'To send a skill swap request, you must log in with a real account.');
       return;
     }
+    const targetUserId = skill?.userId || skill?.user?.id;
+    if (targetUserId && isBlocked(targetUserId)) {
+      showAlert('Action Blocked', 'You cannot request swaps from a user you have blocked.');
+      return;
+    }
     if (activeSwap) {
       router.push(`/swaps/${activeSwap.id}` as never);
       return;
     }
     setSwapModalVisible(true);
-  }, [activeSwap, router, currentUser?.id, showAlert]);
+  }, [activeSwap, skill, isBlocked, router, currentUser?.id, showAlert]);
 
   const handleDeleteSkill = useCallback(() => {
     showAlert(
@@ -409,6 +462,124 @@ export default function SkillDetailScreen() {
               ))}
             </View>
           </View>
+
+          {teacherClasses.length > 0 && (
+            <View style={styles.classesSection}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  Classes by {skill?.user?.name?.split(' ')[0] || 'Teacher'}
+                </Text>
+                <View style={styles.classCountBadge}>
+                  <Text style={styles.classCountBadgeText}>{teacherClasses.length}</Text>
+                </View>
+              </View>
+              <View style={styles.teacherClassesList}>
+                {teacherClasses.map((cls) => {
+                  const isClassOwner = String(currentUser?.id) === String(skill?.userId || skill?.user?.id) || String(currentUser?.id) === String(cls.teacherId);
+                  const seatsLeft = cls.maxCapacity - cls.enrolledCount;
+                  const isFree = cls.seatPriceCredits === 0;
+                  const enrolled = isEnrolled(cls.id, currentUser?.id ?? '');
+                  const isFull = seatsLeft <= 0;
+                  const isRecurring = cls.sessionType !== 'single';
+                  const shortDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+                  const timeStr = new Date(cls.startISO).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                  return (
+                    <View key={cls.id} style={styles.classCard}>
+                      <TouchableOpacity
+                        onPress={() => router.push(`/class/${cls.id}` as any)}
+                        activeOpacity={0.85}
+                      >
+                        <Image source={{ uri: resolveImageUrl(cls.coverImageUrl) }} style={styles.classCover} />
+                        <View style={styles.classBody}>
+                          <View style={styles.classTopRow}>
+                            <Text style={styles.classCatBadge}>{cls.category}</Text>
+                            <View style={styles.classLevelPill}>
+                              <Text style={styles.classLevelText}>{cls.level}</Text>
+                            </View>
+                          </View>
+                          <Text style={styles.classTitle} numberOfLines={2}>{cls.title}</Text>
+                          <View style={styles.classMetaRow}>
+                            <Calendar size={12} color={Colors.light.textTertiary} />
+                            <Text style={styles.classMetaText}>
+                              {isRecurring
+                                ? `${shortDate(cls.startISO)} — ${shortDate(cls.endISO)}`
+                                : shortDate(cls.startISO)}
+                            </Text>
+                            <Clock size={12} color={Colors.light.textTertiary} />
+                            <Text style={styles.classMetaText}>{timeStr}</Text>
+                          </View>
+                          <View style={styles.classMetaRow}>
+                            <Repeat size={12} color={Colors.light.primary} />
+                            <Text style={[styles.classMetaText, { color: Colors.light.primary }]}>
+                              {formatClassSchedule(cls.sessionType, cls.sessionCount, cls.scheduleDays)}
+                            </Text>
+                            <CreditCard size={12} color={Colors.light.secondary} />
+                            <Text style={[styles.classMetaText, { color: Colors.light.secondary }]}>
+                              {formatBillingCycle(cls.billingCycle)}
+                            </Text>
+                          </View>
+                          <View style={styles.classSeatRow}>
+                            <View style={styles.classSeatInfo}>
+                              <Users size={13} color={Colors.light.primary} />
+                              <Text style={styles.classSeatText}>{cls.enrolledCount}/{cls.maxCapacity} enrolled</Text>
+                            </View>
+                            {isFree ? (
+                              <View style={styles.classFreeTag}>
+                                <Sparkles size={12} color="#10B981" />
+                                <Text style={styles.classFreeText}>Free</Text>
+                              </View>
+                            ) : (
+                              <View style={styles.classPriceTag}>
+                                <Coins size={13} color="#F59E0B" />
+                                <Text style={styles.classPriceText}>{formatCredits(cls.seatPriceCredits)}</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+
+                      <View style={[styles.classBody, { paddingTop: 0 }]}>
+                        <View style={styles.classActionRow}>
+                          {isClassOwner ? (
+                            <View style={styles.classOwnerBadge}>
+                              <Text style={styles.classOwnerText}>Your Class</Text>
+                            </View>
+                          ) : enrolled ? (
+                            <View style={styles.classEnrolledBadge}>
+                              <Sparkles size={14} color="#10B981" />
+                              <Text style={styles.classEnrolledText}>Enrolled</Text>
+                            </View>
+                          ) : isFull ? (
+                            <View style={styles.classFullBadge}>
+                              <Text style={styles.classFullText}>Class Full</Text>
+                            </View>
+                          ) : (
+                            <TouchableOpacity
+                              style={styles.classEnrollBtn}
+                              onPress={() => handleQuickEnroll(cls)}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={styles.classEnrollBtnText}>
+                                {isFree ? 'Enroll Free' : `Enroll · ${cls.seatPriceCredits} cr`}
+                              </Text>
+                              <ArrowRight size={14} color="#FFFFFF" />
+                            </TouchableOpacity>
+                          )}
+                          <TouchableOpacity
+                            style={styles.classDetailLink}
+                            onPress={() => router.push(`/class/${cls.id}` as any)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.classDetailLinkText}>Details</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
         </View>
 
         <View style={styles.reviewsWrapper}>
@@ -844,5 +1015,209 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.light.textSecondary,
     textAlign: 'center',
+  },
+  classesSection: {
+    marginBottom: 24,
+  },
+  classCountBadge: {
+    backgroundColor: Colors.light.secondary,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  classCountBadgeText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  teacherClassesList: {
+    gap: 14,
+  },
+  classCard: {
+    backgroundColor: Colors.light.card,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    shadowColor: Colors.light.text,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  classCover: {
+    width: '100%',
+    height: 120,
+    backgroundColor: Colors.light.backgroundTertiary,
+  },
+  classBody: {
+    padding: 14,
+  },
+  classTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  classCatBadge: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: Colors.light.primary,
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  classLevelPill: {
+    backgroundColor: Colors.light.backgroundTertiary,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  classLevelText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
+  },
+  classTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    marginBottom: 8,
+    lineHeight: 22,
+  },
+  classMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+    flexWrap: 'wrap' as const,
+  },
+  classMetaText: {
+    fontSize: 12,
+    color: Colors.light.textTertiary,
+    fontWeight: '500' as const,
+    marginRight: 6,
+  },
+  classSeatRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  classSeatInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  classSeatText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.light.primary,
+  },
+  classFreeTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(16,185,129,0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  classFreeText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#10B981',
+  },
+  classPriceTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  classPriceText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#F59E0B',
+  },
+  classActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  classEnrollBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.light.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  classEnrollBtnText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  classEnrolledBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(16,185,129,0.12)',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  classEnrolledText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#10B981',
+  },
+  classFullBadge: {
+    backgroundColor: Colors.light.backgroundTertiary,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    flex: 1,
+    alignItems: 'center',
+  },
+  classFullText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.light.textTertiary,
+  },
+  classOwnerBadge: {
+    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    flex: 1,
+    alignItems: 'center',
+  },
+  classOwnerText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.light.primary,
+  },
+  classDetailLink: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: Colors.light.backgroundTertiary,
+  },
+  classDetailLinkText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
   },
 });

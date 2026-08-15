@@ -1,8 +1,9 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, Pressable, StyleSheet, Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, ArrowRight, BookOpen, GraduationCap } from 'lucide-react-native';
+import { Sparkles, ArrowRight, BookOpen, GraduationCap, Bot } from 'lucide-react-native';
 import Colors from '../constants/colors';
+import { generateMatchInsight } from '../lib/ai';
 import type { MatchRecommendation } from '../types';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
@@ -18,6 +19,8 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
   const scale = useRef(new Animated.Value(1)).current;
   const avatarErrorRef = useRef(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [insight, setInsight] = useState<string | null>(null);
+  const [loadingInsight, setLoadingInsight] = useState(false);
 
   const handleAvatarError = useCallback(() => {
     if (!avatarErrorRef.current) {
@@ -61,6 +64,28 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
       bounciness: 6,
     }).start();
   }, [scale]);
+
+  const handleGenerateInsight = useCallback(async () => {
+    if (insight || loadingInsight) return;
+    setLoadingInsight(true);
+    try {
+      const userSkills = recommendation.user.skillsOffered.map(s => s.title);
+      const result = await generateMatchInsight(
+        'You',
+        recommendation.user.skillsWanted,
+        recommendation.user.name,
+        userSkills,
+        recommendation.youCanLearn,
+        recommendation.theyCanLearn,
+      );
+      setInsight(result);
+    } catch (e) {
+      console.error('[MatchCard] AI insight error:', e);
+      setInsight('A great match based on your complementary skills!');
+    } finally {
+      setLoadingInsight(false);
+    }
+  }, [insight, loadingInsight, recommendation]);
 
   return (
     <Animated.View style={[styles.card, { transform: [{ scale }] }]}
@@ -154,6 +179,38 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
               <ArrowRight size={20} color="#F8FAFC" />
             </View>
           </View>
+
+          {insight ? (
+            <View
+              style={styles.insightBox}
+              onStartShouldSetResponder={() => true}
+              onTouchEnd={(e) => e.stopPropagation()}
+            >
+              <Bot size={14} color="#A5B4FC" />
+              <Text style={styles.insightText}>{insight}</Text>
+            </View>
+          ) : (
+            <View onStartShouldSetResponder={() => true}>
+              <TouchableOpacity
+                style={styles.aiInsightBtn}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleGenerateInsight();
+                }}
+                disabled={loadingInsight}
+                activeOpacity={0.7}
+              >
+                {loadingInsight ? (
+                  <ActivityIndicator size={12} color="#A5B4FC" />
+                ) : (
+                  <Bot size={12} color="#A5B4FC" />
+                )}
+                <Text style={styles.aiInsightText}>
+                  {loadingInsight ? 'Analyzing match...' : 'Why this match?'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </LinearGradient>
       </Pressable>
     </Animated.View>
@@ -339,6 +396,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(15, 23, 42, 0.45)',
     marginLeft: 12,
+  },
+  aiInsightBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    alignSelf: 'flex-start',
+  },
+  aiInsightText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#A5B4FC',
+  },
+  insightBox: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.25)',
+  },
+  insightText: {
+    fontSize: 13,
+    color: '#C7D2FE',
+    lineHeight: 19,
+    flex: 1,
+    fontWeight: '500' as const,
   },
 });
 

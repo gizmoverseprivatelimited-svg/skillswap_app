@@ -8,6 +8,7 @@ import Colors from '../constants/colors';
 import { formatPrice } from '../constants/locale';
 import type { SkillSwapRequest, SkillWithUser, SwapType } from '../types';
 import { useCurrentUser } from '../providers/current-user';
+import { useSafety } from '../providers/safety';
 import { useSkillSwaps } from '../providers/skill-swaps';
 import { getSwapRequestCost, getSessionCreditCost, getPlatformFee, formatCredits } from '../lib/payments';
 
@@ -100,6 +101,7 @@ const SWAP_TYPE_OPTIONS: {
 export default function SkillSwapRequestModal({ visible, skill, onClose }: SkillSwapRequestModalProps) {
   const router = useRouter();
   const { currentUser, allUsers } = useCurrentUser();
+  const { isBlocked } = useSafety();
   const { createSwapRequest } = useSkillSwaps();
   const [step, setStep] = useState<number>(0);
   const [swapType, setSwapType] = useState<SwapType | null>(null);
@@ -322,6 +324,10 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
       return { startISO: slot.startISO, endISO: slot.endISO };
     });
     const submit = async () => {
+      if (skill.user?.id && isBlocked(skill.user.id)) {
+        setError('You cannot send swap requests to a blocked user.');
+        return;
+      }
       if (!hasEnoughCredits && swapCost > 0) {
         setError(`You need ${swapCost - (currentUser?.credits || 0)} more credits to send this request.`);
         return;

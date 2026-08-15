@@ -16,6 +16,8 @@ import {
   LifeBuoy,
   BookOpen,
   Shield,
+  ShieldX,
+  Ban,
   Coins,
   Users,
   Calendar,
@@ -76,8 +78,14 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'How do I report inappropriate behavior?',
     answer:
-      'If you experience harassment, spam, or any inappropriate behavior, you can report the user through their profile or from the swap detail screen. Our admin team reviews all reports and takes appropriate action, including warnings and account suspension.',
-    icon: <LifeBuoy size={20} color={Colors.light.error} />,
+      'If you experience harassment, spam, or any inappropriate behavior, open the user\'s profile and tap "Report User". Choose a reason (harassment, inappropriate content, spam/scam, fake profile, hate speech, threats, or other), describe what happened, and submit. Our admin team reviews all reports within 24 hours and takes action ranging from warnings to permanent bans. You can also report individual reviews from the reviews section.',
+    icon: <ShieldX size={20} color={Colors.light.error} />,
+  },
+  {
+    question: 'How do I block someone?',
+    answer:
+      'Open the user\'s profile and tap "Block". Blocked users cannot send you swap requests or messages. You can unblock them at any time from their profile — just tap "Unblock". Your blocked list is stored on your device and persists across sessions.',
+    icon: <Ban size={20} color={Colors.light.textSecondary} />,
   },
 ];
 

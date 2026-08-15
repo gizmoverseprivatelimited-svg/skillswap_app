@@ -13,6 +13,7 @@ import { formatCredits, getClassEnrollmentCost, formatClassSchedule, formatBilli
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import { useSkillSwaps } from '@/providers/skill-swaps';
 import { useSocket } from '@/providers/socket';
+import { useSafety } from '@/providers/safety';
 import url from '@/constants/backurl';
 
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800';
@@ -38,6 +39,7 @@ export default function ClassDetailScreen() {
   const insets = useSafeAreaInsets();
   const { getClassById, enrollInClass, cancelEnrollment, completeClass, cancelClass, isEnrolled, refreshClasses } = useClasses();
   const { currentUser, allUsers } = useCurrentUser();
+  const { isBlocked } = useSafety();
   const { showAlert } = useAlert();
   const { allSwaps } = useSkillSwaps();
   const { socket } = useSocket();
@@ -92,6 +94,10 @@ export default function ClassDetailScreen() {
     if (!cls) return;
     if (!currentUser) {
       showAlert('Sign In Required', 'Please sign in to your account to enroll in group classes.');
+      return;
+    }
+    if (cls.teacherId && isBlocked(cls.teacherId)) {
+      showAlert('Action Blocked', 'You cannot enroll in classes hosted by a user you have blocked.');
       return;
     }
     const cost = getClassEnrollmentCost(cls.seatPriceCredits);

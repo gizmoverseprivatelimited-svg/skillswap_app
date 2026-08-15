@@ -10,6 +10,7 @@ import Colors from '@/constants/colors';
 import { categories as defaultCategories } from '@/mocks/data';
 import { useClasses } from '@/providers/classes';
 import { useCurrentUser } from '@/providers/current-user';
+import { useSafety } from '@/providers/safety';
 import type { ClassWithTeacher } from '@/types';
 import { formatCredits, formatClassSchedule, formatBillingCycle } from '@/lib/payments';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
@@ -154,6 +155,7 @@ export default function ClassesScreen() {
   const insets = useSafeAreaInsets();
   const { getClassesWithTeachers, isEnrolled } = useClasses();
   const { currentUser } = useCurrentUser();
+  const { isBlocked } = useSafety();
   const [search, setSearch] = useState('');
   const [categoriesList, setCategoriesList] = useState<string[]>(() => defaultCategories);
   const [selectedCat, setSelectedCat] = useState('All');
@@ -177,7 +179,15 @@ export default function ClassesScreen() {
     void fetchCategories();
   }, []);
 
-  const allClasses = useMemo(() => getClassesWithTeachers(), [getClassesWithTeachers]);
+  const allClasses = useMemo(() => {
+    const raw = getClassesWithTeachers();
+    if (!currentUser?.id) return raw;
+    return raw.filter((cls) => {
+      const teacherId = String(cls.teacherId || cls.teacher?.id || '');
+      if (teacherId && isBlocked(teacherId, currentUser.id)) return false;
+      return true;
+    });
+  }, [getClassesWithTeachers, currentUser?.id, isBlocked]);
 
   const statusCounts = useMemo(() => {
     const valid = allClasses.filter(c => c.status !== 'cancelled');

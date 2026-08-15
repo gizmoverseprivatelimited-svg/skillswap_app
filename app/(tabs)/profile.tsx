@@ -34,6 +34,7 @@ import {
   Users,
   Edit,
   Trash2,
+  UserX,
 } from 'lucide-react-native';
 import { useAuth } from '@/providers/auth';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,6 +45,7 @@ import { useCurrentUser } from '@/providers/current-user';
 import { useAlert } from '@/providers/alert';
 import { useSkillSwaps } from '@/providers/skill-swaps';
 import { useEarnings } from '@/providers/earnings';
+import { useSafety } from '@/providers/safety';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import { formatPrice } from '@/constants/locale';
 import url from '@/constants/backurl';
@@ -55,6 +57,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const auth = useAuth();
   const { showAlert } = useAlert();
+  const { blockedUsers } = useSafety();
   const currentUserContext = useCurrentUser();
   const currentUser = currentUserContext?.currentUser;
   const loadUser = currentUserContext?.loadUser;
@@ -450,6 +453,18 @@ export default function ProfileScreen() {
                   <Lock size={22} color={Colors.light.textSecondary} />
                 </View>
                 <Text style={styles.supportLabel}>Privacy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.supportCard}
+                onPress={() => router.push('/blocked-users' as any)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.supportIcon, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
+                  <UserX size={22} color="#EF4444" />
+                </View>
+                <Text style={styles.supportLabel}>
+                  Blocked Users{blockedUsers.length > 0 ? ` (${blockedUsers.length})` : ''}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

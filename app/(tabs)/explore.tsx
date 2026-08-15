@@ -28,6 +28,7 @@ import Colors from '@/constants/colors';
 import { getSkillsWithUsers, mockUsers, categories } from '@/mocks/data';
 import type { SkillLevel, SkillWithUser, User } from '@/types';
 import { useCurrentUser } from '@/providers/current-user';
+import { useSafety } from '@/providers/safety';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
@@ -43,13 +44,19 @@ interface FiltersState {
 }
 
 const LEVEL_OPTIONS: (SkillLevel | 'Any')[] = ['Any', 'Beginner', 'Intermediate', 'Advanced', 'Expert'];
-const RATING_OPTIONS: FiltersState['minRating'][] = [0, 4, 4.5, 4.8, 5];
 const SORT_OPTIONS: SortBy[] = ['Relevance', 'Rating', 'Swaps', 'Newest'];
+const RATING_OPTIONS: { label: string; value: 0 | 4 | 4.5 | 4.8 | 5 }[] = [
+  { label: 'All', value: 0 },
+  { label: '4.0+', value: 4 },
+  { label: '4.5+', value: 4.5 },
+  { label: '4.8+', value: 4.8 },
+  { label: '5.0', value: 5 },
+];
 
 const ROLE_TABS: { key: RoleTab; label: string; icon: typeof GraduationCap }[] = [
   { key: 'teachers', label: 'Teachers', icon: GraduationCap },
   { key: 'learners', label: 'Learners', icon: BookOpen },
-  { key: 'swappers', label: 'Exchangers', icon: ArrowLeftRight },
+  { key: 'swappers', label: 'Swappers', icon: ArrowLeftRight },
 ];
 
 export default function ExploreScreen() {
@@ -57,26 +64,25 @@ export default function ExploreScreen() {
   const [activeTab, setActiveTab] = useState<RoleTab>('teachers');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [filters, setFilters] = useState<FiltersState>({
+    level: 'Any',
+    minRating: 0,
+    sortBy: 'Relevance',
+  });
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
-  const [filters, setFilters] = useState<FiltersState>({ level: 'Any', minRating: 0, sortBy: 'Relevance' });
   const slideAnim = useRef(new Animated.Value(0)).current;
-
   const [skillsWithUsers, setSkillsWithUsers] = useState<SkillWithUser[]>([]);
 
-  const matchUserSearch = useCallback((user: User | undefined, query: string): boolean => {
-    if (!query || !user) return false;
-    const q = query.trim().toLowerCase();
+  const matchUserSearch = useCallback((user: User | undefined, query: string) => {
+    if (!user) return false;
+    const q = query.toLowerCase();
     const cleanQ = q.startsWith('@') ? q.slice(1) : q;
-    if (!cleanQ) return true;
-
-    const userName = user.name?.toLowerCase() || '';
-    const username = user.username?.toLowerCase() || '';
+    const name = user.name?.toLowerCase() ?? '';
+    const username = user.username?.toLowerCase() ?? '';
     const cleanUsername = username.startsWith('@') ? username.slice(1) : username;
-    const derivedUsername = userName.replace(/\s+/g, '');
-
+    const derivedUsername = name.replace(/\s+/g, '');
     return (
-      userName.includes(q) ||
-      userName.includes(cleanQ) ||
+      name.includes(cleanQ) ||
       username.includes(q) ||
       cleanUsername.includes(cleanQ) ||
       derivedUsername.includes(cleanQ)
@@ -84,16 +90,22 @@ export default function ExploreScreen() {
   }, []);
 
   const { currentUser, allUsers } = useCurrentUser();
+  const { isBlocked } = useSafety();
 
   useEffect(() => {
     getSkillsWithUsers().then(setSkillsWithUsers).catch(console.error);
   }, []);
 
-  // Use backend users for learners/swappers, fall back to mockUsers if empty
+  // Use backend users for learners/swappers, fall back to mockUsers if empty (excluding blocked users)
   const otherUsers = useMemo(() => {
-    const backendUsers = allUsers.filter((u) => u.id !== currentUser?.id);
-    return backendUsers.length > 0 ? backendUsers : mockUsers.slice(1);
-  }, [allUsers, currentUser?.id]);
+    const backendUsers = allUsers.filter((u) => {
+      if (u.id === currentUser?.id) return false;
+      if (isBlocked(u.id, currentUser?.id)) return false;
+      return true;
+    });
+    const base = backendUsers.length > 0 ? backendUsers : mockUsers.slice(1);
+    return base.filter((u) => !isBlocked(u.id, currentUser?.id));
+  }, [allUsers, currentUser?.id, isBlocked]);
 
   const toggleFilters = useCallback(() => {
     const next = !isFilterOpen;
@@ -116,6 +128,9 @@ export default function ExploreScreen() {
   const filteredSkills = useMemo<SkillWithUser[]>(() => {
     const q = searchQuery.trim().toLowerCase();
     let list = skillsWithUsers.filter((skill) => {
+      const teacherId = skill.userId || skill.user?.id;
+      if (teacherId && isBlocked(teacherId, currentUser?.id)) return false;
+
       const titleMatches = skill.title?.toLowerCase().includes(q) ?? false;
       const descMatches = skill.description?.toLowerCase().includes(q) ?? false;
       const userNameMatches = matchUserSearch(skill.user, q);
@@ -449,13 +464,13 @@ export default function ExploreScreen() {
               <View style={styles.rowChips}>
                 {RATING_OPTIONS.map((r) => (
                   <TouchableOpacity
-                    key={String(r)}
-                    style={[styles.pill, filters.minRating === r && styles.pillActive]}
-                    onPress={() => setFilters((f) => ({ ...f, minRating: r }))}
-                    testID={`rating-${r}`}
+                    key={String(r.value)}
+                    style={[styles.pill, filters.minRating === r.value && styles.pillActive]}
+                    onPress={() => setFilters((f) => ({ ...f, minRating: r.value }))}
+                    testID={`rating-${r.value}`}
                   >
-                    <Text style={[styles.pillText, filters.minRating === r && styles.pillTextActive]}>
-                      {r === 0 ? 'Any' : `${r}+`}
+                    <Text style={[styles.pillText, filters.minRating === r.value && styles.pillTextActive]}>
+                      {r.label}
                     </Text>
                   </TouchableOpacity>
                 ))}

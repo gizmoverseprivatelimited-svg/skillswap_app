@@ -31,6 +31,24 @@ import { useAlert } from '@/providers/alert';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import Colors from '@/constants/colors';
 
+const DEMO_USER_IMAGE = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+
+function UserAvatar({ uri, style }: { uri: string | undefined; style: any }) {
+  const [imgSrc, setImgSrc] = useState<string>(resolveImageUrl(uri, DEMO_USER_IMAGE) || DEMO_USER_IMAGE);
+
+  return (
+    <Image
+      source={{ uri: imgSrc }}
+      style={style}
+      onError={() => {
+        if (imgSrc !== DEMO_USER_IMAGE) {
+          setImgSrc(DEMO_USER_IMAGE);
+        }
+      }}
+    />
+  );
+}
+
 type FilterType = 'all' | 'active' | 'banned' | 'suspended';
 
 export default function UserManagement() {
@@ -185,7 +203,7 @@ export default function UserManagement() {
         {filteredUsers.map(user => (
           <View key={user.id} style={styles.userCard}>
             <View style={styles.userHeader}>
-              <Image source={{ uri: resolveImageUrl(user.avatarUrl, 'https://i.pravatar.cc/150?img=5') }} style={styles.avatar} />
+              <UserAvatar uri={user.avatarUrl} style={styles.avatar} />
               <View style={styles.userInfo}>
                 <View style={styles.nameRow}>
                   <Text style={styles.userName} numberOfLines={1}>{user.username ? `@${user.username}` : user.name} ({user.name})</Text>

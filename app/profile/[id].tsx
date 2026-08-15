@@ -8,9 +8,11 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { MapPin, Star, Calendar, Sparkles, Users, Clock, Coins, Repeat, CreditCard, ArrowRight } from 'lucide-react-native';
+import { MapPin, Star, Calendar, Sparkles, Users, Clock, Coins, Repeat, CreditCard, ArrowRight, Flag, Ban, ShieldAlert, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '../../constants/colors';
 // import { mockUsers } from '../../mocks/data';
@@ -23,6 +25,7 @@ import url from '@/constants/backurl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSkillSwaps } from '@/providers/skill-swaps';
 import { useClasses } from '@/providers/classes';
+import { useSafety } from '@/providers/safety';
 import { formatCredits, formatClassSchedule, formatBillingCycle, getClassEnrollmentCost } from '@/lib/payments';
 import { getSkillsWithUsers } from '@/mocks/data';
 import { ClassWithTeacher, ReviewWithAuthor, SkillWithUser } from '@/types';
@@ -44,18 +47,65 @@ export default function UserProfileScreen() {
   const [reviews, setReviews] = useState<any>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // Safety state
+  const { submitReport, isBlocked, blockUser, unblockUser, reportReasons } = useSafety();
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportError, setReportError] = useState<string | null>(null);
+
   const router = useRouter();
   const { swaps, allSwaps } = useSkillSwaps()
-  const user = allUsers.find(u => u.id === id);
+  const [profileUser, setProfileUser] = useState<any>(null);
+
+  // Find in memory or fetch fresh from backend
+  const user = useMemo(() => {
+    if (profileUser) return profileUser;
+    return allUsers.find((u) => String(u.id) === String(id) || String((u as any)._id) === String(id));
+  }, [profileUser, allUsers, id]);
+
   const insets = useSafeAreaInsets();
 
+  const fetchProfileUser = useCallback(async () => {
+    if (!id) return;
+    try {
+      setIsLoading(true);
+      const res = await fetch(`${url}/users/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && (data.id || data._id)) {
+          setProfileUser(data);
+        }
+      }
+    } catch (e) {
+      console.warn('[Profile] Failed to fetch user directly:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (user) {
+      setIsLoading(false);
+    } else {
+      void fetchProfileUser();
+    }
+  }, [id, user, fetchProfileUser]);
+
   const teacherClasses = useMemo(() =>
-    user ? getClassesByTeacher(user.id) : [],
+    user ? getClassesByTeacher(user.id || user._id) : [],
   [user, getClassesByTeacher]);
+
+  const userIsBlocked = user ? isBlocked(user.id || user._id) : false;
 
   const handleQuickEnroll = useCallback((cls: ClassWithTeacher) => {
     if (!currentUser || currentUser.id === '1') {
       showAlert('Sign In Required', 'Please sign in to your account to enroll in group classes.');
+      return;
+    }
+    const uId = user?.id || user?._id;
+    if (uId && isBlocked(uId)) {
+      showAlert('Action Blocked', 'You cannot enroll in classes hosted by a user you have blocked.');
       return;
     }
     const cost = getClassEnrollmentCost(cls.seatPriceCredits);
@@ -88,44 +138,39 @@ export default function UserProfileScreen() {
         },
       ],
     );
-  }, [currentUser, enrollInClass, router, showAlert]);
+  }, [currentUser, user, isBlocked, enrollInClass, router, showAlert]);
 
-  const fetchReviews = useCallback(async (silent = false) => {
+  const fetchReviews = useCallback(async () => {
+    const uId = user?.id || user?._id;
+    if (!uId) return;
     try {
-      if (!silent) {
-        setIsLoading(true);
-      }
       setFetchError(null);
       const res = await fetch(
-        `${url}/reviews?revieweeId=${user?.id}&skillId=${""}`
+        `${url}/reviews?revieweeId=${uId}&skillId=${""}`
       );
-
-      if (!res.ok) throw new Error("Failed to fetch reviews");
-
-      const data = await res.json();
-      console.log("reviews", data);
-
-      setReviews(data);
-    } catch (err) {
-      console.error("[Reviews] Fetch error", err);
-      if (!silent) {
-        setFetchError("Failed to load reviews");
+      if (res.ok) {
+        const data = await res.json();
+        setReviews(Array.isArray(data) ? data : []);
       }
-    } finally {
-      if (!silent) {
-        setIsLoading(false);
-      }
+    } catch (err: any) {
+      console.warn("[Profile] Failed to fetch reviews:", err);
     }
-  }, [user?.id]);
+  }, [user?.id, user?._id]);
 
   useEffect(() => {
-    fetchReviews();
+    if (user?.id || user?._id) {
+      void fetchReviews();
+    }
+  }, [user?.id, user?._id, fetchReviews]);
 
+  useEffect(() => {
     if (socket) {
-      const handleReviewCreated = () => fetchReviews(true);
-      socket.on('review_created', handleReviewCreated);
+      const handleReviewUpdate = () => {
+        void fetchReviews();
+      };
+      socket.on("review_updated", handleReviewUpdate);
       return () => {
-        socket.off('review_created', handleReviewCreated);
+        socket.off("review_updated", handleReviewUpdate);
       };
     }
   }, [fetchReviews, socket]);
@@ -136,6 +181,11 @@ export default function UserProfileScreen() {
       return;
     }
     if (!user || !currentUser) return;
+
+    if (isBlocked(user.id)) {
+      showAlert('User Blocked', 'You have blocked this user. Unblock them first to initiate exchanges or send messages.');
+      return;
+    }
     console.log(swaps);
 
     const existingSwap = swaps.find(
@@ -169,7 +219,63 @@ export default function UserProfileScreen() {
         [{ text: 'OK' }]
       );
     }
-  }, [user, currentUser, swaps, router]);
+  }, [user, currentUser, isBlocked, swaps, router, showAlert]);
+
+  const handleReport = useCallback(() => {
+    if (!user || !currentUser) return;
+    setReportModalVisible(true);
+    setSelectedReason(null);
+    setReportDescription('');
+    setReportError(null);
+  }, [user, currentUser]);
+
+  const handleSubmitReport = useCallback(() => {
+    if (!user || !currentUser) return;
+    if (!selectedReason) {
+      setReportError('Please select a reason for your report.');
+      return;
+    }
+    if (reportDescription.trim().length < 10) {
+      setReportError('Please provide at least 10 characters describing what happened.');
+      return;
+    }
+    submitReport(currentUser.id, user.id, selectedReason as any, reportDescription, {
+      reporterName: currentUser.name,
+      reporterAvatar: currentUser.avatarUrl,
+      reportedUserName: user.name,
+      reportedUserAvatar: user.avatarUrl,
+    });
+    setReportModalVisible(false);
+    showAlert(
+      'Report Submitted',
+      'Thank you for helping keep leteski safe. Our team will review this report within 24 hours.',
+    );
+  }, [user, currentUser, selectedReason, reportDescription, submitReport, showAlert]);
+
+  const handleBlock = useCallback(() => {
+    if (!user || !currentUser) return;
+    showAlert(
+      'Block User',
+      `Are you sure you want to block ${user.name}? They won't be able to send you exchange requests, enroll in your classes, or see each other in matches.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: () => {
+            blockUser(currentUser.id, user.id, { name: user.name, avatarUrl: user.avatarUrl });
+            showAlert('User Blocked', `${user.name} has been blocked.`);
+          },
+        },
+      ],
+    );
+  }, [user, currentUser, blockUser, showAlert]);
+
+  const handleUnblock = useCallback(() => {
+    if (!user) return;
+    unblockUser(user.id);
+    showAlert('User Unblocked', `${user.name} has been unblocked.`);
+  }, [user, unblockUser, showAlert]);
 
   if (isLoading) {
     return (
@@ -250,6 +356,31 @@ export default function UserProfileScreen() {
           <TouchableOpacity onPress={handleSendMessage} activeOpacity={0.8} style={styles.messageButton}>
             <Text style={styles.messageButtonText}>Send Message</Text>
           </TouchableOpacity>
+
+          {currentUser?.id !== user.id && (
+            userIsBlocked ? (
+              <View style={styles.safetyRow}>
+                <View style={styles.blockedBadge}>
+                  <Ban size={14} color="#FFFFFF" />
+                  <Text style={styles.blockedBadgeText}>Blocked</Text>
+                </View>
+                <TouchableOpacity onPress={handleUnblock} style={styles.unblockBtn} activeOpacity={0.7}>
+                  <Text style={styles.unblockBtnText}>Unblock</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.safetyRow}>
+                <TouchableOpacity onPress={handleReport} style={styles.reportBtn} activeOpacity={0.7}>
+                  <Flag size={14} color="#EF4444" />
+                  <Text style={styles.reportBtnText}>Report</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleBlock} style={styles.blockBtn} activeOpacity={0.7}>
+                  <Ban size={14} color={Colors.light.textSecondary} />
+                  <Text style={styles.blockBtnText}>Block</Text>
+                </TouchableOpacity>
+              </View>
+            )
+          )}
         </View>
 
         <View style={styles.section}>
@@ -265,11 +396,11 @@ export default function UserProfileScreen() {
             </View>
           </View>
           <View style={styles.skillsGrid}>
-            {(user.skillsOffered || []).map((skill, i) => (
+            {(user.skillsOffered || []).map((skill: any, i: number) => (
               <TouchableOpacity
                 key={i}
                 style={styles.skillCard}
-                onPress={() => router.push(`/skill/${skill._id}` as any)}
+                onPress={() => router.push(`/skill/${skill._id || skill.id}` as any)}
               >
                 {skill.imageUrl ? (
                   <Image
@@ -416,7 +547,7 @@ export default function UserProfileScreen() {
             </View>
           </View>
           <View style={styles.wantsList}>
-            {(user.skillsWanted || []).map((skill, index) => (
+            {(user.skillsWanted || []).map((skill: any, index: number) => (
               <View key={index} style={styles.wantCard}>
                 <Sparkles size={18} color={Colors.light.primary} />
                 <Text style={styles.wantText}>{skill}</Text>
@@ -442,6 +573,75 @@ export default function UserProfileScreen() {
           }}
         />
       )}
+
+      {/* Report User Modal */}
+      <Modal
+        visible={reportModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReportModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.reportModalCard}>
+            <View style={styles.reportModalHeader}>
+              <View style={styles.reportModalTitleRow}>
+                <Flag size={20} color="#EF4444" />
+                <Text style={styles.reportModalTitle}>Report {user.name}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setReportModalVisible(false)}>
+                <X size={20} color={Colors.light.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.reportModalDesc}>
+              Select a reason for reporting this user. Our team reviews all reports within 24 hours.
+            </Text>
+
+            <View style={styles.reasonList}>
+              {reportReasons.map((r) => {
+                const isSelected = selectedReason === r.key;
+                return (
+                  <TouchableOpacity
+                    key={r.key}
+                    style={[styles.reasonChip, isSelected && styles.reasonChipActive]}
+                    onPress={() => setSelectedReason(r.key)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.reasonChipIcon}>{r.icon}</Text>
+                    <Text style={[styles.reasonChipText, isSelected && styles.reasonChipTextActive]}>
+                      {r.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.inputLabel}>Additional Details</Text>
+            <TextInput
+              style={styles.reportInput}
+              placeholder="Describe what happened (min 10 characters)..."
+              placeholderTextColor={Colors.light.textTertiary}
+              value={reportDescription}
+              onChangeText={setReportDescription}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+
+            {reportError && (
+              <Text style={styles.reportModalError}>{reportError}</Text>
+            )}
+
+            <TouchableOpacity
+              style={styles.reportSubmitBtn}
+              onPress={handleSubmitReport}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.reportSubmitBtnText}>Submit Report</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -534,6 +734,178 @@ const styles = StyleSheet.create({
   messageButtonText: {
     fontSize: 16,
     fontWeight: '600' as const,
+    color: '#FFFFFF',
+  },
+  safetyRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+    marginTop: 10,
+  },
+  reportBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.3)',
+    backgroundColor: 'rgba(239,68,68,0.06)',
+  },
+  reportBtnText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#EF4444',
+  },
+  blockBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    backgroundColor: Colors.light.backgroundTertiary,
+  },
+  blockBtnText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
+  },
+  blockedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#64748B',
+  },
+  blockedBadgeText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#FFFFFF',
+  },
+  unblockBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    backgroundColor: Colors.light.backgroundTertiary,
+  },
+  unblockBtnText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.light.text,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 20,
+  },
+  reportModalCard: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: Colors.light.background,
+    borderRadius: 20,
+    padding: 20,
+  },
+  reportModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  reportModalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  reportModalTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  reportModalDesc: {
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  reasonList: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  reasonChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    backgroundColor: Colors.light.backgroundSecondary,
+  },
+  reasonChipActive: {
+    borderColor: '#EF4444',
+    backgroundColor: 'rgba(239,68,68,0.06)',
+  },
+  reasonChipIcon: {
+    fontSize: 16,
+  },
+  reasonChipText: {
+    fontSize: 14,
+    color: Colors.light.text,
+    fontWeight: '500' as const,
+    flex: 1,
+  },
+  reasonChipTextActive: {
+    color: '#EF4444',
+    fontWeight: '600' as const,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
+    marginBottom: 6,
+  },
+  reportInput: {
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: Colors.light.text,
+    backgroundColor: Colors.light.backgroundSecondary,
+    minHeight: 80,
+    marginBottom: 8,
+  },
+  reportModalError: {
+    fontSize: 13,
+    color: '#EF4444',
+    marginBottom: 8,
+  },
+  reportSubmitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#EF4444',
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  reportSubmitBtnText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
     color: '#FFFFFF',
   },
   section: {

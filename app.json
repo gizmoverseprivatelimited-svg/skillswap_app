@@ -2,6 +2,7 @@
   "expo": {
     "name": "Leteski",
     "slug": "leteski-community-90mlx56",
+    "owner": "anonymousepersondev",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,7 +10,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.leteski-community-90mlx56",
+      "bundleIdentifier": "com.leteski_community",
       "usesAppleSignIn": true,
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
@@ -22,8 +23,13 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.leteski_community_90mlx56",
-      "googleServicesFile": "./google-services.json"
+      "package": "com.leteski_community",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -96,7 +102,7 @@
         "origin": "https://rork.com/"
       },
       "eas": {
-        "projectId": "8c9b23fe-858d-421a-a261-46e72fda0a4d"
+        "projectId": "acce33d6-7ef2-4992-b90f-39f02ccb2aaf"
       }
     }
   }

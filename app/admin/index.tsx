@@ -23,9 +23,11 @@ import {
   BarChart3,
   LogOut,
   Wallet,
+  ShieldX,
 } from 'lucide-react-native';
 import { useAdmin } from '../../providers/admin';
 import { useEarnings } from '@/providers/earnings';
+import { useSafety } from '@/providers/safety';
 import Colors from '@/constants/colors';
 import { useAlert } from '@/providers/alert';
 
@@ -34,6 +36,7 @@ export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
   const { stats, isLoading, isAdminAuthenticated, adminLogout } = useAdmin();
   const { pendingPayoutsCount } = useEarnings();
+  const { pendingReportsCount } = useSafety();
   const { showAlert } = useAlert();
 
   // Redirect to login if not authenticated as admin
@@ -128,6 +131,15 @@ export default function AdminDashboard() {
       bg: '#FFF7ED',
       route: '/admin/classes',
     },
+    {
+      title: 'User Reports',
+      subtitle: `${pendingReportsCount} pending report${pendingReportsCount !== 1 ? 's' : ''}`,
+      icon: ShieldX,
+      color: '#EF4444',
+      bg: '#FEF2F2',
+      route: '/admin/reports',
+      badge: pendingReportsCount > 0 ? pendingReportsCount : undefined,
+    },
   ];
 
   if (isLoading) {
@@ -180,7 +192,7 @@ export default function AdminDashboard() {
             <View style={styles.alertContent}>
               <Text style={styles.alertTitle}>Pending Actions</Text>
               <Text style={styles.alertDesc}>
-                {stats.pendingReviews} reviews and {stats.pendingVerifications} verifications need attention
+                {stats.pendingReviews} reviews, {stats.pendingVerifications} verifications, and {pendingReportsCount} user reports need attention
               </Text>
             </View>
           </View>

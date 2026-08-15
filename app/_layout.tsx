@@ -8,6 +8,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "../providers/auth";
 import { CurrentUserProvider } from "../providers/current-user";
 import { SkillSwapsProvider } from "../providers/skill-swaps";
+import { SafetyProvider } from "../providers/safety";
 import { ClassesProvider } from "../providers/classes";
 import { NotificationsProvider } from "../providers/notifications";
 import { ResourcesProvider } from "../providers/resources";
@@ -159,6 +160,15 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="admin/reports"
+        options={{
+          headerShown: true,
+          title: 'User Reports',
+          headerStyle: { backgroundColor: '#0F172A' },
+          headerTintColor: '#F8FAFC',
+        }}
+      />
+      <Stack.Screen
         name="admin/classes"
         options={{
           headerShown: false,
@@ -290,6 +300,20 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="blocked-users"
+        options={{
+          headerShown: false,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="assistant"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
         name="help"
         options={{
           headerShown: true,
@@ -342,28 +366,30 @@ export default function RootLayout() {
       <AlertProvider>
         <AuthProvider>
           <OnboardingProvider>
-            <CurrentUserProvider>
-              <SocketProvider>
-                <EarningsProvider>
-                  <SkillSwapsProvider>
-                    <AdminProvider>
-                      <NotificationsProvider>
-                        <ClassesProvider>
-                          <ResourcesProvider>
-                            <ErrorBoundary>
-                              <GestureHandlerRootView style={styles.container}>
-                                <RootLayoutNav />
-                                <InAppNotificationBanner />
-                              </GestureHandlerRootView>
-                            </ErrorBoundary>
-                          </ResourcesProvider>
-                        </ClassesProvider>
-                      </NotificationsProvider>
-                    </AdminProvider>
-                  </SkillSwapsProvider>
-                </EarningsProvider>
-              </SocketProvider>
-            </CurrentUserProvider>
+            <SafetyProvider>
+              <CurrentUserProvider>
+                <SocketProvider>
+                  <EarningsProvider>
+                    <SkillSwapsProvider>
+                      <AdminProvider>
+                        <NotificationsProvider>
+                          <ClassesProvider>
+                            <ResourcesProvider>
+                              <ErrorBoundary>
+                                <GestureHandlerRootView style={styles.container}>
+                                  <RootLayoutNav />
+                                  <InAppNotificationBanner />
+                                </GestureHandlerRootView>
+                              </ErrorBoundary>
+                            </ResourcesProvider>
+                          </ClassesProvider>
+                        </NotificationsProvider>
+                      </AdminProvider>
+                    </SkillSwapsProvider>
+                  </EarningsProvider>
+                </SocketProvider>
+              </CurrentUserProvider>
+            </SafetyProvider>
           </OnboardingProvider>
         </AuthProvider>
       </AlertProvider>

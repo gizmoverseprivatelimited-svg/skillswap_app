@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Platform, Modal, Pressable, Image, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Calendar as CalendarIcon, Clock as ClockIcon, Users, Coins, Image as ImageIcon, Check, Sparkles, X, ChevronLeft, ChevronRight, CalendarDays, Clock3, Upload, Camera } from 'lucide-react-native';
+import { Calendar as CalendarIcon, Clock as ClockIcon, Users, Coins, Image as ImageIcon, Check, Sparkles, X, ChevronLeft, ChevronRight, CalendarDays, Clock3, Upload, Camera, Bot } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -11,6 +11,7 @@ import { useClasses } from '@/providers/classes';
 import { useCurrentUser } from '@/providers/current-user';
 import type { SkillCategory, SkillLevel, ClassSessionType, ClassBillingCycle, Skill } from '@/types';
 import url from '@/constants/backurl';
+import { generateClassDescription } from '@/lib/ai';
 
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
@@ -259,6 +260,8 @@ export default function CreateClassScreen() {
   }, [uploadCoverImage]);
 
   // Pop-up modal visibility states
+  const [isDurationPickerOpen, setIsDurationPickerOpen] = useState(false);
+  const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
   const [showDatePickerModal, setShowDatePickerModal] = useState(false);
   const [showTimePickerModal, setShowTimePickerModal] = useState(false);
   const [activeTimeTarget, setActiveTimeTarget] = useState<'start' | 'end'>('start');
@@ -402,6 +405,27 @@ export default function CreateClassScreen() {
     void fetchCategories();
   }, []);
 
+  const handleGenerateDescription = async () => {
+    if (!title.trim()) {
+      Alert.alert('Title Required', 'Enter a class title first so AI knows what to write about.');
+      return;
+    }
+    setIsGeneratingDesc(true);
+    try {
+      const desc = await generateClassDescription(
+        title.trim(),
+        category === 'Other' ? customCategory.trim() || 'General' : category,
+        level,
+        sessionType,
+      );
+      if (desc) setDescription(desc);
+    } catch {
+      Alert.alert('AI Error', 'Could not generate description. Please write one manually.');
+    } finally {
+      setIsGeneratingDesc(false);
+    }
+  };
+
   const categoryOptions = useMemo(() => {
     const base = categoriesList.filter(c => c !== 'All' && c !== 'Other');
     return [...base, 'Other'];
@@ -505,7 +529,24 @@ export default function CreateClassScreen() {
         <Text style={s.label}>Class Title</Text>
         <TextInput style={s.input} value={title} onChangeText={setTitle} placeholder="e.g. Intro to Watercolor Painting" placeholderTextColor={Colors.light.textTertiary} />
 
-        <Text style={s.label}>Description</Text>
+        <View style={s.labelWithAiRow}>
+          <Text style={s.label}>Description</Text>
+          <TouchableOpacity
+            style={s.aiGenBtn}
+            onPress={handleGenerateDescription}
+            disabled={isGeneratingDesc}
+            activeOpacity={0.7}
+          >
+            {isGeneratingDesc ? (
+              <ActivityIndicator size={12} color="#6366F1" />
+            ) : (
+              <Bot size={13} color="#6366F1" />
+            )}
+            <Text style={s.aiGenBtnText}>
+              {isGeneratingDesc ? 'Generating...' : 'AI Generate'}
+            </Text>
+          </TouchableOpacity>
+        </View>
         <TextInput style={[s.input, s.textArea]} value={description} onChangeText={setDescription} placeholder="What will students learn? What should they bring?" placeholderTextColor={Colors.light.textTertiary} multiline numberOfLines={4} textAlignVertical="top" />
 
         <Text style={s.label}>Category</Text>
@@ -1118,5 +1159,28 @@ const s = StyleSheet.create({
   modalFooter: { padding: 16, borderTopWidth: 1, borderTopColor: Colors.light.border, backgroundColor: Colors.light.background },
   modalConfirmBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.light.primary, borderRadius: 14, paddingVertical: 14 },
   modalConfirmBtnText: { fontSize: 15, fontWeight: '700' as const, color: '#FFFFFF' },
+
+  labelWithAiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  aiGenBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  aiGenBtnText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#6366F1',
+  },
 });
 
