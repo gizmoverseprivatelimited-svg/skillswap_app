@@ -384,7 +384,7 @@ export default function SkillDetailScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
                     <Coins size={14} color="#F59E0B" />
                     <Text style={{ fontSize: 13, color: Colors.light.textSecondary, fontWeight: '500' }}>
-                      = {formatCredits(getSessionCreditCost(skill))} — teacher earns 80%
+                      = {formatCredits(getSessionCreditCost(skill))}
                     </Text>
                   </View>
                 </View>
