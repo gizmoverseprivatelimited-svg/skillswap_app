@@ -59,10 +59,11 @@ export default function SkillDetailScreen() {
   }, [id]);
 
   const { currentUser, allUsers, removeSkill } = useCurrentUser();
-  const { isBlocked } = useSafety();
+  const { isBlocked, checkBlockStatus } = useSafety();
   const { classes, getClassesByTeacher, enrollInClass, isEnrolled } = useClasses();
   const { showAlert } = useAlert();
   const [isSwapModalVisible, setSwapModalVisible] = useState<boolean>(false);
+  const [isBlockedRelation, setIsBlockedRelation] = useState<boolean>(false);
 
   const isOwner = skill?.userId === currentUser?.id || skill?.user?.id === currentUser?.id;
 
@@ -71,21 +72,43 @@ export default function SkillDetailScreen() {
     return allUsers.find(u => u.id === skill.user.id) || skill.user;
   }, [allUsers, skill?.user]);
 
+  const targetUserId = useMemo(() => {
+    return teacherUser?.id || skill?.userId || skill?.user?.id;
+  }, [teacherUser?.id, skill?.userId, skill?.user?.id]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (targetUserId && currentUser?.id) {
+      if (isBlocked(targetUserId)) {
+        setIsBlockedRelation(true);
+      } else {
+        checkBlockStatus(targetUserId).then((res) => {
+          if (isMounted) {
+            setIsBlockedRelation(res.isBlocked);
+          }
+        });
+      }
+    } else {
+      setIsBlockedRelation(false);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [targetUserId, currentUser?.id, isBlocked, checkBlockStatus]);
+
   const teacherClasses = useMemo(() => {
-    const targetUserId = teacherUser?.id || skill?.userId || skill?.user?.id;
     return targetUserId ? getClassesByTeacher(targetUserId) : [];
-  }, [teacherUser?.id, skill?.userId, skill?.user?.id, getClassesByTeacher]);
+  }, [targetUserId, getClassesByTeacher]);
 
   const hasActiveClassForSkill = useMemo(() => {
     if (!skill || !classes) return false;
-    return classes.some((cls) => {
-      const isSameTeacher = String(cls.teacherId) === String(skill.user?.id || skill.userId);
-      const isSameTitleOrCategory =
-        cls.title.trim().toLowerCase() === skill.title.trim().toLowerCase() ||
-        cls.category.trim().toLowerCase() === skill.category.trim().toLowerCase();
-      const isOpenOrLive = cls.status === 'open' || Boolean(cls.isLive);
-      return isSameTeacher && isSameTitleOrCategory && isOpenOrLive;
-    });
+    const skillId = skill._id || skill.id;
+    return classes.some(
+      (c) =>
+        c.status === 'open' &&
+        (c.teacherId === skill.userId || c.teacherId === skill.user?.id) &&
+        c.category === skill.category,
+    );
   }, [skill, classes]);
 
   const canCreateGroupClass = isOwner && !hasActiveClassForSkill;
@@ -95,9 +118,8 @@ export default function SkillDetailScreen() {
       showAlert('Sign In Required', 'Please sign in to your account to enroll in group classes.');
       return;
     }
-    const targetUserId = skill?.userId || skill?.user?.id;
-    if (targetUserId && isBlocked(targetUserId)) {
-      showAlert('Action Blocked', 'You cannot enroll in classes hosted by a user you have blocked.');
+    if ((targetUserId && isBlocked(targetUserId)) || isBlockedRelation) {
+      showAlert('Action Blocked', 'You cannot enroll in classes hosted by this user due to block settings.');
       return;
     }
     const cost = getClassEnrollmentCost(cls.seatPriceCredits);
@@ -130,7 +152,7 @@ export default function SkillDetailScreen() {
         },
       ],
     );
-  }, [currentUser, skill, isBlocked, enrollInClass, router, showAlert]);
+  }, [currentUser, targetUserId, isBlocked, isBlockedRelation, enrollInClass, router, showAlert]);
 
   const [reviewsStats, setReviewsStats] = useState<{ averageRating: number; totalReviews: number } | null>(null);
 
@@ -223,9 +245,9 @@ export default function SkillDetailScreen() {
       showAlert('Login Required', 'To send a skill swap request, you must log in with a real account.');
       return;
     }
-    const targetUserId = skill?.userId || skill?.user?.id;
-    if (targetUserId && isBlocked(targetUserId)) {
-      showAlert('Action Blocked', 'You cannot request swaps from a user you have blocked.');
+    const tId = skill?.userId || skill?.user?.id;
+    if ((tId && isBlocked(tId)) || isBlockedRelation) {
+      showAlert('Action Blocked', 'You cannot request swaps with this user due to block settings.');
       return;
     }
     if (activeSwap) {
@@ -233,7 +255,7 @@ export default function SkillDetailScreen() {
       return;
     }
     setSwapModalVisible(true);
-  }, [activeSwap, skill, isBlocked, router, currentUser?.id, showAlert]);
+  }, [activeSwap, skill, isBlocked, isBlockedRelation, router, currentUser?.id, showAlert]);
 
   const handleDeleteSkill = useCallback(() => {
     showAlert(

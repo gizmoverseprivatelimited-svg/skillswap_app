@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -6,11 +6,13 @@ import {
   FlatList,
   Image,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { ArrowLeft, Ban, ShieldCheck, UserX } from 'lucide-react-native';
+import { ArrowLeft, ShieldCheck, UserX } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useSafety } from '@/providers/safety';
+import { useAuth } from '@/providers/auth';
 import { useAlert } from '@/providers/alert';
 import { BlockedUser } from '@/types';
 
@@ -18,8 +20,17 @@ const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf37
 
 export default function BlockedUsersScreen() {
   const router = useRouter();
-  const { blockedUsers, unblockUser } = useSafety();
+  const auth = useAuth();
+  const currentUserId = auth?.user?.id || (auth?.user as any)?._id || '';
+  const { blockedUsers, unblockUser, fetchBlockedUsers } = useSafety();
   const { showAlert } = useAlert();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await fetchBlockedUsers(currentUserId);
+    setIsRefreshing(false);
+  }, [fetchBlockedUsers, currentUserId]);
 
   const handleUnblock = (user: BlockedUser) => {
     showAlert(
@@ -30,8 +41,8 @@ export default function BlockedUsersScreen() {
         {
           text: 'Unblock',
           style: 'default',
-          onPress: () => {
-            unblockUser(user.blockedUserId);
+          onPress: async () => {
+            await unblockUser(user.blockedUserId, currentUserId);
             showAlert('User Unblocked', `${user.blockedUserName} has been unblocked.`);
           },
         },
@@ -110,6 +121,14 @@ export default function BlockedUsersScreen() {
             renderItem={renderItem}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={onRefresh}
+                tintColor={Colors.light.primary}
+                colors={[Colors.light.primary]}
+              />
+            }
             ListHeaderComponent={
               <Text style={styles.headerSubtitle}>
                 Blocked users cannot send you swap requests, message you, or enroll in your classes.

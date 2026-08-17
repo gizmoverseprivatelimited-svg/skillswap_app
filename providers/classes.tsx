@@ -5,6 +5,7 @@ import type { GroupClass, ClassEnrollment, ClassWithTeacher, ClassStatus, ClassS
 import { useCurrentUser } from './current-user';
 import { useEarnings } from './earnings';
 import { useNotifications } from './notifications';
+import { useSafety } from './safety';
 import { useSocket } from './socket';
 import { getClassEnrollmentCost, getClassTeacherEarnings } from '../lib/payments';
 import url from '@/constants/backurl';
@@ -261,11 +262,18 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
     return cls;
   }, [currentUser, addNotification]);
 
+  const { isBlocked } = useSafety();
+
   const enrollInClass = useCallback((classId: string): { success: boolean; error?: string } => {
     if (!currentUser) return { success: false, error: 'User not authenticated' };
     const cls = classes.find(c => String(c.id) === String(classId) || String((c as any)._id) === String(classId));
     if (!cls) return { success: false, error: 'Class not found' };
     if (cls.status !== 'open') return { success: false, error: 'Class is no longer open' };
+
+    const teacherId = cls.teacherId ? String(cls.teacherId) : '';
+    if (teacherId && isBlocked(teacherId)) {
+      return { success: false, error: 'You cannot enroll in a class hosted by a user you have blocked.' };
+    }
 
     if (isEnrolled(classId, currentUser.id)) {
       return { success: false, error: 'You are already enrolled' };
@@ -299,10 +307,19 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ studentId: currentUser.id }),
     })
-      .then(res => res.json())
-      .then(data => {
-        if (loadUser) loadUser();
-        if (refreshUserEarnings) refreshUserEarnings(currentUser.id);
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          console.warn('[ClassesProvider] Enroll error from backend:', data);
+          // Rollback enrollment
+          setEnrollments((prev) => prev.filter((e) => e.id !== enr.id));
+          if (cost > 0 && earnCredits) {
+            earnCredits(cost);
+          }
+        } else {
+          if (loadUser) loadUser();
+          if (refreshUserEarnings) refreshUserEarnings(currentUser.id);
+        }
       })
       .catch(err => console.error('[ClassesProvider] Enroll API error:', err));
 
@@ -322,7 +339,7 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
     }
 
     return { success: true };
-  }, [classes, isEnrolled, currentUser, activeEnrollments, spendCredits, addNotification, loadUser, refreshUserEarnings]);
+  }, [classes, isEnrolled, isBlocked, currentUser, activeEnrollments, spendCredits, earnCredits, addNotification, loadUser, refreshUserEarnings]);
 
   const cancelEnrollment = useCallback((classId: string) => {
     if (!currentUser) return;

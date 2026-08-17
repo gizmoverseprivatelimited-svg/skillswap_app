@@ -101,7 +101,7 @@ const SWAP_TYPE_OPTIONS: {
 export default function SkillSwapRequestModal({ visible, skill, onClose }: SkillSwapRequestModalProps) {
   const router = useRouter();
   const { currentUser, allUsers } = useCurrentUser();
-  const { isBlocked } = useSafety();
+  const { isBlocked, checkBlockStatus } = useSafety();
   const { createSwapRequest } = useSkillSwaps();
   const [step, setStep] = useState<number>(0);
   const [swapType, setSwapType] = useState<SwapType | null>(null);
@@ -324,9 +324,17 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
       return { startISO: slot.startISO, endISO: slot.endISO };
     });
     const submit = async () => {
-      if (skill.user?.id && isBlocked(skill.user.id)) {
-        setError('You cannot send swap requests to a blocked user.');
-        return;
+      const targetUid = skill.user?.id || (skill.user as any)?._id;
+      if (targetUid) {
+        if (isBlocked(targetUid)) {
+          setError('You cannot send swap requests to a blocked user.');
+          return;
+        }
+        const blockStatus = await checkBlockStatus(targetUid);
+        if (blockStatus.isBlocked) {
+          setError('You cannot send swap requests to this user due to block settings.');
+          return;
+        }
       }
       if (!hasEnoughCredits && swapCost > 0) {
         setError(`You need ${swapCost - (currentUser?.credits || 0)} more credits to send this request.`);

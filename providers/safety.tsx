@@ -2,9 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import url from '@/constants/backurl';
+import { useAuth } from './auth';
 import type { UserReport, BlockedUser, ReportReason, ReportStatus, ReportAction } from '../types';
-
-const BLOCKS_KEY = '@leteski/blocked_users';
 
 const REPORT_REASONS: { key: ReportReason; label: string; icon: string }[] = [
   { key: 'harassment', label: 'Harassment or Bullying', icon: '😠' },
@@ -15,6 +14,12 @@ const REPORT_REASONS: { key: ReportReason; label: string; icon: string }[] = [
   { key: 'threats', label: 'Threats or Violence', icon: '⚠️' },
   { key: 'other', label: 'Other (describe below)', icon: '📋' },
 ];
+
+interface BlockStatusResult {
+  isBlockedByMe: boolean;
+  hasBlockedMe: boolean;
+  isBlocked: boolean;
+}
 
 interface SafetyContextValue {
   reports: UserReport[];
@@ -28,38 +33,75 @@ interface SafetyContextValue {
     extraInfo?: { reporterName?: string; reporterAvatar?: string; reportedUserName?: string; reportedUserAvatar?: string }
   ) => Promise<void>;
   isBlocked: (blockedUserId: string, byUserId?: string) => boolean;
-  blockUser: (userId: string, blockedUserId: string, userInfo?: { name?: string; avatarUrl?: string }) => void;
-  unblockUser: (blockedUserId: string) => void;
+  checkBlockStatus: (targetUserId: string) => Promise<BlockStatusResult>;
+  blockUser: (userId: string, blockedUserId: string, userInfo?: { name?: string; avatarUrl?: string }) => Promise<void>;
+  unblockUser: (blockedUserId: string, userId?: string) => Promise<void>;
   resolveReport: (reportId: string, action: ReportAction, note?: string) => Promise<void>;
   pendingReportsCount: number;
   fetchReports: () => Promise<void>;
+  fetchBlockedUsers: (userId?: string) => Promise<void>;
 }
 
 export const [SafetyProvider, useSafety] = createContextHook<SafetyContextValue>(() => {
+  const auth = useAuth();
+  const currentUserId = auth?.user?.id || (auth?.user as any)?._id || '';
+
   const [reports, setReports] = useState<UserReport[]>([]);
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
 
-  // Restore blocked users from AsyncStorage
-  useEffect(() => {
-    (async () => {
-      try {
-        const stored = await AsyncStorage.getItem(BLOCKS_KEY);
-        if (stored) {
-          setBlockedUsers(JSON.parse(stored) as BlockedUser[]);
-        }
-      } catch (e) {
-        console.error('[Safety] Failed to restore blocks:', e);
-      }
-    })();
+  const getStorageKey = useCallback((userId: string) => {
+    return `@leteski/blocked_users_${userId}`;
   }, []);
 
-  const persistBlocks = useCallback(async (next: BlockedUser[]) => {
+  const persistBlocks = useCallback(async (userId: string, next: BlockedUser[]) => {
+    if (!userId) return;
     try {
-      await AsyncStorage.setItem(BLOCKS_KEY, JSON.stringify(next));
+      await AsyncStorage.setItem(getStorageKey(userId), JSON.stringify(next));
     } catch (e) {
       console.error('[Safety] Failed to persist blocks:', e);
     }
-  }, []);
+  }, [getStorageKey]);
+
+  const fetchBlockedUsers = useCallback(async (targetUserId?: string) => {
+    const uid = targetUserId || currentUserId;
+    if (!uid) {
+      setBlockedUsers([]);
+      return;
+    }
+
+    // 1. Try local storage first for instant load
+    try {
+      const stored = await AsyncStorage.getItem(getStorageKey(uid));
+      if (stored) {
+        setBlockedUsers(JSON.parse(stored) as BlockedUser[]);
+      }
+    } catch (e) {
+      console.error('[Safety] Failed to restore local blocks:', e);
+    }
+
+    // 2. Fetch from backend
+    try {
+      const res = await fetch(`${url}/users/${uid}/blocked`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.blockedUsers)) {
+          setBlockedUsers(data.blockedUsers);
+          await AsyncStorage.setItem(getStorageKey(uid), JSON.stringify(data.blockedUsers));
+        }
+      }
+    } catch (err) {
+      console.warn('[Safety] Failed to fetch blocked users from backend:', err);
+    }
+  }, [currentUserId, getStorageKey]);
+
+  // Sync blocked users when current user changes
+  useEffect(() => {
+    if (currentUserId) {
+      fetchBlockedUsers(currentUserId);
+    } else {
+      setBlockedUsers([]);
+    }
+  }, [currentUserId, fetchBlockedUsers]);
 
   const fetchReports = useCallback(async () => {
     try {
@@ -137,38 +179,126 @@ export const [SafetyProvider, useSafety] = createContextHook<SafetyContextValue>
 
   const isBlocked = useCallback(
     (blockedUserId: string, byUserId?: string) => {
-      return blockedUsers.some((b) => String(b.blockedUserId) === String(blockedUserId));
+      if (!blockedUserId) return false;
+      const targetIdStr = String(blockedUserId);
+      return blockedUsers.some((b) => String(b.blockedUserId) === targetIdStr);
     },
     [blockedUsers],
   );
 
+  const checkBlockStatus = useCallback(
+    async (targetUserId: string): Promise<BlockStatusResult> => {
+      const uid = currentUserId;
+      if (!uid || !targetUserId || String(uid) === String(targetUserId)) {
+        return { isBlockedByMe: false, hasBlockedMe: false, isBlocked: false };
+      }
+
+      // Check local cache first
+      const localBlocked = isBlocked(targetUserId);
+
+      try {
+        const res = await fetch(`${url}/users/${uid}/block-status/${targetUserId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            return {
+              isBlockedByMe: Boolean(data.isBlockedByMe),
+              hasBlockedMe: Boolean(data.hasBlockedMe),
+              isBlocked: Boolean(data.isBlocked),
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('[Safety] Failed to check block status from backend:', err);
+      }
+
+      return {
+        isBlockedByMe: localBlocked,
+        hasBlockedMe: false,
+        isBlocked: localBlocked,
+      };
+    },
+    [currentUserId, isBlocked],
+  );
+
   const blockUser = useCallback(
-    (userId: string, blockedUserId: string, userInfo?: { name?: string; avatarUrl?: string }) => {
-      if (blockedUsers.some((b) => String(b.blockedUserId) === String(blockedUserId))) return;
+    async (userId: string, blockedUserId: string, userInfo?: { name?: string; avatarUrl?: string }) => {
+      const uid = userId || currentUserId;
+      if (!uid || !blockedUserId || String(uid) === String(blockedUserId)) return;
+
+      const alreadyInList = blockedUsers.some((b) => String(b.blockedUserId) === String(blockedUserId));
 
       const entry: BlockedUser = {
         id: `blk-${Date.now()}`,
-        blockedUserId,
+        blockedUserId: String(blockedUserId),
         blockedUserName: userInfo?.name || 'User',
         blockedUserAvatar: userInfo?.avatarUrl || '',
         blockedAt: new Date().toISOString(),
       };
-      console.log('[Safety] User blocked', { blockedUserId, byUserId: userId });
-      const next = [...blockedUsers, entry];
-      setBlockedUsers(next);
-      void persistBlocks(next);
+
+      if (!alreadyInList) {
+        const next = [...blockedUsers, entry];
+        setBlockedUsers(next);
+        void persistBlocks(uid, next);
+      }
+
+      try {
+        const res = await fetch(`${url}/users/${uid}/block`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            targetUserId: blockedUserId,
+            name: userInfo?.name,
+            avatarUrl: userInfo?.avatarUrl,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.blockedUsers)) {
+            setBlockedUsers(data.blockedUsers);
+            void persistBlocks(uid, data.blockedUsers);
+          }
+        }
+      } catch (err) {
+        console.error('[Safety] Failed to block user on backend:', err);
+      }
     },
-    [blockedUsers, persistBlocks],
+    [blockedUsers, currentUserId, persistBlocks],
   );
 
   const unblockUser = useCallback(
-    (blockedUserId: string) => {
-      console.log('[Safety] User unblocked', { blockedUserId });
+    async (blockedUserId: string, userId?: string) => {
+      const uid = userId || currentUserId;
+      if (!blockedUserId) return;
+
       const next = blockedUsers.filter((b) => String(b.blockedUserId) !== String(blockedUserId));
       setBlockedUsers(next);
-      void persistBlocks(next);
+      if (uid) {
+        void persistBlocks(uid, next);
+      }
+
+      if (uid) {
+        try {
+          const res = await fetch(`${url}/users/${uid}/unblock`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ targetUserId: blockedUserId }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && Array.isArray(data.blockedUsers)) {
+              setBlockedUsers(data.blockedUsers);
+              void persistBlocks(uid, data.blockedUsers);
+            }
+          }
+        } catch (err) {
+          console.error('[Safety] Failed to unblock user on backend:', err);
+        }
+      }
     },
-    [blockedUsers, persistBlocks],
+    [blockedUsers, currentUserId, persistBlocks],
   );
 
   const resolveReport = useCallback(
@@ -233,12 +363,27 @@ export const [SafetyProvider, useSafety] = createContextHook<SafetyContextValue>
       reportReasons: REPORT_REASONS,
       submitReport,
       isBlocked,
+      checkBlockStatus,
       blockUser,
       unblockUser,
       resolveReport,
       pendingReportsCount,
       fetchReports,
+      fetchBlockedUsers,
     }),
-    [reports, blockedUsers, submitReport, isBlocked, blockUser, unblockUser, resolveReport, pendingReportsCount, fetchReports],
+    [
+      reports,
+      blockedUsers,
+      submitReport,
+      isBlocked,
+      checkBlockStatus,
+      blockUser,
+      unblockUser,
+      resolveReport,
+      pendingReportsCount,
+      fetchReports,
+      fetchBlockedUsers,
+    ],
   );
 });
+

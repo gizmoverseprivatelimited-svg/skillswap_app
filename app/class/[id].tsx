@@ -39,10 +39,11 @@ export default function ClassDetailScreen() {
   const insets = useSafeAreaInsets();
   const { getClassById, enrollInClass, cancelEnrollment, completeClass, cancelClass, isEnrolled, refreshClasses } = useClasses();
   const { currentUser, allUsers } = useCurrentUser();
-  const { isBlocked } = useSafety();
+  const { isBlocked, checkBlockStatus } = useSafety();
   const { showAlert } = useAlert();
   const { allSwaps } = useSkillSwaps();
   const { socket } = useSocket();
+  const [isBlockedRelation, setIsBlockedRelation] = useState(false);
 
   useEffect(() => {
     if (refreshClasses) {
@@ -51,6 +52,26 @@ export default function ClassDetailScreen() {
   }, [refreshClasses]);
 
   const cls = useMemo(() => getClassById(id), [getClassById, id]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (cls?.teacherId && currentUser?.id) {
+      if (isBlocked(cls.teacherId)) {
+        setIsBlockedRelation(true);
+      } else {
+        checkBlockStatus(cls.teacherId).then((res) => {
+          if (isMounted) {
+            setIsBlockedRelation(res.isBlocked);
+          }
+        });
+      }
+    } else {
+      setIsBlockedRelation(false);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [cls?.teacherId, currentUser?.id, isBlocked, checkBlockStatus]);
 
   const isCurrentlyEnrolled = useMemo(() => {
     return (id && currentUser) ? isEnrolled(id, currentUser.id) : false;
@@ -96,8 +117,8 @@ export default function ClassDetailScreen() {
       showAlert('Sign In Required', 'Please sign in to your account to enroll in group classes.');
       return;
     }
-    if (cls.teacherId && isBlocked(cls.teacherId)) {
-      showAlert('Action Blocked', 'You cannot enroll in classes hosted by a user you have blocked.');
+    if ((cls.teacherId && isBlocked(cls.teacherId)) || isBlockedRelation) {
+      showAlert('Action Blocked', 'You cannot enroll in classes hosted by this user due to block settings.');
       return;
     }
     const cost = getClassEnrollmentCost(cls.seatPriceCredits);
@@ -129,7 +150,7 @@ export default function ClassDetailScreen() {
         },
       ],
     );
-  }, [cls, currentUser, enrollInClass, showAlert]);
+  }, [cls, currentUser, isBlocked, isBlockedRelation, enrollInClass, showAlert]);
 
   const handleCancelEnrollment = useCallback(() => {
     if (!cls) return;

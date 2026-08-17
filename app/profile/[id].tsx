@@ -48,11 +48,12 @@ export default function UserProfileScreen() {
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Safety state
-  const { submitReport, isBlocked, blockUser, unblockUser, reportReasons } = useSafety();
+  const { submitReport, isBlocked, checkBlockStatus, blockUser, unblockUser, reportReasons } = useSafety();
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [reportDescription, setReportDescription] = useState('');
   const [reportError, setReportError] = useState<string | null>(null);
+  const [isBlockedRelation, setIsBlockedRelation] = useState(false);
 
   const router = useRouter();
   const { swaps, allSwaps } = useSkillSwaps()
@@ -92,20 +93,45 @@ export default function UserProfileScreen() {
     }
   }, [id, user, fetchProfileUser]);
 
-  const teacherClasses = useMemo(() =>
-    user ? getClassesByTeacher(user.id || user._id) : [],
-  [user, getClassesByTeacher]);
+  const uId = useMemo(() => {
+    return user ? String(user.id || user._id || '') : '';
+  }, [user]);
 
-  const userIsBlocked = user ? isBlocked(user.id || user._id) : false;
+  const userIsBlocked = useMemo(() => {
+    return uId ? isBlocked(uId) : false;
+  }, [uId, isBlocked]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (uId && currentUser?.id && uId !== String(currentUser.id)) {
+      if (userIsBlocked) {
+        setIsBlockedRelation(true);
+      } else {
+        checkBlockStatus(uId).then((res) => {
+          if (isMounted) {
+            setIsBlockedRelation(res.isBlocked);
+          }
+        });
+      }
+    } else {
+      setIsBlockedRelation(false);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [uId, currentUser?.id, userIsBlocked, checkBlockStatus]);
+
+  const teacherClasses = useMemo(() =>
+    uId ? getClassesByTeacher(uId) : [],
+  [uId, getClassesByTeacher]);
 
   const handleQuickEnroll = useCallback((cls: ClassWithTeacher) => {
     if (!currentUser || currentUser.id === '1') {
       showAlert('Sign In Required', 'Please sign in to your account to enroll in group classes.');
       return;
     }
-    const uId = user?.id || user?._id;
-    if (uId && isBlocked(uId)) {
-      showAlert('Action Blocked', 'You cannot enroll in classes hosted by a user you have blocked.');
+    if (userIsBlocked || isBlockedRelation) {
+      showAlert('Action Blocked', 'You cannot enroll in classes hosted by this user due to block settings.');
       return;
     }
     const cost = getClassEnrollmentCost(cls.seatPriceCredits);
@@ -138,7 +164,7 @@ export default function UserProfileScreen() {
         },
       ],
     );
-  }, [currentUser, user, isBlocked, enrollInClass, router, showAlert]);
+  }, [currentUser, userIsBlocked, isBlockedRelation, enrollInClass, router, showAlert]);
 
   const fetchReviews = useCallback(async () => {
     const uId = user?.id || user?._id;
@@ -182,8 +208,8 @@ export default function UserProfileScreen() {
     }
     if (!user || !currentUser) return;
 
-    if (isBlocked(user.id)) {
-      showAlert('User Blocked', 'You have blocked this user. Unblock them first to initiate exchanges or send messages.');
+    if (userIsBlocked || isBlockedRelation) {
+      showAlert('Action Blocked', 'You cannot initiate exchanges or send messages to this user due to block settings.');
       return;
     }
     console.log(swaps);
@@ -219,7 +245,7 @@ export default function UserProfileScreen() {
         [{ text: 'OK' }]
       );
     }
-  }, [user, currentUser, isBlocked, swaps, router, showAlert]);
+  }, [user, currentUser, userIsBlocked, isBlockedRelation, swaps, router, showAlert]);
 
   const handleReport = useCallback(() => {
     if (!user || !currentUser) return;
@@ -254,6 +280,7 @@ export default function UserProfileScreen() {
 
   const handleBlock = useCallback(() => {
     if (!user || !currentUser) return;
+    const targetId = user.id || user._id;
     showAlert(
       'Block User',
       `Are you sure you want to block ${user.name}? They won't be able to send you exchange requests, enroll in your classes, or see each other in matches.`,
@@ -262,8 +289,8 @@ export default function UserProfileScreen() {
         {
           text: 'Block',
           style: 'destructive',
-          onPress: () => {
-            blockUser(currentUser.id, user.id, { name: user.name, avatarUrl: user.avatarUrl });
+          onPress: async () => {
+            await blockUser(currentUser.id, targetId, { name: user.name, avatarUrl: user.avatarUrl });
             showAlert('User Blocked', `${user.name} has been blocked.`);
           },
         },
@@ -271,11 +298,12 @@ export default function UserProfileScreen() {
     );
   }, [user, currentUser, blockUser, showAlert]);
 
-  const handleUnblock = useCallback(() => {
+  const handleUnblock = useCallback(async () => {
     if (!user) return;
-    unblockUser(user.id);
+    const targetId = user.id || user._id;
+    await unblockUser(targetId, currentUser?.id);
     showAlert('User Unblocked', `${user.name} has been unblocked.`);
-  }, [user, unblockUser, showAlert]);
+  }, [user, currentUser?.id, unblockUser, showAlert]);
 
   if (isLoading) {
     return (
