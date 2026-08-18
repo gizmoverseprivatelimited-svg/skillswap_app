@@ -363,9 +363,17 @@ function SpotlightView({
 
       {/* Self PiP */}
       {localParticipant && (
-        <View style={styles.selfPip}>
-          <ParticipantTile participant={localParticipant} mode={mode} isSmall />
-        </View>
+        <TouchableOpacity
+          style={styles.selfPip}
+          onPress={() => onSpotlight(localParticipant.id === participant.id ? (remoteParticipants[0]?.id ?? '') : localParticipant.id)}
+          activeOpacity={0.85}
+        >
+          <ParticipantTile
+            participant={localParticipant.id === participant.id ? (remoteParticipants[0] ?? localParticipant) : localParticipant}
+            mode={mode}
+            isSmall
+          />
+        </TouchableOpacity>
       )}
 
       {/* Filmstrip for group calls */}

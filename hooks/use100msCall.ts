@@ -73,9 +73,12 @@ export function use100msCall({
                 isMuted: false,
               };
             }
+            // In 1-on-1 test mode on web, also attach stream to remote partner for preview if needed
             return {
               ...p,
               status: 'connected' as const,
+              mediaStream: p.mediaStream || (prev.length === 2 ? stream : undefined),
+              isVideoOff: false,
             };
           }));
         })
@@ -129,6 +132,42 @@ export function use100msCall({
                 isVideoOff: data.localPeer.videoTrack.isMute() ?? false,
               } : p));
             }
+
+            // Update any existing remote peers in the room immediately
+            if (data?.remotePeers && Array.isArray(data.remotePeers) && data.remotePeers.length > 0) {
+              for (const remotePeer of data.remotePeers) {
+                setParticipants(prev => {
+                  const existingIndex = prev.findIndex(p => !p.isLocal && (p.id === remotePeer.peerID || p.role === remotePeer.role?.name));
+                  if (existingIndex !== -1) {
+                    return prev.map((p, idx) => idx === existingIndex ? {
+                      ...p,
+                      id: remotePeer.peerID,
+                      videoTrackId: remotePeer.videoTrack?.trackId,
+                      isVideoOff: remotePeer.videoTrack?.isMute() ?? false,
+                      isMuted: remotePeer.audioTrack?.isMute() ?? false,
+                      status: 'connected',
+                    } : p);
+                  }
+                  return [
+                    ...prev,
+                    {
+                      id: remotePeer.peerID,
+                      name: remotePeer.name || 'Participant',
+                      avatarUrl: '',
+                      role: remotePeer.role?.name?.includes('teacher') || remotePeer.role?.name?.includes('host') ? 'teacher' : 'student',
+                      isLocal: false,
+                      isMuted: remotePeer.audioTrack?.isMute() ?? true,
+                      isVideoOff: remotePeer.videoTrack?.isMute() ?? false,
+                      isHandRaised: false,
+                      isSpeaking: false,
+                      status: 'connected',
+                      joinedAt: new Date().toISOString(),
+                      videoTrackId: remotePeer.videoTrack?.trackId,
+                    },
+                  ];
+                });
+              }
+            }
           });
 
           hms.addEventListener(HMSUpdateListenerActions.ON_PEER_UPDATE, (data: any) => {
@@ -139,7 +178,14 @@ export function use100msCall({
             if (type === 'PEER_JOINED' && !peer.isLocal) {
               setParticipants(prev => {
                 const exists = prev.find(p => p.id === peer.peerID);
-                if (exists) return prev;
+                if (exists) {
+                  return prev.map(p => p.id === peer.peerID ? {
+                    ...p,
+                    status: 'connected',
+                    videoTrackId: peer.videoTrack?.trackId || p.videoTrackId,
+                    isVideoOff: peer.videoTrack?.isMute() ?? p.isVideoOff,
+                  } : p);
+                }
                 return [
                   ...prev,
                   {
@@ -149,7 +195,7 @@ export function use100msCall({
                     role: peer.role?.name?.includes('teacher') || peer.role?.name?.includes('host') ? 'teacher' : 'student',
                     isLocal: false,
                     isMuted: peer.audioTrack?.isMute() ?? true,
-                    isVideoOff: peer.videoTrack?.isMute() ?? true,
+                    isVideoOff: peer.videoTrack?.isMute() ?? false,
                     isHandRaised: false,
                     isSpeaking: false,
                     status: 'connected',
@@ -168,27 +214,34 @@ export function use100msCall({
             const { peer, track, type } = data;
             if (!peer || !track) return;
 
-            setParticipants(prev => prev.map(p => {
-              const isTarget = p.isLocal ? peer.isLocal : p.id === peer.peerID;
-              if (!isTarget) return p;
+            setParticipants(prev => {
+              let updatedAny = false;
+              const next = prev.map(p => {
+                const isTarget = p.isLocal ? peer.isLocal : (p.id === peer.peerID || (!peer.isLocal && !updatedAny && !p.isLocal));
+                if (!isTarget) return p;
+                updatedAny = true;
 
-              if (track.type === 'VIDEO') {
-                const isVideoMuted = track.isMute() || type === 'TRACK_MUTED' || type === 'TRACK_REMOVED';
-                return {
-                  ...p,
-                  videoTrackId: type === 'TRACK_REMOVED' ? undefined : track.trackId,
-                  isVideoOff: isVideoMuted,
-                };
-              }
-              if (track.type === 'AUDIO') {
-                const isAudioMuted = track.isMute() || type === 'TRACK_MUTED' || type === 'TRACK_REMOVED';
-                return {
-                  ...p,
-                  isMuted: isAudioMuted,
-                };
-              }
-              return p;
-            }));
+                if (track.type === 'VIDEO') {
+                  const isVideoMuted = track.isMute() || type === 'TRACK_MUTED' || type === 'TRACK_REMOVED';
+                  return {
+                    ...p,
+                    id: peer.isLocal ? p.id : peer.peerID,
+                    videoTrackId: type === 'TRACK_REMOVED' ? undefined : track.trackId,
+                    isVideoOff: isVideoMuted,
+                    status: 'connected' as const,
+                  };
+                }
+                if (track.type === 'AUDIO') {
+                  const isAudioMuted = track.isMute() || type === 'TRACK_MUTED' || type === 'TRACK_REMOVED';
+                  return {
+                    ...p,
+                    isMuted: isAudioMuted,
+                  };
+                }
+                return p;
+              });
+              return next;
+            });
           });
 
           hms.addEventListener(HMSUpdateListenerActions.ON_MESSAGE, (data: any) => {
