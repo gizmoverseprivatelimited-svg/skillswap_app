@@ -1,10 +1,8 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import HMSView from '@/components/HMSView';
 import CallScreen from '@/components/CallScreen';
 import { useCurrentUser } from '@/providers/current-user';
 import { useAuth } from '@/providers/auth';
@@ -205,41 +203,6 @@ export default function UnifiedCallScreen() {
     );
   }
 
-  // If loading 100ms room code from backend
-  if (loadingCode) {
-    return (
-      <View style={styles.loadingContainer}>
-        <LinearGradient colors={['#0B1120', '#1E293B', '#0F172A']} style={styles.loadingGradient}>
-          <ActivityIndicator size="large" color="#6366F1" />
-          <Text style={styles.loadingTitle}>Connecting to 100ms Video Room...</Text>
-          <Text style={styles.loadingSub}>Setting up secure real-time WebRTC media</Text>
-        </LinearGradient>
-      </View>
-    );
-  }
-
-  // If 100ms Room Code is available, render real live 100ms WebRTC Video Room
-  if (roomCode) {
-    const userName = currentUser?.name
-      ? `${currentUser.name}${cls ? ` (${isTeacher ? 'Teacher' : 'Student'})` : ''}`
-      : isTeacher
-      ? 'Teacher'
-      : 'Guest';
-
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
-        <HMSView
-          roomCode={roomCode}
-          authToken={authToken}
-          userName={userName}
-          onLeave={handleEndCall}
-          isTeacher={isTeacher}
-        />
-      </SafeAreaView>
-    );
-  }
-
-  // Fallback to custom interactive CallScreen
   const roomTitle = cls ? cls.title : `Skill swap with ${partner?.name || 'Partner'}`;
   const isGroupCall = Boolean(cls);
 
