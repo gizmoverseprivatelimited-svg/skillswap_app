@@ -1,167 +1,144 @@
+import { useMemo } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import { useMemo, useState, useEffect } from 'react';
-import VideoCallScreen from '../../components/VideoCallScreen';
-import HMSView from '../../components/HMSView';
-import { useCurrentUser } from '../../providers/current-user';
-import { useSkillSwaps } from '../../providers/skill-swaps';
-import { resolveImageUrl } from '@/lib/resolveImageUrl';
+import CallScreen from '@/components/CallScreen';
+import { useCurrentUser } from '@/providers/current-user';
+import { useSkillSwaps } from '@/providers/skill-swaps';
+import { useClasses } from '@/providers/classes';
+import { mockUsers } from '@/mocks/data';
+import {
+  buildLocalParticipant,
+  buildRemoteParticipant,
+  buildMockClassParticipants,
+  type CallParticipant,
+  type CallMode,
+} from '@/lib/call-engine';
 
-export default function CallScreen() {
-  const { swapId, isJoining } = useLocalSearchParams<{ swapId: string, isJoining?: string }>();
+export default function UnifiedCallScreen() {
+  const { swapId, classId, id, mode } = useLocalSearchParams<{
+    swapId?: string;
+    classId?: string;
+    id?: string;
+    mode?: string;
+  }>();
+  const targetId = (swapId || classId || id || '') as string;
   const router = useRouter();
   const { currentUser, allUsers } = useCurrentUser();
-
   const { getSwapById } = useSkillSwaps();
+  const { getClassById } = useClasses();
 
+  const callMode: CallMode = mode === 'voice' ? 'voice' : 'video';
+
+  // 1. Check if it's a class call
+  const cls = useMemo(() => {
+    if (!targetId) return undefined;
+    return getClassById(targetId);
+  }, [getClassById, targetId]);
+
+  // 2. Check if it's a swap call
   const swap = useMemo(() => {
-    if (!swapId) {
-      return undefined;
-    }
-    return getSwapById(swapId);
-  }, [getSwapById, swapId]);
+    if (!targetId || cls) return undefined;
+    return getSwapById(targetId);
+  }, [getSwapById, targetId, cls]);
 
   const partner = useMemo(() => {
-    if (!swap) {
-      return undefined;
+    if (!swap || !currentUser) return undefined;
+    const partnerId = swap.requesterId === currentUser.id ? swap.recipientId : swap.requesterId;
+    return allUsers.find((u) => u.id === partnerId) || mockUsers.find((u) => u.id === partnerId);
+  }, [allUsers, currentUser, swap]);
+
+  const participants: CallParticipant[] = useMemo(() => {
+    if (!currentUser) return [];
+
+    if (cls) {
+      const teacher = allUsers.find((u) => u.id === cls.teacherId) || mockUsers.find((u) => u.id === cls.teacherId);
+      const isTeacher = cls.teacherId === currentUser.id;
+      const localRole = isTeacher ? 'teacher' : 'student';
+      const local = buildLocalParticipant(currentUser, localRole);
+
+      const others: CallParticipant[] = [];
+      if (teacher && teacher.id !== currentUser.id) {
+        others.push(
+          buildRemoteParticipant(
+            { id: teacher.id, name: teacher.name, avatarUrl: teacher.avatarUrl },
+            'teacher',
+          ),
+        );
+      }
+
+      const enrolledStudents = (cls.enrollments || [])
+        .filter((e) => e.studentId !== currentUser.id && e.status === 'enrolled')
+        .map((e) => allUsers.find((u) => u.id === e.studentId) || mockUsers.find((u) => u.id === e.studentId))
+        .filter((u): u is NonNullable<typeof u> => u !== undefined);
+
+      others.push(...buildMockClassParticipants(Math.max(enrolledStudents.length, 3)));
+      return [local, ...others];
     }
-    const partnerId = swap.requesterId === currentUser?.id ? swap.recipientId : swap.requesterId;
-    // console.log(allUsers.find((user) => user.id === partnerId));
-    allUsers.find((user) => {
-      console.log(user.id);
-      return user.id === partnerId
-    })
-    return allUsers.find((user) => user.id === partnerId);
-  }, [allUsers, currentUser?.id, swap]);
+
+    if (swap && partner) {
+      return [
+        buildLocalParticipant(currentUser, 'guest'),
+        buildRemoteParticipant(
+          { id: partner.id, name: partner.name, avatarUrl: partner.avatarUrl },
+          'host',
+        ),
+      ];
+    }
+
+    return [];
+  }, [cls, swap, partner, currentUser, allUsers]);
 
   const handleEndCall = () => {
     if (router.canGoBack()) {
       router.back();
+    } else if (cls) {
+      router.replace(`/class/${cls.id}` as any);
+    } else if (swap) {
+      router.replace(`/swaps/${swap.id}` as any);
     } else {
-      router.replace(`/swaps/${swapId}`);
+      router.replace('/(tabs)/home' as any);
     }
   };
 
-
-
-  const [roomCode, setRoomCode] = useState<string | null>(null);
-  const [loadingCode, setLoadingCode] = useState(true);
-
-  useEffect(() => {
-    async function fetchRoomCode() {
-      if (!swapId) return;
-      try {
-        const { default: url } = await import('@/constants/backurl');
-        const joinParam = isJoining ? `&isJoining=true` : '';
-        const res = await fetch(`${url}/swaps/${swapId}/100ms-room?userId=${currentUser?.id || ''}${joinParam}`);
-        if (res.ok) {
-          const data = await res.json();
-          setRoomCode(data.roomCode);
-        } else {
-          console.error('Failed to fetch room code', await res.text());
-        }
-      } catch (err) {
-        console.error('Error fetching room code:', err);
-      } finally {
-        setLoadingCode(false);
-      }
-    }
-    fetchRoomCode();
-  }, [swapId, currentUser?.id]);
-
-  if (!swap) {
+  if (!cls && (!swap || !partner)) {
     return (
       <View style={styles.errorContainer}>
-        <LinearGradient
-          colors={['#1F2937', '#111827']}
-          style={styles.errorGradient}
-        >
-          <View style={styles.safeAreaTop} />
+        <LinearGradient colors={['#0B1120', '#1E293B']} style={styles.errorGradient}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={20} color="#F8FAFC" />
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
           <View style={styles.errorContent}>
             <Text style={styles.errorTitle}>Call not available</Text>
-            <Text style={styles.errorMessage}>Swap details could not be loaded.</Text>
+            <Text style={styles.errorMessage}>Unable to load call session details.</Text>
           </View>
-          <View style={styles.safeAreaBottom} />
         </LinearGradient>
       </View>
     );
   }
 
-  if (loadingCode) {
-    return (
-      <View style={[styles.errorContainer, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#111827' }]}>
-        <Text style={{ color: '#fff', marginTop: 20 }}>Joining room...</Text>
-      </View>
-    );
-  }
+  const roomTitle = cls ? cls.title : `Skill swap with ${partner?.name || 'Partner'}`;
+  const isGroupCall = Boolean(cls);
 
-  if (roomCode) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
-        <HMSView
-          roomCode={roomCode}
-          userName={currentUser?.name || 'Guest'}
-          onLeave={handleEndCall}
-        />
-      </SafeAreaView>
-    );
-  }
-
-  // Fallback to placeholder if roomCode fails
   return (
-    <VideoCallScreen
-      partnerName={partner?.name || 'Partner'}
-      partnerImage={resolveImageUrl(partner?.avatarUrl)}
+    <CallScreen
+      participants={participants}
+      roomTitle={roomTitle}
+      mode={callMode}
+      isGroupCall={isGroupCall}
       onEndCall={handleEndCall}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  errorContainer: {
-    flex: 1,
-  },
-  errorGradient: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  safeAreaTop: {
-    height: 50,
-  },
-  safeAreaBottom: {
-    height: 34,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  backText: {
-    fontSize: 14,
-    color: '#F8FAFC',
-    fontWeight: '600' as const,
-  },
-  errorContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: '800' as const,
-    color: '#FFFFFF',
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center' as const,
-  },
+  errorContainer: { flex: 1 },
+  errorGradient: { flex: 1, paddingHorizontal: 20, paddingTop: 60 },
+  backButton: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backText: { fontSize: 14, color: '#F8FAFC', fontWeight: '600' as const },
+  errorContent: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  errorTitle: { fontSize: 24, fontWeight: '800' as const, color: '#FFFFFF' },
+  errorMessage: { fontSize: 14, color: 'rgba(255,255,255,0.7)', textAlign: 'center' as const },
 });

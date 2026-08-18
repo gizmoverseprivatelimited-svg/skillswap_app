@@ -42,3 +42,4 @@ android/
 .env
 rork-eslint.config.js
 server/
+expo/

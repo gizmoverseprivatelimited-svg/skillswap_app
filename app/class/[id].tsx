@@ -211,21 +211,16 @@ export default function ClassDetailScreen() {
   const handleStartClass = useCallback(async () => {
     if (!cls) return;
     try {
-      const res = await fetch(`${url}/classes/${cls.id}/start`, {
+      fetch(`${url}/classes/${cls.id}/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        router.push(`/class/call/${cls.id}` as any);
-      } else {
-        const data = await res.json();
-        showAlert('Cannot start class', data.error || 'Failed to start class session.');
-      }
+      }).catch((e) => console.log('[handleStartClass] background notify error:', e));
+      router.push(`/call/${cls.id}?mode=video` as any);
     } catch (err) {
       console.error('[handleStartClass] Error:', err);
-      showAlert('Error', 'Could not start class session. Please try again.');
+      router.push(`/call/${cls.id}?mode=video` as any);
     }
-  }, [cls, router, showAlert]);
+  }, [cls, router]);
 
   if (!cls) {
     return (
@@ -444,7 +439,7 @@ export default function ClassDetailScreen() {
                 <>
                   <TouchableOpacity style={s.startClassBtn} onPress={handleStartClass} activeOpacity={0.8}>
                     <Video size={20} color="#FFFFFF" />
-                    <Text style={s.startClassBtnText}>Start Live Class</Text>
+                    <Text style={s.startClassBtnText}>Start Class Call</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={s.completeBtn} onPress={handleCompleteClass} activeOpacity={0.8}>
                     <CheckCircle2 size={20} color="#FFFFFF" />
@@ -463,12 +458,10 @@ export default function ClassDetailScreen() {
             <View>
               {enrolled && classOpen ? (
                 <>
-                  {Boolean(cls.isLive) && (
-                    <TouchableOpacity style={s.joinLiveBtn} onPress={() => router.push(`/class/call/${cls.id}` as any)} activeOpacity={0.8}>
-                      <Video size={20} color="#FFFFFF" />
-                      <Text style={s.joinLiveBtnText}>Join Live Class Now</Text>
-                    </TouchableOpacity>
-                  )}
+                  <TouchableOpacity style={[s.startClassBtn, { backgroundColor: '#8B5CF6' }]} onPress={() => router.push(`/call/${cls.id}?mode=video` as any)} activeOpacity={0.8}>
+                    <Video size={20} color="#FFFFFF" />
+                    <Text style={s.startClassBtnText}>Join Class Call</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity style={s.enrolledBtn} onPress={handleCancelEnrollment} activeOpacity={0.8}>
                     <CheckCircle2 size={18} color="#FFFFFF" />
                     <Text style={s.enrolledBtnText}>Enrolled — Tap to cancel</Text>

@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Platfo
 import { useAlert } from '@/providers/alert';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { MapPin, Clock, Check, X, Send, Sparkles, CalendarClock, PlusCircle, ArrowLeft, ShieldCheck, Video, CalendarPlus, Download, GraduationCap, BookOpen, ArrowLeftRight, Coins, Zap, AlertTriangle } from 'lucide-react-native';
+import { MapPin, Clock, Check, X, Send, Sparkles, CalendarClock, PlusCircle, ArrowLeft, ShieldCheck, Video, Phone, CalendarPlus, Download, GraduationCap, BookOpen, ArrowLeftRight, Coins, Zap, AlertTriangle } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 import { useSkillSwaps } from '../../providers/skill-swaps';
 import { useCurrentUser } from '../../providers/current-user';
@@ -828,18 +828,32 @@ export default function SwapDetailScreen() {
             </View>
             <View style={styles.callActions}>
               <TouchableOpacity
-                style={[styles.callButton, styles.videoCallButton]}
+                style={[styles.callButton, styles.videoCallButton, { backgroundColor: '#8B5CF6' }]}
                 onPress={() => {
                   if (typeof document !== 'undefined' && document.activeElement) {
                     (document.activeElement as HTMLElement).blur();
                   }
-                  router.push(`/call/${swap.id}`);
+                  router.push(`/call/${swap.id}?mode=video` as any);
                 }}
                 activeOpacity={0.9}
                 testID="start-video-call"
               >
                 <Video size={20} color="#FFFFFF" />
                 <Text style={styles.callButtonText}>Video Call</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.callButton, { backgroundColor: '#10B981' }]}
+                onPress={() => {
+                  if (typeof document !== 'undefined' && document.activeElement) {
+                    (document.activeElement as HTMLElement).blur();
+                  }
+                  router.push(`/call/${swap.id}?mode=voice` as any);
+                }}
+                activeOpacity={0.9}
+                testID="start-voice-call"
+              >
+                <Phone size={20} color="#FFFFFF" />
+                <Text style={styles.callButtonText}>Voice Call</Text>
               </TouchableOpacity>
             </View>
             {roleInfo?.myRole !== 'Teacher' && (
