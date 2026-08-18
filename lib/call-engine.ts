@@ -3,7 +3,9 @@ import type { User } from '../types';
 export type CallRole = 'host' | 'guest' | 'teacher' | 'student';
 export type CallMode = 'video' | 'voice';
 export type ParticipantStatus = 'connecting' | 'connected' | 'disconnected' | 'hand_raised' | 'muted' | 'video_off';
-export type CallLayout = 'grid' | 'spotlight' | 'speaker';
+export type CallLayout = 'grid' | 'spotlight' | 'screenshare';
+
+export type AudioDevice = 'SPEAKER_PHONE' | 'EARPIECE' | 'WIRED_HEADSET' | 'BLUETOOTH' | 'AUTOMATIC';
 
 export interface CallParticipant {
   id: string;
@@ -18,7 +20,10 @@ export interface CallParticipant {
   status: ParticipantStatus;
   joinedAt: string;
   videoTrackId?: string;
+  screenShareTrackId?: string;
   mediaStream?: any;
+  screenShareStream?: any;
+  networkQuality?: number; // 0 to 5 (5 is best)
 }
 
 export interface CallMessage {
@@ -30,6 +35,13 @@ export interface CallMessage {
   isSystem?: boolean;
 }
 
+export interface CallReaction {
+  id: string;
+  emoji: string;
+  senderName: string;
+  timestamp: number;
+}
+
 export interface CallState {
   participants: CallParticipant[];
   messages: CallMessage[];
@@ -37,6 +49,8 @@ export interface CallState {
   layout: CallLayout;
   isConnected: boolean;
   spotlightId: string | null;
+  isScreenSharing: boolean;
+  selectedAudioDevice: AudioDevice;
 }
 
 export interface CallConfig {
@@ -78,6 +92,7 @@ export function buildLocalParticipant(user: User, role: CallRole): CallParticipa
     isSpeaking: false,
     status: 'connected',
     joinedAt: new Date().toISOString(),
+    networkQuality: 5,
   };
 }
 
@@ -97,6 +112,7 @@ export function buildRemoteParticipant(
     isSpeaking: false,
     status: 'connecting',
     joinedAt: new Date().toISOString(),
+    networkQuality: 5,
   };
 }
 
@@ -119,6 +135,7 @@ export function buildMockClassParticipants(count: number): CallParticipant[] {
       isSpeaking: false,
       status: Math.random() > 0.15 ? 'connected' : 'connecting',
       joinedAt: new Date(Date.now() - Math.random() * 120000).toISOString(),
+      networkQuality: Math.floor(Math.random() * 3) + 3,
     });
   }
   return result;
@@ -165,4 +182,8 @@ export function stopSpeakingSimulator(): void {
 
 export function generateCallMessageId(): string {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function generateReactionId(): string {
+  return `react-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }

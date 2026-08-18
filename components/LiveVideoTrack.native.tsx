@@ -8,15 +8,17 @@ export interface LiveVideoTrackProps {
   trackId?: string;
   mediaStream?: any;
   mirror?: boolean;
+  scaleType?: 'fill' | 'fit';
   style?: ViewStyle;
 }
 
-export default function LiveVideoTrack({ trackId, mirror = false, style }: LiveVideoTrackProps) {
+export default function LiveVideoTrack({ trackId, mirror = false, scaleType = 'fill', style }: LiveVideoTrackProps) {
   if (!trackId) {
     return <View style={[styles.container, style]} />;
   }
 
   const flattenedStyle = StyleSheet.flatten([styles.container, style]);
+  const hmsScaleType = scaleType === 'fit' ? HMSVideoViewMode.ASPECT_FIT : HMSVideoViewMode.ASPECT_FILL;
 
   return (
     <NativeHMSView
@@ -24,10 +26,10 @@ export default function LiveVideoTrack({ trackId, mirror = false, style }: LiveV
         trackId,
         id: 'default-hms-view',
         mirror,
-        scaleType: HMSVideoViewMode.ASPECT_FILL,
+        scaleType: hmsScaleType,
       }}
       autoSimulcast={true}
-      scaleType={HMSVideoViewMode.ASPECT_FILL}
+      scaleType={hmsScaleType}
       setZOrderMediaOverlay={false}
       style={flattenedStyle}
     />

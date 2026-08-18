@@ -5,10 +5,11 @@ export interface LiveVideoTrackProps {
   trackId?: string;
   mediaStream?: MediaStream | null;
   mirror?: boolean;
+  scaleType?: 'fill' | 'fit';
   style?: ViewStyle;
 }
 
-export default function LiveVideoTrack({ mediaStream, mirror = false, style }: LiveVideoTrackProps) {
+export default function LiveVideoTrack({ mediaStream, mirror = false, scaleType = 'fill', style }: LiveVideoTrackProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -25,7 +26,7 @@ export default function LiveVideoTrack({ mediaStream, mirror = false, style }: L
   }
 
   return (
-    <div style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000' }}>
       <video
         ref={videoRef}
         autoPlay
@@ -34,7 +35,7 @@ export default function LiveVideoTrack({ mediaStream, mirror = false, style }: L
         style={{
           width: '100%',
           height: '100%',
-          objectFit: 'cover',
+          objectFit: scaleType === 'fit' ? 'contain' : 'cover',
           transform: mirror ? 'scaleX(-1)' : 'none',
         }}
       />

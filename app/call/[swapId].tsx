@@ -182,8 +182,19 @@ export default function UnifiedCallScreen() {
   const {
     participants: liveParticipants,
     messages: liveMessages,
+    reactions: liveReactions,
+    isScreenSharing,
+    selectedAudioDevice,
+    availableAudioDevices,
     toggleMute,
     toggleVideo,
+    switchCamera,
+    toggleScreenShare,
+    switchAudioOutput,
+    toggleHand,
+    sendReaction,
+    muteParticipant,
+    removeParticipant,
     sendMessage,
     leaveCall,
   } = use100msCall({
@@ -222,9 +233,21 @@ export default function UnifiedCallScreen() {
       roomTitle={roomTitle}
       mode={callMode}
       isGroupCall={isGroupCall}
+      isTeacher={isTeacher}
       onEndCall={leaveCall}
       onToggleMute={toggleMute}
       onToggleVideo={toggleVideo}
+      onSwitchCamera={switchCamera}
+      onToggleScreenShare={toggleScreenShare}
+      isScreenSharing={isScreenSharing}
+      onSwitchAudioOutput={switchAudioOutput}
+      selectedAudioDevice={selectedAudioDevice}
+      availableAudioDevices={availableAudioDevices}
+      onToggleHand={toggleHand}
+      onSendReaction={sendReaction}
+      reactions={liveReactions}
+      onMuteParticipant={muteParticipant}
+      onRemoveParticipant={removeParticipant}
       onSendMessage={(text) => sendMessage(text, currentUser?.id || 'local', currentUser?.name || 'You')}
       externalMessages={liveMessages}
     />

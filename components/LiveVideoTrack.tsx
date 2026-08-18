@@ -5,6 +5,7 @@ export interface LiveVideoTrackProps {
   trackId?: string;
   mediaStream?: any;
   mirror?: boolean;
+  scaleType?: 'fill' | 'fit';
   style?: ViewStyle;
 }
 

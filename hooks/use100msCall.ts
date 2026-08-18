@@ -4,7 +4,10 @@ import {
   type CallParticipant,
   type CallMessage,
   type CallMode,
+  type CallReaction,
+  type AudioDevice,
   generateCallMessageId,
+  generateReactionId,
 } from '../lib/call-engine';
 
 interface Use100msCallProps {
@@ -28,12 +31,16 @@ export function use100msCall({
 }: Use100msCallProps) {
   const [participants, setParticipants] = useState<CallParticipant[]>(initialParticipants);
   const [messages, setMessages] = useState<CallMessage[]>([]);
+  const [reactions, setReactions] = useState<CallReaction[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
-  const [localStream, setLocalStream] = useState<any>(null);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [selectedAudioDevice, setSelectedAudioDevice] = useState<AudioDevice>('SPEAKER_PHONE');
+  const [availableAudioDevices, setAvailableAudioDevices] = useState<string[]>(['SPEAKER_PHONE', 'EARPIECE']);
 
   const hmsInstanceRef = useRef<any>(null);
   const webStreamRef = useRef<any>(null);
+  const webScreenStreamRef = useRef<any>(null);
 
   // Sync initial participants
   useEffect(() => {
@@ -59,7 +66,6 @@ export function use100msCall({
             return;
           }
           webStreamRef.current = stream;
-          setLocalStream(stream);
           setIsConnecting(false);
           setIsConnected(true);
 
@@ -111,6 +117,16 @@ export function use100msCall({
 
           const hms = await HMSSDK.build();
           hmsInstanceRef.current = hms;
+
+          // Query audio output devices
+          try {
+            const devices = await hms.getAudioDevicesList();
+            if (devices && Array.isArray(devices)) {
+              setAvailableAudioDevices(devices);
+            }
+          } catch (e) {
+            console.log('Audio devices notice:', e);
+          }
 
           // Register listeners
           hms.addEventListener(HMSUpdateListenerActions.ON_JOIN, (data: any) => {
@@ -203,6 +219,13 @@ export function use100msCall({
               });
             } else if (type === 'PEER_LEFT' && !peer.isLocal) {
               setParticipants(prev => prev.filter(p => p.id !== peer.peerID));
+            } else if (type === 'METADATA_CHANGED') {
+              try {
+                const meta = JSON.parse(peer.metadata || '{}');
+                if (typeof meta.isHandRaised === 'boolean') {
+                  setParticipants(prev => prev.map(p => p.id === peer.peerID ? { ...p, isHandRaised: meta.isHandRaised } : p));
+                }
+              } catch (e) { }
             }
           });
 
@@ -213,10 +236,18 @@ export function use100msCall({
 
             setParticipants(prev => {
               let updatedAny = false;
-              const next = prev.map(p => {
+              return prev.map(p => {
                 const isTarget = p.isLocal ? peer.isLocal : (p.id === peer.peerID || (!peer.isLocal && !updatedAny && !p.isLocal));
                 if (!isTarget) return p;
                 updatedAny = true;
+
+                if (track.source === 'SCREEN' || track.trackId?.includes('screen')) {
+                  const isTrackOff = track.isMute() || type === 'TRACK_REMOVED';
+                  return {
+                    ...p,
+                    screenShareTrackId: isTrackOff ? undefined : track.trackId,
+                  };
+                }
 
                 if (track.type === 'VIDEO') {
                   const isVideoMuted = track.isMute() || type === 'TRACK_MUTED' || type === 'TRACK_REMOVED';
@@ -237,17 +268,35 @@ export function use100msCall({
                 }
                 return p;
               });
-              return next;
             });
           });
 
           hms.addEventListener(HMSUpdateListenerActions.ON_MESSAGE, (data: any) => {
             if (!isMounted || !data) return;
+            const rawMsg = data.message || '';
+
+            // Check if message is a reaction broadcast
+            try {
+              if (rawMsg.startsWith('{') && rawMsg.includes('"type":"reaction"')) {
+                const parsed = JSON.parse(rawMsg);
+                if (parsed.emoji) {
+                  const reaction: CallReaction = {
+                    id: generateReactionId(),
+                    emoji: parsed.emoji,
+                    senderName: data.sender?.name || 'Participant',
+                    timestamp: Date.now(),
+                  };
+                  setReactions(prev => [...prev.slice(-15), reaction]);
+                  return;
+                }
+              }
+            } catch (e) { }
+
             const incoming: CallMessage = {
               id: generateCallMessageId(),
               authorId: data.sender?.peerID || 'peer',
               authorName: data.sender?.name || 'Participant',
-              body: data.message || '',
+              body: rawMsg,
               createdAt: new Date().toISOString(),
             };
             setMessages(prev => [...prev, incoming]);
@@ -260,6 +309,11 @@ export function use100msCall({
               ...p,
               isSpeaking: speakingIds.has(p.id),
             })));
+          });
+
+          hms.addEventListener(HMSUpdateListenerActions.ON_REMOVED_FROM_ROOM, () => {
+            console.log('[100ms] You were removed from the room');
+            onEndCall();
           });
 
           hms.addEventListener(HMSUpdateListenerActions.ON_ERROR, (error: any) => {
@@ -291,7 +345,7 @@ export function use100msCall({
         }
       };
     } else {
-      // Fallback for simulation / expo go
+      // Fallback for simulation
       const timeout = setTimeout(() => {
         setIsConnecting(false);
         setIsConnected(true);
@@ -307,14 +361,12 @@ export function use100msCall({
       const local = prev.find(p => p.isLocal);
       const nextMuted = !(local?.isMuted ?? false);
 
-      // Web audio track control
       if (webStreamRef.current) {
         webStreamRef.current.getAudioTracks().forEach((track: any) => {
           track.enabled = !nextMuted;
         });
       }
 
-      // Native 100ms audio track control
       if (hmsInstanceRef.current?.localPeer?.localAudioTrack()) {
         hmsInstanceRef.current.localPeer.localAudioTrack().setMute(nextMuted);
       }
@@ -329,14 +381,12 @@ export function use100msCall({
       const local = prev.find(p => p.isLocal);
       const nextVideoOff = !(local?.isVideoOff ?? false);
 
-      // Web video track control
       if (webStreamRef.current) {
         webStreamRef.current.getVideoTracks().forEach((track: any) => {
           track.enabled = !nextVideoOff;
         });
       }
 
-      // Native 100ms video track control
       if (hmsInstanceRef.current?.localPeer?.localVideoTrack()) {
         hmsInstanceRef.current.localPeer.localVideoTrack().setMute(nextVideoOff);
       }
@@ -344,6 +394,129 @@ export function use100msCall({
       return prev.map(p => p.isLocal ? { ...p, isVideoOff: nextVideoOff } : p);
     });
   }, []);
+
+  // Switch camera (Front / Back)
+  const switchCamera = useCallback(async () => {
+    if (hmsInstanceRef.current?.localPeer?.localVideoTrack()) {
+      try {
+        await hmsInstanceRef.current.localPeer.localVideoTrack().switchCamera();
+      } catch (err) {
+        console.warn('[100ms] switchCamera error:', err);
+      }
+    }
+  }, []);
+
+  // Screen Sharing (Start / Stop)
+  const toggleScreenShare = useCallback(async () => {
+    if (isScreenSharing) {
+      // Stop screenshare
+      if (Platform.OS === 'web') {
+        if (webScreenStreamRef.current) {
+          webScreenStreamRef.current.getTracks().forEach((t: any) => t.stop());
+          webScreenStreamRef.current = null;
+        }
+        setParticipants(prev => prev.map(p => p.isLocal ? { ...p, screenShareStream: undefined } : p));
+      } else if (hmsInstanceRef.current) {
+        try {
+          await hmsInstanceRef.current.stopScreenshare();
+        } catch (e) {
+          console.warn('[100ms] stopScreenshare error:', e);
+        }
+      }
+      setIsScreenSharing(false);
+    } else {
+      // Start screenshare
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.mediaDevices?.getDisplayMedia) {
+        try {
+          const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+          webScreenStreamRef.current = screenStream;
+          setIsScreenSharing(true);
+
+          screenStream.getVideoTracks()[0].onended = () => {
+            setIsScreenSharing(false);
+            setParticipants(prev => prev.map(p => p.isLocal ? { ...p, screenShareStream: undefined } : p));
+          };
+
+          setParticipants(prev => prev.map(p => p.isLocal ? { ...p, screenShareStream: screenStream } : p));
+        } catch (err) {
+          console.warn('[use100msCall] DisplayMedia error:', err);
+        }
+      } else if (hmsInstanceRef.current) {
+        try {
+          await hmsInstanceRef.current.startScreenshare();
+          setIsScreenSharing(true);
+        } catch (err) {
+          console.warn('[100ms] startScreenshare error:', err);
+        }
+      }
+    }
+  }, [isScreenSharing]);
+
+  // Audio Device Routing
+  const switchAudioOutput = useCallback(async (device: AudioDevice) => {
+    setSelectedAudioDevice(device);
+    if (hmsInstanceRef.current) {
+      try {
+        await hmsInstanceRef.current.switchAudioOutput(device);
+      } catch (err) {
+        console.warn('[100ms] switchAudioOutput error:', err);
+      }
+    }
+  }, []);
+
+  // Hand raise / lower
+  const toggleHand = useCallback(() => {
+    setParticipants(prev => {
+      const local = prev.find(p => p.isLocal);
+      const nextRaised = !(local?.isHandRaised ?? false);
+
+      if (hmsInstanceRef.current) {
+        hmsInstanceRef.current.changeMetadata(JSON.stringify({ isHandRaised: nextRaised })).catch(() => { });
+      }
+
+      return prev.map(p => p.isLocal ? { ...p, isHandRaised: nextRaised } : p);
+    });
+  }, []);
+
+  // Send In-Call Reactions
+  const sendReaction = useCallback((emoji: string) => {
+    const reaction: CallReaction = {
+      id: generateReactionId(),
+      emoji,
+      senderName: userName || 'You',
+      timestamp: Date.now(),
+    };
+    setReactions(prev => [...prev.slice(-15), reaction]);
+
+    // Broadcast reaction via 100ms message
+    if (hmsInstanceRef.current) {
+      const payload = JSON.stringify({ type: 'reaction', emoji });
+      hmsInstanceRef.current.sendBroadcastMessage(payload).catch(() => { });
+    }
+  }, [userName]);
+
+  // Host Moderation: Mute a remote participant
+  const muteParticipant = useCallback(async (participantId: string) => {
+    if (!isTeacher) return;
+    setParticipants(prev => prev.map(p => p.id === participantId ? { ...p, isMuted: true } : p));
+  }, [isTeacher]);
+
+  // Host Moderation: Remove participant from room
+  const removeParticipant = useCallback(async (participantId: string) => {
+    if (!isTeacher) return;
+    setParticipants(prev => prev.filter(p => p.id !== participantId));
+    if (hmsInstanceRef.current) {
+      try {
+        const peers = await hmsInstanceRef.current.getRemotePeers();
+        const targetPeer = peers.find((p: any) => p.peerID === participantId);
+        if (targetPeer) {
+          await hmsInstanceRef.current.removePeer(targetPeer, 'Removed by teacher');
+        }
+      } catch (e) {
+        console.warn('[100ms] removePeer error:', e);
+      }
+    }
+  }, [isTeacher]);
 
   // Send in-call message
   const sendMessage = useCallback((text: string, authorId: string, authorName: string) => {
@@ -372,8 +545,12 @@ export function use100msCall({
       webStreamRef.current.getTracks().forEach((track: any) => track.stop());
       webStreamRef.current = null;
     }
+    if (webScreenStreamRef.current) {
+      webScreenStreamRef.current.getTracks().forEach((track: any) => track.stop());
+      webScreenStreamRef.current = null;
+    }
     if (hmsInstanceRef.current) {
-      hmsInstanceRef.current.leave().catch(() => {});
+      hmsInstanceRef.current.leave().catch(() => { });
     }
     onEndCall();
   }, [onEndCall]);
@@ -382,11 +559,21 @@ export function use100msCall({
     participants,
     setParticipants,
     messages,
+    reactions,
     isConnected,
     isConnecting,
-    localStream,
+    isScreenSharing,
+    selectedAudioDevice,
+    availableAudioDevices,
     toggleMute,
     toggleVideo,
+    switchCamera,
+    toggleScreenShare,
+    switchAudioOutput,
+    toggleHand,
+    sendReaction,
+    muteParticipant,
+    removeParticipant,
     sendMessage,
     leaveCall,
   };

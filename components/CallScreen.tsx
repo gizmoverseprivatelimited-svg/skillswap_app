@@ -11,43 +11,82 @@ import {
   KeyboardAvoidingView,
   FlatList,
   Image,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Mic, MicOff, Video, VideoOff, PhoneOff, MessageSquare, Users as UsersIcon,
   Hand, Send, Wifi, Signal, Volume2, Grid3x3, Maximize2,
-  ChevronDown, Circle, Sparkles,
+  ChevronDown, Circle, Sparkles, SwitchCamera, MonitorUp, Smile,
+  MoreVertical, VolumeX, UserMinus, ShieldCheck, Check,
 } from 'lucide-react-native';
 import {
-  type CallParticipant, type CallMessage, type CallMode,
-  formatDuration, startCallTimer, stopCallTimer,
-  startSpeakingSimulator, stopSpeakingSimulator, generateCallMessageId,
+  type CallParticipant,
+  type CallMessage,
+  type CallMode,
+  type CallReaction,
+  type AudioDevice,
+  formatDuration,
+  startCallTimer,
+  stopCallTimer,
+  startSpeakingSimulator,
+  stopSpeakingSimulator,
+  generateCallMessageId,
 } from '../lib/call-engine';
 import LiveVideoTrack from './LiveVideoTrack';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+const REACTION_EMOJIS = ['👏', '❤️', '🔥', '🎉', '👍', '💡', '🚀', '😂'];
 
 interface CallScreenProps {
   participants: CallParticipant[];
   roomTitle: string;
   mode: CallMode;
   isGroupCall: boolean;
+  isTeacher?: boolean;
   onEndCall: () => void;
   onToggleMute?: () => void;
   onToggleVideo?: () => void;
+  onSwitchCamera?: () => void;
+  onToggleScreenShare?: () => void;
+  isScreenSharing?: boolean;
+  onSwitchAudioOutput?: (device: AudioDevice) => void;
+  selectedAudioDevice?: AudioDevice;
+  availableAudioDevices?: string[];
+  onToggleHand?: () => void;
+  onSendReaction?: (emoji: string) => void;
+  reactions?: CallReaction[];
+  onMuteParticipant?: (id: string) => void;
+  onRemoveParticipant?: (id: string) => void;
   onSendMessage?: (text: string) => void;
   externalMessages?: CallMessage[];
 }
 
-type BottomPanel = 'none' | 'chat' | 'participants';
+type BottomPanel = 'none' | 'chat' | 'participants' | 'more' | 'reactions' | 'audioDevices';
 
 export default function CallScreen({
   participants: initialParticipants,
   roomTitle,
   mode,
   isGroupCall,
+  isTeacher = false,
   onEndCall,
   onToggleMute,
   onToggleVideo,
+  onSwitchCamera,
+  onToggleScreenShare,
+  isScreenSharing = false,
+  onSwitchAudioOutput,
+  selectedAudioDevice = 'SPEAKER_PHONE',
+  availableAudioDevices = ['SPEAKER_PHONE', 'EARPIECE'],
+  onToggleHand,
+  onSendReaction,
+  reactions = [],
+  onMuteParticipant,
+  onRemoveParticipant,
   onSendMessage,
   externalMessages,
 }: CallScreenProps) {
@@ -62,7 +101,36 @@ export default function CallScreen({
   );
   const [layout, setLayout] = useState<'grid' | 'spotlight'>(isGroupCall ? 'spotlight' : 'spotlight');
   const [connecting, setConnecting] = useState(true);
+  const [showControls, setShowControls] = useState(true);
   const scrollRef = useRef<FlatList>(null);
+
+  // Floating reaction animations
+  const [activeReactions, setActiveReactions] = useState<{ id: string; emoji: string; anim: Animated.Value; left: number }[]>([]);
+
+  // Trigger floating reaction animation
+  const triggerFloatingReaction = useCallback((emoji: string) => {
+    const anim = new Animated.Value(0);
+    const id = `react-${Date.now()}-${Math.random()}`;
+    const left = Math.random() * (SCREEN_WIDTH - 80) + 30;
+
+    setActiveReactions(prev => [...prev.slice(-10), { id, emoji, anim, left }]);
+
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: 2400,
+      useNativeDriver: true,
+    }).start(() => {
+      setActiveReactions(prev => prev.filter(r => r.id !== id));
+    });
+  }, []);
+
+  // Sync external incoming reactions
+  useEffect(() => {
+    if (reactions.length > 0) {
+      const latest = reactions[reactions.length - 1];
+      triggerFloatingReaction(latest.emoji);
+    }
+  }, [reactions, triggerFloatingReaction]);
 
   // Sync participants from parent when updated by 100ms / WebRTC
   useEffect(() => {
@@ -84,7 +152,9 @@ export default function CallScreen({
     participants.find(p => p.id === spotlightId) ?? remoteParticipants[0] ?? null,
   [participants, spotlightId, remoteParticipants]);
 
-  const unreadCount = useMemo(() => 0, []);
+  const screenSharingParticipant = useMemo(() =>
+    participants.find(p => p.screenShareTrackId || p.screenShareStream || (p.isLocal && isScreenSharing)) ?? null,
+  [participants, isScreenSharing]);
 
   // Timer + connecting simulation
   useEffect(() => {
@@ -92,12 +162,12 @@ export default function CallScreen({
     const connectTimeout = setTimeout(() => {
       setConnecting(false);
       setParticipants(prev => prev.map(p => p.status === 'connecting' ? { ...p, status: 'connected' as const } : p));
-      if (isGroupCall && messages.length === 0) {
+      if (messages.length === 0) {
         setMessages([{
           id: generateCallMessageId(),
           authorId: 'system',
-          authorName: 'leteski',
-          body: `Welcome to ${roomTitle}. The call has started.`,
+          authorName: 'SkillSwap',
+          body: `Encrypted call connected: ${roomTitle}`,
           createdAt: new Date().toISOString(),
           isSystem: true,
         }]);
@@ -127,9 +197,7 @@ export default function CallScreen({
   }, [messages, bottomPanel]);
 
   const toggleMute = useCallback(() => {
-    if (onToggleMute) {
-      onToggleMute();
-    }
+    if (onToggleMute) onToggleMute();
     if (!localParticipant) return;
     setParticipants(prev => prev.map(p =>
       p.isLocal ? { ...p, isMuted: !p.isMuted, isSpeaking: false } : p,
@@ -137,9 +205,7 @@ export default function CallScreen({
   }, [localParticipant, onToggleMute]);
 
   const toggleVideo = useCallback(() => {
-    if (onToggleVideo) {
-      onToggleVideo();
-    }
+    if (onToggleVideo) onToggleVideo();
     if (!localParticipant) return;
     setParticipants(prev => prev.map(p =>
       p.isLocal ? { ...p, isVideoOff: !p.isVideoOff } : p,
@@ -147,11 +213,18 @@ export default function CallScreen({
   }, [localParticipant, onToggleVideo]);
 
   const toggleHand = useCallback(() => {
+    if (onToggleHand) onToggleHand();
     if (!localParticipant) return;
     setParticipants(prev => prev.map(p =>
       p.isLocal ? { ...p, isHandRaised: !p.isHandRaised } : p,
     ));
-  }, [localParticipant]);
+  }, [localParticipant, onToggleHand]);
+
+  const handleSendReaction = useCallback((emoji: string) => {
+    triggerFloatingReaction(emoji);
+    if (onSendReaction) onSendReaction(emoji);
+    setBottomPanel('none');
+  }, [onSendReaction, triggerFloatingReaction]);
 
   const handleSendMessage = useCallback(() => {
     if (!localParticipant || chatDraft.trim().length === 0) return;
@@ -179,22 +252,43 @@ export default function CallScreen({
     setLayout(prev => prev === 'grid' ? 'spotlight' : 'grid');
   }, []);
 
-  const togglePanel = useCallback((panel: BottomPanel) => {
-    setBottomPanel(prev => prev === panel ? 'none' : panel);
-  }, []);
-
   const isMuted = localParticipant?.isMuted ?? false;
   const isVideoOff = localParticipant?.isVideoOff ?? false;
   const isHandRaised = localParticipant?.isHandRaised ?? false;
-  const showControls = true;
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#0B1120', '#1E293B', '#0F172A']}
-        locations={[0, 0.5, 1]}
-        style={styles.background}
-      >
+      <LinearGradient colors={['#0A0F1D', '#0F172A', '#020617']} style={styles.gradient}>
+        {/* Floating Reactions Overlay */}
+        <View pointerEvents="none" style={styles.reactionsOverlay}>
+          {activeReactions.map(r => {
+            const translateY = r.anim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [SCREEN_HEIGHT * 0.7, SCREEN_HEIGHT * 0.15],
+            });
+            const opacity = r.anim.interpolate({
+              inputRange: [0, 0.15, 0.8, 1],
+              outputRange: [0, 1, 0.9, 0],
+            });
+            const scale = r.anim.interpolate({
+              inputRange: [0, 0.2, 0.8, 1],
+              outputRange: [0.6, 1.3, 1.1, 0.8],
+            });
+
+            return (
+              <Animated.View
+                key={r.id}
+                style={[
+                  styles.floatingReaction,
+                  { left: r.left, transform: [{ translateY }, { scale }], opacity },
+                ]}
+              >
+                <Text style={styles.floatingEmojiText}>{r.emoji}</Text>
+              </Animated.View>
+            );
+          })}
+        </View>
+
         {/* Top bar */}
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <View style={styles.topBarLeft}>
@@ -206,24 +300,41 @@ export default function CallScreen({
               {connecting ? 'Connecting...' : formatDuration(duration)}
             </Text>
           </View>
+
           <View style={styles.topBarRight}>
+            {/* Network quality signal badge */}
             <View style={styles.signalBadge}>
-              <Signal size={14} color="#34D399" />
-              <Wifi size={14} color="#34D399" />
+              <Signal size={13} color="#34D399" />
+              <Wifi size={13} color="#34D399" />
             </View>
-            {isGroupCall && (
-              <View style={styles.participantCount}>
-                <UsersIcon size={14} color="#A5B4FC" />
-                <Text style={styles.participantCountText}>{participants.length}</Text>
-              </View>
+
+            {/* Quick Switch Camera Button on Mobile */}
+            {mode === 'video' && onSwitchCamera && (
+              <TouchableOpacity style={styles.topBarIconBtn} onPress={onSwitchCamera} activeOpacity={0.8}>
+                <SwitchCamera size={16} color="#F8FAFC" />
+              </TouchableOpacity>
             )}
+
+            {/* Participant count */}
+            <TouchableOpacity style={styles.participantCount} onPress={() => setBottomPanel('participants')} activeOpacity={0.8}>
+              <UsersIcon size={14} color="#A5B4FC" />
+              <Text style={styles.participantCountText}>{participants.length}</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Main video area */}
+        {/* Main Video Area */}
         <View style={styles.videoArea}>
           {connecting ? (
             <ConnectingView roomTitle={roomTitle} />
+          ) : screenSharingParticipant ? (
+            <ScreenShareView
+              sharer={screenSharingParticipant}
+              localParticipant={localParticipant}
+              remoteParticipants={remoteParticipants}
+              mode={mode}
+              onSpotlight={handleSpotlight}
+            />
           ) : layout === 'spotlight' && spotlightParticipant ? (
             <SpotlightView
               participant={spotlightParticipant}
@@ -238,15 +349,22 @@ export default function CallScreen({
           )}
         </View>
 
-        {/* Bottom panel */}
+        {/* Bottom Drawers / Modals */}
         {bottomPanel !== 'none' && (
           <BottomPanelView
             panel={bottomPanel}
             messages={messages}
             participants={participants}
             chatDraft={chatDraft}
+            isTeacher={isTeacher}
+            selectedAudioDevice={selectedAudioDevice}
+            availableAudioDevices={availableAudioDevices}
             onChatDraftChange={setChatDraft}
             onSendMessage={handleSendMessage}
+            onSendReaction={handleSendReaction}
+            onSwitchAudioOutput={onSwitchAudioOutput}
+            onMuteParticipant={onMuteParticipant}
+            onRemoveParticipant={onRemoveParticipant}
             onClose={() => setBottomPanel('none')}
             scrollRef={scrollRef}
             onSpotlight={handleSpotlight}
@@ -254,56 +372,64 @@ export default function CallScreen({
           />
         )}
 
-        {/* Controls bar */}
+        {/* Controls Bar */}
         {showControls && (
           <View style={[styles.controlsBar, { paddingBottom: insets.bottom + 12 }]}>
             <View style={styles.controlsRow}>
+              {/* Mute toggle */}
               <CallControl
                 icon={isMuted ? <MicOff size={22} color="#FFFFFF" /> : <Mic size={22} color="#FFFFFF" />}
                 active={isMuted}
                 onPress={toggleMute}
                 label={isMuted ? 'Unmute' : 'Mute'}
               />
+
+              {/* Video toggle */}
               {mode === 'video' && (
                 <CallControl
                   icon={isVideoOff ? <VideoOff size={22} color="#FFFFFF" /> : <Video size={22} color="#FFFFFF" />}
                   active={isVideoOff}
                   onPress={toggleVideo}
-                  label={isVideoOff ? 'Camera' : 'Video'}
+                  label={isVideoOff ? 'Start Video' : 'Stop Video'}
                 />
               )}
-              {isGroupCall && (
-                <>
-                  <CallControl
-                    icon={<Hand size={22} color={isHandRaised ? '#F59E0B' : '#FFFFFF'} />}
-                    active={isHandRaised}
-                    onPress={toggleHand}
-                    label="Raise"
-                    activeColor="rgba(245, 158, 11, 0.25)"
-                  />
-                  <CallControl
-                    icon={<MessageSquare size={22} color="#FFFFFF" />}
-                    onPress={() => togglePanel('chat')}
-                    label="Chat"
-                    badge={unreadCount > 0 ? unreadCount : undefined}
-                  />
-                  <CallControl
-                    icon={<UsersIcon size={22} color="#FFFFFF" />}
-                    onPress={() => togglePanel('participants')}
-                    label="People"
-                    badge={participants.length}
-                  />
-                </>
-              )}
-              {isGroupCall && (
+
+              {/* Screen share toggle */}
+              {onToggleScreenShare && (
                 <CallControl
-                  icon={layout === 'grid' ? <Maximize2 size={20} color="#FFFFFF" /> : <Grid3x3 size={20} color="#FFFFFF" />}
-                  onPress={toggleLayout}
-                  label={layout === 'grid' ? 'Spotlight' : 'Grid'}
+                  icon={<MonitorUp size={22} color={isScreenSharing ? '#38BDF8' : '#FFFFFF'} />}
+                  active={isScreenSharing}
+                  onPress={onToggleScreenShare}
+                  label={isScreenSharing ? 'Sharing' : 'Share'}
+                  activeColor="rgba(56, 189, 248, 0.25)"
                 />
               )}
+
+              {/* Reactions trigger */}
+              <CallControl
+                icon={<Smile size={22} color="#FFFFFF" />}
+                onPress={() => setBottomPanel('reactions')}
+                label="React"
+              />
+
+              {/* Chat trigger */}
+              <CallControl
+                icon={<MessageSquare size={22} color="#FFFFFF" />}
+                onPress={() => setBottomPanel('chat')}
+                label="Chat"
+                badge={messages.length > 0 ? messages.length : undefined}
+              />
+
+              {/* More options menu */}
+              <CallControl
+                icon={<MoreVertical size={22} color="#FFFFFF" />}
+                onPress={() => setBottomPanel('more')}
+                label="More"
+              />
+
+              {/* End call button */}
               <TouchableOpacity style={styles.endCallBtn} onPress={onEndCall} activeOpacity={0.85}>
-                <PhoneOff size={26} color="#FFFFFF" />
+                <PhoneOff size={24} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
           </View>
@@ -314,7 +440,7 @@ export default function CallScreen({
 }
 
 // ============================================================
-// Sub-components
+// Sub-components: Views
 // ============================================================
 
 function ConnectingView({ roomTitle }: { roomTitle: string }) {
@@ -325,8 +451,8 @@ function ConnectingView({ roomTitle }: { roomTitle: string }) {
           <Sparkles size={32} color="#818CF8" />
         </View>
       </View>
-      <Text style={styles.connectingTitle}>Joining "{roomTitle}"</Text>
-      <Text style={styles.connectingSub}>Setting up encrypted connection...</Text>
+      <Text style={styles.connectingTitle}>Connecting to "{roomTitle}"</Text>
+      <Text style={styles.connectingSub}>Establishing real-time WebRTC 100ms connection...</Text>
     </View>
   );
 }
@@ -343,7 +469,6 @@ interface SpotlightViewProps {
 function SpotlightView({
   participant, localParticipant, mode, isGroupCall, remoteParticipants, onSpotlight,
 }: SpotlightViewProps) {
-  // Main video is always the remote partner (or selected remote participant in group calls)
   const targetRemote = !participant.isLocal ? participant : (remoteParticipants[0] ?? participant);
 
   return (
@@ -355,7 +480,6 @@ function SpotlightView({
           mode={mode}
           isLarge
         />
-        {/* Speaking indicator */}
         {targetRemote.isSpeaking && (
           <View style={styles.speakingIndicator}>
             <View style={[styles.speakingDot, { backgroundColor: '#34D399' }]} />
@@ -371,11 +495,11 @@ function SpotlightView({
         </View>
       )}
 
-      {/* Filmstrip for group calls */}
+      {/* Filmstrip for group classes */}
       {isGroupCall && remoteParticipants.length > 1 && (
         <View style={styles.filmstrip}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filmstripContent}>
-            {remoteParticipants.filter(p => p.id !== participant.id).map(p => (
+            {remoteParticipants.filter(p => p.id !== targetRemote.id).map(p => (
               <TouchableOpacity
                 key={p.id}
                 style={styles.filmstripTile}
@@ -392,6 +516,64 @@ function SpotlightView({
   );
 }
 
+interface ScreenShareViewProps {
+  sharer: CallParticipant;
+  localParticipant: CallParticipant | null;
+  remoteParticipants: CallParticipant[];
+  mode: CallMode;
+  onSpotlight: (id: string) => void;
+}
+
+function ScreenShareView({
+  sharer, localParticipant, remoteParticipants, mode, onSpotlight,
+}: ScreenShareViewProps) {
+  const hasLiveScreen = Boolean(sharer.screenShareTrackId || sharer.screenShareStream);
+
+  return (
+    <View style={styles.spotlightContainer}>
+      {/* Main Screen Share View */}
+      <View style={styles.spotlightVideo}>
+        {hasLiveScreen ? (
+          <LiveVideoTrack
+            trackId={sharer.screenShareTrackId}
+            mediaStream={sharer.screenShareStream}
+            scaleType="fit"
+            style={styles.liveVideoTrack}
+          />
+        ) : (
+          <View style={styles.screenSharePlaceholder}>
+            <MonitorUp size={48} color="#38BDF8" />
+            <Text style={styles.screenShareTitle}>{sharer.isLocal ? 'You are sharing your screen' : `${sharer.name} is presenting`}</Text>
+          </View>
+        )}
+
+        <View style={styles.screenShareBadge}>
+          <MonitorUp size={14} color="#38BDF8" />
+          <Text style={styles.screenShareBadgeText}>{sharer.isLocal ? 'You are presenting' : `${sharer.name}'s screen`}</Text>
+        </View>
+      </View>
+
+      {/* Self PiP */}
+      {localParticipant && (
+        <View style={styles.selfPip}>
+          <ParticipantTile participant={localParticipant} mode={mode} isSmall />
+        </View>
+      )}
+
+      {/* Ribbon of participants */}
+      <View style={styles.filmstrip}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filmstripContent}>
+          {remoteParticipants.map(p => (
+            <TouchableOpacity key={p.id} style={styles.filmstripTile} onPress={() => onSpotlight(p.id)} activeOpacity={0.8}>
+              <ParticipantTile participant={p} mode={mode} isSmall />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    </View>
+  );
+}
+
 function GridView({
   participants, mode, onSpotlight,
 }: {
@@ -399,7 +581,8 @@ function GridView({
   mode: CallMode;
   onSpotlight: (id: string) => void;
 }) {
-  const numColumns = participants.length <= 4 ? 2 : 3;
+  const numColumns = participants.length <= 2 ? 1 : participants.length <= 4 ? 2 : 3;
+
   return (
     <View style={styles.gridContainer}>
       <View style={styles.gridInner}>
@@ -417,6 +600,10 @@ function GridView({
     </View>
   );
 }
+
+// ============================================================
+// Participant Tile
+// ============================================================
 
 interface ParticipantTileProps {
   participant: CallParticipant;
@@ -492,7 +679,7 @@ function ParticipantTile({ participant, mode, isLarge, isSmall }: ParticipantTil
         </View>
       )}
 
-      {/* Small tile indicator */}
+      {/* Small tile badge */}
       {isSmall && (
         <View style={styles.smallTileBadge}>
           {participant.isMuted && <MicOff size={9} color="#FFFFFF" />}
@@ -503,207 +690,218 @@ function ParticipantTile({ participant, mode, isLarge, isSmall }: ParticipantTil
       {participant.isSpeaking && (
         <View style={[styles.speakingBorder, { borderColor: '#34D399' }]} />
       )}
-
-      {/* Connecting overlay */}
-      {participant.status === 'connecting' && (
-        <View style={styles.connectingOverlay}>
-          <Text style={styles.connectingOverlayText}>...</Text>
-        </View>
-      )}
     </View>
   );
 }
+
+// ============================================================
+// Bottom Panel (Chat, People, Reactions, More)
+// ============================================================
 
 interface BottomPanelViewProps {
   panel: BottomPanel;
   messages: CallMessage[];
   participants: CallParticipant[];
   chatDraft: string;
+  isTeacher?: boolean;
+  selectedAudioDevice?: AudioDevice;
+  availableAudioDevices?: string[];
   onChatDraftChange: (text: string) => void;
   onSendMessage: () => void;
+  onSendReaction?: (emoji: string) => void;
+  onSwitchAudioOutput?: (device: AudioDevice) => void;
+  onMuteParticipant?: (id: string) => void;
+  onRemoveParticipant?: (id: string) => void;
   onClose: () => void;
-  scrollRef: React.RefObject<FlatList<any> | null>;
+  scrollRef: React.RefObject<FlatList | null>;
   onSpotlight: (id: string) => void;
   bottomInset: number;
 }
 
 function BottomPanelView({
-  panel, messages, participants, chatDraft, onChatDraftChange, onSendMessage, onClose,
-  scrollRef, onSpotlight, bottomInset,
+  panel,
+  messages,
+  participants,
+  chatDraft,
+  isTeacher,
+  selectedAudioDevice,
+  availableAudioDevices = [],
+  onChatDraftChange,
+  onSendMessage,
+  onSendReaction,
+  onSwitchAudioOutput,
+  onMuteParticipant,
+  onRemoveParticipant,
+  onClose,
+  scrollRef,
+  bottomInset,
 }: BottomPanelViewProps) {
   return (
-    <View style={[styles.bottomPanel, { paddingBottom: bottomInset + 80 }]}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={[styles.bottomPanelContainer, { maxHeight: SCREEN_HEIGHT * 0.65 }]}
+    >
       <View style={styles.bottomPanelHeader}>
         <Text style={styles.bottomPanelTitle}>
-          {panel === 'chat' ? 'In-call messages' : `Participants (${participants.length})`}
+          {panel === 'chat' && 'In-Call Messages'}
+          {panel === 'participants' && `Participants (${participants.length})`}
+          {panel === 'reactions' && 'Send Reaction'}
+          {panel === 'more' && 'Call Options'}
+          {panel === 'audioDevices' && 'Audio Output'}
         </Text>
-        <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-          <ChevronDown size={22} color="#94A3B8" />
+        <TouchableOpacity style={styles.panelCloseBtn} onPress={onClose}>
+          <ChevronDown size={20} color="#94A3B8" />
         </TouchableOpacity>
       </View>
 
-      {panel === 'chat' ? (
-        <>
+      {/* 1. In-Call Chat */}
+      {panel === 'chat' && (
+        <View style={styles.chatWrap}>
           <FlatList
-            ref={scrollRef}
+            ref={scrollRef as any}
             data={messages}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <ChatMessageItem message={item} />}
-            contentContainerStyle={styles.chatList}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <View style={styles.chatEmpty}>
-                <MessageSquare size={32} color="rgba(148,163,184,0.3)" />
-                <Text style={styles.chatEmptyText}>No messages yet. Start the conversation!</Text>
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.chatListContent}
+            renderItem={({ item }) => (
+              <View style={[styles.chatBubble, item.authorId === 'system' ? styles.chatBubbleSystem : styles.chatBubbleUser]}>
+                {item.authorId !== 'system' && (
+                  <Text style={styles.chatAuthor}>{item.authorName}</Text>
+                )}
+                <Text style={styles.chatBody}>{item.body}</Text>
               </View>
-            }
+            )}
           />
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          >
-            <View style={styles.chatInputRow}>
-              <TextInput
-                style={styles.chatInput}
-                placeholder="Type a message..."
-                value={chatDraft}
-                onChangeText={onChatDraftChange}
-                placeholderTextColor="rgba(148,163,184,0.5)"
-                multiline={false}
-              />
-              <TouchableOpacity style={styles.chatSendBtn} onPress={onSendMessage} activeOpacity={0.8}>
-                <Send size={18} color="#0B1120" />
-              </TouchableOpacity>
-            </View>
-          </KeyboardAvoidingView>
-        </>
-      ) : (
-        <FlatList
-          data={participants}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ParticipantRow participant={item} onSpotlight={onSpotlight} />
-          )}
-          contentContainerStyle={styles.participantList}
-          showsVerticalScrollIndicator={false}
-        />
+          <View style={[styles.chatInputRow, { paddingBottom: Math.max(bottomInset, 12) }]}>
+            <TextInput
+              style={styles.chatInput}
+              value={chatDraft}
+              onChangeText={onChatDraftChange}
+              placeholder="Type message to room..."
+              placeholderTextColor="#64748B"
+              returnKeyType="send"
+              onSubmitEditing={onSendMessage}
+            />
+            <TouchableOpacity style={styles.chatSendBtn} onPress={onSendMessage}>
+              <Send size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
       )}
-    </View>
+
+      {/* 2. Participants List & Host Moderation */}
+      {panel === 'participants' && (
+        <ScrollView style={styles.peopleList} contentContainerStyle={{ paddingBottom: bottomInset + 16 }}>
+          {participants.map(p => (
+            <View key={p.id} style={styles.personRow}>
+              <View style={styles.personAvatarWrap}>
+                <Text style={styles.personAvatarText}>{p.name.charAt(0).toUpperCase()}</Text>
+              </View>
+              <View style={styles.personInfo}>
+                <View style={styles.personNameRow}>
+                  <Text style={styles.personName}>{p.isLocal ? `${p.name} (You)` : p.name}</Text>
+                  {p.role === 'teacher' && <View style={styles.personBadge}><Text style={styles.personBadgeText}>Host</Text></View>}
+                </View>
+                <Text style={styles.personStatus}>{p.status === 'connected' ? 'In Call' : 'Connecting...'}</Text>
+              </View>
+
+              <View style={styles.personActions}>
+                {p.isMuted && <MicOff size={16} color="#94A3B8" style={{ marginRight: 8 }} />}
+                {isTeacher && !p.isLocal && (
+                  <>
+                    {onMuteParticipant && (
+                      <TouchableOpacity style={styles.hostActionBtn} onPress={() => onMuteParticipant(p.id)}>
+                        <VolumeX size={16} color="#F87171" />
+                      </TouchableOpacity>
+                    )}
+                    {onRemoveParticipant && (
+                      <TouchableOpacity style={styles.hostActionBtn} onPress={() => onRemoveParticipant(p.id)}>
+                        <UserMinus size={16} color="#F87171" />
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+
+      {/* 3. Reaction Picker */}
+      {panel === 'reactions' && (
+        <View style={[styles.reactionsPickerWrap, { paddingBottom: bottomInset + 20 }]}>
+          <Text style={styles.reactionsPrompt}>Tap to send an instant reaction:</Text>
+          <View style={styles.reactionGrid}>
+            {REACTION_EMOJIS.map(emoji => (
+              <TouchableOpacity
+                key={emoji}
+                style={styles.reactionEmojiBtn}
+                onPress={() => onSendReaction && onSendReaction(emoji)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.reactionEmojiText}>{emoji}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* 4. More Options Menu */}
+      {panel === 'more' && (
+        <View style={[styles.moreMenuWrap, { paddingBottom: bottomInset + 20 }]}>
+          <TouchableOpacity style={styles.menuRow} onPress={() => onClose()}>
+            <ShieldCheck size={20} color="#34D399" />
+            <Text style={styles.menuText}>End-to-End Encrypted Session</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </KeyboardAvoidingView>
   );
 }
 
-function ChatMessageItem({ message }: { message: CallMessage }) {
-  if (message.isSystem) {
-    return (
-      <View style={styles.systemMessage}>
-        <Text style={styles.systemMessageText}>{message.body}</Text>
-      </View>
-    );
-  }
-  return (
-    <View style={styles.chatMessage}>
-      <Text style={styles.chatMessageAuthor}>{message.authorName}</Text>
-      <Text style={styles.chatMessageBody}>{message.body}</Text>
-      <Text style={styles.chatMessageTime}>
-        {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-      </Text>
-    </View>
-  );
-}
+// ============================================================
+// Controls Button Helper
+// ============================================================
 
-function ParticipantRow({
-  participant, onSpotlight,
+function CallControl({
+  icon, label, active = false, onPress, badge, activeColor = 'rgba(239, 68, 68, 0.25)',
 }: {
-  participant: CallParticipant;
-  onSpotlight: (id: string) => void;
-}) {
-  return (
-    <TouchableOpacity style={styles.participantRow} onPress={() => onSpotlight(participant.id)} activeOpacity={0.7}>
-      <View style={styles.participantRowAvatar}>
-        {participant.avatarUrl ? (
-          <Image source={{ uri: participant.avatarUrl }} style={styles.participantRowAvatarImg} />
-        ) : (
-          <LinearGradient colors={getAvatarGradientColors(participant.id)} style={styles.participantRowAvatarGradient}>
-            <Text style={styles.participantRowAvatarText}>{participant.name.charAt(0).toUpperCase()}</Text>
-          </LinearGradient>
-        )}
-      </View>
-      <View style={styles.participantRowInfo}>
-        <Text style={styles.participantRowName}>
-          {participant.isLocal ? 'You' : participant.name}
-        </Text>
-        <Text style={styles.participantRowRole}>
-          {participant.role === 'teacher' || participant.role === 'host' ? 'Host' : 'Participant'}
-        </Text>
-      </View>
-      <View style={styles.participantRowBadges}>
-        {participant.isSpeaking && (
-          <View style={styles.speakingBadgeSmall}>
-            <Volume2 size={12} color="#34D399" />
-          </View>
-        )}
-        {participant.isHandRaised && (
-          <View style={styles.handRaisedBadge}>
-            <Hand size={12} color="#F59E0B" />
-          </View>
-        )}
-        {participant.isMuted && <MicOff size={16} color="rgba(148,163,184,0.5)" />}
-        {participant.isVideoOff && <VideoOff size={16} color="rgba(148,163,184,0.5)" />}
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-// ============================================================
-// Call control button
-// ============================================================
-
-interface CallControlProps {
   icon: React.ReactNode;
-  onPress: () => void;
   label: string;
   active?: boolean;
-  activeColor?: string;
+  onPress: () => void;
   badge?: number;
-}
-
-function CallControl({ icon, onPress, label, active, activeColor, badge }: CallControlProps) {
+  activeColor?: string;
+}) {
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.callControlWrap}>
-      <View style={[
-        styles.callControlBtn,
-        active && { backgroundColor: activeColor ?? 'rgba(239, 68, 68, 0.25)' },
-      ]}>
+    <TouchableOpacity
+      style={[styles.controlBtn, active && { backgroundColor: activeColor, borderColor: 'rgba(239,68,68,0.5)' }]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <View style={styles.controlIconWrap}>
         {icon}
-        {badge !== undefined && badge > 0 && (
+        {badge !== undefined && (
           <View style={styles.controlBadge}>
-            <Text style={styles.controlBadgeText}>{badge > 99 ? '99+' : badge}</Text>
+            <Text style={styles.controlBadgeText}>{badge}</Text>
           </View>
         )}
       </View>
-      <Text style={styles.callControlLabel}>{label}</Text>
+      <Text style={styles.controlLabel}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-// ============================================================
-// Helpers
-// ============================================================
-
-const GRADIENTS: [string, string][] = [
-  ['#6366F1', '#4F46E5'],
-  ['#8B5CF6', '#6D28D9'],
-  ['#EC4899', '#BE185D'],
-  ['#F59E0B', '#D97706'],
-  ['#10B981', '#059669'],
-  ['#06B6D4', '#0891B2'],
-  ['#3B82F6', '#1D4ED8'],
-  ['#EF4444', '#B91C1C'],
-];
-
 function getAvatarGradientColors(id: string): [string, string] {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  return GRADIENTS[Math.abs(hash) % GRADIENTS.length];
+  const gradients: [string, string][] = [
+    ['#3B82F6', '#1E40AF'],
+    ['#8B5CF6', '#5B21B6'],
+    ['#EC4899', '#9D174D'],
+    ['#10B981', '#065F46'],
+    ['#F59E0B', '#B45309'],
+  ];
+  let sum = 0;
+  for (let i = 0; i < id.length; i++) sum += id.charCodeAt(i);
+  return gradients[sum % gradients.length];
 }
 
 // ============================================================
@@ -711,222 +909,344 @@ function getAvatarGradientColors(id: string): [string, string] {
 // ============================================================
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B1120' },
-  background: { flex: 1 },
+  container: { flex: 1, backgroundColor: '#0A0F1D' },
+  gradient: { flex: 1 },
+
+  // Floating Reactions
+  reactionsOverlay: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
+  },
+  floatingReaction: {
+    position: 'absolute',
+    bottom: 0,
+  },
+  floatingEmojiText: {
+    fontSize: 42,
+  },
 
   // Top bar
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
-  },
-  topBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  roomBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(99, 102, 241, 0.2)',
-    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12,
-  },
-  roomTitle: { fontSize: 13, fontWeight: '700' as const, color: '#E2E8F0', maxWidth: 160 },
-  durationText: { fontSize: 14, fontWeight: '600' as const, color: '#94A3B8' },
-  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  signalBadge: {
-    flexDirection: 'row', gap: 4,
-    backgroundColor: 'rgba(52, 211, 153, 0.15)',
-    paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10,
-  },
-  participantCount: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(99, 102, 241, 0.2)',
-    paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10,
-  },
-  participantCountText: { fontSize: 12, fontWeight: '700' as const, color: '#A5B4FC' },
-
-  // Video area
-  videoArea: { flex: 1, paddingHorizontal: 12 },
-
-  // Connecting
-  connectingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 20 },
-  connectingRing: {
-    width: 100, height: 100, borderRadius: 50,
-    borderWidth: 3, borderColor: 'rgba(99, 102, 241, 0.3)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  connectingRingInner: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  connectingTitle: { fontSize: 18, fontWeight: '700' as const, color: '#E2E8F0' },
-  connectingSub: { fontSize: 14, color: '#64748B' },
-
-  // Spotlight
-  spotlightContainer: { flex: 1, gap: 8 },
-  spotlightVideo: {
-    flex: 1, borderRadius: 20, overflow: 'hidden' as const,
-    position: 'relative' as const,
-  },
-  speakingIndicator: {
-    position: 'absolute' as const, top: 12, left: 12,
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(52, 211, 153, 0.2)',
-    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12,
-  },
-  speakingDot: { width: 8, height: 8, borderRadius: 4 },
-  speakingText: { fontSize: 12, fontWeight: '700' as const, color: '#34D399' },
-  selfPip: {
-    position: 'absolute' as const, bottom: 12, right: 12,
-    width: 110, height: 160, borderRadius: 16,
-    overflow: 'hidden' as const,
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)',
     zIndex: 10,
   },
-  filmstrip: { height: 90 },
-  filmstripContent: { gap: 8, paddingHorizontal: 4 },
-  filmstripTile: { width: 120, height: 80, borderRadius: 12, overflow: 'hidden' as const },
+  topBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  roomBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    maxWidth: SCREEN_WIDTH * 0.45,
+  },
+  roomTitle: { fontSize: 13, fontWeight: '700', color: '#F8FAFC' },
+  durationText: { fontSize: 13, fontWeight: '600', color: '#94A3B8' },
+  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  signalBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  topBarIconBtn: {
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  participantCount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  participantCountText: { fontSize: 12, fontWeight: '700', color: '#A5B4FC' },
 
-  // Grid
-  gridContainer: { flex: 1, padding: 4 },
-  gridInner: { flexDirection: 'row', flexWrap: 'wrap' as const, gap: 8 },
-  gridTile: { aspectRatio: 1, borderRadius: 14, overflow: 'hidden' as const },
+  // Video Area
+  videoArea: { flex: 1, paddingHorizontal: 12, paddingBottom: 8 },
+
+  // Connecting
+  connectingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
+  connectingRing: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  connectingRingInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(99, 102, 241, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  connectingTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF', textAlign: 'center' },
+  connectingSub: { fontSize: 13, color: '#94A3B8', textAlign: 'center' },
+
+  // Spotlight layout
+  spotlightContainer: { flex: 1, position: 'relative' },
+  spotlightVideo: { flex: 1, borderRadius: 20, overflow: 'hidden', backgroundColor: '#1E293B' },
+  selfPip: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    width: 105,
+    height: 145,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 8,
+    zIndex: 20,
+  },
+  filmstrip: { position: 'absolute', top: 12, left: 12, right: 12, zIndex: 15 },
+  filmstripContent: { gap: 8 },
+  filmstripTile: { width: 85, height: 110, borderRadius: 12, overflow: 'hidden' },
+
+  // Screen Share layout
+  screenSharePlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: '#0F172A',
+  },
+  screenShareTitle: { fontSize: 16, fontWeight: '700', color: '#F8FAFC' },
+  screenShareBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  screenShareBadgeText: { fontSize: 12, fontWeight: '600', color: '#38BDF8' },
+
+  // Grid layout
+  gridContainer: { flex: 1 },
+  gridInner: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  gridTile: { flex: 1, minHeight: 180, borderRadius: 16, overflow: 'hidden' },
 
   // Participant tile
-  tileContainer: { flex: 1, borderRadius: 20, overflow: 'hidden' as const, backgroundColor: '#1E293B', position: 'relative' as const },
-  tileVideo: { flex: 1, position: 'relative' as const },
-  liveVideoTrack: { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0 },
+  tileContainer: { flex: 1, borderRadius: 20, overflow: 'hidden', backgroundColor: '#1E293B', position: 'relative' },
+  tileVideo: { flex: 1, position: 'relative' },
+  liveVideoTrack: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   tileVideoGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tileVideoInitial: { fontSize: 48, fontWeight: '800' as const, color: 'rgba(255,255,255,0.15)' },
-  tileAvatarWrap: { flex: 1, display: 'none' as const },
-  tileAvatarWrapVisible: { display: 'flex' as const },
+  tileVideoInitial: { fontSize: 48, fontWeight: '800', color: 'rgba(255,255,255,0.15)' },
+  tileAvatarWrap: { flex: 1, display: 'none' },
+  tileAvatarWrapVisible: { display: 'flex' },
   tileAvatarGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   tileAvatar: { borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' },
-  tileAvatarText: { fontWeight: '700' as const, color: '#FFFFFF' },
-  waitingNotice: { fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 12, textAlign: 'center' as const, paddingHorizontal: 16 },
+  tileAvatarText: { fontWeight: '700', color: '#FFFFFF' },
+  waitingNotice: { fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 12, textAlign: 'center', paddingHorizontal: 16 },
   tileNameWrap: {
-    position: 'absolute' as const, bottom: 8, left: 8, right: 8,
+    position: 'absolute', bottom: 8, left: 8, right: 8,
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
   },
-  tileName: { fontSize: 12, fontWeight: '600' as const, color: '#FFFFFF', flex: 1 },
+  tileName: { fontSize: 12, fontWeight: '600', color: '#FFFFFF', flex: 1 },
   roleBadge: {
     backgroundColor: 'rgba(99, 102, 241, 0.8)',
     paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
   },
-  roleBadgeText: { fontSize: 9, fontWeight: '700' as const, color: '#FFFFFF' },
-  smallTileBadge: {
-    position: 'absolute' as const, bottom: 4, right: 4,
-    flexDirection: 'row', gap: 2,
+  roleBadgeText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
+  smallTileBadge: { position: 'absolute', bottom: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 4, padding: 2 },
+  speakingBorder: { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, borderWidth: 2, borderRadius: 20 },
+  speakingIndicator: {
+    position: 'absolute', top: 12, left: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 4, paddingVertical: 2, borderRadius: 6,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12,
   },
-  speakingBorder: {
-    position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0,
-    borderWidth: 3, borderRadius: 20,
-  },
-  connectingOverlay: {
-    position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  connectingOverlayText: { fontSize: 24, fontWeight: '700' as const, color: '#64748B' },
+  speakingDot: { width: 8, height: 8, borderRadius: 4 },
+  speakingText: { fontSize: 11, fontWeight: '700', color: '#34D399' },
 
-  // Bottom panel
-  bottomPanel: {
-    position: 'absolute' as const, bottom: 0, left: 0, right: 0,
-    height: 340,
-    backgroundColor: 'rgba(15, 23, 42, 0.97)',
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    borderWidth: 1, borderColor: 'rgba(99, 102, 241, 0.15)',
-    paddingTop: 8,
+  // Controls bar
+  controlsBar: {
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 14,
+    paddingHorizontal: 12,
+  },
+  controlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  controlBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    minWidth: 46,
+  },
+  controlIconWrap: {
+    position: 'relative',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  controlLabel: { fontSize: 10, color: 'rgba(255, 255, 255, 0.75)', fontWeight: '600' },
+  controlBadge: {
+    position: 'absolute', top: -3, right: -3,
+    backgroundColor: '#6366F1',
+    borderRadius: 9, minWidth: 16, height: 16,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
+  },
+  controlBadgeText: { fontSize: 9, fontWeight: '800', color: '#FFFFFF' },
+  endCallBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+
+  // Bottom Panel
+  bottomPanelContainer: {
+    backgroundColor: '#1E293B',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
   },
   bottomPanelHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: 'rgba(99, 102, 241, 0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
-  bottomPanelTitle: { fontSize: 16, fontWeight: '700' as const, color: '#E2E8F0' },
+  bottomPanelTitle: { fontSize: 16, fontWeight: '700', color: '#F8FAFC' },
+  panelCloseBtn: { padding: 4 },
 
   // Chat
-  chatList: { padding: 16, gap: 12 },
-  chatEmpty: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, gap: 12 },
-  chatEmptyText: { fontSize: 14, color: '#64748B', textAlign: 'center' as const },
-  chatMessage: { gap: 4 },
-  chatMessageAuthor: { fontSize: 13, fontWeight: '700' as const, color: '#A5B4FC' },
-  chatMessageBody: { fontSize: 14, color: '#E2E8F0', lineHeight: 20 },
-  chatMessageTime: { fontSize: 11, color: '#475569' },
-  systemMessage: {
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
-    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12,
-    alignItems: 'center' as const,
-  },
-  systemMessageText: { fontSize: 13, color: '#94A3B8', textAlign: 'center' as const },
+  chatWrap: { height: 320 },
+  chatListContent: { padding: 14, gap: 10 },
+  chatBubble: { maxWidth: '80%', padding: 10, borderRadius: 14 },
+  chatBubbleUser: { backgroundColor: '#334155', alignSelf: 'flex-start' },
+  chatBubbleSystem: { backgroundColor: 'rgba(99, 102, 241, 0.2)', alignSelf: 'center' },
+  chatAuthor: { fontSize: 11, fontWeight: '700', color: '#A5B4FC', marginBottom: 2 },
+  chatBody: { fontSize: 13, color: '#F8FAFC' },
   chatInputRow: {
-    flexDirection: 'row', gap: 10, padding: 12,
-    borderTopWidth: 1, borderTopColor: 'rgba(99, 102, 241, 0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#0F172A',
   },
   chatInput: {
-    flex: 1, backgroundColor: 'rgba(30, 41, 59, 0.8)',
-    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12,
-    fontSize: 14, color: '#E2E8F0', borderWidth: 1, borderColor: 'rgba(99, 102, 241, 0.15)',
+    flex: 1,
+    height: 40,
+    backgroundColor: '#1E293B',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    color: '#FFFFFF',
+    fontSize: 13,
   },
   chatSendBtn: {
-    width: 46, height: 46, borderRadius: 23,
-    backgroundColor: '#6366F1', alignItems: 'center', justifyContent: 'center',
-  },
-
-  // Participants list
-  participantList: { padding: 16, gap: 8 },
-  participantRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 12, paddingVertical: 12, borderRadius: 14,
-    backgroundColor: 'rgba(30, 41, 59, 0.4)',
-  },
-  participantRowAvatar: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden' as const },
-  participantRowAvatarImg: { width: 40, height: 40, borderRadius: 20 },
-  participantRowAvatarGradient: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  participantRowAvatarText: { fontSize: 16, fontWeight: '700' as const, color: '#FFFFFF' },
-  participantRowInfo: { flex: 1, gap: 2 },
-  participantRowName: { fontSize: 14, fontWeight: '600' as const, color: '#E2E8F0' },
-  participantRowRole: { fontSize: 12, color: '#64748B' },
-  participantRowBadges: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  speakingBadgeSmall: {
-    backgroundColor: 'rgba(52, 211, 153, 0.2)',
-    width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-  },
-  handRaisedBadge: {
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
-    width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-  },
-
-  // Controls
-  controlsBar: {
-    paddingHorizontal: 16, paddingTop: 12,
-    backgroundColor: 'rgba(11, 17, 32, 0.8)',
-    borderTopWidth: 1, borderTopColor: 'rgba(99, 102, 241, 0.1)',
-  },
-  controlsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
-  callControlWrap: { alignItems: 'center', gap: 4 },
-  callControlBtn: {
-    width: 52, height: 52, borderRadius: 26,
-    backgroundColor: 'rgba(30, 41, 59, 0.9)',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(99, 102, 241, 0.15)',
-  },
-  callControlLabel: { fontSize: 10, fontWeight: '600' as const, color: '#94A3B8' },
-  controlBadge: {
-    position: 'absolute' as const, top: -4, right: -4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#6366F1',
-    minWidth: 18, height: 18, borderRadius: 9,
-    alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  controlBadgeText: { fontSize: 10, fontWeight: '700' as const, color: '#FFFFFF' },
-  endCallBtn: {
-    width: 60, height: 52, borderRadius: 26,
-    backgroundColor: '#DC2626',
-    alignItems: 'center', justifyContent: 'center',
-    marginLeft: 6,
+
+  // People List
+  peopleList: { paddingHorizontal: 14, paddingTop: 10 },
+  personRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
+  personAvatarWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#475569',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  personAvatarText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  personInfo: { flex: 1 },
+  personNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  personName: { fontSize: 14, fontWeight: '600', color: '#F8FAFC' },
+  personBadge: { backgroundColor: 'rgba(99, 102, 241, 0.25)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  personBadgeText: { fontSize: 10, fontWeight: '700', color: '#A5B4FC' },
+  personStatus: { fontSize: 11, color: '#64748B' },
+  personActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  hostActionBtn: {
+    padding: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderRadius: 8,
+  },
+
+  // Reaction Picker
+  reactionsPickerWrap: { padding: 18, alignItems: 'center' },
+  reactionsPrompt: { fontSize: 13, color: '#94A3B8', marginBottom: 14 },
+  reactionGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 14 },
+  reactionEmojiBtn: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reactionEmojiText: { fontSize: 28 },
+
+  // More Menu
+  moreMenuWrap: { padding: 18, gap: 14 },
+  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  menuText: { fontSize: 14, fontWeight: '600', color: '#F8FAFC' },
 });
