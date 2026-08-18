@@ -73,12 +73,9 @@ export function use100msCall({
                 isMuted: false,
               };
             }
-            // In 1-on-1 test mode on web, also attach stream to remote partner for preview if needed
             return {
               ...p,
-              status: 'connected' as const,
-              mediaStream: p.mediaStream || (prev.length === 2 ? stream : undefined),
-              isVideoOff: false,
+              status: p.videoTrackId ? 'connected' as const : p.status,
             };
           }));
         })

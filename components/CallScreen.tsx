@@ -343,17 +343,20 @@ interface SpotlightViewProps {
 function SpotlightView({
   participant, localParticipant, mode, isGroupCall, remoteParticipants, onSpotlight,
 }: SpotlightViewProps) {
+  // Main video is always the remote partner (or selected remote participant in group calls)
+  const targetRemote = !participant.isLocal ? participant : (remoteParticipants[0] ?? participant);
+
   return (
     <View style={styles.spotlightContainer}>
-      {/* Main video */}
+      {/* Main big box: Remote partner / class video */}
       <View style={styles.spotlightVideo}>
         <ParticipantTile
-          participant={participant}
+          participant={targetRemote}
           mode={mode}
           isLarge
         />
         {/* Speaking indicator */}
-        {participant.isSpeaking && (
+        {targetRemote.isSpeaking && (
           <View style={styles.speakingIndicator}>
             <View style={[styles.speakingDot, { backgroundColor: '#34D399' }]} />
             <Text style={styles.speakingText}>Speaking</Text>
@@ -361,19 +364,11 @@ function SpotlightView({
         )}
       </View>
 
-      {/* Self PiP */}
+      {/* Self PiP: User's own camera video ALWAYS in the small box */}
       {localParticipant && (
-        <TouchableOpacity
-          style={styles.selfPip}
-          onPress={() => onSpotlight(localParticipant.id === participant.id ? (remoteParticipants[0]?.id ?? '') : localParticipant.id)}
-          activeOpacity={0.85}
-        >
-          <ParticipantTile
-            participant={localParticipant.id === participant.id ? (remoteParticipants[0] ?? localParticipant) : localParticipant}
-            mode={mode}
-            isSmall
-          />
-        </TouchableOpacity>
+        <View style={styles.selfPip}>
+          <ParticipantTile participant={localParticipant} mode={mode} isSmall />
+        </View>
       )}
 
       {/* Filmstrip for group calls */}
@@ -468,8 +463,13 @@ function ParticipantTile({ participant, mode, isLarge, isSmall }: ParticipantTil
             {participant.avatarUrl && !isSmall ? (
               <Image source={{ uri: participant.avatarUrl }} style={[styles.tileAvatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]} />
             ) : (
-              <Text style={[styles.tileAvatarText, { fontSize: isSmall ? 12 : 22 }]}>
+              <Text style={[styles.tileAvatarText, { fontSize: isSmall ? 12 : 28 }]}>
                 {participant.name.charAt(0).toUpperCase()}
+              </Text>
+            )}
+            {isLarge && !participant.isLocal && (
+              <Text style={styles.waitingNotice}>
+                {participant.status === 'connecting' ? 'Waiting for partner to connect...' : 'Camera is turned off'}
               </Text>
             )}
           </LinearGradient>
@@ -802,6 +802,7 @@ const styles = StyleSheet.create({
   tileAvatarGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   tileAvatar: { borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' },
   tileAvatarText: { fontWeight: '700' as const, color: '#FFFFFF' },
+  waitingNotice: { fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 12, textAlign: 'center' as const, paddingHorizontal: 16 },
   tileNameWrap: {
     position: 'absolute' as const, bottom: 8, left: 8, right: 8,
     flexDirection: 'row', alignItems: 'center', gap: 4,
