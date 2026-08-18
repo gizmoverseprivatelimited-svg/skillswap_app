@@ -3,18 +3,18 @@ import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import CallScreen from '@/components/CallScreen';
-import { useCurrentUser } from '@/providers/current-user';
-import { useSkillSwaps } from '@/providers/skill-swaps';
-import { useClasses } from '@/providers/classes';
-import { mockUsers } from '@/mocks/data';
+import CallScreen from '../../components/CallScreen';
+import { useCurrentUser } from '../../providers/current-user';
+import { useSkillSwaps } from '../../providers/skill-swaps';
+import { useClasses } from '../../providers/classes';
+import { mockUsers } from '../../mocks/data';
 import {
   buildLocalParticipant,
   buildRemoteParticipant,
   buildMockClassParticipants,
   type CallParticipant,
   type CallMode,
-} from '@/lib/call-engine';
+} from '../../lib/call-engine';
 
 export default function UnifiedCallScreen() {
   const { swapId, classId, id, mode } = useLocalSearchParams<{
