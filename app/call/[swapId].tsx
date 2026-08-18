@@ -1,34 +1,49 @@
-import { useMemo } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { useMemo, useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import CallScreen from '../../components/CallScreen';
-import { useCurrentUser } from '../../providers/current-user';
-import { useSkillSwaps } from '../../providers/skill-swaps';
-import { useClasses } from '../../providers/classes';
-import { mockUsers } from '../../mocks/data';
+import HMSView from '@/components/HMSView';
+import CallScreen from '@/components/CallScreen';
+import { useCurrentUser } from '@/providers/current-user';
+import { useAuth } from '@/providers/auth';
+import { useSkillSwaps } from '@/providers/skill-swaps';
+import { useClasses } from '@/providers/classes';
+import { useSocket } from '@/providers/socket';
+import { mockUsers } from '@/mocks/data';
+import url from '@/constants/backurl';
 import {
   buildLocalParticipant,
   buildRemoteParticipant,
   buildMockClassParticipants,
   type CallParticipant,
   type CallMode,
-} from '../../lib/call-engine';
+} from '@/lib/call-engine';
 
 export default function UnifiedCallScreen() {
-  const { swapId, classId, id, mode } = useLocalSearchParams<{
+  const { swapId, classId, id, mode, isJoining } = useLocalSearchParams<{
     swapId?: string;
     classId?: string;
     id?: string;
     mode?: string;
+    isJoining?: string;
   }>();
   const targetId = (swapId || classId || id || '') as string;
   const router = useRouter();
-  const { currentUser, allUsers } = useCurrentUser();
+  const { currentUser, allUsers, isLoading: isUserLoading } = useCurrentUser();
+  const { user: authUser } = useAuth();
   const { getSwapById } = useSkillSwaps();
   const { getClassById } = useClasses();
+  const { socket } = useSocket();
 
+  const [roomCode, setRoomCode] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string | undefined>(undefined);
+  const [loadingCode, setLoadingCode] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isTeacher, setIsTeacher] = useState(false);
+
+  const currentUserId = currentUser?.id || (currentUser as any)?._id || authUser?.id || (authUser as any)?._id || '';
   const callMode: CallMode = mode === 'voice' ? 'voice' : 'video';
 
   // 1. Check if it's a class call
@@ -49,13 +64,96 @@ export default function UnifiedCallScreen() {
     return allUsers.find((u) => u.id === partnerId) || mockUsers.find((u) => u.id === partnerId);
   }, [allUsers, currentUser, swap]);
 
+  // Fetch 100ms Room Code from Backend & Database
+  useEffect(() => {
+    async function fetchRoomCode() {
+      if (!targetId || isUserLoading) return;
+      try {
+        setLoadingCode(true);
+        setErrorMsg(null);
+
+        if (cls) {
+          // Group class 100ms room
+          const res = await fetch(`${url}/classes/${cls.id}/100ms-room?userId=${encodeURIComponent(currentUserId)}`);
+          const data = await res.json();
+          if (res.ok && data.roomCode) {
+            setRoomCode(data.roomCode);
+            setAuthToken(data.authToken || undefined);
+            setIsTeacher(Boolean(data.isTeacher || cls.teacherId === currentUserId));
+          } else {
+            console.warn('[CallScreen] Class 100ms room notice:', data.error);
+            // Fallback to simulated UI if room is not yet started or failed
+            setErrorMsg(data.error || null);
+          }
+        } else if (swap) {
+          // 1:1 Skill swap 100ms room
+          const joinParam = isJoining ? '&isJoining=true' : '';
+          const res = await fetch(`${url}/swaps/${swap.id}/100ms-room?userId=${encodeURIComponent(currentUserId)}${joinParam}`);
+          const data = await res.json();
+          if (res.ok && data.roomCode) {
+            setRoomCode(data.roomCode);
+            setIsTeacher(Boolean(data.isHost));
+          } else {
+            console.warn('[CallScreen] Swap 100ms room notice:', data.message || data.error);
+          }
+        }
+      } catch (err) {
+        console.error('[CallScreen] Failed to fetch 100ms room code from backend:', err);
+      } finally {
+        setLoadingCode(false);
+      }
+    }
+
+    void fetchRoomCode();
+  }, [targetId, cls, swap, currentUserId, isUserLoading, isJoining]);
+
+  // Handle Leaving / Ending Call
+  const handleEndCall = useCallback(async () => {
+    if (cls && isTeacher) {
+      try {
+        await fetch(`${url}/classes/${cls.id}/end`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (err) {
+        console.error('[CallScreen] Error ending class session on leave:', err);
+      }
+    }
+
+    if (router.canGoBack()) {
+      router.back();
+    } else if (cls) {
+      router.replace(`/class/${cls.id}` as any);
+    } else if (swap) {
+      router.replace(`/swaps/${swap.id}` as any);
+    } else {
+      router.replace('/(tabs)/home' as any);
+    }
+  }, [cls, isTeacher, swap, router]);
+
+  // Real-time socket listener: if teacher ends class, automatically exit students
+  useEffect(() => {
+    if (!socket || !cls) return;
+
+    const handleClassEnded = (data: { classId: string }) => {
+      if (data && String(data.classId) === String(cls.id)) {
+        console.log('[CallScreen] Class ended by teacher, exiting room');
+        handleEndCall();
+      }
+    };
+
+    socket.on('class_ended', handleClassEnded);
+    return () => {
+      socket.off('class_ended', handleClassEnded);
+    };
+  }, [socket, cls, handleEndCall]);
+
   const participants: CallParticipant[] = useMemo(() => {
     if (!currentUser) return [];
 
     if (cls) {
       const teacher = allUsers.find((u) => u.id === cls.teacherId) || mockUsers.find((u) => u.id === cls.teacherId);
-      const isTeacher = cls.teacherId === currentUser.id;
-      const localRole = isTeacher ? 'teacher' : 'student';
+      const localRole = cls.teacherId === currentUser.id ? 'teacher' : 'student';
       const local = buildLocalParticipant(currentUser, localRole);
 
       const others: CallParticipant[] = [];
@@ -90,18 +188,6 @@ export default function UnifiedCallScreen() {
     return [];
   }, [cls, swap, partner, currentUser, allUsers]);
 
-  const handleEndCall = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else if (cls) {
-      router.replace(`/class/${cls.id}` as any);
-    } else if (swap) {
-      router.replace(`/swaps/${swap.id}` as any);
-    } else {
-      router.replace('/(tabs)/home' as any);
-    }
-  };
-
   if (!cls && (!swap || !partner)) {
     return (
       <View style={styles.errorContainer}>
@@ -119,6 +205,41 @@ export default function UnifiedCallScreen() {
     );
   }
 
+  // If loading 100ms room code from backend
+  if (loadingCode) {
+    return (
+      <View style={styles.loadingContainer}>
+        <LinearGradient colors={['#0B1120', '#1E293B', '#0F172A']} style={styles.loadingGradient}>
+          <ActivityIndicator size="large" color="#6366F1" />
+          <Text style={styles.loadingTitle}>Connecting to 100ms Video Room...</Text>
+          <Text style={styles.loadingSub}>Setting up secure real-time WebRTC media</Text>
+        </LinearGradient>
+      </View>
+    );
+  }
+
+  // If 100ms Room Code is available, render real live 100ms WebRTC Video Room
+  if (roomCode) {
+    const userName = currentUser?.name
+      ? `${currentUser.name}${cls ? ` (${isTeacher ? 'Teacher' : 'Student'})` : ''}`
+      : isTeacher
+      ? 'Teacher'
+      : 'Guest';
+
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+        <HMSView
+          roomCode={roomCode}
+          authToken={authToken}
+          userName={userName}
+          onLeave={handleEndCall}
+          isTeacher={isTeacher}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  // Fallback to custom interactive CallScreen
   const roomTitle = cls ? cls.title : `Skill swap with ${partner?.name || 'Partner'}`;
   const isGroupCall = Boolean(cls);
 
@@ -141,4 +262,8 @@ const styles = StyleSheet.create({
   errorContent: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   errorTitle: { fontSize: 24, fontWeight: '800' as const, color: '#FFFFFF' },
   errorMessage: { fontSize: 14, color: 'rgba(255,255,255,0.7)', textAlign: 'center' as const },
+  loadingContainer: { flex: 1, backgroundColor: '#0B1120' },
+  loadingGradient: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 20 },
+  loadingTitle: { fontSize: 18, fontWeight: '700' as const, color: '#F8FAFC', textAlign: 'center' },
+  loadingSub: { fontSize: 14, color: '#94A3B8', textAlign: 'center' },
 });
