@@ -190,13 +190,17 @@ export function use100msCall({
 
             if (type === 'PEER_JOINED' && !peer.isLocal) {
               setParticipants(prev => {
-                const exists = prev.find(p => p.id === peer.peerID);
-                if (exists) {
-                  return prev.map(p => p.id === peer.peerID ? {
+                // If there's an existing placeholder remote participant, update it instead of adding a duplicate
+                const existingIndex = prev.findIndex(p => !p.isLocal && (p.id === peer.peerID || p.status === 'connecting' || !p.videoTrackId));
+                if (existingIndex !== -1) {
+                  return prev.map((p, idx) => idx === existingIndex ? {
                     ...p,
-                    status: 'connected',
+                    id: peer.peerID,
+                    name: peer.name || p.name || 'Partner',
+                    status: 'connected' as const,
                     videoTrackId: peer.videoTrack?.trackId || p.videoTrackId,
-                    isVideoOff: peer.videoTrack?.isMute() ?? p.isVideoOff,
+                    isVideoOff: peer.videoTrack?.isMute() ?? false,
+                    isMuted: peer.audioTrack?.isMute() ?? false,
                   } : p);
                 }
                 return [
@@ -211,7 +215,7 @@ export function use100msCall({
                     isVideoOff: peer.videoTrack?.isMute() ?? false,
                     isHandRaised: false,
                     isSpeaking: false,
-                    status: 'connected',
+                    status: 'connected' as const,
                     joinedAt: new Date().toISOString(),
                     videoTrackId: peer.videoTrack?.trackId,
                   },
@@ -237,7 +241,7 @@ export function use100msCall({
             setParticipants(prev => {
               let updatedAny = false;
               return prev.map(p => {
-                const isTarget = p.isLocal ? peer.isLocal : (p.id === peer.peerID || (!peer.isLocal && !updatedAny && !p.isLocal));
+                const isTarget = p.isLocal ? peer.isLocal : (p.id === peer.peerID || (!peer.isLocal && (!p.videoTrackId || !updatedAny)));
                 if (!isTarget) return p;
                 updatedAny = true;
 
@@ -245,6 +249,7 @@ export function use100msCall({
                   const isTrackOff = track.isMute() || type === 'TRACK_REMOVED';
                   return {
                     ...p,
+                    id: peer.isLocal ? p.id : peer.peerID,
                     screenShareTrackId: isTrackOff ? undefined : track.trackId,
                   };
                 }
@@ -254,6 +259,7 @@ export function use100msCall({
                   return {
                     ...p,
                     id: peer.isLocal ? p.id : peer.peerID,
+                    name: (!peer.isLocal && peer.name) ? peer.name : p.name,
                     videoTrackId: type === 'TRACK_REMOVED' ? undefined : track.trackId,
                     isVideoOff: isVideoMuted,
                     status: 'connected' as const,
@@ -263,6 +269,7 @@ export function use100msCall({
                   const isAudioMuted = track.isMute() || type === 'TRACK_MUTED' || type === 'TRACK_REMOVED';
                   return {
                     ...p,
+                    id: peer.isLocal ? p.id : peer.peerID,
                     isMuted: isAudioMuted,
                   };
                 }

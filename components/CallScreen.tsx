@@ -148,9 +148,23 @@ export default function CallScreen({
 
   const localParticipant = useMemo(() => participants.find(p => p.isLocal) ?? null, [participants]);
   const remoteParticipants = useMemo(() => participants.filter(p => !p.isLocal), [participants]);
-  const spotlightParticipant = useMemo(() =>
-    participants.find(p => p.id === spotlightId) ?? remoteParticipants[0] ?? null,
-  [participants, spotlightId, remoteParticipants]);
+
+  const spotlightParticipant = useMemo(() => {
+    // 1. If explicit spotlight ID matches a non-local participant with live video, return it
+    const explicit = participants.find(p => p.id === spotlightId && !p.isLocal);
+    if (explicit && (explicit.videoTrackId || explicit.mediaStream)) {
+      return explicit;
+    }
+    // 2. Prioritize any remote participant that has live video
+    const liveRemote = remoteParticipants.find(p => p.videoTrackId || p.mediaStream);
+    if (liveRemote) return liveRemote;
+
+    // 3. Prioritize any connected remote participant
+    const connectedRemote = remoteParticipants.find(p => p.status === 'connected');
+    if (connectedRemote) return connectedRemote;
+
+    return explicit ?? remoteParticipants[0] ?? null;
+  }, [participants, spotlightId, remoteParticipants]);
 
   const screenSharingParticipant = useMemo(() =>
     participants.find(p => p.screenShareTrackId || p.screenShareStream || (p.isLocal && isScreenSharing)) ?? null,
