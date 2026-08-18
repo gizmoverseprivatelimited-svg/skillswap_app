@@ -17,6 +17,8 @@ export interface CallParticipant {
   isSpeaking: boolean;
   status: ParticipantStatus;
   joinedAt: string;
+  videoTrackId?: string;
+  mediaStream?: any;
 }
 
 export interface CallMessage {

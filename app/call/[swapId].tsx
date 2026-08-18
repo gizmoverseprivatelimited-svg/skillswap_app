@@ -11,6 +11,7 @@ import { useClasses } from '@/providers/classes';
 import { useSocket } from '@/providers/socket';
 import { mockUsers } from '@/mocks/data';
 import url from '@/constants/backurl';
+import { use100msCall } from '@/hooks/use100msCall';
 import {
   buildLocalParticipant,
   buildRemoteParticipant,
@@ -37,8 +38,6 @@ export default function UnifiedCallScreen() {
 
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | undefined>(undefined);
-  const [loadingCode, setLoadingCode] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isTeacher, setIsTeacher] = useState(false);
 
   const currentUserId = currentUser?.id || (currentUser as any)?._id || authUser?.id || (authUser as any)?._id || '';
@@ -67,9 +66,6 @@ export default function UnifiedCallScreen() {
     async function fetchRoomCode() {
       if (!targetId || isUserLoading) return;
       try {
-        setLoadingCode(true);
-        setErrorMsg(null);
-
         if (cls) {
           // Group class 100ms room
           const res = await fetch(`${url}/classes/${cls.id}/100ms-room?userId=${encodeURIComponent(currentUserId)}`);
@@ -80,8 +76,6 @@ export default function UnifiedCallScreen() {
             setIsTeacher(Boolean(data.isTeacher || cls.teacherId === currentUserId));
           } else {
             console.warn('[CallScreen] Class 100ms room notice:', data.error);
-            // Fallback to simulated UI if room is not yet started or failed
-            setErrorMsg(data.error || null);
           }
         } else if (swap) {
           // 1:1 Skill swap 100ms room
@@ -97,8 +91,6 @@ export default function UnifiedCallScreen() {
         }
       } catch (err) {
         console.error('[CallScreen] Failed to fetch 100ms room code from backend:', err);
-      } finally {
-        setLoadingCode(false);
       }
     }
 
@@ -146,7 +138,7 @@ export default function UnifiedCallScreen() {
     };
   }, [socket, cls, handleEndCall]);
 
-  const participants: CallParticipant[] = useMemo(() => {
+  const initialParticipants: CallParticipant[] = useMemo(() => {
     if (!currentUser) return [];
 
     if (cls) {
@@ -186,6 +178,24 @@ export default function UnifiedCallScreen() {
     return [];
   }, [cls, swap, partner, currentUser, allUsers]);
 
+  // Live 100ms / WebRTC real-time connection hook
+  const {
+    participants: liveParticipants,
+    messages: liveMessages,
+    toggleMute,
+    toggleVideo,
+    sendMessage,
+    leaveCall,
+  } = use100msCall({
+    roomCode,
+    authToken,
+    userName: currentUser?.name || (isTeacher ? 'Teacher' : 'Participant'),
+    isTeacher,
+    initialParticipants,
+    mode: callMode,
+    onEndCall: handleEndCall,
+  });
+
   if (!cls && (!swap || !partner)) {
     return (
       <View style={styles.errorContainer}>
@@ -208,11 +218,15 @@ export default function UnifiedCallScreen() {
 
   return (
     <CallScreen
-      participants={participants}
+      participants={liveParticipants}
       roomTitle={roomTitle}
       mode={callMode}
       isGroupCall={isGroupCall}
-      onEndCall={handleEndCall}
+      onEndCall={leaveCall}
+      onToggleMute={toggleMute}
+      onToggleVideo={toggleVideo}
+      onSendMessage={(text) => sendMessage(text, currentUser?.id || 'local', currentUser?.name || 'You')}
+      externalMessages={liveMessages}
     />
   );
 }
@@ -225,8 +239,4 @@ const styles = StyleSheet.create({
   errorContent: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   errorTitle: { fontSize: 24, fontWeight: '800' as const, color: '#FFFFFF' },
   errorMessage: { fontSize: 14, color: 'rgba(255,255,255,0.7)', textAlign: 'center' as const },
-  loadingContainer: { flex: 1, backgroundColor: '#0B1120' },
-  loadingGradient: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 20 },
-  loadingTitle: { fontSize: 18, fontWeight: '700' as const, color: '#F8FAFC', textAlign: 'center' },
-  loadingSub: { fontSize: 14, color: '#94A3B8', textAlign: 'center' },
 });

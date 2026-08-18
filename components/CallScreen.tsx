@@ -24,6 +24,7 @@ import {
   formatDuration, startCallTimer, stopCallTimer,
   startSpeakingSimulator, stopSpeakingSimulator, generateCallMessageId,
 } from '../lib/call-engine';
+import LiveVideoTrack from './LiveVideoTrack';
 
 interface CallScreenProps {
   participants: CallParticipant[];
@@ -31,6 +32,10 @@ interface CallScreenProps {
   mode: CallMode;
   isGroupCall: boolean;
   onEndCall: () => void;
+  onToggleMute?: () => void;
+  onToggleVideo?: () => void;
+  onSendMessage?: (text: string) => void;
+  externalMessages?: CallMessage[];
 }
 
 type BottomPanel = 'none' | 'chat' | 'participants';
@@ -41,12 +46,16 @@ export default function CallScreen({
   mode,
   isGroupCall,
   onEndCall,
+  onToggleMute,
+  onToggleVideo,
+  onSendMessage,
+  externalMessages,
 }: CallScreenProps) {
   const insets = useSafeAreaInsets();
   const [participants, setParticipants] = useState<CallParticipant[]>(initialParticipants);
   const [duration, setDuration] = useState(0);
   const [bottomPanel, setBottomPanel] = useState<BottomPanel>('none');
-  const [messages, setMessages] = useState<CallMessage[]>([]);
+  const [messages, setMessages] = useState<CallMessage[]>(externalMessages || []);
   const [chatDraft, setChatDraft] = useState('');
   const [spotlightId, setSpotlightId] = useState<string | null>(
     isGroupCall ? initialParticipants.find(p => !p.isLocal)?.id ?? null : initialParticipants.find(p => !p.isLocal)?.id ?? null,
@@ -54,6 +63,20 @@ export default function CallScreen({
   const [layout, setLayout] = useState<'grid' | 'spotlight'>(isGroupCall ? 'spotlight' : 'spotlight');
   const [connecting, setConnecting] = useState(true);
   const scrollRef = useRef<FlatList>(null);
+
+  // Sync participants from parent when updated by 100ms / WebRTC
+  useEffect(() => {
+    if (initialParticipants && initialParticipants.length > 0) {
+      setParticipants(initialParticipants);
+    }
+  }, [initialParticipants]);
+
+  // Sync external messages
+  useEffect(() => {
+    if (externalMessages && externalMessages.length > 0) {
+      setMessages(externalMessages);
+    }
+  }, [externalMessages]);
 
   const localParticipant = useMemo(() => participants.find(p => p.isLocal) ?? null, [participants]);
   const remoteParticipants = useMemo(() => participants.filter(p => !p.isLocal), [participants]);
@@ -69,7 +92,7 @@ export default function CallScreen({
     const connectTimeout = setTimeout(() => {
       setConnecting(false);
       setParticipants(prev => prev.map(p => p.status === 'connecting' ? { ...p, status: 'connected' as const } : p));
-      if (isGroupCall) {
+      if (isGroupCall && messages.length === 0) {
         setMessages([{
           id: generateCallMessageId(),
           authorId: 'system',
@@ -79,7 +102,7 @@ export default function CallScreen({
           isSystem: true,
         }]);
       }
-    }, 1800);
+    }, 1500);
 
     const remoteIds = remoteParticipants.map(p => p.id);
     startSpeakingSimulator(remoteIds, (speakingId) => {
@@ -104,18 +127,24 @@ export default function CallScreen({
   }, [messages, bottomPanel]);
 
   const toggleMute = useCallback(() => {
+    if (onToggleMute) {
+      onToggleMute();
+    }
     if (!localParticipant) return;
     setParticipants(prev => prev.map(p =>
       p.isLocal ? { ...p, isMuted: !p.isMuted, isSpeaking: false } : p,
     ));
-  }, [localParticipant]);
+  }, [localParticipant, onToggleMute]);
 
   const toggleVideo = useCallback(() => {
+    if (onToggleVideo) {
+      onToggleVideo();
+    }
     if (!localParticipant) return;
     setParticipants(prev => prev.map(p =>
       p.isLocal ? { ...p, isVideoOff: !p.isVideoOff } : p,
     ));
-  }, [localParticipant]);
+  }, [localParticipant, onToggleVideo]);
 
   const toggleHand = useCallback(() => {
     if (!localParticipant) return;
@@ -126,16 +155,20 @@ export default function CallScreen({
 
   const handleSendMessage = useCallback(() => {
     if (!localParticipant || chatDraft.trim().length === 0) return;
+    const text = chatDraft.trim();
+    if (onSendMessage) {
+      onSendMessage(text);
+    }
     const msg: CallMessage = {
       id: generateCallMessageId(),
       authorId: localParticipant.id,
       authorName: localParticipant.name,
-      body: chatDraft.trim(),
+      body: text,
       createdAt: new Date().toISOString(),
     };
     setMessages(prev => [...prev, msg]);
     setChatDraft('');
-  }, [localParticipant, chatDraft]);
+  }, [localParticipant, chatDraft, onSendMessage]);
 
   const handleSpotlight = useCallback((id: string) => {
     setSpotlightId(id);
@@ -394,19 +427,29 @@ function ParticipantTile({ participant, mode, isLarge, isSmall }: ParticipantTil
   const showVideo = mode === 'video' && !participant.isVideoOff;
   const showAvatar = !showVideo || participant.status === 'connecting';
   const avatarSize = isLarge ? 80 : isSmall ? 28 : 48;
+  const hasLiveVideo = Boolean(participant.videoTrackId || participant.mediaStream);
 
   return (
     <View style={styles.tileContainer}>
       {showVideo && participant.status === 'connected' ? (
         <View style={styles.tileVideo}>
-          <LinearGradient
-            colors={getAvatarGradientColors(participant.id)}
-            style={styles.tileVideoGradient}
-          >
-            <Text style={styles.tileVideoInitial}>
-              {participant.name.charAt(0).toUpperCase()}
-            </Text>
-          </LinearGradient>
+          {hasLiveVideo ? (
+            <LiveVideoTrack
+              trackId={participant.videoTrackId}
+              mediaStream={participant.mediaStream}
+              mirror={participant.isLocal}
+              style={styles.liveVideoTrack}
+            />
+          ) : (
+            <LinearGradient
+              colors={getAvatarGradientColors(participant.id)}
+              style={styles.tileVideoGradient}
+            >
+              <Text style={styles.tileVideoInitial}>
+                {participant.name.charAt(0).toUpperCase()}
+              </Text>
+            </LinearGradient>
+          )}
         </View>
       ) : (
         <View style={[styles.tileAvatarWrap, showAvatar && styles.tileAvatarWrapVisible]}>
@@ -742,7 +785,8 @@ const styles = StyleSheet.create({
 
   // Participant tile
   tileContainer: { flex: 1, borderRadius: 20, overflow: 'hidden' as const, backgroundColor: '#1E293B', position: 'relative' as const },
-  tileVideo: { flex: 1 },
+  tileVideo: { flex: 1, position: 'relative' as const },
+  liveVideoTrack: { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0 },
   tileVideoGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   tileVideoInitial: { fontSize: 48, fontWeight: '800' as const, color: 'rgba(255,255,255,0.15)' },
   tileAvatarWrap: { flex: 1, display: 'none' as const },
