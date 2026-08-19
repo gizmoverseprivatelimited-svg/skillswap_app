@@ -14,6 +14,7 @@ interface CreateClassInput {
   title: string;
   description: string;
   category: SkillCategory;
+  subCategory?: string;
   level: SkillLevel;
   coverImageUrl: string;
   startISO: string;
@@ -208,6 +209,7 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
       title: input.title,
       description: input.description,
       category: input.category,
+      subCategory: input.subCategory || '',
       level: input.level,
       coverImageUrl: input.coverImageUrl,
       startISO: input.startISO,
@@ -233,6 +235,7 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
         title: input.title,
         description: input.description,
         category: input.category,
+        subCategory: input.subCategory || '',
         level: input.level,
         coverImageUrl: input.coverImageUrl,
         startISO: input.startISO,

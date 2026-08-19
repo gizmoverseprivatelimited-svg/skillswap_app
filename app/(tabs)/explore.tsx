@@ -133,9 +133,10 @@ export default function ExploreScreen() {
 
       const titleMatches = skill.title?.toLowerCase().includes(q) ?? false;
       const descMatches = skill.description?.toLowerCase().includes(q) ?? false;
+      const subCatMatches = (skill.subCategory?.toLowerCase().includes(q) || (skill as any).subcategory?.toLowerCase().includes(q)) ?? false;
       const userNameMatches = matchUserSearch(skill.user, q);
 
-      const matchesSearch = q.length === 0 ? true : titleMatches || descMatches || userNameMatches;
+      const matchesSearch = q.length === 0 ? true : titleMatches || descMatches || subCatMatches || userNameMatches;
       const matchesCategory = selectedCategory === 'All' || skill.category === (selectedCategory as any);
       const matchesLevel = filters.level === 'Any' || skill.level === filters.level;
       const matchesRating = (skill.user?.rating ?? 0) >= filters.minRating;

@@ -33,6 +33,7 @@ import { useAlert } from '@/providers/alert';
 import { SkillCategory, SkillLevel, Skill, PricingModel } from '@/types';
 import { formatPrice } from '@/constants/locale';
 import { generateSkillDescription } from '@/lib/ai';
+import CategorySubcategoryPicker from '@/components/CategorySubcategoryPicker';
 
 type AddMode = 'teach' | 'learn' | 'swap';
 
@@ -70,19 +71,6 @@ const MODE_OPTIONS: {
   },
 ];
 
-const DEFAULT_CATEGORIES: string[] = [
-  'Arts & Crafts',
-  'Technology',
-  'Fitness & Wellness',
-  'Languages',
-  'Music',
-  'Cooking',
-  'Business',
-  'Photography',
-  'Classical Arts',
-  'Competitive Exams',
-];
-
 const LEVELS: SkillLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
 
 const PRICING_MODELS: { key: PricingModel; label: string; desc: string }[] = [
@@ -99,9 +87,19 @@ const STOCK_IMAGES: Record<string, string> = {
   'Music': 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=800',
   'Cooking': 'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=800',
   'Business': 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800',
-  'Photography': 'https://images.unsplash.com/photo-1554048612-b6a482bc67e5?w=800',
-  'Classical Arts': 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800',
-  'Competitive Exams': 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800',
+  'Photography & Video': 'https://images.unsplash.com/photo-1554048612-b6a482bc67e5?w=800',
+  'Health & Life': 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800',
+  'Professional Skills': 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800',
+  'Education & Teaching': 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800',
+  'Marketing & Sales': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800',
+  'Finance & Accounting': 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800',
+  'Design & Creative': 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800',
+  'Writing & Communication': 'https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800',
+  'Personal Development': 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800',
+  'Sports & Games': 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800',
+  'DIY & Home Skills': 'https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=800',
+  'Career & Jobs': 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800',
+  'Other / Miscellaneous': 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800',
 };
 
 export default function AddSkillScreen() {
@@ -117,15 +115,13 @@ export default function AddSkillScreen() {
   }, [id, currentUser?.skillsOffered]);
 
   const [mode, setMode] = useState<AddMode | null>(isEditMode ? 'teach' : null);
-  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [teachTitle, setTeachTitle] = useState<string>('');
-  const [teachCategory, setTeachCategory] = useState<SkillCategory | null>(null);
-  const [customTeachCategory, setCustomTeachCategory] = useState<string>('');
+  const [teachCategory, setTeachCategory] = useState<string | null>(null);
+  const [teachSubcategory, setTeachSubcategory] = useState<string | null>(null);
   const [teachLevel, setTeachLevel] = useState<SkillLevel | null>(null);
   const [teachDescription, setTeachDescription] = useState<string>('');
   const [isGeneratingTeachDesc, setIsGeneratingTeachDesc] = useState(false);
   const [isGeneratingSwapDesc, setIsGeneratingSwapDesc] = useState(false);
-  const [showTeachCategory, setShowTeachCategory] = useState<boolean>(false);
   const [pricingModel, setPricingModel] = useState<PricingModel>('free');
   const [pricePerSession, setPricePerSession] = useState<string>('');
   const [monthlyPrice, setMonthlyPrice] = useState<string>('');
@@ -133,9 +129,8 @@ export default function AddSkillScreen() {
   const [promoTagline, setPromoTagline] = useState<string>('');
 
   const [learnTitle, setLearnTitle] = useState<string>('');
-  const [learnCategory, setLearnCategory] = useState<SkillCategory | null>(null);
-  const [customLearnCategory, setCustomLearnCategory] = useState<string>('');
-  const [showLearnCategory, setShowLearnCategory] = useState<boolean>(false);
+  const [learnCategory, setLearnCategory] = useState<string | null>(null);
+  const [learnSubcategory, setLearnSubcategory] = useState<string | null>(null);
 
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
@@ -146,13 +141,8 @@ export default function AddSkillScreen() {
       setTeachTitle(editingSkill.title || '');
       setTeachDescription(editingSkill.description || '');
       setTeachLevel(editingSkill.level || 'Beginner');
-
-      if (DEFAULT_CATEGORIES.includes(editingSkill.category)) {
-        setTeachCategory(editingSkill.category as SkillCategory);
-      } else {
-        setTeachCategory('Other');
-        setCustomTeachCategory(editingSkill.category || '');
-      }
+      setTeachCategory(editingSkill.category || null);
+      setTeachSubcategory(editingSkill.subCategory || (editingSkill as any).subcategory || null);
 
       setPricingModel(editingSkill.pricingModel || 'free');
       if (editingSkill.pricePerSession) setPricePerSession(String(editingSkill.pricePerSession));
@@ -162,41 +152,16 @@ export default function AddSkillScreen() {
     }
   }, [editingSkill]);
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch(`${url}/skills/categories`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setCategories((prev) => Array.from(new Set([...prev, ...data])));
-          }
-        }
-      } catch (err) {
-        console.warn('[AddSkill] Failed to fetch categories from backend:', err);
-      }
-    };
-    void fetchCategories();
-  }, []);
-
-  const categoryOptions = useMemo(() => {
-    const base = categories.filter((c) => c !== 'Other');
-    return [...base, 'Other'];
-  }, [categories]);
-
   const showTeachFields = mode === 'teach' || mode === 'swap';
   const showLearnFields = mode === 'learn' || mode === 'swap';
 
-  const effectiveTeachCategory = (teachCategory === 'Other' ? customTeachCategory.trim() : teachCategory) as SkillCategory | null;
-  const teachImageUrl = effectiveTeachCategory ? (STOCK_IMAGES[effectiveTeachCategory] ?? STOCK_IMAGES['Technology']) : null;
+  const teachImageUrl = teachCategory ? (STOCK_IMAGES[teachCategory] ?? STOCK_IMAGES['Technology']) : null;
 
   const validate = (): string | null => {
     if (!mode) return 'Please choose an option to continue.';
     if (showTeachFields) {
       if (!teachTitle.trim()) return 'Please enter the skill you can teach.';
-      if (!teachCategory) return 'Please select a category for your teach skill.';
-      if (teachCategory === 'Other' && !customTeachCategory.trim())
-        return 'Please enter a custom category name.';
+      if (!teachCategory) return 'Please select a category and subcategory for your teach skill.';
       if (!teachLevel) return 'Please select your proficiency level.';
       if (pricingModel === 'per_session' && (!pricePerSession.trim() || Number(pricePerSession) <= 0))
         return 'Please set a valid per-session price.';
@@ -206,14 +171,23 @@ export default function AddSkillScreen() {
         return 'Please add a promotional tagline or disable promotion.';
     }
     if (showLearnFields) {
-      if (!learnTitle.trim()) return 'Please enter the skill you want to learn.';
-      if (learnCategory === 'Other' && !customLearnCategory.trim())
-        return 'Please enter a custom category name.';
+      if (!learnTitle.trim() && !learnSubcategory) return 'Please enter the skill you want to learn.';
     }
     return null;
   };
 
   const handleSave = async () => {
+    if (!currentUser || currentUser.id === '1' || (currentUser as any).isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to offer a skill.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
+      return;
+    }
     const error = validate();
     if (error) {
       Alert.alert('Missing Info', error);
@@ -223,18 +197,17 @@ export default function AddSkillScreen() {
     setIsSaving(true);
     try {
       const newSkills: Skill[] = [];
-      const finalTeachCat = (teachCategory === 'Other' ? customTeachCategory.trim() : teachCategory) as SkillCategory;
-      const finalLearnCat = (learnCategory === 'Other' ? customLearnCategory.trim() : learnCategory) as SkillCategory;
 
-      if (showTeachFields && teachTitle.trim() && finalTeachCat && teachLevel) {
+      if (showTeachFields && teachTitle.trim() && teachCategory && teachLevel) {
         const skillPayload: Skill = {
           id: isEditMode && editingSkill ? editingSkill.id : `skill-${Date.now()}`,
           title: teachTitle.trim(),
-          category: finalTeachCat,
+          category: teachCategory as SkillCategory,
+          subCategory: teachSubcategory || '',
           description: teachDescription.trim() || `Teaching ${teachTitle.trim()}`,
           level: teachLevel,
           userId: currentUser?.id || '',
-          imageUrl: (STOCK_IMAGES[finalTeachCat] || teachImageUrl) ?? STOCK_IMAGES['Technology'],
+          imageUrl: (STOCK_IMAGES[teachCategory] || teachImageUrl) ?? STOCK_IMAGES['Technology'],
           pricingModel,
           pricePerSession: pricingModel === 'per_session' ? Number(pricePerSession) : undefined,
           monthlyPrice: pricingModel === 'monthly' ? Number(monthlyPrice) : undefined,
@@ -268,18 +241,12 @@ export default function AddSkillScreen() {
         } else {
           newSkills.push(skillPayload);
         }
-
-        // Add custom category to local categories list so it appears dynamically
-        setCategories((prev) => Array.from(new Set([...prev, finalTeachCat])));
       }
 
       if (showLearnFields && learnTitle.trim() && currentUser) {
         const alreadyWants = currentUser.skillsWanted.includes(learnTitle.trim());
         if (!alreadyWants) {
           currentUser.skillsWanted.push(learnTitle.trim());
-        }
-        if (finalLearnCat) {
-          setCategories((prev) => Array.from(new Set([...prev, finalLearnCat])));
         }
       }
 
@@ -344,10 +311,9 @@ export default function AddSkillScreen() {
     setMode(null);
     setTeachTitle('');
     setTeachCategory(null);
-    setCustomTeachCategory('');
+    setTeachSubcategory(null);
     setTeachLevel(null);
     setTeachDescription('');
-    setShowTeachCategory(false);
     setPricingModel('free');
     setPricePerSession('');
     setMonthlyPrice('');
@@ -355,8 +321,7 @@ export default function AddSkillScreen() {
     setPromoTagline('');
     setLearnTitle('');
     setLearnCategory(null);
-    setCustomLearnCategory('');
-    setShowLearnCategory(false);
+    setLearnSubcategory(null);
     setIsGeneratingTeachDesc(false);
     setIsGeneratingSwapDesc(false);
   };
@@ -554,53 +519,23 @@ export default function AddSkillScreen() {
                 <Text style={styles.charCount}>{teachTitle.length}/60</Text>
               </View>
 
-              <View style={styles.section}>
-                <Text style={styles.label}>Category <Text style={styles.required}>*</Text></Text>
-                <TouchableOpacity
-                  style={styles.pickerButton}
-                  onPress={() => setShowTeachCategory(!showTeachCategory)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.pickerButtonText, !teachCategory && styles.pickerPlaceholder]}>
-                    {teachCategory === 'Other'
-                      ? (customTeachCategory.trim() ? `Other (${customTeachCategory.trim()})` : 'Other')
-                      : (teachCategory ?? 'Select a category')}
-                  </Text>
-                  <ChevronDown size={20} color={Colors.light.textSecondary} />
-                </TouchableOpacity>
-                {showTeachCategory && (
-                  <View style={styles.optionsGrid}>
-                    {categoryOptions.map((cat) => (
-                      <TouchableOpacity
-                        key={cat}
-                        style={[styles.optionChip, teachCategory === cat && styles.optionChipSelected]}
-                        onPress={() => {
-                          setTeachCategory(cat);
-                          if (cat !== 'Other') {
-                            setShowTeachCategory(false);
-                          }
-                        }}
-                      >
-                        <Text style={[styles.optionChipText, teachCategory === cat && styles.optionChipTextSelected]}>
-                          {cat}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-                {teachCategory === 'Other' && (
-                  <View style={styles.customCategoryWrap}>
-                    <TextInput
-                      style={styles.customCategoryInput}
-                      placeholder="Enter custom category"
-                      placeholderTextColor={Colors.light.textTertiary}
-                      value={customTeachCategory}
-                      onChangeText={setCustomTeachCategory}
-                      autoFocus
-                    />
-                  </View>
-                )}
-              </View>
+              <CategorySubcategoryPicker
+                selectedCategory={teachCategory}
+                selectedSubcategory={teachSubcategory}
+                onSelect={(cat, subcat) => {
+                  setTeachCategory(cat);
+                  setTeachSubcategory(subcat);
+                  if (!teachTitle.trim()) {
+                    setTeachTitle(subcat);
+                  }
+                }}
+                onClear={() => {
+                  setTeachCategory(null);
+                  setTeachSubcategory(null);
+                }}
+                label="Category & Subcategory *"
+                modalTitle="Select Skill Category"
+              />
 
               <View style={styles.section}>
                 <Text style={styles.label}>Proficiency Level <Text style={styles.required}>*</Text></Text>
@@ -779,53 +714,23 @@ export default function AddSkillScreen() {
                 <Text style={styles.charCount}>{learnTitle.length}/60</Text>
               </View>
 
-              <View style={styles.section}>
-                <Text style={styles.label}>Category (Optional)</Text>
-                <TouchableOpacity
-                  style={styles.pickerButton}
-                  onPress={() => setShowLearnCategory(!showLearnCategory)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.pickerButtonText, !learnCategory && styles.pickerPlaceholder]}>
-                    {learnCategory === 'Other'
-                      ? (customLearnCategory.trim() ? `Other (${customLearnCategory.trim()})` : 'Other')
-                      : (learnCategory ?? 'Select a category')}
-                  </Text>
-                  <ChevronDown size={20} color={Colors.light.textSecondary} />
-                </TouchableOpacity>
-                {showLearnCategory && (
-                  <View style={styles.optionsGrid}>
-                    {categoryOptions.map((cat) => (
-                      <TouchableOpacity
-                        key={cat}
-                        style={[styles.optionChip, learnCategory === cat && styles.optionChipSelected]}
-                        onPress={() => {
-                          setLearnCategory(cat);
-                          if (cat !== 'Other') {
-                            setShowLearnCategory(false);
-                          }
-                        }}
-                      >
-                        <Text style={[styles.optionChipText, learnCategory === cat && styles.optionChipTextSelected]}>
-                          {cat}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-                {learnCategory === 'Other' && (
-                  <View style={styles.customCategoryWrap}>
-                    <TextInput
-                      style={styles.customCategoryInput}
-                      placeholder="Enter custom category"
-                      placeholderTextColor={Colors.light.textTertiary}
-                      value={customLearnCategory}
-                      onChangeText={setCustomLearnCategory}
-                      autoFocus
-                    />
-                  </View>
-                )}
-              </View>
+              <CategorySubcategoryPicker
+                selectedCategory={learnCategory}
+                selectedSubcategory={learnSubcategory}
+                onSelect={(cat, subcat) => {
+                  setLearnCategory(cat);
+                  setLearnSubcategory(subcat);
+                  if (!learnTitle.trim()) {
+                    setLearnTitle(subcat);
+                  }
+                }}
+                onClear={() => {
+                  setLearnCategory(null);
+                  setLearnSubcategory(null);
+                }}
+                label="Category & Subcategory (Optional)"
+                modalTitle="Select Skill Category"
+              />
             </View>
           )}
         </ScrollView>

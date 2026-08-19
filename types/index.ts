@@ -6,10 +6,19 @@ export type SkillCategory =
   | 'Music'
   | 'Cooking'
   | 'Business'
-  | 'Photography'
-  | 'Classical Arts'
-  | 'Competitive Exams'
-  | 'Other'
+  | 'Photography & Video'
+  | 'Health & Life'
+  | 'Professional Skills'
+  | 'Education & Teaching'
+  | 'Marketing & Sales'
+  | 'Finance & Accounting'
+  | 'Design & Creative'
+  | 'Writing & Communication'
+  | 'Personal Development'
+  | 'Sports & Games'
+  | 'DIY & Home Skills'
+  | 'Career & Jobs'
+  | 'Other / Miscellaneous'
   | (string & {});
 
 export type SkillLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
@@ -21,6 +30,8 @@ export interface Skill {
   _id?: string;
   title: string;
   category: SkillCategory;
+  subCategory?: string;
+  subcategory?: string;
   description: string;
   level: SkillLevel;
   userId: string;
@@ -58,6 +69,7 @@ export interface User {
   email?:string;
   role?: OnboardingRole;
   hasCompletedOnboarding?: boolean;
+  isDemo?: boolean;
 }
 
 export interface SkillWithUser extends Skill {
@@ -344,6 +356,8 @@ export interface GroupClass {
   title: string;
   description: string;
   category: SkillCategory;
+  subCategory?: string;
+  subcategory?: string;
   level: SkillLevel;
   coverImageUrl: string;
   startISO: string;

@@ -16,6 +16,7 @@ import type { ClassWithTeacher, SkillSwapStatus, SkillWithUser } from '../../typ
 import { formatPrice } from '@/constants/locale';
 import { formatCredits, formatClassSchedule, formatBillingCycle, getClassEnrollmentCost, getSessionCreditCost } from '@/lib/payments';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
+import { getCategoryImageUrl } from '@/constants/categories';
 import url from '@/constants/backurl';
 
 import { useSafety } from '@/providers/safety';
@@ -39,26 +40,83 @@ const resolveSwapTagStyle = (status: SkillSwapStatus | string) => {
 
 export default function SkillDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  // console.log(id);
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  // const [skillsWithUsers, setSkillsWithUsers] = useState<SkillWithUser[]>([])
   const [skill, setSkill] = useState<SkillWithUser>();
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { swaps, allSwaps, fetchSwaps } = useSkillSwaps();
+  const { currentUser, allUsers, removeSkill } = useCurrentUser();
 
   useEffect(() => {
     fetchSwaps();
     setIsLoading(true);
-    getSkillsWithUsers().then((list) => {
-      setSkill(list.find(s => (s._id || s.id) === id));
-    }).finally(() => {
-      setIsLoading(false);
-    });
-  }, [id]);
 
-  const { currentUser, allUsers, removeSkill } = useCurrentUser();
+    const loadSkillData = async () => {
+      try {
+        const list = await getSkillsWithUsers();
+        let found = list.find(s => (s._id || s.id) === id);
+
+        if (!found && currentUser) {
+          const mySkill = currentUser.skillsOffered?.find(s => ((s as any)._id || s.id) === id);
+          if (mySkill) {
+            found = {
+              ...mySkill,
+              user: currentUser,
+            } as SkillWithUser;
+          }
+        }
+
+        if (!found && Array.isArray(allUsers)) {
+          for (const u of allUsers) {
+            const matched = u.skillsOffered?.find(s => ((s as any)._id || s.id) === id);
+            if (matched) {
+              found = {
+                ...matched,
+                user: u,
+              } as SkillWithUser;
+              break;
+            }
+          }
+        }
+
+        if (!found && id && !id.startsWith('onboard-') && !id.startsWith('guest_skill_')) {
+          try {
+            const res = await fetch(`${url}/skills/${id}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data && (data._id || data.id)) {
+                const owner = allUsers.find(u => u.id === data.userId || (u as any)._id === data.userId) || currentUser;
+                found = {
+                  ...data,
+                  user: owner || undefined,
+                } as SkillWithUser;
+              }
+            }
+          } catch (fetchErr) {
+            console.warn('[SkillDetail] Direct fetch failed:', fetchErr);
+          }
+        }
+
+        setSkill(found);
+      } catch (err) {
+        console.warn('[SkillDetail] Failed to load skill data:', err);
+        if (currentUser) {
+          const mySkill = currentUser.skillsOffered?.find(s => ((s as any)._id || s.id) === id);
+          if (mySkill) {
+            setSkill({
+              ...mySkill,
+              user: currentUser,
+            } as SkillWithUser);
+          }
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadSkillData();
+  }, [id, currentUser, allUsers]);
   const { isBlocked, checkBlockStatus } = useSafety();
   const { classes, getClassesByTeacher, enrollInClass, isEnrolled } = useClasses();
   const { showAlert } = useAlert();
@@ -114,8 +172,15 @@ export default function SkillDetailScreen() {
   const canCreateGroupClass = isOwner && !hasActiveClassForSkill;
 
   const handleQuickEnroll = useCallback((cls: ClassWithTeacher) => {
-    if (!currentUser || currentUser.id === '1') {
-      showAlert('Sign In Required', 'Please sign in to your account to enroll in group classes.');
+    if (!currentUser || currentUser.id === '1' || (currentUser as any).isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to enroll in group classes.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
       return;
     }
     if ((targetUserId && isBlocked(targetUserId)) || isBlockedRelation) {
@@ -241,8 +306,15 @@ export default function SkillDetailScreen() {
   }, [activeSwap]);
 
   const handleRequestPress = useCallback(() => {
-    if (currentUser?.id === '1') {
-      showAlert('Login Required', 'To send a skill swap request, you must log in with a real account.');
+    if (!currentUser || currentUser.id === '1' || (currentUser as any).isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to request a skill exchange.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
       return;
     }
     const tId = skill?.userId || skill?.user?.id;
@@ -315,11 +387,10 @@ export default function SkillDetailScreen() {
         contentContainerStyle={contentContainerStyle}
       >
         <View style={styles.heroContainer}>
-          {skill.imageUrl ? (
-            <Image source={{ uri: resolveImageUrl(skill.imageUrl, 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800') }} style={styles.headerImage} />
-          ) : (
-            <View style={[styles.headerImage, { backgroundColor: Colors.light.backgroundTertiary }]} />
-          )}
+          <Image
+            source={{ uri: resolveImageUrl(skill.imageUrl, getCategoryImageUrl(skill.category || skill.title)) }}
+            style={styles.headerImage}
+          />
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.8)']}
             style={styles.heroGradient}

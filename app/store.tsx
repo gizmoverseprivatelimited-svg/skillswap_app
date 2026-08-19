@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { Coins, Crown, Zap, Check, Sparkles } from 'lucide-react-native';
 import { useState } from 'react';
 import Colors from '@/constants/colors';
@@ -44,6 +44,7 @@ const premiumTiers = [
 ];
 
 export default function StoreScreen() {
+  const router = useRouter();
   const [selectedTab, setSelectedTab] = useState<'credits' | 'premium'>('credits');
   const [selectedDuration, setSelectedDuration] = useState<'monthly' | 'yearly'>('monthly');
   const { currentUser, loadUser, earnCredits } = useCurrentUser();
@@ -115,8 +116,15 @@ export default function StoreScreen() {
   };
 
   const handlePurchaseCredits = (packageId: typeof creditPackages[number]['id']) => {
-    if (currentUser?.id === '1') {
-      showAlert('Login Required', 'To top up or purchase credits, please log in with a real account.');
+    if (!currentUser || currentUser?.id === '1' || (currentUser as any)?.isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to purchase credits.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
       return;
     }
     const pkg = creditPackages.find((p) => p.id === packageId);
@@ -188,8 +196,15 @@ export default function StoreScreen() {
   };
 
   const handlePurchasePremium = (tier: typeof premiumTiers[number]['id']) => {
-    if (currentUser?.id === '1') {
-      showAlert('Login Required', 'To purchase a premium subscription, please log in with a real account.');
+    if (!currentUser || currentUser?.id === '1' || (currentUser as any)?.isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to purchase a premium subscription.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
       return;
     }
     const tierInfo = premiumTiers.find((t) => t.id === tier);

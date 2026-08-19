@@ -9,6 +9,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafety } from './safety';
 import url from '@/constants/backurl';
 
+import { findCategoryForSubcategory, getCategoryImageUrl } from '@/constants/categories';
+
 interface CurrentUserContextValue {
   loadUser: any
   currentUser: User | null;
@@ -45,15 +47,22 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
         const existingTitles = new Set(prev.skillsOffered.map(s => s.title.toLowerCase()));
         const newSkills: Skill[] = data.skillsToTeach
           .filter(title => !existingTitles.has(title.toLowerCase()))
-          .map((title, idx) => ({
-            id: `onboard-${prev.id}-${idx}`,
-            title,
-            category: title as SkillCategory,
-            description: `Teaching ${title}`,
-            level: (data.experienceLevels?.[title] as SkillLevel) || 'Intermediate',
-            userId: prev.id,
-            imageUrl: '',
-          }));
+          .map((title, idx) => {
+            const mainCategory = (findCategoryForSubcategory(title) || 'Other / Miscellaneous') as SkillCategory;
+            const catImage = getCategoryImageUrl(mainCategory);
+            const generatedId = `onboard-${prev.id}-${idx}-${Date.now()}`;
+            return {
+              id: generatedId,
+              _id: generatedId,
+              title,
+              category: mainCategory,
+              subCategory: title,
+              description: `I can teach and share knowledge in ${title}.`,
+              level: (data.experienceLevels?.[title] as SkillLevel) || 'Intermediate',
+              userId: prev.id,
+              imageUrl: catImage,
+            };
+          });
         if (newSkills.length > 0) {
           updated.skillsOffered = [...prev.skillsOffered, ...newSkills];
         }
@@ -88,35 +97,21 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
       setIsLoading(true);
     }
     if (currentId === '1') {
-      let guestProfile: any = {};
-      let guestSkills: Skill[] = [];
-      try {
-        const storedGuest = await AsyncStorage.getItem('@skillswap/guest_user_profile');
-        if (storedGuest) {
-          guestProfile = JSON.parse(storedGuest);
-        }
-        const storedSkills = await AsyncStorage.getItem('@skillswap/guest_skills_offered');
-        if (storedSkills) {
-          guestSkills = JSON.parse(storedSkills);
-        }
-      } catch (e) {
-        console.error('[CurrentUser] Failed to read guest data:', e);
-      }
-
       const demoUser: User = {
         id: '1',
-        name: guestProfile.name || activeUser?.name || 'Guest User',
+        name: activeUser?.name || 'Demo User',
         username: activeUser?.username || 'user_demo',
-        avatarUrl: guestProfile.avatarUrl || activeUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-        bio: guestProfile.bio || 'Demo account. Explore all functionalities of SkillSwap!',
-        location: guestProfile.location || 'New Delhi, India',
-        skillsOffered: guestSkills,
-        skillsWanted: guestProfile.skillsWanted !== undefined ? guestProfile.skillsWanted : (activeUser?.skillsToLearn || ['Cooking', 'Hindi', 'Guitar']),
-        rating: 4.8,
-        totalSwaps: 5,
+        avatarUrl: activeUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+        bio: 'Demo account (read-only mode). Browse and explore leteski!',
+        location: 'New Delhi, India',
+        skillsOffered: [],
+        skillsWanted: [],
+        rating: 5.0,
+        totalSwaps: 0,
         joinedDate: '2026-01-01',
-        credits: activeUser?.credits ?? 10,
-        premiumTier: activeUser?.premiumTier ?? 'free',
+        credits: 0,
+        premiumTier: 'free',
+        isDemo: true,
       };
       setCurrentUser(demoUser);
     }

@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
+  Share,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -18,6 +20,7 @@ import {
   TrendingUp,
   Award,
   LogOut,
+  LogIn,
   Coins,
   Crown,
   ShoppingBag,
@@ -33,8 +36,12 @@ import {
   History,
   Users,
   Edit,
+  Pencil,
   Trash2,
   UserX,
+  Share2,
+  Download,
+  ScrollText,
 } from 'lucide-react-native';
 import { useAuth } from '@/providers/auth';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,12 +51,20 @@ import ReviewsSection from '@/components/ReviewsSection';
 import { useCurrentUser } from '@/providers/current-user';
 import { useAlert } from '@/providers/alert';
 import { useSkillSwaps } from '@/providers/skill-swaps';
+import { useClasses } from '@/providers/classes';
 import { useEarnings } from '@/providers/earnings';
 import { useSafety } from '@/providers/safety';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import { formatPrice } from '@/constants/locale';
 import url from '@/constants/backurl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  buildSwapCertificates,
+  buildClassCertificates,
+  getCertificateLabel,
+  formatDate,
+  type CertificateData,
+} from '@/lib/certificate';
 
 import { useSocket } from '@/providers/socket';
 
@@ -60,9 +75,11 @@ export default function ProfileScreen() {
   const { blockedUsers } = useSafety();
   const currentUserContext = useCurrentUser();
   const currentUser = currentUserContext?.currentUser;
+  const allUsers = currentUserContext?.allUsers || [];
   const loadUser = currentUserContext?.loadUser;
   const removeSkill = currentUserContext?.removeSkill;
   const { swaps } = useSkillSwaps();
+  const { classes, enrollments } = useClasses();
   const { getSummary, refreshUserEarnings } = useEarnings();
   const { socket } = useSocket();
 
@@ -70,6 +87,46 @@ export default function ProfileScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [reviews, setReviews] = useState<any>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const certificates = useMemo(() => {
+    if (!currentUser) return [];
+    const swapCerts = buildSwapCertificates(swaps, currentUser, allUsers);
+    const classCerts = buildClassCertificates(classes, enrollments as any, currentUser, allUsers);
+    return [...swapCerts, ...classCerts];
+  }, [swaps, currentUser, allUsers, classes, enrollments]);
+
+  const handleShareProfile = async () => {
+    if (!currentUser || currentUser?.id === '1' || (currentUser as any)?.isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to share your profile.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
+      return;
+    }
+    const message = `Check out ${currentUser?.name || 'my'}'s profile on leteski!`;
+    const shareUrl = `https://leteski.com/profile/${currentUser?.id || ''}`;
+    try {
+      if (Platform.OS === 'web') {
+        if (typeof navigator !== 'undefined' && navigator.share) {
+          await navigator.share({ title: 'leteski Profile', text: message, url: shareUrl });
+        } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          await navigator.clipboard.writeText(`${message} ${shareUrl}`);
+          showAlert('Copied', 'Profile link copied to clipboard');
+        }
+      } else {
+        await Share.share({
+          message: `${message} ${shareUrl}`,
+          title: 'leteski Profile',
+        });
+      }
+    } catch (error) {
+      console.log('[Profile] Share error:', error);
+    }
+  };
 
   const earningsSummary = useMemo(() => {
     if (!currentUser?.id) {
@@ -169,6 +226,19 @@ export default function ProfileScreen() {
     }
   }, [fetchReviews, fetchVerifications, socket]);
 
+  const isDemoUser = Boolean(!auth.isAuthenticated || currentUser?.id === '1' || currentUser?.isDemo || auth.user?.isDemo);
+
+  const handleRequireLogin = (featureName = 'this feature') => {
+    showAlert(
+      'Login Required 🔒',
+      `Please log in or create an account to access ${featureName}.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log In', onPress: () => router.push('/login' as any) },
+      ]
+    );
+  };
+
   const handleSignOut = async () => {
     console.log('[Profile] Signing out');
     await auth.signOut();
@@ -204,15 +274,35 @@ export default function ProfileScreen() {
               <Award size={16} color="#FFFFFF" />
             </View>
           </View>
-          <Text style={styles.name}>{currentUser?.name}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>{currentUser?.name}</Text>
+            <TouchableOpacity
+              style={styles.nameEditButton}
+              onPress={() => isDemoUser ? handleRequireLogin('edit your profile') : router.push('/edit-profile')}
+              activeOpacity={0.7}
+              accessibilityLabel="Edit Profile"
+              testID="edit-profile-pen-button"
+            >
+              <Pencil size={15} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.shareIconBtn}
+              onPress={handleShareProfile}
+              activeOpacity={0.7}
+              accessibilityLabel="Share Profile"
+              testID="share-profile-button"
+            >
+              <Share2 size={15} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
           <View style={styles.locationRow}>
             <MapPin size={16} color="rgba(255,255,255,0.9)" />
-            <Text style={styles.location}>{currentUser?.location}</Text>
+            <Text style={styles.location}>{currentUser?.location || 'Location not set'}</Text>
           </View>
           {verifications && verifications.trustScore > 0 && (
             <TouchableOpacity
               style={styles.trustScoreContainer}
-              onPress={() => router.push('/verification')}
+              onPress={() => isDemoUser ? handleRequireLogin('account verification tools') : router.push('/verification')}
               activeOpacity={0.7}
             >
               <TrustScoreBadge score={verifications.trustScore} size="small" showLabel={false} />
@@ -239,7 +329,7 @@ export default function ProfileScreen() {
 
           <TouchableOpacity
             style={styles.creditsCard}
-            onPress={() => router.push('/store')}
+            onPress={() => isDemoUser ? handleRequireLogin('purchase credits and store') : router.push('/store')}
           >
             <View style={styles.creditsLeft}>
               <View style={styles.creditsIcon}>
@@ -252,7 +342,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.creditsButton}>
               <ShoppingBag size={18} color={Colors.light.primary} />
-              <Text style={styles.creditsButtonText}>Top Up</Text>
+              <Text style={styles.creditsButtonText}>Get Credits</Text>
             </View>
           </TouchableOpacity>
 
@@ -307,7 +397,7 @@ export default function ProfileScreen() {
 
           <TouchableOpacity
             style={styles.verificationCard}
-            onPress={() => router.push('/swaps/history' as any)}
+            onPress={() => isDemoUser ? handleRequireLogin('exchange history') : router.push('/swaps/history' as any)}
             activeOpacity={0.7}
             testID="swap-history-button"
           >
@@ -325,7 +415,7 @@ export default function ProfileScreen() {
 
           <TouchableOpacity
             style={styles.verificationCard}
-            onPress={() => router.push('/verification')}
+            onPress={() => isDemoUser ? handleRequireLogin('account verification tools') : router.push('/verification')}
             activeOpacity={0.7}
           >
             <View style={styles.verificationIcon}>
@@ -348,55 +438,225 @@ export default function ProfileScreen() {
             <Text style={styles.verificationAction}>View</Text>
           </TouchableOpacity>
 
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => router.push('/edit-profile')}
-            >
-              <Text style={styles.editButtonText}>Edit Profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.signOutButton}
-              onPress={handleSignOut}
-            >
-              <LogOut size={18} color={Colors.light.error} />
-              <Text style={styles.signOutButtonText}>Sign Out</Text>
-            </TouchableOpacity>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>About</Text>
+            <View style={styles.bioContainer}>
+              <Text style={styles.bioText}>{currentUser?.bio || 'No bio added yet.'}</Text>
+            </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.adminButton}
-            onPress={() => router.push('/admin/login' as any)}
-            activeOpacity={0.7}
-            testID="admin-panel-button"
-          >
-            <View style={styles.adminIconWrap}>
-              <Settings size={20} color="#FFFFFF" />
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Skills I Offer</Text>
+              <TouchableOpacity
+                style={styles.addSkillButton}
+                onPress={() => isDemoUser ? handleRequireLogin('add an offer skill') : router.push('/add-skill' as any)}
+                activeOpacity={0.7}
+              >
+                <Plus size={16} color="#FFFFFF" />
+                <Text style={styles.addSkillButtonText}>Add Skill</Text>
+              </TouchableOpacity>
             </View>
-            <View style={styles.adminTextWrap}>
-              <Text style={styles.adminTitle}>Admin Panel</Text>
-              <Text style={styles.adminSubtitle}>Manage users, reviews & more</Text>
-            </View>
-          </TouchableOpacity>
+            <View style={styles.skillsGrid}>
+              {(currentUser?.skillsOffered || []).map((skill, index) => {
+                const skId = skill._id || skill.id;
+                return (
+                  <TouchableOpacity
+                    key={skId || index}
+                    style={styles.skillCard}
+                    onPress={() => router.push(`/skill/${skId}` as any)}
+                    activeOpacity={0.85}
+                  >
+                    {skill.imageUrl ? (
+                      <Image
+                        source={{ uri: resolveImageUrl(skill.imageUrl, 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800') }}
+                        style={styles.skillImage}
+                      />
+                    ) : (
+                      <View style={[styles.skillImage, { backgroundColor: Colors.light.backgroundTertiary }]} />
+                    )}
+                    <LinearGradient
+                      colors={['transparent', 'rgba(0,0,0,0.85)']}
+                      style={styles.skillOverlay}
+                    >
+                      <View style={styles.skillBadgeRow}>
+                        {skill.promoted && (
+                          <View style={styles.skillPromotedBadge}>
+                            <Sparkles size={8} color="#F59E0B" />
+                            <Text style={styles.skillPromotedBadgeText}>PROMOTED</Text>
+                          </View>
+                        )}
+                        {skill.pricingModel && skill.pricingModel !== 'free' && (
+                          <View style={styles.skillPriceBadge}>
+                            <Text style={styles.skillPriceBadgeText}>
+                              {skill.pricingModel === 'per_session'
+                                ? `${formatPrice(skill.pricePerSession ?? 0)}/s`
+                                : `${formatPrice(skill.monthlyPrice ?? 0)}/m`}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.skillCardTitle} numberOfLines={2}>
+                        {skill.title}
+                      </Text>
+                      <View style={styles.skillCardBadge}>
+                        <Text style={styles.skillCardBadgeText}>{skill.level}</Text>
+                      </View>
+                    </LinearGradient>
 
+                    {/* Top Right Action Buttons: Edit & Delete */}
+                    <View style={styles.cardActionsOverlay}>
+                      <TouchableOpacity
+                        style={styles.cardActionBtnEdit}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          if (isDemoUser) {
+                            handleRequireLogin('edit offer skills');
+                            return;
+                          }
+                          router.push(`/add-skill?id=${skId}` as any);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Edit size={12} color="#FFFFFF" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.cardActionBtnDelete}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          if (isDemoUser) {
+                            handleRequireLogin('delete offer skills');
+                            return;
+                          }
+                          showAlert(
+                            'Delete Skill',
+                            `Remove "${skill.title}" from your offered skills?`,
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Delete',
+                                style: 'destructive',
+                                onPress: () => {
+                                  if (removeSkill && skId) removeSkill(skId);
+                                },
+                              },
+                            ],
+                          );
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Trash2 size={12} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Want to Learn</Text>
+              <TouchableOpacity
+                style={styles.addWantButton}
+                onPress={() => isDemoUser ? handleRequireLogin('edit learning skills') : router.push('/edit-profile' as any)}
+                activeOpacity={0.7}
+              >
+                <Plus size={14} color={Colors.light.primary} />
+                <Text style={styles.addWantButtonText}>Edit</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.wantsList}>
+              {(currentUser?.skillsWanted || []).map((skill, index) => (
+                <View key={index} style={styles.wantCard}>
+                  <View style={styles.wantIconContainer}>
+                    <Sparkles size={16} color={Colors.light.primary} />
+                  </View>
+                  <Text style={styles.wantText}>{skill}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <ReviewsSection
+              revieweeId={currentUser?.id || ''}
+              headline="Reviews You've Received"
+            />
+          </View>
+
+          {/* Certificates Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Certificates</Text>
+              {certificates.length > 0 && (
+                <View style={styles.certCountBadge}>
+                  <Text style={styles.certCountText}>{certificates.length}</Text>
+                </View>
+              )}
+            </View>
+            {certificates.length === 0 ? (
+              <View style={styles.certEmpty}>
+                <ScrollText size={36} color={Colors.light.textTertiary} />
+                <Text style={styles.certEmptyTitle}>No certificates yet</Text>
+                <Text style={styles.certEmptySub}>Complete swaps and classes to earn certificates</Text>
+              </View>
+            ) : (
+              <View style={styles.certList}>
+                {certificates.map((cert: CertificateData) => {
+                  const label = getCertificateLabel(cert.type);
+                  return (
+                    <TouchableOpacity
+                      key={cert.id}
+                      style={styles.certCard}
+                      onPress={() => router.push(`/certificate/${cert.id}` as any)}
+                      activeOpacity={0.7}
+                    >
+                      <LinearGradient
+                        colors={['#6366F1', '#4F46E5']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.certCardIcon}
+                      >
+                        <Award size={22} color="#FFFFFF" />
+                      </LinearGradient>
+                      <View style={styles.certCardInfo}>
+                        <Text style={styles.certCardTitle} numberOfLines={1}>{cert.skillTitle}</Text>
+                        <Text style={styles.certCardSub} numberOfLines={1}>{label.subtitle}</Text>
+                        <Text style={styles.certCardDate}>{formatDate(cert.completedAt)}</Text>
+                      </View>
+                      <View style={styles.certCardActions}>
+                        <TouchableOpacity
+                          style={styles.certDownloadBtn}
+                          onPress={() => router.push(`/certificate/${cert.id}` as any)}
+                        >
+                          <Download size={16} color={Colors.light.primary} />
+                        </TouchableOpacity>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+
+          {/* Support & Info Section (Last Section) */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Support & Info</Text>
             <View style={styles.supportGrid}>
-              {Boolean(currentUser?.skillsOffered && currentUser.skillsOffered.length > 0) && (
-                <TouchableOpacity
-                  style={styles.supportCard}
-                  onPress={() => router.push('/class/create' as any)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.supportIcon, { backgroundColor: Colors.light.accent + '20' }]}>
-                    <Plus size={22} color={Colors.light.accent} />
-                  </View>
-                  <Text style={styles.supportLabel}>Create a Group Class</Text>
-                </TouchableOpacity>
-              )}
               <TouchableOpacity
                 style={styles.supportCard}
-                onPress={() => router.push('/class/my' as any)}
+                onPress={() => isDemoUser ? handleRequireLogin('create a group class') : router.push('/class/create' as any)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.supportIcon, { backgroundColor: Colors.light.accent + '20' }]}>
+                  <Plus size={22} color={Colors.light.accent} />
+                </View>
+                <Text style={styles.supportLabel}>Create a Group Class</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.supportCard}
+                onPress={() => isDemoUser ? handleRequireLogin('view your enrolled classes') : router.push('/class/my' as any)}
                 activeOpacity={0.7}
               >
                 <View style={[styles.supportIcon, { backgroundColor: Colors.light.primary + '20' }]}>
@@ -469,143 +729,34 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>About</Text>
-            <View style={styles.bioContainer}>
-              <Text style={styles.bioText}>{currentUser?.bio}</Text>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Skills I Offer</Text>
+          {/* Login / Sign Out Button (Just After Support & Info) */}
+          <View style={styles.buttonRow}>
+            {isDemoUser ? (
               <TouchableOpacity
-                style={styles.addSkillButton}
-                onPress={() => router.push('/add-skill' as any)}
-                activeOpacity={0.7}
+                style={styles.loginButton}
+                onPress={() => router.push('/login' as any)}
+                activeOpacity={0.85}
+                testID="login-button"
               >
-                <Plus size={16} color="#FFFFFF" />
-                <Text style={styles.addSkillButtonText}>Add Skill</Text>
+                <LogIn size={20} color="#FFFFFF" />
+                <Text style={styles.loginButtonText}>Log In to Your Account</Text>
               </TouchableOpacity>
-            </View>
-            <View style={styles.skillsGrid}>
-              {(currentUser?.skillsOffered || []).map((skill, index) => {
-                const skId = skill._id || skill.id;
-                return (
-                  <TouchableOpacity
-                    key={skId || index}
-                    style={styles.skillCard}
-                    onPress={() => router.push(`/skill/${skId}` as any)}
-                    activeOpacity={0.85}
-                  >
-                    {skill.imageUrl ? (
-                      <Image
-                        source={{ uri: resolveImageUrl(skill.imageUrl, 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800') }}
-                        style={styles.skillImage}
-                      />
-                    ) : (
-                      <View style={[styles.skillImage, { backgroundColor: Colors.light.backgroundTertiary }]} />
-                    )}
-                    <LinearGradient
-                      colors={['transparent', 'rgba(0,0,0,0.85)']}
-                      style={styles.skillOverlay}
-                    >
-                      <View style={styles.skillBadgeRow}>
-                        {skill.promoted && (
-                          <View style={styles.skillPromotedBadge}>
-                            <Sparkles size={8} color="#F59E0B" />
-                            <Text style={styles.skillPromotedBadgeText}>PROMOTED</Text>
-                          </View>
-                        )}
-                        {skill.pricingModel && skill.pricingModel !== 'free' && (
-                          <View style={styles.skillPriceBadge}>
-                            <Text style={styles.skillPriceBadgeText}>
-                              {skill.pricingModel === 'per_session'
-                                ? `${formatPrice(skill.pricePerSession ?? 0)}/s`
-                                : `${formatPrice(skill.monthlyPrice ?? 0)}/m`}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.skillCardTitle} numberOfLines={2}>
-                        {skill.title}
-                      </Text>
-                      <View style={styles.skillCardBadge}>
-                        <Text style={styles.skillCardBadgeText}>{skill.level}</Text>
-                      </View>
-                    </LinearGradient>
-
-                    {/* Top Right Action Buttons: Edit & Delete */}
-                    <View style={styles.cardActionsOverlay}>
-                      <TouchableOpacity
-                        style={styles.cardActionBtnEdit}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          router.push(`/add-skill?id=${skId}` as any);
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Edit size={12} color="#FFFFFF" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.cardActionBtnDelete}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          showAlert(
-                            'Delete Skill',
-                            `Remove "${skill.title}" from your offered skills?`,
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              {
-                                text: 'Delete',
-                                style: 'destructive',
-                                onPress: () => {
-                                  if (removeSkill && skId) removeSkill(skId);
-                                },
-                              },
-                            ],
-                          );
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Trash2 size={12} color="#FFFFFF" />
-                      </TouchableOpacity>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Want to Learn</Text>
+            ) : (
               <TouchableOpacity
-                style={styles.addWantButton}
-                onPress={() => router.push('/edit-profile' as any)}
-                activeOpacity={0.7}
+                style={styles.signOutButton}
+                onPress={handleSignOut}
+                activeOpacity={0.8}
+                testID="sign-out-button"
               >
-                <Plus size={14} color={Colors.light.primary} />
-                <Text style={styles.addWantButtonText}>Edit</Text>
+                <LogOut size={18} color={Colors.light.error} />
+                <Text style={styles.signOutButtonText}>Sign Out</Text>
               </TouchableOpacity>
-            </View>
-            <View style={styles.wantsList}>
-              {(currentUser?.skillsWanted || []).map((skill, index) => (
-                <View key={index} style={styles.wantCard}>
-                  <View style={styles.wantIconContainer}>
-                    <Sparkles size={16} color={Colors.light.primary} />
-                  </View>
-                  <Text style={styles.wantText}>{skill}</Text>
-                </View>
-              ))}
-            </View>
+            )}
           </View>
 
-          <View style={styles.section}>
-            <ReviewsSection
-              revieweeId={currentUser?.id || ''}
-              headline="Reviews You've Received"
-            />
+          <View style={styles.companyFooter}>
+            <Text style={styles.companyName}>Gizmoverse Private Limited</Text>
+            <Text style={styles.companyTagline}>leteski is a product of Gizmoverse Private Limited</Text>
           </View>
 
           <View style={styles.bottomSpacer} />
@@ -659,11 +810,47 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#FFFFFF',
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
   name: {
     fontSize: 26,
     fontWeight: '800' as const,
     color: '#FFFFFF',
-    marginBottom: 8,
+  },
+  nameEditButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  shareIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 2,
   },
   locationRow: {
     flexDirection: 'row',
@@ -928,30 +1115,19 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
     marginBottom: 24,
   },
-  editButton: {
-    flex: 1,
-    backgroundColor: Colors.light.primary,
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
   signOutButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
     backgroundColor: Colors.light.backgroundTertiary,
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderRadius: 16,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: Colors.light.border,
   },
   signOutButtonText: {
@@ -959,7 +1135,23 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: Colors.light.error,
   },
-  editButtonText: {
+  loginButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.light.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    shadowColor: Colors.light.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  loginButtonText: {
     fontSize: 16,
     fontWeight: '700' as const,
     color: '#FFFFFF',
@@ -1213,5 +1405,106 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 40,
+  },
+  certCountBadge: {
+    backgroundColor: Colors.light.primary + '20',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  certCountText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.light.primary,
+  },
+  certEmpty: {
+    alignItems: 'center',
+    padding: 32,
+    gap: 10,
+    backgroundColor: Colors.light.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+  },
+  certEmptyTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  certEmptySub: {
+    fontSize: 13,
+    color: Colors.light.textSecondary,
+    textAlign: 'center' as const,
+  },
+  certList: {
+    gap: 12,
+  },
+  certCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.light.card,
+    padding: 14,
+    borderRadius: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  certCardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  certCardInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  certCardTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  certCardSub: {
+    fontSize: 12,
+    color: Colors.light.primary,
+    fontWeight: '600' as const,
+  },
+  certCardDate: {
+    fontSize: 11,
+    color: Colors.light.textTertiary,
+  },
+  certCardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  certDownloadBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.light.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  companyFooter: {
+    alignItems: 'center',
+    padding: 20,
+    marginTop: 16,
+  },
+  companyName: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  companyTagline: {
+    fontSize: 12,
+    color: Colors.light.textTertiary,
+    marginTop: 4,
   },
 });

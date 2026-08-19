@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import {
   ShieldCheck,
   Mail,
@@ -88,12 +88,20 @@ export default function VerificationScreen() {
     skillBadges: [],
   };
 
-  let { currentUser } = useCurrentUser()
+  const router = useRouter();
+  let { currentUser } = useCurrentUser();
 
   const checkGuestAndAction = (action: () => void) => {
     console.log('[Verification] Clicked card. currentUser:', currentUser);
-    if (!currentUser || currentUser?.id === '1') {
-      showAlert('Login Required', 'To verify your profile details, please log in with a real account.');
+    if (!currentUser || currentUser?.id === '1' || (currentUser as any)?.isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to use verification tools.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
       return;
     }
     action();

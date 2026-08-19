@@ -22,6 +22,8 @@ import { categories } from '@/mocks/data';
 import type { ResourceMeta, ResourceType, SkillCategory, SkillLevel } from '@/types';
 import { useResources, type ResourceDraft } from '@/providers/resources';
 import { useCurrentUser } from '@/providers/current-user';
+import { useAlert } from '@/providers/alert';
+import { useRouter } from 'expo-router';
 import url from '@/constants/backurl';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
@@ -239,6 +241,8 @@ const FeaturedResourceCard = memo(({ resource, onOpen }: { resource: ResourceMet
 FeaturedResourceCard.displayName = 'FeaturedResourceCard';
 
 export default function ResourcesScreen() {
+  const router = useRouter();
+  const { showAlert } = useAlert();
   const insets = useSafeAreaInsets();
   const { resources, featuredResources, recentResources, savedResourceIds, trendingTags, addResource, toggleSaved, endorseResource, isLoading } = useResources();
   const { currentUser } = useCurrentUser();
@@ -266,6 +270,17 @@ export default function ResourcesScreen() {
   }, [resources, searchQuery, selectedType, selectedCategory]);
 
   const openComposer = useCallback(() => {
+    if (!currentUser || currentUser.id === '1' || (currentUser as any)?.isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to share resources.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
+      return;
+    }
     setIsComposerOpen(true);
     Animated.timing(composerAnim, {
       toValue: 1,
@@ -273,7 +288,7 @@ export default function ResourcesScreen() {
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
-  }, [composerAnim]);
+  }, [composerAnim, currentUser, router, showAlert]);
 
   const closeComposer = useCallback(() => {
     Animated.timing(composerAnim, {
@@ -364,6 +379,17 @@ export default function ResourcesScreen() {
   }, []);
 
   const handleSubmitComposer = useCallback(() => {
+    if (!currentUser || currentUser.id === '1' || (currentUser as any)?.isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to share resources.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
+      return;
+    }
     const result = addResource(composerDraft, currentUser?.id || "");
     if (!result) {
       setComposerError('Please complete all required fields before sharing.');
@@ -371,7 +397,7 @@ export default function ResourcesScreen() {
     }
     setComposerError(null);
     closeComposer();
-  }, [addResource, composerDraft, currentUser?.id, closeComposer]);
+  }, [addResource, composerDraft, currentUser, router, showAlert, closeComposer]);
 
   const difficultyLabel = useCallback((difficulty: SkillLevel | 'All Levels') => {
     if (difficulty === 'All Levels') {

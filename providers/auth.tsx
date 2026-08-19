@@ -23,6 +23,7 @@ interface AuthUser {
   premiumTier: PremiumTier;
   premiumExpiresAt?: number;
   hasCompletedOnboarding?: boolean;
+  isDemo?: boolean;
 }
 
 interface AuthContextValue {
@@ -204,12 +205,13 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
     const guestUser: AuthUser = {
       id: '1',
       email: 'guest@skillswap.com',
-      name: 'Guest User',
+      name: 'Demo User',
       username: 'user_demo',
       skillsToLearn: [],
       skillsToTeach: [],
-      credits: 10,
+      credits: 0,
       premiumTier: 'free',
+      isDemo: true,
     };
     await saveToken('guest_token', guestUser);
     await AsyncStorage.setItem('@skillswap/onboarding_complete_1', 'true');

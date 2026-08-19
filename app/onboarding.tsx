@@ -22,11 +22,59 @@ import {
   CheckCircle2,
   ArrowLeftRight,
   BookOpen,
+  ChevronDown,
+  ChevronUp,
+  Search,
+  X,
+  Palette,
+  Code,
+  Dumbbell,
+  Globe,
+  Music,
+  Utensils,
+  Briefcase,
+  Camera,
+  HeartPulse,
+  Award,
+  Megaphone,
+  DollarSign,
+  PenTool,
+  Trophy,
+  Hammer,
+  UserCheck,
+  Layers,
 } from 'lucide-react-native';
 import { OnboardingRole } from '@/types';
 import { useOnboarding } from '@/providers/onboarding';
 import { useCurrentUser } from '@/providers/current-user';
-import { categories } from '@/mocks/data';
+import {
+  CATEGORY_STRUCTURE,
+  MAIN_CATEGORIES,
+  getSubcategoriesForCategory,
+} from '@/constants/categories';
+
+const ONBOARDING_CATEGORY_ICONS: Record<string, typeof Sparkles> = {
+  'Arts & Crafts': Palette,
+  Technology: Code,
+  'Fitness & Wellness': Dumbbell,
+  Languages: Globe,
+  Music: Music,
+  Cooking: Utensils,
+  Business: Briefcase,
+  'Photography & Video': Camera,
+  'Health & Life': HeartPulse,
+  'Professional Skills': Award,
+  'Education & Teaching': GraduationCap,
+  'Marketing & Sales': Megaphone,
+  'Finance & Accounting': DollarSign,
+  'Design & Creative': Palette,
+  'Writing & Communication': PenTool,
+  'Personal Development': Sparkles,
+  'Sports & Games': Trophy,
+  'DIY & Home Skills': Hammer,
+  'Career & Jobs': UserCheck,
+  'Other / Miscellaneous': Layers,
+};
 
 type SkillLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
 
@@ -70,8 +118,6 @@ export default function OnboardingScreen() {
   const [isFetchingLocation, setIsFetchingLocation] = useState<boolean>(false);
   const [virtualEnabled, setVirtualEnabled] = useState<boolean>(true);
   const [inPersonEnabled, setInPersonEnabled] = useState<boolean>(false);
-
-  const skillCategories = categories.filter(c => c !== 'All');
 
   const steps = useMemo<StepKey[]>(() => {
     const list: StepKey[] = ['welcome', 'role'];
@@ -322,6 +368,48 @@ export default function OnboardingScreen() {
     </View>
   );
 
+  const [teachSearchQuery, setTeachSearchQuery] = useState<string>('');
+  const [expandedTeachCategories, setExpandedTeachCategories] = useState<Record<string, boolean>>({});
+
+  const [learnSearchQuery, setLearnSearchQuery] = useState<string>('');
+  const [expandedLearnCategories, setExpandedLearnCategories] = useState<Record<string, boolean>>({});
+
+  const toggleTeachCategoryExpand = (cat: string) => {
+    setExpandedTeachCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
+  };
+
+  const toggleLearnCategoryExpand = (cat: string) => {
+    setExpandedLearnCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
+  };
+
+  const teachSearchResults = useMemo(() => {
+    if (!teachSearchQuery.trim()) return null;
+    const q = teachSearchQuery.toLowerCase().trim();
+    const list: { category: string; subcategory: string }[] = [];
+    MAIN_CATEGORIES.forEach(cat => {
+      getSubcategoriesForCategory(cat).forEach(subcat => {
+        if (subcat.toLowerCase().includes(q) || cat.toLowerCase().includes(q)) {
+          list.push({ category: cat, subcategory: subcat });
+        }
+      });
+    });
+    return list;
+  }, [teachSearchQuery]);
+
+  const learnSearchResults = useMemo(() => {
+    if (!learnSearchQuery.trim()) return null;
+    const q = learnSearchQuery.toLowerCase().trim();
+    const list: { category: string; subcategory: string }[] = [];
+    MAIN_CATEGORIES.forEach(cat => {
+      getSubcategoriesForCategory(cat).forEach(subcat => {
+        if (subcat.toLowerCase().includes(q) || cat.toLowerCase().includes(q)) {
+          list.push({ category: cat, subcategory: subcat });
+        }
+      });
+    });
+    return list;
+  }, [learnSearchQuery]);
+
   const renderTeachSkillsStep = () => (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
@@ -329,60 +417,171 @@ export default function OnboardingScreen() {
       </View>
       <Text style={styles.title}>What can you teach?</Text>
       <Text style={styles.subtitle}>
-        Select the skills you&apos;d like to share with others
+        Choose categories & select the specific skills you'd like to teach
       </Text>
-      <ScrollView style={styles.optionsList} showsVerticalScrollIndicator={false}>
-        {skillCategories.map((skill) => (
-          <View key={skill}>
-            <TouchableOpacity
-              style={[styles.optionItem, selectedTeachSkills.includes(skill) && styles.optionItemSelected]}
-              onPress={() => toggleSkillSelection(skill, true)}
-            >
-              <Text style={[styles.optionText, selectedTeachSkills.includes(skill) && styles.optionTextSelected]}>
-                {skill}
-              </Text>
-              {selectedTeachSkills.includes(skill) && <CheckCircle2 size={20} color="#fff" />}
-            </TouchableOpacity>
-            {skill === 'Other' && selectedTeachSkills.includes('Other') && (
-              <TextInput
-                style={styles.customInput}
-                placeholder="Enter custom category"
-                placeholderTextColor="#999"
-                value={customTeachCategory}
-                onChangeText={setCustomTeachCategory}
-                autoFocus
-              />
-            )}
+
+      {/* Search Bar */}
+      <View style={styles.searchBar}>
+        <Search size={18} color="#999" />
+        <TextInput
+          style={styles.searchBarInput}
+          placeholder="Search 240+ skills..."
+          placeholderTextColor="#999"
+          value={teachSearchQuery}
+          onChangeText={setTeachSearchQuery}
+          autoCorrect={false}
+        />
+        {teachSearchQuery ? (
+          <TouchableOpacity onPress={() => setTeachSearchQuery('')}>
+            <X size={16} color="#999" />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      {/* Selected Skills Chips */}
+      {selectedTeachSkills.length > 0 && (
+        <View style={styles.selectedSection}>
+          <Text style={styles.selectedHeading}>
+            Selected ({selectedTeachSkills.length})
+          </Text>
+          <View style={styles.selectedChipsRow}>
+            {selectedTeachSkills.map((sk) => (
+              <TouchableOpacity
+                key={sk}
+                style={styles.selectedPill}
+                onPress={() => toggleSkillSelection(sk, true)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.selectedPillText}>{sk}</Text>
+                <X size={14} color="#FFFFFF" />
+              </TouchableOpacity>
+            ))}
           </View>
-        ))}
-      </ScrollView>
+        </View>
+      )}
+
+      {/* Search Results or Category Accordions */}
+      {teachSearchResults !== null ? (
+        <View style={styles.searchResultsContainer}>
+          <Text style={styles.resultsCountText}>
+            {teachSearchResults.length} skill{teachSearchResults.length === 1 ? '' : 's'} found
+          </Text>
+          {teachSearchResults.map((item, idx) => {
+            const isSelected = selectedTeachSkills.includes(item.subcategory);
+            return (
+              <TouchableOpacity
+                key={`${item.category}-${item.subcategory}-${idx}`}
+                style={[styles.searchResultRow, isSelected && styles.searchResultRowSelected]}
+                onPress={() => toggleSkillSelection(item.subcategory, true)}
+                activeOpacity={0.7}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.searchResultTitle, isSelected && styles.searchResultTitleSelected]}>
+                    {item.subcategory}
+                  </Text>
+                  <Text style={styles.searchResultCategory}>in {item.category}</Text>
+                </View>
+                {isSelected ? (
+                  <CheckCircle2 size={20} color="#10B981" />
+                ) : (
+                  <View style={styles.uncheckCircle} />
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : (
+        <View style={styles.categoriesAccordionList}>
+          {MAIN_CATEGORIES.map((cat) => {
+            const IconComp = ONBOARDING_CATEGORY_ICONS[cat] || Sparkles;
+            const isExpanded = Boolean(expandedTeachCategories[cat]);
+            const subcats = getSubcategoriesForCategory(cat);
+            const selectedInCat = subcats.filter(sc => selectedTeachSkills.includes(sc));
+
+            return (
+              <View key={cat} style={[styles.catAccordionCard, selectedInCat.length > 0 && styles.catAccordionCardActive]}>
+                <TouchableOpacity
+                  style={styles.catAccordionHeader}
+                  onPress={() => toggleTeachCategoryExpand(cat)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.catIconBox, selectedInCat.length > 0 && styles.catIconBoxActive]}>
+                    <IconComp size={20} color={selectedInCat.length > 0 ? '#10B981' : '#666'} />
+                  </View>
+                  <View style={styles.catHeaderInfo}>
+                    <Text style={[styles.catHeaderTitle, selectedInCat.length > 0 && styles.catHeaderTitleActive]}>
+                      {cat}
+                    </Text>
+                    <Text style={styles.catHeaderMeta}>
+                      {subcats.length} subcategories
+                    </Text>
+                  </View>
+                  {selectedInCat.length > 0 && (
+                    <View style={styles.catBadge}>
+                      <Text style={styles.catBadgeText}>{selectedInCat.length} selected</Text>
+                    </View>
+                  )}
+                  {isExpanded ? (
+                    <ChevronUp size={20} color="#666" />
+                  ) : (
+                    <ChevronDown size={20} color="#666" />
+                  )}
+                </TouchableOpacity>
+
+                {isExpanded && (
+                  <View style={styles.subcatsBody}>
+                    <View style={styles.subcatsGrid}>
+                      {subcats.map((subcat) => {
+                        const isSubSelected = selectedTeachSkills.includes(subcat);
+                        return (
+                          <TouchableOpacity
+                            key={subcat}
+                            style={[styles.subcatChip, isSubSelected && styles.subcatChipSelected]}
+                            onPress={() => toggleSkillSelection(subcat, true)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[styles.subcatChipText, isSubSelected && styles.subcatChipTextSelected]}>
+                              {subcat}
+                            </Text>
+                            {isSubSelected && <CheckCircle2 size={15} color="#FFFFFF" />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 
   const renderExperienceLevelStep = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.title}>Rate your expertise</Text>
-      <Text style={styles.subtitle}>How would you rate your level in these skills?</Text>
+      <Text style={styles.subtitle}>How would you rate your proficiency in each skill?</Text>
       <ScrollView style={styles.optionsList} showsVerticalScrollIndicator={false}>
         {selectedTeachSkills.map((skill) => {
-          const displaySkill = skill === 'Other' && customTeachCategory.trim() ? customTeachCategory.trim() : skill;
+          const currentLevel = experienceLevels[skill] || 'Intermediate';
           return (
-          <View key={skill} style={styles.skillLevelContainer}>
-            <Text style={styles.skillLevelTitle}>{displaySkill}</Text>
-            <View style={styles.levelButtons}>
-              {skillLevels.map((level) => (
-                <TouchableOpacity
-                  key={level}
-                  style={[styles.levelButton, experienceLevels[skill] === level && styles.levelButtonSelected]}
-                  onPress={() => setSkillLevel(skill, level)}
-                >
-                  <Text style={[styles.levelButtonText, experienceLevels[skill] === level && styles.levelButtonTextSelected]}>
-                    {level}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <View key={skill} style={styles.skillLevelContainer}>
+              <Text style={styles.skillLevelTitle}>{skill}</Text>
+              <View style={styles.levelButtons}>
+                {skillLevels.map((level) => (
+                  <TouchableOpacity
+                    key={level}
+                    style={[styles.levelButton, currentLevel === level && styles.levelButtonSelected]}
+                    onPress={() => setSkillLevel(skill, level)}
+                  >
+                    <Text style={[styles.levelButtonText, currentLevel === level && styles.levelButtonTextSelected]}>
+                      {level}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </View>
           );
         })}
       </ScrollView>
@@ -395,32 +594,145 @@ export default function OnboardingScreen() {
         <Target size={48} color="#6366F1" strokeWidth={1.5} />
       </View>
       <Text style={styles.title}>What do you want to learn?</Text>
-      <Text style={styles.subtitle}>Select skills you&apos;re interested in learning</Text>
-      <ScrollView style={styles.optionsList} showsVerticalScrollIndicator={false}>
-        {skillCategories.map((skill) => (
-          <View key={skill}>
-            <TouchableOpacity
-              style={[styles.optionItem, selectedLearnSkills.includes(skill) && styles.optionItemSelected]}
-              onPress={() => toggleSkillSelection(skill, false)}
-            >
-              <Text style={[styles.optionText, selectedLearnSkills.includes(skill) && styles.optionTextSelected]}>
-                {skill}
-              </Text>
-              {selectedLearnSkills.includes(skill) && <CheckCircle2 size={20} color="#fff" />}
-            </TouchableOpacity>
-            {skill === 'Other' && selectedLearnSkills.includes('Other') && (
-              <TextInput
-                style={styles.customInput}
-                placeholder="Enter custom category"
-                placeholderTextColor="#999"
-                value={customLearnCategory}
-                onChangeText={setCustomLearnCategory}
-                autoFocus
-              />
-            )}
+      <Text style={styles.subtitle}>
+        Choose categories & select skills you're interested in learning
+      </Text>
+
+      {/* Search Bar */}
+      <View style={styles.searchBar}>
+        <Search size={18} color="#999" />
+        <TextInput
+          style={styles.searchBarInput}
+          placeholder="Search 240+ skills..."
+          placeholderTextColor="#999"
+          value={learnSearchQuery}
+          onChangeText={setLearnSearchQuery}
+          autoCorrect={false}
+        />
+        {learnSearchQuery ? (
+          <TouchableOpacity onPress={() => setLearnSearchQuery('')}>
+            <X size={16} color="#999" />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      {/* Selected Skills Chips */}
+      {selectedLearnSkills.length > 0 && (
+        <View style={styles.selectedSection}>
+          <Text style={styles.selectedHeading}>
+            Selected ({selectedLearnSkills.length})
+          </Text>
+          <View style={styles.selectedChipsRow}>
+            {selectedLearnSkills.map((sk) => (
+              <TouchableOpacity
+                key={sk}
+                style={[styles.selectedPill, { backgroundColor: '#6366F1' }]}
+                onPress={() => toggleSkillSelection(sk, false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.selectedPillText}>{sk}</Text>
+                <X size={14} color="#FFFFFF" />
+              </TouchableOpacity>
+            ))}
           </View>
-        ))}
-      </ScrollView>
+        </View>
+      )}
+
+      {/* Search Results or Category Accordions */}
+      {learnSearchResults !== null ? (
+        <View style={styles.searchResultsContainer}>
+          <Text style={styles.resultsCountText}>
+            {learnSearchResults.length} skill{learnSearchResults.length === 1 ? '' : 's'} found
+          </Text>
+          {learnSearchResults.map((item, idx) => {
+            const isSelected = selectedLearnSkills.includes(item.subcategory);
+            return (
+              <TouchableOpacity
+                key={`${item.category}-${item.subcategory}-${idx}`}
+                style={[styles.searchResultRow, isSelected && styles.searchResultRowLearnSelected]}
+                onPress={() => toggleSkillSelection(item.subcategory, false)}
+                activeOpacity={0.7}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.searchResultTitle, isSelected && { color: '#6366F1' }]}>
+                    {item.subcategory}
+                  </Text>
+                  <Text style={styles.searchResultCategory}>in {item.category}</Text>
+                </View>
+                {isSelected ? (
+                  <CheckCircle2 size={20} color="#6366F1" />
+                ) : (
+                  <View style={styles.uncheckCircle} />
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : (
+        <View style={styles.categoriesAccordionList}>
+          {MAIN_CATEGORIES.map((cat) => {
+            const IconComp = ONBOARDING_CATEGORY_ICONS[cat] || Sparkles;
+            const isExpanded = Boolean(expandedLearnCategories[cat]);
+            const subcats = getSubcategoriesForCategory(cat);
+            const selectedInCat = subcats.filter(sc => selectedLearnSkills.includes(sc));
+
+            return (
+              <View key={cat} style={[styles.catAccordionCard, selectedInCat.length > 0 && styles.catAccordionCardLearnActive]}>
+                <TouchableOpacity
+                  style={styles.catAccordionHeader}
+                  onPress={() => toggleLearnCategoryExpand(cat)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.catIconBox, selectedInCat.length > 0 && styles.catIconBoxLearnActive]}>
+                    <IconComp size={20} color={selectedInCat.length > 0 ? '#6366F1' : '#666'} />
+                  </View>
+                  <View style={styles.catHeaderInfo}>
+                    <Text style={[styles.catHeaderTitle, selectedInCat.length > 0 && { color: '#6366F1' }]}>
+                      {cat}
+                    </Text>
+                    <Text style={styles.catHeaderMeta}>
+                      {subcats.length} subcategories
+                    </Text>
+                  </View>
+                  {selectedInCat.length > 0 && (
+                    <View style={[styles.catBadge, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE' }]}>
+                      <Text style={[styles.catBadgeText, { color: '#6366F1' }]}>{selectedInCat.length} selected</Text>
+                    </View>
+                  )}
+                  {isExpanded ? (
+                    <ChevronUp size={20} color="#666" />
+                  ) : (
+                    <ChevronDown size={20} color="#666" />
+                  )}
+                </TouchableOpacity>
+
+                {isExpanded && (
+                  <View style={styles.subcatsBody}>
+                    <View style={styles.subcatsGrid}>
+                      {subcats.map((subcat) => {
+                        const isSubSelected = selectedLearnSkills.includes(subcat);
+                        return (
+                          <TouchableOpacity
+                            key={subcat}
+                            style={[styles.subcatChip, isSubSelected && styles.subcatChipLearnSelected]}
+                            onPress={() => toggleSkillSelection(subcat, false)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[styles.subcatChipText, isSubSelected && styles.subcatChipTextSelected]}>
+                              {subcat}
+                            </Text>
+                            {isSubSelected && <CheckCircle2 size={15} color="#FFFFFF" />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
 
       <View style={styles.goalsSection}>
         <Text style={styles.goalsTitle}>Your learning goals (optional)</Text>
@@ -732,4 +1044,225 @@ const styles = StyleSheet.create({
   continueButtonFull: { flex: 1 },
   continueButtonDisabled: { backgroundColor: '#E0E0E0' },
   continueButtonText: { fontSize: 16, color: '#fff', fontWeight: '700' as const },
+
+  // Search Bar
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 16,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+  },
+  searchBarInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#1A1A1A',
+    padding: 0,
+  },
+
+  // Selected Skills Section
+  selectedSection: {
+    marginBottom: 16,
+    backgroundColor: '#FAFAFA',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
+  },
+  selectedHeading: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#666',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  selectedChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap' as const,
+    gap: 8,
+  },
+  selectedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#10B981',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  selectedPillText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+
+  // Search Results View
+  searchResultsContainer: {
+    gap: 8,
+  },
+  resultsCountText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#888',
+    marginBottom: 4,
+  },
+  searchResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: '#E8E8E8',
+    marginBottom: 8,
+  },
+  searchResultRowSelected: {
+    borderColor: '#10B981',
+    backgroundColor: '#F0FDF4',
+  },
+  searchResultRowLearnSelected: {
+    borderColor: '#6366F1',
+    backgroundColor: '#EEF2FF',
+  },
+  searchResultTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#1A1A1A',
+    marginBottom: 2,
+  },
+  searchResultTitleSelected: {
+    color: '#10B981',
+  },
+  searchResultCategory: {
+    fontSize: 12,
+    color: '#888',
+  },
+  uncheckCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#CCC',
+  },
+
+  // Category Accordion
+  categoriesAccordionList: {
+    gap: 10,
+  },
+  catAccordionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E8E8E8',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  catAccordionCardActive: {
+    borderColor: '#10B981',
+  },
+  catAccordionCardLearnActive: {
+    borderColor: '#6366F1',
+  },
+  catAccordionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 12,
+  },
+  catIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  catIconBoxActive: {
+    backgroundColor: '#ECFDF5',
+  },
+  catIconBoxLearnActive: {
+    backgroundColor: '#EEF2FF',
+  },
+  catHeaderInfo: {
+    flex: 1,
+  },
+  catHeaderTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#1A1A1A',
+  },
+  catHeaderTitleActive: {
+    color: '#10B981',
+  },
+  catHeaderMeta: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
+  },
+  catBadge: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginRight: 4,
+  },
+  catBadgeText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: '#10B981',
+  },
+  subcatsBody: {
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    backgroundColor: '#FAFAFA',
+  },
+  subcatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap' as const,
+    gap: 8,
+    marginTop: 8,
+  },
+  subcatChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 9,
+    paddingHorizontal: 13,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  subcatChipSelected: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  subcatChipLearnSelected: {
+    backgroundColor: '#6366F1',
+    borderColor: '#6366F1',
+  },
+  subcatChipText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#333',
+  },
+  subcatChipTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700' as const,
+  },
 });

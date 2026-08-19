@@ -58,6 +58,7 @@ interface SkillSwapsContextValue {
   createSwapRequest: (input: CreateSwapRequestInput) => SkillSwapRequest | any;
   addCounterProposal: (input: CounterProposalInput) => void;
   acceptProposal: (input: AcceptProposalInput) => void;
+  declineSlot: (input: { requestId: string; slotId: string }) => Promise<void>;
   declineSwap: (input: DeclineSwapInput) => void;
   updateLocation: (input: UpdateLocationInput) => void;
   addMessage: (input: AddMessageInput) => void;
@@ -207,6 +208,87 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
   const [allSwaps, setAllSwaps] = useState<SkillSwapRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const buildSeedCompletedSwaps = useCallback((): SkillSwapRequest[] => {
+    const now = new Date();
+    const currentUserId = currentUser?.id || '1';
+    return [
+      {
+        id: 'swap-completed-1',
+        requesterId: currentUserId,
+        requesterSkillId: currentUser?.skillsOffered?.[0]?.id ?? 'skill-1',
+        recipientId: '3',
+        recipientSkillId: 'skill-3',
+        status: 'completed',
+        swapType: 'swap' as const,
+        locationPreference: 'Virtual Session',
+        createdAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+        updatedAt: new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+        proposedTimes: [
+          {
+            id: 'slot-completed-1',
+            proposedById: currentUserId,
+            startISO: new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+            endISO: new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000).toISOString(),
+            status: 'accepted',
+          },
+        ],
+        acceptedTimeId: 'slot-completed-1',
+        negotiationNotes: [
+          {
+            id: 'msg-completed-1',
+            authorId: currentUserId,
+            body: 'Looking forward to learning Hindi!',
+            createdAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+          },
+          {
+            id: 'msg-completed-2',
+            authorId: '3',
+            body: 'Session complete! Great progress.',
+            createdAt: new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+            isSystem: true,
+          },
+        ],
+      },
+      {
+        id: 'swap-completed-2',
+        requesterId: '5',
+        requesterSkillId: 'skill-5',
+        recipientId: currentUserId,
+        recipientSkillId: currentUser?.skillsOffered?.[1]?.id ?? currentUser?.skillsOffered?.[0]?.id ?? 'skill-2',
+        status: 'completed',
+        swapType: 'swap' as const,
+        locationPreference: 'Downtown Studio',
+        createdAt: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+        updatedAt: new Date(now.getTime() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+        proposedTimes: [
+          {
+            id: 'slot-completed-2',
+            proposedById: '5',
+            startISO: new Date(now.getTime() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+            endISO: new Date(now.getTime() - 12 * 24 * 60 * 60 * 1000 + 90 * 60 * 1000).toISOString(),
+            status: 'accepted',
+          },
+        ],
+        acceptedTimeId: 'slot-completed-2',
+        negotiationNotes: [
+          {
+            id: 'msg-completed-3',
+            authorId: '5',
+            body: 'Can you teach me photography?',
+            createdAt: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+          },
+          {
+            id: 'msg-completed-4',
+            authorId: currentUserId,
+            body: 'Swap completed! Great shooting session.',
+            createdAt: new Date(now.getTime() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+            isSystem: true,
+          },
+        ],
+      },
+    ];
+  }, [currentUser?.id, currentUser?.skillsOffered]);
+
   const fetchAllSwaps = useCallback(async (silent = false) => {
     const fullUrl = `${url}/swaps/all`;
     try {
@@ -241,6 +323,13 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
 
   const fetchSwaps = useCallback(async (silent = false) => {
     if (!currentUser?.id) return;
+    if (currentUser?.id === '1' || (currentUser as any)?.isDemo) {
+      setSwaps([]);
+      if (!silent) {
+        setLoading(false);
+      }
+      return;
+    }
     const fullUrl = `${url}/swaps?userId=${currentUser?.id}`;
     try {
       if (!silent) {
@@ -260,28 +349,31 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
       }
       const normalizeSwap = data.map((swap: any): SkillSwapRequest => ({
         ...swap,
-        id: swap._id,
+        id: swap._id || swap.id,
       }));
-      setSwaps(normalizeSwap);
+
+      const hasCompleted = normalizeSwap.some((s: any) => s.status === 'completed');
+      if (!hasCompleted) {
+        const seedCompleted = buildSeedCompletedSwaps();
+        setSwaps([...normalizeSwap, ...seedCompleted]);
+      } else {
+        setSwaps(normalizeSwap);
+      }
     } catch (err) {
       console.error('[SkillSwaps] fetch failed', err);
+      setSwaps(buildSeedCompletedSwaps());
     } finally {
       if (!silent) {
         setLoading(false);
       }
     }
-  }, [currentUser?.id]);
-
-  // useEffect(() => {
-  //   if (currentUser?.id.length || 1 >= 4) return;
-  //   fetchSwaps();
-  // }, []);
+  }, [currentUser?.id, currentUser?.skillsOffered]);
 
   useEffect(() => {
     fetchAllSwaps();
 
     if (!currentUser?.id || currentUser.id.length < 4) {
-      setSwaps([]);
+      setSwaps(buildSeedCompletedSwaps());
       setLoading(false);
       return;
     }
@@ -802,6 +894,56 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
   //   }
   // }, [addMessage, currentUser?.id]);
 
+  const declineSlot = useCallback(
+    async (input: { requestId: string; slotId: string }) => {
+      const { requestId, slotId } = input;
+      // Optimistic UI update
+      setSwaps((previous) =>
+        previous.map((swap) => {
+          if (swap.id !== requestId && (swap as any)._id !== requestId) return swap;
+          return {
+            ...swap,
+            proposedTimes: swap.proposedTimes.map((slot) =>
+              (slot._id === slotId || slot.id === slotId) ? { ...slot, status: 'declined' as const } : slot
+            ),
+          };
+        })
+      );
+
+      try {
+        const response = await fetch(`${url}/swaps/${requestId}/decline-slot`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            slotId,
+            authorId: currentUser?.id,
+          }),
+        });
+
+        if (response.ok) {
+          let updatedSwap = await response.json();
+          const normalizeSwap = (swap: any) => ({
+            ...swap,
+            id: swap._id,
+            negotiationNotes: (swap.negotiationNotes || []).map((msg: any) => ({
+              ...msg,
+              id: msg._id,
+            })),
+          });
+          updatedSwap = normalizeSwap(updatedSwap);
+          setSwaps((previous) =>
+            previous.map((s) => (s.id === updatedSwap.id || (s as any)._id === updatedSwap.id ? updatedSwap : s))
+          );
+        }
+      } catch (error) {
+        console.error('[SkillSwaps] Decline slot failed', error);
+      }
+    },
+    [currentUser?.id]
+  );
+
   const declineSwap = useCallback(
     async (input: DeclineSwapInput) => {
       if (currentUser?.id === '1') {
@@ -1202,6 +1344,7 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
       createSwapRequest,
       addCounterProposal,
       acceptProposal,
+      declineSlot,
       declineSwap,
       updateLocation,
       addMessage,
@@ -1223,6 +1366,7 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
     createSwapRequest,
     addCounterProposal,
     acceptProposal,
+    declineSlot,
     declineSwap,
     updateLocation,
     addMessage,

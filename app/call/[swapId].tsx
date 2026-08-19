@@ -32,34 +32,65 @@ export default function UnifiedCallScreen() {
   const router = useRouter();
   const { currentUser, allUsers, isLoading: isUserLoading } = useCurrentUser();
   const { user: authUser } = useAuth();
-  const { getSwapById } = useSkillSwaps();
-  const { getClassById } = useClasses();
+  const { getSwapById, swaps, allSwaps } = useSkillSwaps();
+  const { getClassById, classes } = useClasses();
   const { socket } = useSocket();
 
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | undefined>(undefined);
   const [isTeacher, setIsTeacher] = useState(false);
 
-  const currentUserId = currentUser?.id || (currentUser as any)?._id || authUser?.id || (authUser as any)?._id || '';
+  const currentUserId = currentUser?.id || (currentUser as any)?._id || authUser?.id || (authUser as any)?._id || 'local-user';
   const callMode: CallMode = mode === 'voice' ? 'voice' : 'video';
 
   // 1. Check if it's a class call
   const cls = useMemo(() => {
     if (!targetId) return undefined;
-    return getClassById(targetId);
-  }, [getClassById, targetId]);
+    return (
+      getClassById(targetId) ||
+      classes?.find((c: any) => String(c.id) === String(targetId) || String(c._id) === String(targetId))
+    );
+  }, [getClassById, classes, targetId]);
 
   // 2. Check if it's a swap call
   const swap = useMemo(() => {
     if (!targetId || cls) return undefined;
-    return getSwapById(targetId);
-  }, [getSwapById, targetId, cls]);
+    return (
+      getSwapById(targetId) ||
+      swaps?.find((s: any) => String(s.id) === String(targetId) || String(s._id) === String(targetId)) ||
+      allSwaps?.find((s: any) => String(s.id) === String(targetId) || String(s._id) === String(targetId)) ||
+      {
+        id: targetId,
+        requesterId: currentUserId,
+        recipientId: 'partner-id',
+        status: 'scheduled',
+      }
+    );
+  }, [getSwapById, swaps, allSwaps, targetId, cls, currentUserId]);
 
   const partner = useMemo(() => {
-    if (!swap || !currentUser) return undefined;
-    const partnerId = swap.requesterId === currentUser.id ? swap.recipientId : swap.requesterId;
-    return allUsers.find((u) => u.id === partnerId) || mockUsers.find((u) => u.id === partnerId);
-  }, [allUsers, currentUser, swap]);
+    if (!swap) return undefined;
+    const partnerId =
+      String(swap.requesterId) === String(currentUserId) ? swap.recipientId : swap.requesterId;
+    return (
+      allUsers?.find((u: any) => String(u.id) === String(partnerId) || String(u._id) === String(partnerId)) ||
+      mockUsers.find((u: any) => String(u.id) === String(partnerId) || String(u._id) === String(partnerId)) || {
+        id: partnerId || 'partner',
+        name: (swap as any).partnerName || (swap as any).otherUserName || 'Partner',
+        avatarUrl: (swap as any).partnerAvatar || '',
+        bio: '',
+        email: '',
+        location: '',
+        rating: 5,
+        reviewsCount: 0,
+        credits: 0,
+        role: 'learner' as const,
+        skillsOffered: [],
+        skillsWanted: [],
+        completedSwapsCount: 0,
+      }
+    );
+  }, [allUsers, currentUserId, swap]);
 
   // Fetch 100ms Room Code from Backend & Database
   useEffect(() => {
@@ -80,7 +111,9 @@ export default function UnifiedCallScreen() {
         } else if (swap) {
           // 1:1 Skill swap 100ms room
           const joinParam = isJoining ? '&isJoining=true' : '';
-          const res = await fetch(`${url}/swaps/${swap.id}/100ms-room?userId=${encodeURIComponent(currentUserId)}${joinParam}`);
+          const res = await fetch(
+            `${url}/swaps/${swap.id}/100ms-room?userId=${encodeURIComponent(currentUserId)}${joinParam}`
+          );
           const data = await res.json();
           if (res.ok && data.roomCode) {
             setRoomCode(data.roomCode);
@@ -138,45 +171,73 @@ export default function UnifiedCallScreen() {
     };
   }, [socket, cls, handleEndCall]);
 
-  const initialParticipants: CallParticipant[] = useMemo(() => {
-    if (!currentUser) return [];
+  const effectiveUser = useMemo(() => {
+    return (
+      currentUser || ({
+        id: currentUserId,
+        name: authUser?.name || 'You',
+        avatarUrl: (authUser as any)?.avatarUrl || (authUser as any)?.avatar || '',
+        email: '',
+        bio: '',
+        location: '',
+        rating: 5,
+        reviewsCount: 0,
+        credits: 0,
+        role: 'learner' as const,
+        skillsOffered: [],
+        skillsWanted: [],
+        completedSwapsCount: 0,
+        totalSwaps: 0,
+        joinedDate: new Date().toISOString(),
+        premiumTier: 'free',
+      } as any)
+    );
+  }, [currentUser, currentUserId, authUser]);
 
+  const initialParticipants: CallParticipant[] = useMemo(() => {
     if (cls) {
-      const teacher = allUsers.find((u) => u.id === cls.teacherId) || mockUsers.find((u) => u.id === cls.teacherId);
-      const localRole = cls.teacherId === currentUser.id ? 'teacher' : 'student';
-      const local = buildLocalParticipant(currentUser, localRole);
+      const teacher =
+        allUsers.find((u: any) => String(u.id) === String(cls.teacherId)) ||
+        mockUsers.find((u: any) => String(u.id) === String(cls.teacherId));
+      const localRole = cls.teacherId === effectiveUser.id ? 'teacher' : 'student';
+      const local = buildLocalParticipant(effectiveUser as any, localRole);
 
       const others: CallParticipant[] = [];
-      if (teacher && teacher.id !== currentUser.id) {
+      if (teacher && teacher.id !== effectiveUser.id) {
         others.push(
           buildRemoteParticipant(
             { id: teacher.id, name: teacher.name, avatarUrl: teacher.avatarUrl },
-            'teacher',
-          ),
+            'teacher'
+          )
         );
       }
 
-      const enrolledStudents = (cls.enrollments || [])
-        .filter((e) => e.studentId !== currentUser.id && e.status === 'enrolled')
-        .map((e) => allUsers.find((u) => u.id === e.studentId) || mockUsers.find((u) => u.id === e.studentId))
-        .filter((u): u is NonNullable<typeof u> => u !== undefined);
+      const enrolledStudents = (((cls as any).enrollments || (cls as any).enrolledUserIds || []) as any[])
+        .filter((e: any) => (e.studentId || e) !== effectiveUser.id && (e.status === 'enrolled' || typeof e === 'string'))
+        .map((e: any) => {
+          const sId = typeof e === 'string' ? e : e.studentId;
+          return allUsers.find((u: any) => u.id === sId) || mockUsers.find((u: any) => u.id === sId);
+        })
+        .filter((u: any): u is NonNullable<typeof u> => u !== undefined);
 
       others.push(...buildMockClassParticipants(Math.max(enrolledStudents.length, 3)));
       return [local, ...others];
     }
 
-    if (swap && partner) {
-      return [
-        buildLocalParticipant(currentUser, 'guest'),
-        buildRemoteParticipant(
-          { id: partner.id, name: partner.name, avatarUrl: partner.avatarUrl },
-          'host',
-        ),
-      ];
+    if (partner) {
+      const local = buildLocalParticipant(effectiveUser as any, 'guest');
+      local.isVideoOff = callMode !== 'video';
+      const remote = buildRemoteParticipant(
+        { id: partner.id, name: partner.name, avatarUrl: partner.avatarUrl },
+        'host'
+      );
+      remote.isVideoOff = callMode !== 'video';
+      remote.status = 'connected';
+      return [local, remote];
     }
 
     return [];
-  }, [cls, swap, partner, currentUser, allUsers]);
+  }, [cls, partner, effectiveUser, allUsers, callMode]);
 
   // Live 100ms / WebRTC real-time connection hook
   const {
@@ -200,29 +261,16 @@ export default function UnifiedCallScreen() {
   } = use100msCall({
     roomCode,
     authToken,
-    userName: currentUser?.name || (isTeacher ? 'Teacher' : 'Participant'),
+    userName: effectiveUser.name || (isTeacher ? 'Teacher' : 'Participant'),
     isTeacher,
     initialParticipants,
     mode: callMode,
     onEndCall: handleEndCall,
+    roomId: targetId,
+    currentUserId: effectiveUser.id,
+    partnerId: partner?.id,
+    socket,
   });
-
-  if (!cls && (!swap || !partner)) {
-    return (
-      <View style={styles.errorContainer}>
-        <LinearGradient colors={['#0B1120', '#1E293B']} style={styles.errorGradient}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={20} color="#F8FAFC" />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
-          <View style={styles.errorContent}>
-            <Text style={styles.errorTitle}>Call not available</Text>
-            <Text style={styles.errorMessage}>Unable to load call session details.</Text>
-          </View>
-        </LinearGradient>
-      </View>
-    );
-  }
 
   const roomTitle = cls ? cls.title : `Skill swap with ${partner?.name || 'Partner'}`;
   const isGroupCall = Boolean(cls);
@@ -248,7 +296,7 @@ export default function UnifiedCallScreen() {
       reactions={liveReactions}
       onMuteParticipant={muteParticipant}
       onRemoveParticipant={removeParticipant}
-      onSendMessage={(text) => sendMessage(text, currentUser?.id || 'local', currentUser?.name || 'You')}
+      onSendMessage={(text) => sendMessage(text, effectiveUser.id, effectiveUser.name)}
       externalMessages={liveMessages}
     />
   );

@@ -210,6 +210,12 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="certificate/[id]"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="feature-audit"
         options={{
           headerShown: false,

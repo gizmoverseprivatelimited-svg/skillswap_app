@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react-native";
 import Colors from "../constants/colors";
+import { useRouter } from "expo-router";
 import { useCurrentUser } from "../providers/current-user";
 import type { RatingBucket, ReviewWithAuthor } from "../types";
 import url from "@/constants/backurl";
@@ -213,14 +214,23 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
     });
   }, [progressAnim]);
 
+  const router = useRouter();
+
   const handleOpenComposer = useCallback(() => {
-    if (!currentUser || currentUser.id === '1') {
-      showAlert('Login Required', 'Please log in to submit a review.');
+    if (!currentUser || currentUser.id === '1' || (currentUser as any)?.isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to submit a review.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
       return;
     }
     setComposerError(null);
     setIsComposerVisible(true);
-  }, [currentUser, showAlert]);
+  }, [currentUser, router, showAlert]);
 
   const handleCloseComposer = useCallback(() => {
     if (isSubmittingReview) {
@@ -229,11 +239,6 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
     setIsComposerVisible(false);
     setComposerError(null);
   }, [isSubmittingReview]);
-
-
-
-
-
 
   const handleCloseReport = useCallback(() => {
     if (isSubmittingReview) {
@@ -246,15 +251,22 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
   }, [isSubmittingReview]);
 
   const handleOpenReport = useCallback((review: ReviewWithAuthor) => {
-    if (!currentUser || currentUser.id === '1') {
-      showAlert('Login Required', 'Please log in to report a review.');
+    if (!currentUser || currentUser.id === '1' || (currentUser as any)?.isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to report a review.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
       return;
     }
     setReportTarget(review);
     setReportReason("");
     setReportError(null);
     setReportModalVisible(true);
-  }, [currentUser, showAlert]);
+  }, [currentUser, router, showAlert]);
 
   // const handleSubmitReport = useCallback(() => {
   //   if (!reportTarget) {

@@ -324,6 +324,10 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
       return { startISO: slot.startISO, endISO: slot.endISO };
     });
     const submit = async () => {
+      if (!currentUser || currentUser.id === '1' || (currentUser as any).isDemo) {
+        setError('Please log in with a real account to send skill swap requests.');
+        return;
+      }
       const targetUid = skill.user?.id || (skill.user as any)?._id;
       if (targetUid) {
         if (isBlocked(targetUid)) {

@@ -113,8 +113,15 @@ export default function ClassDetailScreen() {
 
   const handleEnroll = useCallback(() => {
     if (!cls) return;
-    if (!currentUser) {
-      showAlert('Sign In Required', 'Please sign in to your account to enroll in group classes.');
+    if (!currentUser || currentUser.id === '1' || (currentUser as any).isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to enroll in group classes.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
       return;
     }
     if ((cls.teacherId && isBlocked(cls.teacherId)) || isBlockedRelation) {

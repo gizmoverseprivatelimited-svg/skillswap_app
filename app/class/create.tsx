@@ -6,12 +6,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import Colors from '@/constants/colors';
-import { categories as defaultCategories } from '@/mocks/data';
 import { useClasses } from '@/providers/classes';
 import { useCurrentUser } from '@/providers/current-user';
+import { useAlert } from '@/providers/alert';
 import type { SkillCategory, SkillLevel, ClassSessionType, ClassBillingCycle, Skill } from '@/types';
 import url from '@/constants/backurl';
 import { generateClassDescription } from '@/lib/ai';
+import CategorySubcategoryPicker from '@/components/CategorySubcategoryPicker';
 
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
@@ -93,15 +94,15 @@ export default function CreateClassScreen() {
   const insets = useSafeAreaInsets();
   const { createClass } = useClasses();
   const { currentUser } = useCurrentUser();
+  const { showAlert } = useAlert();
   const { skillId } = useLocalSearchParams<{ skillId?: string }>();
   const offeredSkills = useMemo(() => Array.isArray(currentUser?.skillsOffered) ? currentUser.skillsOffered : [], [currentUser]);
 
   const [pickedSkillId, setPickedSkillId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [categoriesList, setCategoriesList] = useState<string[]>(() => defaultCategories.filter(c => c !== 'All'));
-  const [category, setCategory] = useState<string>('Technology');
-  const [customCategory, setCustomCategory] = useState<string>('');
+  const [category, setCategory] = useState<string | null>('Technology');
+  const [subCategory, setSubCategory] = useState<string | null>(null);
   const [level, setLevel] = useState<SkillLevel>('Beginner');
   const [coverUrl, setCoverUrl] = useState(DEFAULT_COVER);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -151,6 +152,7 @@ export default function CreateClassScreen() {
     setTitle(skill.title);
     setDescription(skill.description);
     setCategory(skill.category);
+    setSubCategory(skill.subCategory || (skill as any).subcategory || null);
     setLevel(skill.level);
     if (skill.imageUrl) setCoverUrl(skill.imageUrl);
     if (skill.pricingModel === 'free') {
@@ -387,105 +389,120 @@ export default function CreateClassScreen() {
     setEndTime(formatted);
   }, [startTime]);
 
-  // Fetch dynamic categories from backend
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch(`${url}/skills/categories`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setCategoriesList((prev) => Array.from(new Set([...prev, ...data])).filter(c => c !== 'All' && c !== 'Other'));
-          }
-        }
-      } catch (err) {
-        console.warn('[CreateClass] Failed to fetch categories from backend:', err);
-      }
-    };
-    void fetchCategories();
-  }, []);
-
   const handleGenerateDescription = async () => {
     if (!title.trim()) {
-      Alert.alert('Title Required', 'Enter a class title first so AI knows what to write about.');
+      showAlert('Title Required', 'Enter a class title first so AI knows what to write about.');
       return;
     }
     setIsGeneratingDesc(true);
     try {
       const desc = await generateClassDescription(
         title.trim(),
-        category === 'Other' ? customCategory.trim() || 'General' : category,
+        category || 'General',
         level,
         sessionType,
       );
       if (desc) setDescription(desc);
     } catch {
-      Alert.alert('AI Error', 'Could not generate description. Please write one manually.');
+      showAlert('AI Error', 'Could not generate description. Please write one manually.');
     } finally {
       setIsGeneratingDesc(false);
     }
   };
 
-  const categoryOptions = useMemo(() => {
-    const base = categoriesList.filter(c => c !== 'All' && c !== 'Other');
-    return [...base, 'Other'];
-  }, [categoriesList]);
-
   const handleCreate = useCallback(() => {
-    if (title.trim().length < 3) { Alert.alert('Title too short', 'Please enter at least 3 characters.'); return; }
-    if (description.trim().length < 10) { Alert.alert('Description too short', 'Please enter at least 10 characters.'); return; }
-    if (category === 'Other' && !customCategory.trim()) {
-      Alert.alert('Missing category', 'Please enter a custom category name.');
+    if (!currentUser || currentUser.id === '1' || (currentUser as any).isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to create group classes.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
       return;
     }
-    if (!dateStr || !dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) { Alert.alert('Invalid date', 'Please pick a valid date from the calendar popup.'); return; }
-    if (!startTime.match(/^\d{2}:\d{2}$/) || !endTime.match(/^\d{2}:\d{2}$/)) { Alert.alert('Invalid time', 'Please pick valid start and end times from the popup.'); return; }
-    const cap = parseInt(capacity, 10);
-    if (!cap || cap < 1 || cap > 500) { Alert.alert('Invalid capacity', 'Enter a number between 1 and 500.'); return; }
-    const price = parseInt(seatPrice, 10) || 0;
-    if (price < 0) { Alert.alert('Invalid price', 'Price cannot be negative.'); return; }
+    if (!title || title.trim().length < 2) {
+      showAlert('Class Title Required', 'Please enter a title for your class (at least 2 characters).');
+      return;
+    }
+    if (!category) {
+      showAlert('Category Required', 'Please select a category and subcategory for your class.');
+      return;
+    }
 
-    const finalCategory = (category === 'Other' ? customCategory.trim() : category) as SkillCategory;
-    const startD = startDate || dateStr;
-    const endD = isRecurring ? endDate : startD;
+    const startD = startDate || dateStr || getTomorrowDateStr();
+    const endD = isRecurring ? (endDate || startD) : startD;
 
-    if (!startD || !startD.match(/^\d{4}-\d{2}-\d{2}$/)) { Alert.alert('Invalid start date', 'Please pick a valid start date.'); return; }
-    if (isRecurring && (!endD || !endD.match(/^\d{4}-\d{2}-\d{2}$/))) { Alert.alert('Invalid end date', 'Please pick a valid end date.'); return; }
-    if (isWeekly && scheduleDays.length === 0) { Alert.alert('Select days', 'Pick at least one weekday for the weekly course.'); return; }
-    if (sessionCount === 0) { Alert.alert('Invalid schedule', 'Check start/end dates and selected days.'); return; }
+    const sTime = startTime || '14:00';
+    const eTime = endTime || '15:30';
 
-    // Build ISO timestamps
-    const startISO = new Date(`${startD}T${startTime}:00`).toISOString();
-    const endISO = new Date(`${endD}T${endTime}:00`).toISOString();
-    if (new Date(endISO) <= new Date(startISO)) { Alert.alert('Invalid time range', 'End time must be after start time.'); return; }
+    const cap = Math.min(500, Math.max(1, parseInt(capacity, 10) || 10));
+    const price = Math.max(0, parseInt(seatPrice, 10) || 0);
+
+    if (isWeekly && scheduleDays.length === 0) {
+      showAlert('Select Schedule Days', 'Please pick at least one weekday for the weekly course.');
+      return;
+    }
+
+    // Build ISO timestamps safely
+    let startISO: string;
+    let endISO: string;
+    try {
+      const [sYear, sMonth, sDay] = startD.split('-').map(Number);
+      const [sHour, sMin] = sTime.split(':').map(Number);
+      const sDateObj = new Date(sYear, (sMonth || 1) - 1, sDay || 1, sHour || 0, sMin || 0, 0);
+      startISO = sDateObj.toISOString();
+
+      const [eYear, eMonth, eDay] = endD.split('-').map(Number);
+      const [eHour, eMin] = eTime.split(':').map(Number);
+      const eDateObj = new Date(eYear, (eMonth || 1) - 1, eDay || 1, eHour || 0, eMin || 0, 0);
+      endISO = eDateObj.toISOString();
+    } catch (e) {
+      console.error('[CreateClass] Error constructing dates:', e);
+      startISO = new Date(Date.now() + 86400000).toISOString();
+      endISO = new Date(Date.now() + 86400000 + 3600000).toISOString();
+    }
+
+    const finalDescription = description.trim() || `Join my live class on ${title.trim()}! We'll cover everything from fundamentals to hands-on practice.`;
 
     setSubmitting(true);
-    const cls = createClass({
-      title: title.trim(),
-      description: description.trim(),
-      category: finalCategory,
-      level,
-      coverImageUrl: coverUrl.trim() || DEFAULT_COVER,
-      startISO,
-      endISO,
-      sessionType,
-      billingCycle,
-      scheduleDays: isWeekly ? scheduleDays : undefined,
-      maxCapacity: cap,
-      seatPriceCredits: price,
-    });
-    setSubmitting(false);
+    try {
+      const cls = createClass({
+        title: title.trim(),
+        description: finalDescription,
+        category: category as SkillCategory,
+        subCategory: subCategory || '',
+        level,
+        coverImageUrl: coverUrl.trim() || DEFAULT_COVER,
+        startISO,
+        endISO,
+        sessionType,
+        billingCycle,
+        scheduleDays: isWeekly ? scheduleDays : undefined,
+        maxCapacity: cap,
+        seatPriceCredits: price,
+      });
 
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.alert(`Class created! "${cls.title}" is now live.`);
-      router.back();
-    } else {
-      Alert.alert('Class created!', `"${cls.title}" is now live.`, [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
-      router.back();
+      showAlert(
+        'Class Created!',
+        `"${cls.title}" is now live and students can enroll.`,
+        [
+          {
+            text: 'View Classes',
+            onPress: () => {
+              router.back();
+            },
+          },
+        ]
+      );
+    } catch (err) {
+      console.error('[CreateClass] Submission error:', err);
+      showAlert('Error', 'Something went wrong while creating the class. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
-  }, [title, description, category, customCategory, level, coverUrl, dateStr, startDate, endDate, isRecurring, isWeekly, scheduleDays, sessionCount, startTime, endTime, capacity, seatPrice, sessionType, billingCycle, createClass, router]);
+  }, [title, description, category, subCategory, level, coverUrl, dateStr, startDate, endDate, isRecurring, isWeekly, scheduleDays, startTime, endTime, capacity, seatPrice, sessionType, billingCycle, createClass, router, showAlert]);
 
   return (
     <ScrollView style={s.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -549,27 +566,23 @@ export default function CreateClassScreen() {
         </View>
         <TextInput style={[s.input, s.textArea]} value={description} onChangeText={setDescription} placeholder="What will students learn? What should they bring?" placeholderTextColor={Colors.light.textTertiary} multiline numberOfLines={4} textAlignVertical="top" />
 
-        <Text style={s.label}>Category</Text>
-        <View style={s.chipRow}>
-          {categoryOptions.map(cat => (
-            <TouchableOpacity key={cat} style={[s.chip, category === cat && s.chipActive]} onPress={() => setCategory(cat)} activeOpacity={0.7}>
-              <Text style={[s.chipText, category === cat && s.chipTextActive]}>{cat}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {category === 'Other' && (
-          <View style={s.customCatWrap}>
-            <Text style={s.subLabel}>Enter Custom Category Name</Text>
-            <TextInput
-              style={s.input}
-              value={customCategory}
-              onChangeText={setCustomCategory}
-              placeholder="e.g. Calligraphy & Lettering"
-              placeholderTextColor={Colors.light.textTertiary}
-            />
-          </View>
-        )}
+        <CategorySubcategoryPicker
+          selectedCategory={category}
+          selectedSubcategory={subCategory}
+          onSelect={(cat, subcat) => {
+            setCategory(cat);
+            setSubCategory(subcat);
+            if (!title.trim()) {
+              setTitle(subcat);
+            }
+          }}
+          onClear={() => {
+            setCategory(null);
+            setSubCategory(null);
+          }}
+          label="Category & Subcategory *"
+          modalTitle="Select Class Category"
+        />
 
         <Text style={s.label}>Level</Text>
         <View style={s.chipRow}>
@@ -795,8 +808,8 @@ export default function CreateClassScreen() {
                     {activeDateTarget === 'start'
                       ? 'Select when your course begins'
                       : activeDateTarget === 'end'
-                      ? 'Select when your course ends'
-                      : 'Select when your class takes place'}
+                        ? 'Select when your course ends'
+                        : 'Select when your class takes place'}
                   </Text>
                 </View>
                 <TouchableOpacity style={s.modalCloseBtn} onPress={() => setShowDatePickerModal(false)}>

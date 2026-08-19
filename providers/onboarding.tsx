@@ -3,7 +3,8 @@ import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './auth';
 import url from '@/constants/backurl';
-import type { Skill, OnboardingRole } from '../types';
+import type { Skill, OnboardingRole, SkillCategory, SkillLevel } from '../types';
+import { findCategoryForSubcategory, getCategoryImageUrl } from '@/constants/categories';
 
 const ONBOARDING_KEY = '@skillswap/onboarding_complete';
 
@@ -108,27 +109,19 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
 
         if (Array.isArray(finalData.skillsToTeach)) {
           const guestSkills: Skill[] = finalData.skillsToTeach.map((skill, index) => {
-            const STOCK_IMAGES: Record<string, string> = {
-              'Arts & Crafts': 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800',
-              'Technology': 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800',
-              'Fitness & Wellness': 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800',
-              'Languages': 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800',
-              'Music': 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=800',
-              'Cooking': 'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=800',
-              'Business': 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800',
-              'Photography': 'https://images.unsplash.com/photo-1554048612-b6a482bc67e5?w=800',
-              'Classical Arts': 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800',
-              'Competitive Exams': 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800',
-            };
+            const mainCat = (findCategoryForSubcategory(skill) || 'Other / Miscellaneous') as SkillCategory;
+            const catImage = getCategoryImageUrl(mainCat);
+            const generatedId = `guest_skill_${index}_${Date.now()}`;
             return {
-              id: `guest_skill_${index}_${Date.now()}`,
-              _id: `guest_skill_${index}_${Date.now()}`,
+              id: generatedId,
+              _id: generatedId,
               title: skill,
-              category: skill as any,
-              description: `I can teach ${skill}`,
-              level: (finalData.experienceLevels && finalData.experienceLevels[skill]) as any || 'Beginner',
+              category: mainCat,
+              subCategory: skill,
+              description: `I can teach and share knowledge in ${skill}.`,
+              level: ((finalData.experienceLevels && finalData.experienceLevels[skill]) as SkillLevel) || 'Intermediate',
               userId: user.id,
-              imageUrl: STOCK_IMAGES[skill] || 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800',
+              imageUrl: catImage,
             };
           });
           await AsyncStorage.setItem('@skillswap/guest_skills_offered', JSON.stringify(guestSkills));

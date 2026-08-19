@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,9 +8,10 @@ import {
   Image,
   ActivityIndicator,
   Modal,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { RefreshCcw, Star, TrendingUp, Users, Zap, GraduationCap, BookOpen, ArrowLeftRight, Sparkles, Bell, Bot } from 'lucide-react-native';
+import { RefreshCcw, Star, TrendingUp, Users, Zap, GraduationCap, BookOpen, ArrowLeftRight, Sparkles, Bell, Bot, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '../../constants/colors';
 import { getSkillsWithUsers, categories } from '../../mocks/data';
@@ -20,6 +21,7 @@ import { useCurrentUser } from '../../providers/current-user';
 import { useNotifications } from '../../providers/notifications';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resolveImageUrl } from '../../lib/resolveImageUrl';
+import { getCategoryImageUrl } from '@/constants/categories';
 import { useSafety } from '@/providers/safety';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
@@ -28,8 +30,88 @@ const DEFAULT_SKILL_IMAGE = 'https://images.unsplash.com/photo-1518770660439-463
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [skillsWithUsers, setSkillsWithUsers] = useState<any[]>([]);
+
+  const promotedScrollRef = useRef<ScrollView>(null);
+  const promotedPosRef = useRef({ x: 0, contentWidth: 0, layoutWidth: 0 });
+  const [promotedNav, setPromotedNav] = useState({ canLeft: false, canRight: true });
+
+  const matchesScrollRef = useRef<ScrollView>(null);
+  const matchesPosRef = useRef({ x: 0, contentWidth: 0, layoutWidth: 0 });
+  const [matchesNav, setMatchesNav] = useState({ canLeft: false, canRight: true });
+
+  const featuredScrollRef = useRef<ScrollView>(null);
+  const featuredPosRef = useRef({ x: 0, contentWidth: 0, layoutWidth: 0 });
+  const [featuredNav, setFeaturedNav] = useState({ canLeft: false, canRight: true });
+
+  const updateCarouselMetrics = (
+    posRef: React.MutableRefObject<{ x: number; contentWidth: number; layoutWidth: number }>,
+    setNav: React.Dispatch<React.SetStateAction<{ canLeft: boolean; canRight: boolean }>>,
+    updates: Partial<{ x: number; contentWidth: number; layoutWidth: number }>
+  ) => {
+    Object.assign(posRef.current, updates);
+    const { x, contentWidth, layoutWidth } = posRef.current;
+    const maxX = Math.max(0, contentWidth - layoutWidth);
+
+    if (maxX > 0 && posRef.current.x > maxX) {
+      posRef.current.x = maxX;
+    }
+    if (posRef.current.x < 0) {
+      posRef.current.x = 0;
+    }
+
+    const currentX = posRef.current.x;
+    const isMeasured = contentWidth > 0 && layoutWidth > 0;
+    const canLeft = currentX > 5;
+    const canRight = isMeasured ? (maxX > 5 && currentX < maxX - 5) : true;
+
+    setNav((prev) => (prev.canLeft !== canLeft || prev.canRight !== canRight ? { canLeft, canRight } : prev));
+  };
+
+  const handleScrollCarouselStep = (
+    scrollRef: React.RefObject<ScrollView | null>,
+    posRef: React.MutableRefObject<{ x: number; contentWidth: number; layoutWidth: number }>,
+    setNav: React.Dispatch<React.SetStateAction<{ canLeft: boolean; canRight: boolean }>>,
+    direction: 'left' | 'right',
+    step = 300
+  ) => {
+    const { x, contentWidth, layoutWidth } = posRef.current;
+    const maxX = Math.max(0, contentWidth - layoutWidth);
+
+    if (direction === 'right' && (maxX <= 5 || x >= maxX - 5)) {
+      updateCarouselMetrics(posRef, setNav, { x: maxX });
+      return;
+    }
+    if (direction === 'left' && x <= 5) {
+      updateCarouselMetrics(posRef, setNav, { x: 0 });
+      return;
+    }
+
+    let nextX = direction === 'left' ? x - step : x + step;
+    if (nextX < 0) nextX = 0;
+    if (maxX > 0 && nextX > maxX) nextX = maxX;
+
+    posRef.current.x = nextX;
+    scrollRef.current?.scrollTo({ x: nextX, animated: true });
+    updateCarouselMetrics(posRef, setNav, { x: nextX });
+  };
+
+  const numSkillColumns = useMemo(() => {
+    if (windowWidth >= 1024) return 4;
+    if (windowWidth >= 768) return 3;
+    if (windowWidth >= 540) return 2;
+    return 1;
+  }, [windowWidth]);
+
+  const skillCardWidth = useMemo(() => {
+    if (numSkillColumns === 1) return '100%';
+    const totalPadding = 40;
+    const totalGap = (numSkillColumns - 1) * 16;
+    const availableWidth = windowWidth - totalPadding - totalGap;
+    return Math.floor(availableWidth / numSkillColumns);
+  }, [windowWidth, numSkillColumns]);
 
   const { unreadCount } = useNotifications();
   const { currentUser, topRecommendations, teachMatches, learnMatches, swapMatches, userRole, refreshRecommendations } = useCurrentUser();
@@ -220,11 +302,40 @@ export default function HomeScreen() {
                   </View>
                   <Text style={styles.matchesSubtitle}>Featured classes with special offers</Text>
                 </View>
+                <View style={styles.carouselNavRow}>
+                  <TouchableOpacity
+                    style={[styles.carouselNavBtn, !promotedNav.canLeft && styles.carouselNavBtnDisabled]}
+                    onPress={() => handleScrollCarouselStep(promotedScrollRef, promotedPosRef, setPromotedNav, 'left', 300)}
+                    activeOpacity={0.7}
+                    disabled={!promotedNav.canLeft}
+                  >
+                    <ChevronLeft size={16} color={!promotedNav.canLeft ? '#CCC' : '#333'} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.carouselNavBtn, !promotedNav.canRight && styles.carouselNavBtnDisabled]}
+                    onPress={() => handleScrollCarouselStep(promotedScrollRef, promotedPosRef, setPromotedNav, 'right', 300)}
+                    activeOpacity={0.7}
+                    disabled={!promotedNav.canRight}
+                  >
+                    <ChevronRight size={16} color={!promotedNav.canRight ? '#CCC' : '#333'} />
+                  </TouchableOpacity>
+                </View>
               </View>
               <ScrollView
+                ref={promotedScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.promotedScroll}
+                onLayout={(e) => updateCarouselMetrics(promotedPosRef, setPromotedNav, { layoutWidth: e.nativeEvent.layout.width })}
+                onContentSizeChange={(w) => updateCarouselMetrics(promotedPosRef, setPromotedNav, { contentWidth: w })}
+                onScroll={(e) => {
+                  updateCarouselMetrics(promotedPosRef, setPromotedNav, {
+                    x: e.nativeEvent.contentOffset.x,
+                    contentWidth: e.nativeEvent.contentSize.width,
+                    layoutWidth: e.nativeEvent.layoutMeasurement.width,
+                  });
+                }}
+                scrollEventThrottle={16}
               >
                 {promotedSkills.map((skill) => (
                   <TouchableOpacity
@@ -278,26 +389,60 @@ export default function HomeScreen() {
                 <Text style={styles.matchesTitle}>Smart Matches</Text>
                 <Text style={styles.matchesSubtitle}>{matchesSubtitle}</Text>
               </View>
-              <TouchableOpacity
-                style={[styles.refreshButton, isRefreshing && { opacity: 0.8 }]}
-                onPress={handleRefresh}
-                disabled={isRefreshing}
-                activeOpacity={0.85}
-                testID="refresh-matches"
-              >
-                {isRefreshing ? (
-                  <ActivityIndicator size="small" color={Colors.light.primary} style={{ marginRight: 4 }} />
-                ) : (
-                  <RefreshCcw size={16} color={Colors.light.primary} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TouchableOpacity
+                  style={[styles.refreshButton, isRefreshing && { opacity: 0.8 }]}
+                  onPress={handleRefresh}
+                  disabled={isRefreshing}
+                  activeOpacity={0.85}
+                  testID="refresh-matches"
+                >
+                  {isRefreshing ? (
+                    <ActivityIndicator size="small" color={Colors.light.primary} style={{ marginRight: 4 }} />
+                  ) : (
+                    <RefreshCcw size={16} color={Colors.light.primary} />
+                  )}
+                  <Text style={styles.refreshText}>{isRefreshing ? 'Loading...' : 'Refresh'}</Text>
+                </TouchableOpacity>
+
+                {hasMatches && (
+                  <View style={styles.carouselNavRow}>
+                    <TouchableOpacity
+                      style={[styles.carouselNavBtn, !matchesNav.canLeft && styles.carouselNavBtnDisabled]}
+                      onPress={() => handleScrollCarouselStep(matchesScrollRef, matchesPosRef, setMatchesNav, 'left', 300)}
+                      activeOpacity={0.7}
+                      disabled={!matchesNav.canLeft}
+                    >
+                      <ChevronLeft size={16} color={!matchesNav.canLeft ? '#CCC' : '#333'} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.carouselNavBtn, !matchesNav.canRight && styles.carouselNavBtnDisabled]}
+                      onPress={() => handleScrollCarouselStep(matchesScrollRef, matchesPosRef, setMatchesNav, 'right', 300)}
+                      activeOpacity={0.7}
+                      disabled={!matchesNav.canRight}
+                    >
+                      <ChevronRight size={16} color={!matchesNav.canRight ? '#CCC' : '#333'} />
+                    </TouchableOpacity>
+                  </View>
                 )}
-                <Text style={styles.refreshText}>{isRefreshing ? 'Loading...' : 'Refresh'}</Text>
-              </TouchableOpacity>
+              </View>
             </View>
             {hasMatches ? (
               <ScrollView
+                ref={matchesScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.matchesScroll}
+                onLayout={(e) => updateCarouselMetrics(matchesPosRef, setMatchesNav, { layoutWidth: e.nativeEvent.layout.width })}
+                onContentSizeChange={(w) => updateCarouselMetrics(matchesPosRef, setMatchesNav, { contentWidth: w })}
+                onScroll={(e) => {
+                  updateCarouselMetrics(matchesPosRef, setMatchesNav, {
+                    x: e.nativeEvent.contentOffset.x,
+                    contentWidth: e.nativeEvent.contentSize.width,
+                    layoutWidth: e.nativeEvent.layoutMeasurement.width,
+                  });
+                }}
+                scrollEventThrottle={16}
               >
                 {topRecommendations.map((match) => (
                   <MatchCard
@@ -367,13 +512,44 @@ export default function HomeScreen() {
           </View>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Featured</Text>
-              <Zap size={18} color={Colors.light.accent} fill={Colors.light.accent} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                <Text style={styles.sectionTitleWithoutPadding}>Featured</Text>
+                <Zap size={18} color={Colors.light.accent} fill={Colors.light.accent} />
+              </View>
+              <View style={styles.carouselNavRow}>
+                <TouchableOpacity
+                  style={[styles.carouselNavBtn, !featuredNav.canLeft && styles.carouselNavBtnDisabled]}
+                  onPress={() => handleScrollCarouselStep(featuredScrollRef, featuredPosRef, setFeaturedNav, 'left', 320)}
+                  activeOpacity={0.7}
+                  disabled={!featuredNav.canLeft}
+                >
+                  <ChevronLeft size={16} color={!featuredNav.canLeft ? '#CCC' : '#333'} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.carouselNavBtn, !featuredNav.canRight && styles.carouselNavBtnDisabled]}
+                  onPress={() => handleScrollCarouselStep(featuredScrollRef, featuredPosRef, setFeaturedNav, 'right', 320)}
+                  activeOpacity={0.7}
+                  disabled={!featuredNav.canRight}
+                >
+                  <ChevronRight size={16} color={!featuredNav.canRight ? '#CCC' : '#333'} />
+                </TouchableOpacity>
+              </View>
             </View>
             <ScrollView 
+              ref={featuredScrollRef}
               horizontal 
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.featuredScroll}
+              onLayout={(e) => updateCarouselMetrics(featuredPosRef, setFeaturedNav, { layoutWidth: e.nativeEvent.layout.width })}
+              onContentSizeChange={(w) => updateCarouselMetrics(featuredPosRef, setFeaturedNav, { contentWidth: w })}
+              onScroll={(e) => {
+                updateCarouselMetrics(featuredPosRef, setFeaturedNav, {
+                  x: e.nativeEvent.contentOffset.x,
+                  contentWidth: e.nativeEvent.contentSize.width,
+                  layoutWidth: e.nativeEvent.layoutMeasurement.width,
+                });
+              }}
+              scrollEventThrottle={16}
             >
               {featuredSkills.map((skill) => (
                 <TouchableOpacity
@@ -458,16 +634,29 @@ export default function HomeScreen() {
             <Text style={styles.sectionTitle}>
               {selectedCategory === 'All' ? 'All Skills' : selectedCategory}
             </Text>
-            <View style={styles.skillsGrid}>
+            <View style={[
+              styles.skillsGrid,
+              numSkillColumns > 1 && {
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                gap: 16,
+              }
+            ]}>
               {filteredSkills.map((skill) => (
                 <TouchableOpacity
                   key={skill.id}
-                  style={styles.skillCard}
+                  style={[
+                    styles.skillCard,
+                    numSkillColumns > 1 && {
+                      width: skillCardWidth,
+                    },
+                  ]}
                   onPress={() => router.push(`/skill/${skill.id}` as any)}
+                  activeOpacity={0.85}
                 >
                   <Image
-                    source={{ uri: resolveImageUrl(skill.imageUrl, DEFAULT_SKILL_IMAGE) }}
-                    style={styles.skillImage}
+                    source={{ uri: resolveImageUrl(skill.imageUrl, getCategoryImageUrl(skill.category || skill.title)) }}
+                    style={[styles.skillImage, numSkillColumns >= 3 && { height: 160 }]}
                     defaultSource={{ uri: DEFAULT_SKILL_IMAGE }}
                   />
                   <View style={styles.skillContent}>
@@ -483,16 +672,16 @@ export default function HomeScreen() {
                     <View style={styles.skillFooter}>
                       <View style={styles.userInfo}>
                         <Image
-                          source={{ uri: resolveImageUrl(skill.user.avatarUrl, DEFAULT_AVATAR) }}
+                          source={{ uri: resolveImageUrl(skill.user?.avatarUrl, DEFAULT_AVATAR) }}
                           style={styles.userAvatar}
                         />
                         <Text style={styles.userName} numberOfLines={1}>
-                          {skill.user.username ? (skill.user.username.startsWith('@') ? skill.user.username : `@${skill.user.username}`) : `@${skill.user.name.toLowerCase().replace(/\s+/g, '')}`}
+                          {skill.user?.username ? (skill.user.username.startsWith('@') ? skill.user.username : `@${skill.user.username}`) : `@${(skill.user?.name || 'user').toLowerCase().replace(/\s+/g, '')}`}
                         </Text>
                       </View>
                       <View style={styles.ratingContainer}>
                         <Star size={12} fill={Colors.light.accent} color={Colors.light.accent} />
-                        <Text style={styles.ratingText}>{skill.user.rating}</Text>
+                        <Text style={styles.ratingText}>{skill.user?.rating ?? 5.0}</Text>
                       </View>
                     </View>
                   </View>
@@ -860,9 +1049,10 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     marginBottom: 16,
+    gap: 8,
   },
   sectionTitle: {
     fontSize: 22,
@@ -870,6 +1060,36 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     paddingHorizontal: 20,
     marginBottom: 16,
+  },
+  sectionTitleWithoutPadding: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  carouselNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  carouselNavBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  carouselNavBtnDisabled: {
+    opacity: 0.35,
+    backgroundColor: '#F9FAFB',
+    borderColor: '#EFEFEF',
   },
   featuredScroll: {
     paddingLeft: 20,

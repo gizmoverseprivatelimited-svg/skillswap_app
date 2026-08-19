@@ -33,6 +33,17 @@ export default function BlockedUsersScreen() {
   }, [fetchBlockedUsers, currentUserId]);
 
   const handleUnblock = (user: BlockedUser) => {
+    if (!currentUserId || currentUserId === '1' || auth?.user?.isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to manage blocked users.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
+      return;
+    }
     showAlert(
       'Unblock User',
       `Are you sure you want to unblock ${user.blockedUserName}? They will be able to view your profile, request swaps, and enroll in your classes.`,

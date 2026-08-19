@@ -158,6 +158,17 @@ export default function EditProfileScreen() {
   };
 
   const handleAddSkillWanted = () => {
+    if (!currentUser || currentUser.id === '1' || (currentUser as any)?.isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to add learning skills.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
+      return;
+    }
     const trimmed = newSkillWanted.trim();
     if (trimmed) {
       const currentList = skillsWanted.filter((s) => s.trim() !== '');
@@ -169,97 +180,32 @@ export default function EditProfileScreen() {
   };
 
   const handleRemoveSkillWanted = (index: number) => {
+    if (!currentUser || currentUser.id === '1' || (currentUser as any)?.isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to edit learning skills.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
+      return;
+    }
     setSkillsWanted(skillsWanted.filter((_, i) => i !== index));
   };
 
-
-
-  // const handleSave = async () => {
-  //   if (!name.trim()) {
-  //     Alert.alert('Error', 'Name is required');
-  //     return;
-  //   }
-
-  //   setIsSaving(true);
-
-  //   try {
-  //     const result = await updateProfileMutation.mutateAsync({
-  //       name: name.trim(),
-  //       bio: bio.trim(),
-  //       location: location.trim(),
-  //       skillsWanted,
-  //       avatarUrl,
-  //     });
-
-  //     console.log('[EditProfile] Profile updated:', result);
-
-  //     Alert.alert('Success', 'Profile updated successfully!', [
-  //       {
-  //         text: 'OK',
-  //         onPress: () => router.back(),
-  //       },
-  //     ]);
-  //   } catch (error) {
-  //     console.error('[EditProfile] Save error:', error);
-  //     Alert.alert('Error', 'Failed to save profile. Please try again.');
-  //   } finally {
-  //     setIsSaving(false);
-  //   }
-  // };
-
-  // const handleSave = async () => {
-  //   if (!name.trim()) {
-  //     Alert.alert('Error', 'Name is required');
-  //     return;
-  //   }
-
-  //   setIsSaving(true);
-
-  //   try {
-  //     const response = await fetch(
-  //       `${url}/users/me`,
-  //       {
-  //         method: 'PUT',
-  //         headers: {
-  //           'Content-Type': 'application/json',
-  //           // Authorization: `Bearer ${authToken}`, // JWT token
-  //         },
-  //         body: JSON.stringify({
-  //           name: name.trim(),
-  //           bio: bio.trim(),
-  //           location: location.trim(),
-  //           skillsWanted,
-  //           avatarUrl,
-  //           userId: currentUser?.id
-  //         }),
-  //       }
-  //     );
-
-  //     if (!response.ok) {
-  //       const error = await response.json();
-  //       throw new Error(error.message || 'Update failed');
-  //     }
-
-  //     const result = await response.json();
-  //     console.log('[EditProfile] Profile updated:', result);
-
-  //     loadUser()
-  //     Alert.alert('Success', 'Profile updated successfully!', [
-  //       {
-  //         text: 'OK',
-  //         onPress: () => router.back(),
-  //       },
-  //     ]);
-  //   } catch (error) {
-  //     console.error('[EditProfile] Save error:', error);
-  //     Alert.alert('Error', 'Failed to save profile. Please try again.');
-  //   } finally {
-  //     setIsSaving(false);
-  //   }
-  // };
-
-
   const handleSave = async () => {
+    if (!currentUser || currentUser.id === '1' || (currentUser as any)?.isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to edit your profile.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
+      return;
+    }
     if (!name.trim()) {
       showAlert('Error', 'Name is required');
       return;
@@ -395,6 +341,17 @@ export default function EditProfileScreen() {
 
 
   const handleChangeAvatar = () => {
+    if (!currentUser || currentUser.id === '1' || (currentUser as any)?.isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to change your profile picture.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
+      return;
+    }
     showAlert(
       'Change Avatar',
       'Choose an option',

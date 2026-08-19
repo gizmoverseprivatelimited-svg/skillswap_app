@@ -3,10 +3,11 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Platfo
 import { useAlert } from '@/providers/alert';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { MapPin, Clock, Check, X, Send, Sparkles, CalendarClock, PlusCircle, ArrowLeft, ShieldCheck, Video, Phone, CalendarPlus, Download, GraduationCap, BookOpen, ArrowLeftRight, Coins, Zap, AlertTriangle } from 'lucide-react-native';
+import { MapPin, Clock, Check, X, Send, Sparkles, CalendarClock, PlusCircle, ArrowLeft, ShieldCheck, Video, Phone, CalendarPlus, Download, GraduationCap, BookOpen, ArrowLeftRight, Coins, Zap, AlertTriangle, AlertCircle } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 import { useSkillSwaps } from '../../providers/skill-swaps';
 import { useCurrentUser } from '../../providers/current-user';
+import { useSocket } from '../../providers/socket';
 import { getSkillsWithUsers } from '../../mocks/data';
 import type { SkillWithUser, SkillSwapStatus, SwapTimeProposal } from '../../types';
 import { addSwapToCalendar, exportSwapToICalendar } from '../../lib/calendar';
@@ -39,13 +40,8 @@ const buildTimeSuggestions = (): TimeSuggestion[] => {
     const start = new Date(now + config.offsetHours * 60 * 60 * 1000);
     const end = new Date(start.getTime() + config.durationMinutes * 60 * 1000);
     return {
-      id: `suggest-${config.offsetHours}-${config.durationMinutes}`,
-      label: start.toLocaleString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      }),
+      id: `sug-${config.offsetHours}`,
+      label: formatTimestamp(start.toISOString()),
       startISO: start.toISOString(),
       endISO: end.toISOString(),
     };
@@ -62,6 +58,25 @@ const formatTimestamp = (timestamp: string) => {
   });
 };
 
+const getTimeRemainingText = (targetDate: Date | string): string => {
+  const diffMs = new Date(targetDate).getTime() - Date.now();
+  if (diffMs <= 0) return 'Session time reached • Ready to start';
+
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays > 0) {
+    const remHours = diffHours % 24;
+    return `Starts in ${diffDays} day${diffDays > 1 ? 's' : ''}${remHours > 0 ? ` ${remHours} hr${remHours > 1 ? 's' : ''}` : ''}`;
+  }
+  if (diffHours > 0) {
+    const remMins = diffMinutes % 60;
+    return `Starts in ${diffHours} hr${diffHours > 1 ? 's' : ''}${remMins > 0 ? ` ${remMins} min${remMins > 1 ? 's' : ''}` : ''}`;
+  }
+  return `Starts in ${Math.max(1, diffMinutes)} minute${diffMinutes > 1 ? 's' : ''}`;
+};
+
 const classifySlotStatus = (slot: SwapTimeProposal) => {
   if (slot.status === 'accepted') {
     return { label: 'Locked in', color: '#34D399' };
@@ -75,8 +90,9 @@ const classifySlotStatus = (slot: SwapTimeProposal) => {
 export default function SwapDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getSwapById, addMessage, addCounterProposal, acceptProposal, declineSwap, updateLocation, completeSwap, setCalendarEventId, loading } = useSkillSwaps();
+  const { getSwapById, addMessage, addCounterProposal, acceptProposal, declineSlot, declineSwap, updateLocation, completeSwap, setCalendarEventId, loading } = useSkillSwaps();
   const { currentUser, allUsers, loadUser } = useCurrentUser();
+  const { socket } = useSocket();
   const { showAlert } = useAlert();
   const [messageDraft, setMessageDraft] = useState<string>('');
   const [counterNotes, setCounterNotes] = useState<string>('');
@@ -87,6 +103,8 @@ export default function SwapDetailScreen() {
   const [creditConfirmModalVisible, setCreditConfirmModalVisible] = useState<boolean>(false);
   const [pendingSlotToAccept, setPendingSlotToAccept] = useState<string | null>(null);
   const [isAcceptingWithCredit, setIsAcceptingWithCredit] = useState<boolean>(false);
+  const [callTimeModalVisible, setCallTimeModalVisible] = useState<boolean>(false);
+  const [callModeToStart, setCallModeToStart] = useState<'video' | 'voice'>('video');
 
   const [calendarModalVisible, setCalendarModalVisible] = useState<boolean>(false);
   const [customDateTimeStr, setCustomDateTimeStr] = useState<string>(() => {
@@ -114,30 +132,19 @@ export default function SwapDetailScreen() {
 
   const timeSlotOptions = ['09:00', '10:30', '12:00', '14:00', '16:00', '18:00', '19:30', '21:00'];
 
-  const swap = useMemo(() => {
-    if (!id) {
-      return undefined;
-    }
-    return getSwapById(id);
-  }, [getSwapById, id]);
+  const swap = getSwapById(id);
 
-  // const allSkills = useMemo<SkillWithUser[]>(() => getSkillsWithUsers(), []);
-
-  const [allSkills, setAllSkills] = useState<SkillWithUser[]>()
-
-  useEffect(() => {
-    getSkillsWithUsers().then((list) => {
-      setAllSkills(list);
-    });
-  }, [id]);
-
-  const skillsMap = useMemo(() => {
+  const allSkills = useMemo(() => {
     const map = new Map<string, SkillWithUser>();
-    allSkills?.forEach((skill) => {
-      map.set(skill.id, skill);
+    allUsers.forEach((u) => {
+      u.skillsOffered?.forEach((s) => {
+        map.set(s.id, { ...s, user: u });
+      });
     });
     return map;
-  }, [allSkills]);
+  }, [allUsers]);
+
+  const skillsMap = allSkills;
 
   const timeSuggestions = useMemo(() => buildTimeSuggestions(), []);
 
@@ -197,44 +204,53 @@ export default function SwapDetailScreen() {
   // Computed exchange details: clearly separated Teaching & Learning skills
   const exchangeSkills = useMemo(() => {
     if (!swap || !currentUser) {
-      return { teachingSkill: null, learningSkill: null, teachingOwner: '', learningOwner: '' };
+      return {
+        teachingSkill: null,
+        learningSkill: null,
+        teachingOwner: '',
+        learningOwner: '',
+        swapType: 'swap' as const,
+        isRequester: false,
+      };
     }
-
     const isRequester = swap.requesterId === currentUser.id;
     const swapType = swap.swapType || 'swap';
+    const partnerName = partner?.username ? (partner.username.startsWith('@') ? partner.username : `@${partner.username}`) : (partner?.name || 'Partner');
 
-    const requesterSkill = swap.requesterSkillId ? (skillsMap.get(swap.requesterSkillId) || null) : null;
-    const recipientSkill = swap.recipientSkillId ? (skillsMap.get(swap.recipientSkillId) || null) : null;
+    const requesterSkill = skillsMap.get(swap.requesterSkillId) || {
+      id: swap.requesterSkillId,
+      title: 'Skill',
+      category: 'General',
+      level: 'All levels' as const,
+      user: isRequester ? currentUser : (partner || currentUser),
+    };
+    const recipientSkill = skillsMap.get(swap.recipientSkillId) || {
+      id: swap.recipientSkillId,
+      title: 'Skill',
+      category: 'General',
+      level: 'All levels' as const,
+      user: isRequester ? (partner || currentUser) : currentUser,
+    };
 
-    let teachingSkill: SkillWithUser | null = null;
-    let learningSkill: SkillWithUser | null = null;
-    let teachingOwner: string = '';
-    let learningOwner: string = '';
-
-    const partnerName = partner?.name?.split(' ')[0] || (partner?.username ? `@${partner.username}` : 'Partner');
+    let teachingSkill: any = null;
+    let learningSkill: any = null;
+    let teachingOwner = '';
+    let learningOwner = '';
 
     if (swapType === 'learn') {
       if (isRequester) {
         learningSkill = recipientSkill;
-        teachingSkill = null;
-        teachingOwner = `${partnerName} teaches`;
-        learningOwner = 'You learn';
+        learningOwner = `${partnerName} teaches`;
       } else {
         teachingSkill = recipientSkill;
-        learningSkill = null;
         teachingOwner = 'You teach';
-        learningOwner = `${partnerName} learns`;
       }
     } else if (swapType === 'teach') {
       if (isRequester) {
         teachingSkill = requesterSkill;
-        learningSkill = null;
         teachingOwner = 'You teach';
-        learningOwner = `${partnerName} learns`;
       } else {
         learningSkill = requesterSkill;
-        teachingSkill = null;
-        teachingOwner = `${partnerName} teaches`;
         learningOwner = 'You learn';
       }
     } else {
@@ -327,33 +343,29 @@ export default function SwapDetailScreen() {
     }
 
     if (!start || isNaN(start.getTime())) {
-      showAlert('Invalid Selection ⚠️', 'Please select a valid date and time from the calendar.');
+      setErrorBanner('Please select a valid date and time from the calendar.');
       return;
     }
 
     const end = new Date(start.getTime() + 60 * 60 * 1000);
-    const id = `custom-${start.getTime()}`;
-    const label = start.toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-    const newSuggestion: TimeSuggestion = {
-      id,
-      label,
+    const label = formatTimestamp(start.toISOString());
+    const newSlot: TimeSuggestion = {
+      id: `custom-${start.getTime()}`,
+      label: `📅 ${label}`,
       startISO: start.toISOString(),
       endISO: end.toISOString(),
     };
 
     setSelectedSuggestions((prev) => {
-      if (prev.some((s) => s.id === id)) return prev;
-      return [...prev, newSuggestion];
+      const exists = prev.some((item) => item.startISO === newSlot.startISO);
+      if (exists) return prev;
+      return [...prev, newSlot];
     });
-    setCalendarModalVisible(false);
-  }, [customDateTimeStr, pickerSelectedDate, pickerSelectedTime, showAlert]);
 
-  const handleSubmitCounter = useCallback(() => {
+    setCalendarModalVisible(false);
+  }, [customDateTimeStr, pickerSelectedDate, pickerSelectedTime]);
+
+  const handleSendCounterProposal = useCallback(() => {
     if (!swap) {
       return;
     }
@@ -378,6 +390,19 @@ export default function SwapDetailScreen() {
       return;
     }
     setErrorBanner(null);
+
+    const currentUserId = String(currentUser?.id || (currentUser as any)?._id || '');
+    const targetSlot = swap.proposedTimes.find((s) => (s._id || s.id) === slotId);
+    if (targetSlot) {
+      const proposerId = String(targetSlot.proposedById || (targetSlot as any)?.proposedById?._id || swap.requesterId || '');
+      if (proposerId && currentUserId && proposerId === currentUserId) {
+        showAlert(
+          'Waiting for Partner',
+          'You proposed this time slot. Only your exchange partner can accept or decline it.'
+        );
+        return;
+      }
+    }
 
     const isRequester = swap.requesterId === currentUser?.id;
     const swapType = swap.swapType || 'swap';
@@ -406,6 +431,12 @@ export default function SwapDetailScreen() {
       acceptProposal({ requestId: swap.id, timeId: slotId });
     }
   }, [acceptProposal, swap, currentUser, showAlert]);
+
+  const handleDeclineSlot = useCallback((slotId: string) => {
+    if (!swap) return;
+    setErrorBanner(null);
+    declineSlot({ requestId: swap.id, slotId });
+  }, [declineSlot, swap]);
 
   const handleConfirmCreditDeduction = useCallback(async () => {
     if (!swap || !pendingSlotToAccept) return;
@@ -550,6 +581,76 @@ export default function SwapDetailScreen() {
     }
   }, [swap, counterpartSkill, partner, showAlert]);
 
+  const lockedInSlot = useMemo(() => {
+    if (!swap) return null;
+    if (swap.acceptedTimeId) {
+      const found = swap.proposedTimes?.find(
+        (t) => (t._id && String(t._id) === String(swap.acceptedTimeId)) || (t.id && String(t.id) === String(swap.acceptedTimeId))
+      );
+      if (found) return found;
+    }
+    return swap.proposedTimes?.find((t) => t.status === 'accepted') || null;
+  }, [swap]);
+
+  const handleStartCall = useCallback((callMode: 'video' | 'voice') => {
+    if (typeof document !== 'undefined' && document.activeElement) {
+      (document.activeElement as HTMLElement).blur();
+    }
+
+    if (!swap) return;
+
+    // Check locked in slot
+    const lockedSlot = swap.acceptedTimeId
+      ? swap.proposedTimes?.find(
+        (t) => (t._id && String(t._id) === String(swap.acceptedTimeId)) || (t.id && String(t.id) === String(swap.acceptedTimeId))
+      ) || swap.proposedTimes?.find((t) => t.status === 'accepted')
+      : swap.proposedTimes?.find((t) => t.status === 'accepted');
+
+    if (!lockedSlot) {
+      showAlert(
+        'Time Slot Required 📅',
+        'You can only start a call once a time slot has been accepted and locked in by you and your partner.'
+      );
+      return;
+    }
+
+    const startTime = new Date(lockedSlot.startISO).getTime();
+    const now = Date.now();
+
+    // If current time is before the locked in start time
+    if (now < startTime) {
+      setCallModeToStart(callMode);
+      setCallTimeModalVisible(true);
+      return;
+    }
+
+    const callerName = currentUser?.name || 'Partner';
+    const callerId = currentUser?.id || '';
+    const partnerId = partner?.id || (swap?.requesterId === callerId ? swap?.recipientId : swap?.requesterId);
+
+    // 1. Post real-time call alert message to swap thread so partner gets notified instantly
+    if (swap?.id && callerId) {
+      addMessage({
+        requestId: swap.id,
+        authorId: callerId,
+        body: `${callerName} started the ${callMode} call. Tap to join!`,
+        isSystem: true,
+      });
+    }
+
+    // 2. Emit real-time socket call alert to partner
+    if (socket && swap?.id) {
+      socket.emit('call_peer_joined', { room: swap.id, userId: callerId, userName: callerName });
+      socket.emit('swap_call_started', { swapId: swap.id, callerId, callerName, partnerId, mode: callMode });
+      if (partnerId) {
+        socket.emit('call_signal', { room: swap.id, type: 'incoming_call', to: partnerId, callerId, callerName, mode: callMode });
+      }
+    }
+
+    // 3. Navigate immediately to call room
+    router.push(`/call/${swap?.id || id}?mode=${callMode}` as any);
+  }, [currentUser, partner, swap, id, addMessage, socket, router, showAlert]);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -657,25 +758,54 @@ export default function SwapDetailScreen() {
             {swap.proposedTimes.map((slot, i) => {
               const statusMeta = classifySlotStatus(slot);
               const isPending = slot.status === 'pending';
+              const currentUserId = String(currentUser?.id || (currentUser as any)?._id || '');
+              const slotProposerId = String(slot.proposedById || (slot as any)?.proposedById?._id || swap.requesterId || '');
+              const isProposer = Boolean(currentUserId && slotProposerId && slotProposerId === currentUserId);
+              const slotId = slot._id || slot.id || '';
+
               return (
-                <View key={i} style={styles.slotCard} testID={`swap-slot-${slot.id}`}>
+                <View key={slotId || i} style={styles.slotCard} testID={`swap-slot-${slot.id}`}>
                   <View style={styles.slotInfo}>
                     <Clock size={18} color={statusMeta.color} />
                     <View style={styles.slotCopy}>
                       <Text style={styles.slotPrimary}>{formatTimestamp(slot.startISO)}</Text>
-                      <Text style={[styles.slotSecondary, { color: statusMeta.color }]}>{statusMeta.label}</Text>
+                      <Text style={[styles.slotSecondary, { color: statusMeta.color }]}>
+                        {slot.status === 'pending'
+                          ? isProposer
+                            ? '⏳ Proposed by you • Awaiting partner'
+                            : '📩 Proposed by partner • Awaiting your response'
+                          : statusMeta.label}
+                      </Text>
                     </View>
                   </View>
-                  {isPending && (
-                    <TouchableOpacity
-                      style={styles.acceptButton}
-                      onPress={() => handleAcceptSlot(slot._id || "")}
-                      activeOpacity={0.9}
-                      testID={`accept-slot-${slot.id}`}
-                    >
-                      <Check size={16} color="#0B1220" />
-                      <Text style={styles.acceptText}>Accept</Text>
-                    </TouchableOpacity>
+
+                  {isPending && !isProposer && (
+                    <View style={styles.slotActionButtons}>
+                      <TouchableOpacity
+                        style={styles.declineSlotButton}
+                        onPress={() => handleDeclineSlot(slotId)}
+                        activeOpacity={0.8}
+                        testID={`decline-slot-${slot.id}`}
+                      >
+                        <X size={15} color="#EF4444" />
+                        <Text style={styles.declineSlotText}>Decline</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.acceptButton}
+                        onPress={() => handleAcceptSlot(slotId)}
+                        activeOpacity={0.9}
+                        testID={`accept-slot-${slot.id}`}
+                      >
+                        <Check size={16} color="#0B1220" />
+                        <Text style={styles.acceptText}>Accept</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {isPending && isProposer && (
+                    <View style={styles.pendingProposerBadge}>
+                      <Text style={styles.pendingProposerBadgeText}>Awaiting partner</Text>
+                    </View>
                   )}
                 </View>
               );
@@ -743,7 +873,7 @@ export default function SwapDetailScreen() {
           <View style={styles.counterActions}>
             <TouchableOpacity
               style={[styles.counterButton, styles.primaryButton]}
-              onPress={handleSubmitCounter}
+              onPress={handleSendCounterProposal}
               activeOpacity={0.9}
               testID="submit-counter-proposal"
             >
@@ -829,12 +959,7 @@ export default function SwapDetailScreen() {
             <View style={styles.callActions}>
               <TouchableOpacity
                 style={[styles.callButton, styles.videoCallButton, { backgroundColor: '#8B5CF6' }]}
-                onPress={() => {
-                  if (typeof document !== 'undefined' && document.activeElement) {
-                    (document.activeElement as HTMLElement).blur();
-                  }
-                  router.push(`/call/${swap.id}?mode=video` as any);
-                }}
+                onPress={() => handleStartCall('video')}
                 activeOpacity={0.9}
                 testID="start-video-call"
               >
@@ -843,12 +968,7 @@ export default function SwapDetailScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.callButton, { backgroundColor: '#10B981' }]}
-                onPress={() => {
-                  if (typeof document !== 'undefined' && document.activeElement) {
-                    (document.activeElement as HTMLElement).blur();
-                  }
-                  router.push(`/call/${swap.id}?mode=voice` as any);
-                }}
+                onPress={() => handleStartCall('voice')}
                 activeOpacity={0.9}
                 testID="start-voice-call"
               >
@@ -1139,6 +1259,95 @@ export default function SwapDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ⏰ Call Time Restriction Modal */}
+      <Modal
+        visible={callTimeModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCallTimeModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            {/* Top Accent Bar */}
+            <LinearGradient
+              colors={['#8B5CF6', '#6366F1']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.modalTopBar}
+            />
+
+            {/* Close Button */}
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              onPress={() => setCallTimeModalVisible(false)}
+            >
+              <X size={18} color={Colors.light.textSecondary} />
+            </TouchableOpacity>
+
+            {/* Icon Banner */}
+            <View style={styles.modalIconBox}>
+              <LinearGradient
+                colors={['#F5F3FF', '#EDE9FE']}
+                style={styles.modalIconCircle}
+              >
+                <CalendarClock size={34} color="#8B5CF6" />
+              </LinearGradient>
+            </View>
+
+            {/* Title & Description */}
+            <Text style={styles.modalTitle}>
+              {callModeToStart === 'video' ? 'Video Call Not Started Yet' : 'Voice Call Not Started Yet'}
+            </Text>
+            <Text style={styles.modalDesc}>
+              You can only start the {callModeToStart} call once the locked-in session time slot begins.
+            </Text>
+
+            {/* Locked In Slot Info Box */}
+            {lockedInSlot && (
+              <View style={styles.callLockInfoBox}>
+                <View style={styles.callLockRow}>
+                  <Clock size={18} color="#8B5CF6" />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={styles.callLockLabel}>Locked-in Time Slot</Text>
+                    <Text style={styles.callLockValue}>{formatTimestamp(lockedInSlot.startISO)}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.callLockDivider} />
+
+                <View style={styles.callLockRow}>
+                  <AlertCircle size={18} color="#6366F1" />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={styles.callLockLabel}>Status</Text>
+                    <Text style={styles.callLockCountdown}>
+                      {getTimeRemainingText(lockedInSlot.startISO)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Actions */}
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.confirmActionBtn, { flex: 1 }]}
+                onPress={() => setCallTimeModalVisible(false)}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={['#8B5CF6', '#6366F1']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.confirmGradient}
+                >
+                  <Text style={styles.confirmActionText}>Got it</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1311,6 +1520,40 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700' as const,
     color: '#0B1220',
+  },
+  slotActionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  declineSlotButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+  },
+  declineSlotText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#EF4444',
+  },
+  pendingProposerBadge: {
+    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  pendingProposerBadgeText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#6366F1',
   },
   suggestionRow: {
     flexDirection: 'row',
@@ -1877,5 +2120,41 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
     borderWidth: 1,
     borderColor: 'rgba(56, 189, 248, 0.4)',
+  },
+  callLockInfoBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    width: '100%',
+    gap: 12,
+    marginVertical: 12,
+  },
+  callLockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  callLockLabel: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: '#64748B',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  callLockValue: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#0F172A',
+  },
+  callLockDivider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+  },
+  callLockCountdown: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#8B5CF6',
   },
 });

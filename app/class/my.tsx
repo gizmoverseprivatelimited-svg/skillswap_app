@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
 import { useClasses } from '@/providers/classes';
 import { useCurrentUser } from '@/providers/current-user';
+import { useAlert } from '@/providers/alert';
 import type { ClassWithTeacher } from '@/types';
 import { formatCredits, formatClassSchedule, formatBillingCycle } from '@/lib/payments';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
@@ -90,7 +91,25 @@ export default function MyClassesScreen() {
   const insets = useSafeAreaInsets();
   const { getMyTeachingClasses, getMyEnrolledClasses } = useClasses();
   const { currentUser } = useCurrentUser();
+  const { showAlert } = useAlert();
   const [segment, setSegment] = useState<Segment>('teaching');
+
+  const isDemoUser = !currentUser || currentUser.id === '1' || (currentUser as any)?.isDemo;
+
+  const handleCreateClassPress = () => {
+    if (isDemoUser) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to create group classes.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
+      return;
+    }
+    router.push('/class/create' as any);
+  };
 
   const teachingClasses = useMemo(() => getMyTeachingClasses(), [getMyTeachingClasses]);
   const enrolledClasses = useMemo(() => getMyEnrolledClasses(), [getMyEnrolledClasses]);
@@ -111,7 +130,7 @@ export default function MyClassesScreen() {
         <Text style={s.headerSub}>Manage your teaching and enrolled classes</Text>
         <TouchableOpacity
           style={s.createBtn}
-          onPress={() => router.push('/class/create' as any)}
+          onPress={handleCreateClassPress}
           activeOpacity={0.8}
         >
           <Plus size={18} color="#FFFFFF" />
@@ -151,7 +170,7 @@ export default function MyClassesScreen() {
                 : "You haven't enrolled in any classes yet."}
             </Text>
             {segment === 'teaching' && (
-              <TouchableOpacity style={s.emptyBtn} onPress={() => router.push('/class/create' as any)}>
+              <TouchableOpacity style={s.emptyBtn} onPress={handleCreateClassPress}>
                 <Plus size={16} color="#FFFFFF" />
                 <Text style={s.emptyBtnText}>Create your first class</Text>
               </TouchableOpacity>

@@ -248,12 +248,23 @@ export default function UserProfileScreen() {
   }, [user, currentUser, userIsBlocked, isBlockedRelation, swaps, router, showAlert]);
 
   const handleReport = useCallback(() => {
-    if (!user || !currentUser) return;
+    if (!user) return;
+    if (!currentUser || currentUser.id === '1' || (currentUser as any).isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to report a user.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
+      return;
+    }
     setReportModalVisible(true);
     setSelectedReason(null);
     setReportDescription('');
     setReportError(null);
-  }, [user, currentUser]);
+  }, [user, currentUser, router, showAlert]);
 
   const handleSubmitReport = useCallback(() => {
     if (!user || !currentUser) return;
@@ -279,7 +290,18 @@ export default function UserProfileScreen() {
   }, [user, currentUser, selectedReason, reportDescription, submitReport, showAlert]);
 
   const handleBlock = useCallback(() => {
-    if (!user || !currentUser) return;
+    if (!user) return;
+    if (!currentUser || currentUser.id === '1' || (currentUser as any).isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to block a user.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
+      return;
+    }
     const targetId = user.id || user._id;
     showAlert(
       'Block User',
@@ -296,14 +318,25 @@ export default function UserProfileScreen() {
         },
       ],
     );
-  }, [user, currentUser, blockUser, showAlert]);
+  }, [user, currentUser, blockUser, router, showAlert]);
 
   const handleUnblock = useCallback(async () => {
     if (!user) return;
+    if (!currentUser || currentUser.id === '1' || (currentUser as any).isDemo) {
+      showAlert(
+        'Login Required 🔒',
+        'Please log in or create an account to manage blocked users.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Log In', onPress: () => router.push('/login' as any) },
+        ]
+      );
+      return;
+    }
     const targetId = user.id || user._id;
     await unblockUser(targetId, currentUser?.id);
     showAlert('User Unblocked', `${user.name} has been unblocked.`);
-  }, [user, currentUser?.id, unblockUser, showAlert]);
+  }, [user, currentUser, unblockUser, router, showAlert]);
 
   if (isLoading) {
     return (

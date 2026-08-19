@@ -227,7 +227,9 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
     console.log('[Admin] Login attempt', { email });
     const normalizedEmail = email.trim().toLowerCase();
     if (
-      normalizedEmail === ADMIN_CREDENTIALS.email &&
+      (normalizedEmail === 'admin@leteski.com' ||
+        normalizedEmail === 'admin@skillswap.app' ||
+        normalizedEmail === ADMIN_CREDENTIALS.email) &&
       password === ADMIN_CREDENTIALS.password
     ) {
       await AsyncStorage.setItem(ADMIN_SESSION_KEY, 'true');

@@ -301,6 +301,7 @@ export const [ResourcesProvider, useResources] =
 
     // ➕ Add resource
     const addResource = useCallback(async (draft: any, contributorId: any) => {
+      if (!contributorId || contributorId === '1') return null;
       const res = await fetch(`${API_URL}/resources`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

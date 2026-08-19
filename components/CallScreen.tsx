@@ -100,7 +100,7 @@ export default function CallScreen({
     isGroupCall ? initialParticipants.find(p => !p.isLocal)?.id ?? null : initialParticipants.find(p => !p.isLocal)?.id ?? null,
   );
   const [layout, setLayout] = useState<'grid' | 'spotlight'>(isGroupCall ? 'spotlight' : 'spotlight');
-  const [connecting, setConnecting] = useState(true);
+  const [connecting, setConnecting] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const scrollRef = useRef<FlatList>(null);
 
@@ -629,31 +629,21 @@ interface ParticipantTileProps {
 
 function ParticipantTile({ participant, mode, isLarge, isSmall }: ParticipantTileProps) {
   const showVideo = mode === 'video' && !participant.isVideoOff;
-  const showAvatar = !showVideo || participant.status === 'connecting';
-  const avatarSize = isLarge ? 80 : isSmall ? 28 : 48;
   const hasLiveVideo = Boolean(participant.videoTrackId || participant.mediaStream);
+  const isVideoActive = showVideo && hasLiveVideo;
+  const showAvatar = !isVideoActive;
+  const avatarSize = isLarge ? 80 : isSmall ? 28 : 48;
 
   return (
     <View style={styles.tileContainer}>
-      {showVideo && participant.status === 'connected' ? (
+      {isVideoActive ? (
         <View style={styles.tileVideo}>
-          {hasLiveVideo ? (
-            <LiveVideoTrack
-              trackId={participant.videoTrackId}
-              mediaStream={participant.mediaStream}
-              mirror={participant.isLocal}
-              style={styles.liveVideoTrack}
-            />
-          ) : (
-            <LinearGradient
-              colors={getAvatarGradientColors(participant.id)}
-              style={styles.tileVideoGradient}
-            >
-              <Text style={styles.tileVideoInitial}>
-                {participant.name.charAt(0).toUpperCase()}
-              </Text>
-            </LinearGradient>
-          )}
+          <LiveVideoTrack
+            trackId={participant.videoTrackId}
+            mediaStream={participant.mediaStream}
+            mirror={participant.isLocal}
+            style={styles.liveVideoTrack}
+          />
         </View>
       ) : (
         <View style={[styles.tileAvatarWrap, showAvatar && styles.tileAvatarWrapVisible]}>
@@ -670,7 +660,7 @@ function ParticipantTile({ participant, mode, isLarge, isSmall }: ParticipantTil
             )}
             {isLarge && !participant.isLocal && (
               <Text style={styles.waitingNotice}>
-                {participant.status === 'connecting' ? 'Waiting for partner to connect...' : 'Camera is turned off'}
+                {participant.status === 'connecting' ? 'Connecting to partner...' : 'Camera is turned off'}
               </Text>
             )}
           </LinearGradient>

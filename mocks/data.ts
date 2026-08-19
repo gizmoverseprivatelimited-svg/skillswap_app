@@ -301,10 +301,19 @@ export const categories = [
   'Music',
   'Cooking',
   'Business',
-  'Photography',
-  'Classical Arts',
-  'Competitive Exams',
-  'Other',
+  'Photography & Video',
+  'Health & Life',
+  'Professional Skills',
+  'Education & Teaching',
+  'Marketing & Sales',
+  'Finance & Accounting',
+  'Design & Creative',
+  'Writing & Communication',
+  'Personal Development',
+  'Sports & Games',
+  'DIY & Home Skills',
+  'Career & Jobs',
+  'Other / Miscellaneous',
 ];
 
 export const mockResources: ResourceMeta[] = [
