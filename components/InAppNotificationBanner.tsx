@@ -5,10 +5,34 @@ import { Bell, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+const getStoredAlertedIds = (): Set<string> => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.sessionStorage) {
+    try {
+      const stored = window.sessionStorage.getItem('@skillswap/alerted_notification_ids');
+      if (stored) {
+        return new Set(JSON.parse(stored));
+      }
+    } catch {}
+  }
+  return new Set();
+};
+
+const saveStoredAlertedId = (id: string) => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.sessionStorage) {
+    try {
+      const current = getStoredAlertedIds();
+      current.add(id);
+      window.sessionStorage.setItem('@skillswap/alerted_notification_ids', JSON.stringify(Array.from(current)));
+    } catch {}
+  }
+};
+
 export function InAppNotificationBanner() {
   const { notifications, markAsRead } = useNotifications();
   const [activeNotification, setActiveNotification] = useState<any>(null);
-  const lastSeenIdRef = useRef<string | null>(null);
+  const alertedIdsRef = useRef<Set<string>>(getStoredAlertedIds());
+  const mountTimeRef = useRef<number>(Date.now());
+  const isStartupRef = useRef<boolean>(true);
   const slideAnim = useRef(new Animated.Value(-150)).current;
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -23,16 +47,50 @@ export function InAppNotificationBanner() {
     });
   }, [slideAnim]);
 
+  // Grace period on app load to ensure initial state/persisted notifications never trigger a popup
   useEffect(() => {
-    if (notifications.length === 0) return;
+    const timer = setTimeout(() => {
+      isStartupRef.current = false;
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // If notifications list is cleared or current active notification is read/removed, dismiss banner
+  useEffect(() => {
+    if (!activeNotification) return;
+    const currentInList = notifications.find((n) => n.id === activeNotification.id);
+    if (!currentInList || currentInList.read) {
+      dismissBanner();
+    }
+  }, [notifications, activeNotification, dismissBanner]);
+
+  useEffect(() => {
+    // If still in startup phase, index all existing notifications without popping up
+    if (isStartupRef.current) {
+      notifications.forEach((n) => {
+        alertedIdsRef.current.add(n.id);
+        saveStoredAlertedId(n.id);
+      });
+      return;
+    }
+
     const latest = notifications[0];
+    if (!latest || latest.read) return;
 
-    // Only show it if it was created in the last 15 seconds and not marked as skipPopup
-    if (latest.id !== lastSeenIdRef.current) {
-      lastSeenIdRef.current = latest.id;
+    // Check if notification was created before or at app mount (historical notification)
+    const notifTime = new Date(latest.createdAt).getTime();
+    if (!Number.isNaN(notifTime) && notifTime <= mountTimeRef.current) {
+      alertedIdsRef.current.add(latest.id);
+      saveStoredAlertedId(latest.id);
+      return;
+    }
 
-      const diffMs = Date.now() - new Date(latest.createdAt).getTime();
-      if (diffMs < 15000 && !latest.metadata?.skipPopup) {
+    // Only show popup for genuinely new notifications received at RUNTIME after project load
+    if (!alertedIdsRef.current.has(latest.id)) {
+      alertedIdsRef.current.add(latest.id);
+      saveStoredAlertedId(latest.id);
+
+      if (!latest.metadata?.skipPopup) {
         setActiveNotification(latest);
 
         // Slide down
@@ -51,7 +109,7 @@ export function InAppNotificationBanner() {
         return () => clearTimeout(timer);
       }
     }
-  }, [notifications, dismissBanner, slideAnim]);
+  }, [notifications, dismissBanner, slideAnim, insets.top]);
 
   const handlePress = () => {
     if (!activeNotification) return;

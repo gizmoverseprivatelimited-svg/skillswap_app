@@ -24,6 +24,7 @@ import {
   LogOut,
   Wallet,
   ShieldX,
+  Award,
 } from 'lucide-react-native';
 import { useAdmin } from '../../providers/admin';
 import { useEarnings } from '@/providers/earnings';
@@ -113,6 +114,15 @@ export default function AdminDashboard() {
       bg: '#ECFDF5',
       route: '/admin/verifications',
       badge: stats.pendingVerifications > 0 ? stats.pendingVerifications : undefined,
+    },
+    {
+      title: 'Certification Approvals',
+      subtitle: `${stats.pendingCertifications} pending skill certificate${stats.pendingCertifications !== 1 ? 's' : ''}`,
+      icon: Award,
+      color: '#0EA5E9',
+      bg: '#E0F2FE',
+      route: '/admin/certifications',
+      badge: stats.pendingCertifications > 0 ? stats.pendingCertifications : undefined,
     },
     {
       title: 'Payout Approvals',

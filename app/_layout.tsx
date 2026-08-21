@@ -17,15 +17,11 @@ import { InAppNotificationBanner } from "../components/InAppNotificationBanner";
 import { AdminProvider } from "@/providers/admin";
 import url from '@/constants/backurl';
 
-const sendDebugLog = (msg: string, data: any) => {
-  fetch(`${url}/debug-log`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: msg, data }),
-  }).catch(() => {});
-};
-
-SplashScreen.preventAutoHideAsync();
+if (Platform.OS !== 'web') {
+  try {
+    SplashScreen.preventAutoHideAsync().catch(() => {});
+  } catch (e) {}
+}
 
 const queryClient = new QueryClient();
 
@@ -38,80 +34,33 @@ function RootLayoutNav() {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (authLoading || isChecking || !rootNavigationState?.key) return;
+    if (authLoading || isChecking) return;
 
-    // Resolve the active route segment, taking browser URL into account on web initial load
     let segment0: any = segments[0] || '';
-    let isAdminRoute = segment0 === 'admin' || segment0.startsWith('admin/') || (pathname && (pathname.startsWith('/admin') || pathname.startsWith('admin')));
+    const currentPath = pathname || (typeof window !== 'undefined' ? window.location.pathname : '') || '';
+    const isAdminRoute = segment0 === 'admin' || (typeof segment0 === 'string' && segment0.startsWith('admin/')) || currentPath.startsWith('/admin') || currentPath.startsWith('admin');
 
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
-      let path = window.location.pathname;
-      if (window.location.hash && window.location.hash.startsWith('#/')) {
-        path = window.location.hash.substring(1);
-      }
-      const pathParts = path.split('/').filter(Boolean);
-      if (pathParts.length > 0) {
-        segment0 = pathParts[0];
-      }
-      if (path.startsWith('/admin') || path.startsWith('/admin/')) {
-        isAdminRoute = true;
-      }
-    }
+    if (isAdminRoute) return;
 
-    // Sync the router state with the browser URL on web if they get out of sync on mount
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
-      let currentPath = window.location.pathname;
-      if (window.location.hash && window.location.hash.startsWith('#/')) {
-        currentPath = window.location.hash.substring(1);
-      }
-      const isWebAdmin = currentPath.startsWith('/admin') || currentPath.startsWith('/admin/');
-      const isRouterAdmin = segments[0] === 'admin' || (typeof segments[0] === 'string' && segments[0].startsWith('admin/'));
-      if (isWebAdmin && !isRouterAdmin) {
-        console.log('[DEBUG Layout] Syncing router path with web path:', currentPath);
-        router.replace(currentPath as any);
-        return;
-      }
-    }
-
-    sendDebugLog('[DEBUG Layout] State check', {
-      segment0,
-      segments,
-      isAuthenticated,
-      hasCompletedOnboarding,
-      isAdminRoute,
-      authLoading,
-      isChecking,
-    });
-
-    // Bypass all redirect logic for admin routes
-    if (isAdminRoute) {
-      console.log('[DEBUG Layout] Bypassing redirects because we are on admin route:', segment0);
-      return;
-    }
-
-    const inAuthGroup = segment0 === 'login';
+    const isLogin = segment0 === 'login' || currentPath === '/login' || currentPath.startsWith('/login');
+    const isOnboarding = segment0 === 'onboarding' || currentPath === '/onboarding' || currentPath.startsWith('/onboarding');
+    const publicRoutes = ['login', 'terms', 'privacy', 'about', 'contact', 'help', 'admin'];
+    const isPublic = publicRoutes.includes(segment0) || isLogin || currentPath.startsWith('/admin');
 
     if (!isAuthenticated) {
-      // Redirect to login if not authenticated and not already on a public route
-      const publicRoutes: string[] = ['login', 'terms', 'privacy', 'about', 'contact', 'help', 'admin'];
-      const isPublic = publicRoutes.includes(segment0) || segment0.startsWith('admin/');
       if (!isPublic) {
-        sendDebugLog('[DEBUG Layout] Redirecting to /login (not public)', { segment0, segments, isAuthenticated });
         router.replace('/login' as any);
       }
     } else if (!hasCompletedOnboarding) {
-      // Redirect to onboarding if authenticated but onboarding not completed
-      if (segment0 !== 'onboarding') {
-        sendDebugLog('[DEBUG Layout] Redirecting to /onboarding', { segment0, segments });
+      if (!isOnboarding) {
         router.replace('/onboarding' as any);
       }
-    } else if (inAuthGroup || segment0 === 'onboarding') {
-      sendDebugLog('[DEBUG Layout] Redirecting to /home', { segment0, segments });
+    } else if (isLogin || isOnboarding) {
       router.replace('/(tabs)/home' as any);
     }
-  }, [isAuthenticated, authLoading, isChecking, hasCompletedOnboarding, segments, rootNavigationState, pathname]);
+  }, [isAuthenticated, authLoading, isChecking, hasCompletedOnboarding, segments, rootNavigationState?.key, pathname]);
 
-  if (authLoading || isChecking) {
+  if (authLoading && !isAuthenticated) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6366F1" />
@@ -364,7 +313,9 @@ import { SocketProvider } from "../providers/socket";
 
 export default function RootLayout() {
   useEffect(() => {
-    SplashScreen.hideAsync();
+    try {
+      SplashScreen.hideAsync().catch(() => {});
+    } catch (e) {}
   }, []);
 
   return (

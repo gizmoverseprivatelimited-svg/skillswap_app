@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import createContextHook from '@nkzw/create-context-hook';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCurrentUser } from './current-user';
 import { useSkillSwaps } from './skill-swaps';
 import { usePushNotifications } from '../lib/push-notifications';
 import { useOnboarding } from './onboarding';
 import { useAlert } from './alert';
 import url from '@/constants/backurl';
+import { useSocket } from '@/providers/socket';
 
 type NotificationCategory = 'match' | 'swap' | 'reminder' | 'system' | 'class';
 
@@ -28,6 +31,7 @@ interface AddNotificationInput {
   category: NotificationCategory;
   metadata?: NotificationMetadata;
   skipPopup?: boolean;
+  eventKey?: string;
 }
 
 interface NotificationsContextValue {
@@ -52,7 +56,36 @@ const sortNotifications = (items: NotificationItem[]): NotificationItem[] => {
   });
 };
 
-import { useSocket } from '@/providers/socket';
+const getStorageKey = (userId: string, type: 'items' | 'dismissed' | 'seen') => {
+  return `@skillswap/notifications_${type}_${userId}`;
+};
+
+// Safe synchronous web storage helper
+const getWebItem = (key: string): string | null => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
+const setWebItem = (key: string, value: string): void => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {}
+  }
+};
+
+const getEventKey = (input: { category?: string; title?: string; body?: string; eventKey?: string; metadata?: Record<string, unknown> }): string => {
+  if (input.eventKey) return input.eventKey;
+  if (input.metadata?.eventKey && typeof input.metadata.eventKey === 'string') return input.metadata.eventKey;
+  if (input.category && input.title) return `${input.category}:${input.title}`;
+  return `${input.title || 'alert'}`;
+};
 
 export const [NotificationsProvider, useNotifications] = createContextHook<NotificationsContextValue>(() => {
   const { currentUser, topRecommendations, allUsers } = useCurrentUser();
@@ -61,35 +94,170 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   const { socket } = useSocket();
   const { showAlert } = useAlert();
   const router = useRouter();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  // Handle both string and numeric IDs safely
+  const currentUserId = currentUser?.id ? String(currentUser.id) : undefined;
+
+  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
+    if (currentUserId) {
+      const storedJson = getWebItem(getStorageKey(currentUserId, 'items'));
+      const dismissedJson = getWebItem(getStorageKey(currentUserId, 'dismissed'));
+      if (storedJson) {
+        try {
+          const items: NotificationItem[] = JSON.parse(storedJson);
+          const dismissed: string[] = dismissedJson ? JSON.parse(dismissedJson) : [];
+          const dismissedSet = new Set(dismissed);
+          return sortNotifications(
+            items.filter((i) => {
+              const eventKey = getEventKey(i);
+              return !dismissedSet.has(i.id) && !dismissedSet.has(eventKey) && !dismissedSet.has(i.title);
+            })
+          );
+        } catch {}
+      }
+    }
+    return [];
+  });
+
+  const [isStorageLoaded, setIsStorageLoaded] = useState<boolean>(false);
   const { expoPushToken, schedulePushNotification } = usePushNotifications();
 
-  const matchSeenRef = useRef<Set<string>>(new Set());
-  const swapSeenRef = useRef<Map<string, string>>(new Map());
-  const reminderSeenRef = useRef<Set<string>>(new Set());
-  const messageSeenRef = useRef<Set<string>>(new Set());
-  const reviewSeenRef = useRef<Set<string>>(new Set());
-  const isInitialMatchLoadRef = useRef<boolean>(true);
-  const isInitialSwapsLoadRef = useRef<boolean>(true);
-  const isInitialRemindersLoadRef = useRef<boolean>(true);
-  const isInitialLoadRef = useRef<boolean>(true);
-  const isInitialReviewsLoadRef = useRef<boolean>(true);
-  const prevUserIdRef = useRef<string | undefined>(currentUser?.id);
+  const seenKeysRef = useRef<Set<string>>(new Set<string>());
+  const dismissedKeysRef = useRef<Set<string>>(new Set<string>());
+  const loadedUserRef = useRef<string | undefined>(undefined);
 
+  // Load persisted notifications and dismissed/seen keys for current user
+  useEffect(() => {
+    if (!currentUserId) {
+      setIsStorageLoaded(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadPersistedData = async () => {
+      try {
+        const webItems = getWebItem(getStorageKey(currentUserId, 'items'));
+        const webDismissed = getWebItem(getStorageKey(currentUserId, 'dismissed'));
+        const webSeen = getWebItem(getStorageKey(currentUserId, 'seen'));
+
+        const [storedItemsJson, storedDismissedJson, storedSeenJson] = await Promise.all([
+          AsyncStorage.getItem(getStorageKey(currentUserId, 'items')),
+          AsyncStorage.getItem(getStorageKey(currentUserId, 'dismissed')),
+          AsyncStorage.getItem(getStorageKey(currentUserId, 'seen')),
+        ]);
+
+        if (!isMounted) return;
+
+        const dismissedRaw = webDismissed || storedDismissedJson;
+        const seenRaw = webSeen || storedSeenJson;
+        const itemsRaw = webItems || storedItemsJson;
+
+        const storedDismissed: string[] = dismissedRaw ? JSON.parse(dismissedRaw) : [];
+        const storedSeen: string[] = seenRaw ? JSON.parse(seenRaw) : [];
+        const storedItems: NotificationItem[] = itemsRaw ? JSON.parse(itemsRaw) : [];
+
+        const dismissedSet = new Set<string>(storedDismissed);
+        const seenSet = new Set<string>([...storedSeen, ...storedDismissed]);
+
+        // Index all existing items and their event keys into seenSet so they are NEVER re-added as duplicates
+        storedItems.forEach((item) => {
+          seenSet.add(item.id);
+          const eKey = getEventKey(item);
+          seenSet.add(eKey);
+          if (item.title) seenSet.add(item.title);
+        });
+
+        dismissedKeysRef.current = dismissedSet;
+        seenKeysRef.current = seenSet;
+
+        // Filter out any dismissed notifications from the active list
+        const activeItems = storedItems.filter((item) => {
+          const eKey = getEventKey(item);
+          return !dismissedSet.has(item.id) && !dismissedSet.has(eKey) && !dismissedSet.has(item.title);
+        });
+
+        const sorted = sortNotifications(activeItems);
+        setNotifications(sorted);
+        setIsStorageLoaded(true);
+        loadedUserRef.current = currentUserId;
+
+        // Sync web storage immediately
+        setWebItem(getStorageKey(currentUserId, 'items'), JSON.stringify(sorted));
+        setWebItem(getStorageKey(currentUserId, 'dismissed'), JSON.stringify(Array.from(dismissedSet)));
+        setWebItem(getStorageKey(currentUserId, 'seen'), JSON.stringify(Array.from(seenSet)));
+      } catch (err) {
+        console.error('[Notifications] Failed to load persisted notification data:', err);
+        if (isMounted) {
+          setIsStorageLoaded(true);
+        }
+      }
+    };
+
+    loadPersistedData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUserId]);
+
+  // Helper to persist current state (both AsyncStorage & web localStorage)
+  const persistNotifications = useCallback((items: NotificationItem[]) => {
+    if (!currentUserId) return;
+    const json = JSON.stringify(items);
+    setWebItem(getStorageKey(currentUserId, 'items'), json);
+    AsyncStorage.setItem(getStorageKey(currentUserId, 'items'), json).catch((err) =>
+      console.error('[Notifications] Failed to persist notifications:', err)
+    );
+  }, [currentUserId]);
+
+  const persistDismissedKeys = useCallback(() => {
+    if (!currentUserId) return;
+    const array = Array.from(dismissedKeysRef.current);
+    const json = JSON.stringify(array);
+    setWebItem(getStorageKey(currentUserId, 'dismissed'), json);
+    AsyncStorage.setItem(getStorageKey(currentUserId, 'dismissed'), json).catch((err) =>
+      console.error('[Notifications] Failed to persist dismissed keys:', err)
+    );
+  }, [currentUserId]);
+
+  const persistSeenKeys = useCallback(() => {
+    if (!currentUserId) return;
+    const array = Array.from(seenKeysRef.current);
+    const json = JSON.stringify(array);
+    setWebItem(getStorageKey(currentUserId, 'seen'), json);
+    AsyncStorage.setItem(getStorageKey(currentUserId, 'seen'), json).catch((err) =>
+      console.error('[Notifications] Failed to persist seen keys:', err)
+    );
+  }, [currentUserId]);
+
+  // Register push token with backend
   useEffect(() => {
     if (!hasCompletedOnboarding) return;
-    if (expoPushToken && expoPushToken.length > 0 && currentUser?.id) {
+    if (expoPushToken && expoPushToken.length > 0 && currentUserId) {
       fetch(`${url}/users/push-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUser.id, token: expoPushToken }),
+        body: JSON.stringify({ userId: currentUserId, token: expoPushToken }),
       })
         .then(() => console.log('[Notifications] Registered push token with backend'))
         .catch((err) => console.error('[Notifications] Failed to register token:', err));
     }
-  }, [expoPushToken, currentUser?.id, hasCompletedOnboarding]);
+  }, [expoPushToken, currentUserId, hasCompletedOnboarding]);
 
   const addNotification = useCallback((input: AddNotificationInput) => {
+    if (!currentUserId) return;
+
+    const eventKey = getEventKey(input);
+
+    // If this specific event has been dismissed by user or already seen, ignore completely
+    if (dismissedKeysRef.current.has(eventKey) || dismissedKeysRef.current.has(input.title)) {
+      return;
+    }
+    if (seenKeysRef.current.has(eventKey) || seenKeysRef.current.has(input.title)) {
+      return;
+    }
+
     const payload: NotificationItem = {
       id: generateNotificationId(),
       title: input.title,
@@ -97,6 +265,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       category: input.category,
       metadata: {
         ...input.metadata,
+        eventKey,
         skipPopup: input.skipPopup,
       },
       read: false,
@@ -104,78 +273,122 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         ? new Date(Date.now() - 60 * 1000).toISOString()
         : new Date().toISOString(),
     };
-    setNotifications((prev) => sortNotifications([payload, ...prev]));
+
+    seenKeysRef.current.add(eventKey);
+    seenKeysRef.current.add(payload.id);
+    seenKeysRef.current.add(input.title);
+    persistSeenKeys();
+
+    setNotifications((prev) => {
+      // Ensure no duplicate notification exists
+      const filtered = prev.filter((item) => {
+        if (item.id === payload.id) return false;
+        const existingKey = getEventKey(item);
+        if (existingKey === eventKey) return false;
+        if (item.title === input.title && item.category === input.category) return false;
+        return true;
+      });
+      const next = sortNotifications([payload, ...filtered]);
+      persistNotifications(next);
+      return next;
+    });
+
     console.log('[Notifications] Added notification', payload);
-    
+
     if (!input.skipPopup) {
       schedulePushNotification(input.title, input.body, input.metadata ?? {});
     }
-  }, [schedulePushNotification]);
+  }, [currentUserId, schedulePushNotification, persistNotifications, persistSeenKeys]);
 
   const markAsRead = useCallback((id: string) => {
     setNotifications((prev) => {
-      return prev.map((notification) => {
+      const next = prev.map((notification) => {
         if (notification.id !== id) {
           return notification;
         }
         return { ...notification, read: true };
       });
+      persistNotifications(next);
+      return next;
     });
-  }, []);
+  }, [persistNotifications]);
 
   const markAllAsRead = useCallback(() => {
-    setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })));
-  }, []);
+    setNotifications((prev) => {
+      const next = prev.map((notification) => ({ ...notification, read: true }));
+      persistNotifications(next);
+      return next;
+    });
+  }, [persistNotifications]);
 
   const removeNotification = useCallback((id: string) => {
-    setNotifications((prev) => prev.filter((notification) => notification.id !== id));
-  }, []);
+    dismissedKeysRef.current.add(id);
+
+    setNotifications((prev) => {
+      const target = prev.find((item) => item.id === id);
+      if (target) {
+        const eKey = getEventKey(target);
+        dismissedKeysRef.current.add(eKey);
+        if (target.title) dismissedKeysRef.current.add(target.title);
+      }
+      persistDismissedKeys();
+
+      const next = prev.filter((notification) => notification.id !== id);
+      persistNotifications(next);
+      return next;
+    });
+  }, [persistDismissedKeys, persistNotifications]);
 
   const clearAll = useCallback(() => {
-    setNotifications([]);
-  }, []);
-
-  useEffect(() => {
-    if (!hasCompletedOnboarding) return;
-    const isInitial = isInitialMatchLoadRef.current;
-    topRecommendations.forEach((recommendation) => {
-      if (matchSeenRef.current.has(recommendation.user.id)) {
-        return;
-      }
-      matchSeenRef.current.add(recommendation.user.id);
-      addNotification({
-        category: 'match',
-        title: 'Fresh match discovered',
-        body: `${recommendation.user.username ? `@${recommendation.user.username}` : recommendation.user.name} is a ${recommendation.compatibility}% compatibility partner. Explore their profile to connect.`,
-        metadata: {
-          userId: recommendation.user.id,
-        },
-        skipPopup: isInitial,
+    setNotifications((prev) => {
+      prev.forEach((item) => {
+        dismissedKeysRef.current.add(item.id);
+        const eKey = getEventKey(item);
+        dismissedKeysRef.current.add(eKey);
+        if (item.title) dismissedKeysRef.current.add(item.title);
+        seenKeysRef.current.add(item.id);
+        seenKeysRef.current.add(eKey);
+        if (item.title) seenKeysRef.current.add(item.title);
       });
+      persistDismissedKeys();
+      persistSeenKeys();
+      persistNotifications([]);
+      return [];
     });
-    if (isInitial && topRecommendations.length > 0) {
-      isInitialMatchLoadRef.current = false;
-    }
-  }, [addNotification, topRecommendations, hasCompletedOnboarding]);
+  }, [persistDismissedKeys, persistSeenKeys, persistNotifications]);
 
+  const isInitialSwapsLoadRef = useRef<boolean>(true);
+  const isInitialRemindersLoadRef = useRef<boolean>(true);
+  const swapSeenStateRef = useRef<Map<string, string>>(new Map());
+
+  // Handle Swaps Status Changes
   useEffect(() => {
-    if (!hasCompletedOnboarding) return;
-    const isInitial = isInitialSwapsLoadRef.current;
-    swaps.forEach((swap) => {
-      // Ensure the swap actually belongs to the current user
-      if (swap.requesterId !== currentUser?.id && swap.recipientId !== currentUser?.id) {
-        return;
-      }
-      const counterpartId = swap.requesterId === currentUser?.id ? swap.recipientId : swap.requesterId;
-      const key = `${swap.id}-${swap.status}`;
-      const previousKey = swapSeenRef.current.get(swap.id);
-      if (previousKey === key) {
-        return;
-      }
-      swapSeenRef.current.set(swap.id, key);
+    if (!hasCompletedOnboarding || !isStorageLoaded || !currentUserId) return;
 
-      if (swap.recipientId === currentUser?.id && swap.status === 'pending') {
-        const counterpart = allUsers.find((user) => user.id === counterpartId);
+    const isFirstRun = isInitialSwapsLoadRef.current;
+
+    swaps.forEach((swap) => {
+      if (String(swap.requesterId) !== currentUserId && String(swap.recipientId) !== currentUserId) {
+        return;
+      }
+      const counterpartId = String(swap.requesterId) === currentUserId ? swap.recipientId : swap.requesterId;
+      const eventKey = `swap:${swap.id}:${swap.status}`;
+      const previousStatus = swapSeenStateRef.current.get(swap.id);
+
+      // On initial app load/startup, index all existing historical swaps as seen so they never alert
+      if (isFirstRun) {
+        seenKeysRef.current.add(eventKey);
+        swapSeenStateRef.current.set(swap.id, swap.status);
+        return;
+      }
+
+      if (previousStatus === swap.status || dismissedKeysRef.current.has(eventKey) || seenKeysRef.current.has(eventKey)) {
+        return;
+      }
+      swapSeenStateRef.current.set(swap.id, swap.status);
+
+      if (String(swap.recipientId) === currentUserId && swap.status === 'pending') {
+        const counterpart = allUsers.find((user) => String(user.id) === String(counterpartId));
         addNotification({
           category: 'swap',
           title: 'New exchange request',
@@ -183,13 +396,13 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
-          skipPopup: isInitial,
+          eventKey,
         });
         return;
       }
 
-      if (swap.requesterId === currentUser?.id && swap.status === 'negotiating') {
-        const counterpart = allUsers.find((user) => user.id === counterpartId);
+      if (String(swap.requesterId) === currentUserId && swap.status === 'negotiating') {
+        const counterpart = allUsers.find((user) => String(user.id) === String(counterpartId));
         addNotification({
           category: 'swap',
           title: 'Counter proposal received',
@@ -197,13 +410,13 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
-          skipPopup: isInitial,
+          eventKey,
         });
         return;
       }
 
       if (swap.status === 'scheduled' && swap.acceptedTimeId) {
-        const counterpart = allUsers.find((user) => user.id === counterpartId);
+        const counterpart = allUsers.find((user) => String(user.id) === String(counterpartId));
         addNotification({
           category: 'swap',
           title: 'Exchange confirmed',
@@ -211,12 +424,13 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
-          skipPopup: isInitial,
+          eventKey,
         });
+        return;
       }
 
       if (swap.status === 'completed') {
-        const counterpart = allUsers.find((user) => user.id === counterpartId);
+        const counterpart = allUsers.find((user) => String(user.id) === String(counterpartId));
         addNotification({
           category: 'swap',
           title: 'Exchange completed',
@@ -224,23 +438,27 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
-          skipPopup: isInitial,
+          eventKey,
         });
       }
     });
-    if (isInitial && swaps.length > 0) {
-      isInitialSwapsLoadRef.current = false;
-    }
-  }, [addNotification, allUsers, currentUser?.id, swaps, hasCompletedOnboarding]);
 
+    if (isFirstRun && swaps.length > 0) {
+      isInitialSwapsLoadRef.current = false;
+      persistSeenKeys();
+    }
+  }, [addNotification, allUsers, currentUserId, swaps, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys]);
+
+  // Handle Swap Reminders
   useEffect(() => {
-    if (!hasCompletedOnboarding) return;
-    const isInitial = isInitialRemindersLoadRef.current;
+    if (!hasCompletedOnboarding || !isStorageLoaded || !currentUserId) return;
+
+    const isFirstRun = isInitialRemindersLoadRef.current;
+
     const createReminderNotifications = () => {
       const now = Date.now();
       scheduledSwaps.forEach((swap) => {
-        // Ensure the swap actually belongs to the current user
-        if (swap.requesterId !== currentUser?.id && swap.recipientId !== currentUser?.id) {
+        if (String(swap.requesterId) !== currentUserId && String(swap.recipientId) !== currentUserId) {
           return;
         }
         if (!swap.acceptedTimeId) {
@@ -255,15 +473,22 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           return;
         }
         const diffHours = (start - now) / (1000 * 60 * 60);
-        const counterpartId = swap.requesterId === currentUser?.id ? swap.recipientId : swap.requesterId;
-        const counterpart = allUsers.find((user) => user.id === counterpartId);
+        const counterpartId = String(swap.requesterId) === currentUserId ? swap.recipientId : swap.requesterId;
+        const counterpart = allUsers.find((user) => String(user.id) === String(counterpartId));
+
         REMINDER_THRESHOLDS_HOURS.forEach((threshold) => {
           if (diffHours <= threshold && diffHours >= 0) {
-            const key = `${swap.id}-${threshold}`;
-            if (reminderSeenRef.current.has(key)) {
+            const eventKey = `reminder:${swap.id}:${threshold}`;
+
+            // On first run/startup, index existing reminders as seen so they don't alert
+            if (isFirstRun) {
+              seenKeysRef.current.add(eventKey);
               return;
             }
-            reminderSeenRef.current.add(key);
+
+            if (dismissedKeysRef.current.has(eventKey) || seenKeysRef.current.has(eventKey)) {
+              return;
+            }
             const humanReadable = threshold >= 1 ? `${threshold} hour${threshold === 1 ? '' : 's'}` : 'soon';
             addNotification({
               category: 'reminder',
@@ -273,70 +498,37 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
                 swapId: swap.id,
                 startsAt: acceptedSlot.startISO,
               },
-              skipPopup: isInitial,
+              eventKey,
             });
           }
         });
       });
-      if (isInitial && scheduledSwaps.length > 0) {
+
+      if (isFirstRun && scheduledSwaps.length > 0) {
         isInitialRemindersLoadRef.current = false;
+        persistSeenKeys();
       }
     };
 
     createReminderNotifications();
-  }, [addNotification, allUsers, currentUser?.id, scheduledSwaps, hasCompletedOnboarding]);
+  }, [addNotification, allUsers, currentUserId, scheduledSwaps, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys]);
 
-  // Reset initial load and message/review refs when currentUser changes
-  useEffect(() => {
-    if (prevUserIdRef.current !== currentUser?.id || !hasCompletedOnboarding) {
-      isInitialMatchLoadRef.current = true;
-      isInitialSwapsLoadRef.current = true;
-      isInitialRemindersLoadRef.current = true;
-      isInitialLoadRef.current = true;
-      isInitialReviewsLoadRef.current = true;
-      messageSeenRef.current.clear();
-      reviewSeenRef.current.clear();
-      matchSeenRef.current.clear();
-      swapSeenRef.current.clear();
-      reminderSeenRef.current.clear();
-      setNotifications([]);
-      prevUserIdRef.current = currentUser?.id;
-    }
-  }, [currentUser?.id, hasCompletedOnboarding]);
+  const isInitialChatLoadRef = useRef<boolean>(true);
+  const isInitialReviewsLoadRef = useRef<boolean>(true);
 
   // Monitor incoming chat messages and alert the user
   useEffect(() => {
-    if (!hasCompletedOnboarding || !currentUser?.id || swaps.length === 0) {
+    if (!hasCompletedOnboarding || !isStorageLoaded || !currentUserId || swaps.length === 0) {
       return;
     }
 
-    if (isInitialLoadRef.current) {
-      swaps.forEach((swap) => {
-        if (Array.isArray(swap.negotiationNotes)) {
-          swap.negotiationNotes.forEach((msg) => {
-            const msgId = msg.id || (msg as any)._id || '';
-            const isVideoCallAlert = msg.body.includes("started the video call");
-            const isRecent = new Date(msg.createdAt).getTime() > Date.now() - 5 * 60 * 1000;
-            
-            // If it's a recent video call alert from the partner, don't mark as seen yet!
-            if (isVideoCallAlert && isRecent && String(msg.authorId) !== String(currentUser.id)) {
-              // Leave it out of messageSeenRef so the next pass will catch it
-            } else {
-              messageSeenRef.current.add(msgId);
-            }
-          });
-        }
-      });
-      isInitialLoadRef.current = false;
-      return;
-    }
+    const isFirstRun = isInitialChatLoadRef.current;
 
     swaps.forEach((swap) => {
-      // Ensure the swap actually belongs to the current user
-      if (String(swap.requesterId) !== String(currentUser?.id) && String(swap.recipientId) !== String(currentUser?.id)) {
+      if (String(swap.requesterId) !== currentUserId && String(swap.recipientId) !== currentUserId) {
         return;
       }
-      const counterpartId = String(swap.requesterId) === String(currentUser?.id) ? swap.recipientId : swap.requesterId;
+      const counterpartId = String(swap.requesterId) === currentUserId ? swap.recipientId : swap.requesterId;
       const counterpart = allUsers.find((user) => String(user.id) === String(counterpartId));
       const senderName = counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'Your partner');
 
@@ -345,72 +537,93 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           const msgId = msg.id || (msg as any)._id || '';
           if (!msgId) return;
 
+          const eventKey = `msg:${msgId}`;
+          if (dismissedKeysRef.current.has(eventKey) || seenKeysRef.current.has(eventKey)) {
+            return;
+          }
+
+          // On first run / startup, index all existing historical messages as seen so they don't alert
+          if (isFirstRun) {
+            seenKeysRef.current.add(eventKey);
+            return;
+          }
+
           const isVideoCallAlert = msg.body.includes("started the video call");
           if (
-            !messageSeenRef.current.has(msgId) &&
-            String(msg.authorId) !== String(currentUser.id) &&
+            String(msg.authorId) !== currentUserId &&
             (!msg.isSystem || isVideoCallAlert)
           ) {
-            messageSeenRef.current.add(msgId);
-            
             addNotification({
-              category: isVideoCallAlert ? 'swap' : 'swap',
+              category: 'swap',
               title: isVideoCallAlert ? `Incoming Video Call from ${senderName}` : `New message from ${senderName}`,
               body: msg.body,
               metadata: {
                 swapId: swap.id,
                 type: isVideoCallAlert ? 'video-call' : undefined,
               },
+              eventKey,
             });
-          } else if (!messageSeenRef.current.has(msgId) && msg.isSystem && !isVideoCallAlert) {
-            messageSeenRef.current.add(msgId);
+          } else {
+            seenKeysRef.current.add(eventKey);
           }
         });
       }
     });
-  }, [swaps, currentUser?.id, allUsers, addNotification, hasCompletedOnboarding]);
+
+    if (isFirstRun) {
+      isInitialChatLoadRef.current = false;
+      persistSeenKeys();
+    }
+  }, [swaps, currentUserId, allUsers, addNotification, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys]);
 
   // Monitor incoming reviews and alert the user
   useEffect(() => {
-    if (!hasCompletedOnboarding || !currentUser?.id || currentUser.id === '1') {
+    if (!hasCompletedOnboarding || !isStorageLoaded || !currentUserId || currentUserId === '1') {
       return;
     }
 
     const checkNewReviews = async () => {
       try {
-        const response = await fetch(`${url}/reviews?revieweeId=${currentUser.id}`);
+        const response = await fetch(`${url}/reviews?revieweeId=${currentUserId}`);
         if (!response.ok) return;
         const data = await response.json();
-        
+
         if (data && Array.isArray(data.reviews)) {
-          if (isInitialReviewsLoadRef.current) {
-            data.reviews.forEach((rev: any) => {
-              reviewSeenRef.current.add(rev.id || rev._id || '');
-            });
-            isInitialReviewsLoadRef.current = false;
-            return;
-          }
+          const isFirstRun = isInitialReviewsLoadRef.current;
 
           data.reviews.forEach((rev: any) => {
             const revId = rev.id || rev._id || '';
             if (!revId) return;
 
-            if (!reviewSeenRef.current.has(revId)) {
-              reviewSeenRef.current.add(revId);
-              
-              // Only alert if the reviewer is not the current user
-              if (rev.reviewer?.id !== currentUser.id) {
-                addNotification({
-                  category: 'system',
-                  title: 'New review received',
-                  body: `${rev.reviewer?.name || 'A user'} gave you a ${rev.rating}-star review: "${rev.comment || ''}"`,
-                  metadata: {
-                    rating: rev.rating,
-                  },
-                });
-              }
+            const eventKey = `review:${revId}`;
+            if (dismissedKeysRef.current.has(eventKey) || seenKeysRef.current.has(eventKey)) {
+              return;
+            }
+
+            if (isFirstRun) {
+              seenKeysRef.current.add(eventKey);
+              return;
+            }
+
+            if (rev.reviewer?.id && String(rev.reviewer.id) !== currentUserId) {
+              addNotification({
+                category: 'system',
+                title: 'New review received',
+                body: `${rev.reviewer?.name || 'A user'} gave you a ${rev.rating}-star review: "${rev.comment || ''}"`,
+                metadata: {
+                  rating: rev.rating,
+                },
+                eventKey,
+              });
+            } else {
+              seenKeysRef.current.add(eventKey);
             }
           });
+
+          if (isFirstRun) {
+            isInitialReviewsLoadRef.current = false;
+            persistSeenKeys();
+          }
         }
       } catch (err) {
         console.error('[Notifications] Failed to check reviews:', err);
@@ -429,25 +642,31 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         socket.off('review_created', handleNewReview);
       };
     }
-  }, [currentUser?.id, addNotification, hasCompletedOnboarding, socket]);
+  }, [currentUserId, addNotification, hasCompletedOnboarding, isStorageLoaded, socket, persistSeenKeys]);
 
   // Real-time socket notification for class enrollment alerts to class teacher
   useEffect(() => {
-    if (!hasCompletedOnboarding || !currentUser?.id || !socket) return;
+    if (!hasCompletedOnboarding || !isStorageLoaded || !currentUserId || !socket) return;
 
     const handleClassUpdated = (data: { classId: string; action: string; studentId: string; teacherId?: string; classTitle?: string }) => {
       if (data && data.action === 'enrolled') {
-        const isTeacher = String(data.teacherId) === String(currentUser.id);
-        const isSelf = String(data.studentId) === String(currentUser.id);
+        const isTeacher = String(data.teacherId) === currentUserId;
+        const isSelf = String(data.studentId) === currentUserId;
 
         if (isTeacher && !isSelf) {
-          const studentUser = allUsers.find(u => String(u.id) === String(data.studentId));
+          const eventKey = `class-enroll:${data.classId}:${data.studentId}`;
+          if (dismissedKeysRef.current.has(eventKey) || seenKeysRef.current.has(eventKey)) {
+            return;
+          }
+
+          const studentUser = allUsers.find((u) => String(u.id) === String(data.studentId));
           const studentName = studentUser?.username ? `@${studentUser.username}` : (studentUser?.name || 'A student');
           const titleName = data.classTitle || 'your class';
           addNotification({
             category: 'class',
             title: 'New enrollment',
             body: `${studentName} enrolled in your class "${titleName}"`,
+            eventKey,
           });
         }
       }
@@ -457,11 +676,11 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     return () => {
       socket.off('class_updated', handleClassUpdated);
     };
-  }, [hasCompletedOnboarding, currentUser?.id, socket, allUsers, addNotification]);
+  }, [hasCompletedOnboarding, currentUserId, socket, allUsers, addNotification, isStorageLoaded]);
 
   // Real-time socket notification for when teacher starts a live class
   useEffect(() => {
-    if (!hasCompletedOnboarding || !currentUser?.id || !socket) return;
+    if (!hasCompletedOnboarding || !isStorageLoaded || !currentUserId || !socket) return;
 
     const handleClassStarted = (data: {
       classId: string;
@@ -471,12 +690,17 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       enrolledStudentIds?: string[];
     }) => {
       if (data && data.classId) {
-        const isTeacher = String(data.teacherId) === String(currentUser.id);
+        const isTeacher = String(data.teacherId) === currentUserId;
         const isEnrolled = data.enrolledStudentIds && Array.isArray(data.enrolledStudentIds)
-          ? data.enrolledStudentIds.some(id => String(id) === String(currentUser.id))
+          ? data.enrolledStudentIds.some((id) => String(id) === currentUserId)
           : !isTeacher;
 
         if (!isTeacher && isEnrolled) {
+          const eventKey = `class-started:${data.classId}`;
+          if (dismissedKeysRef.current.has(eventKey) || seenKeysRef.current.has(eventKey)) {
+            return;
+          }
+
           const teacher = data.teacherName || 'Teacher';
           const title = data.classTitle || 'Group Class';
 
@@ -485,6 +709,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             title: '📹 Live Class Started!',
             body: `${teacher} has started "${title}". Tap to join now!`,
             metadata: { classId: data.classId, action: 'join_class' },
+            eventKey,
           });
 
           if (showAlert) {
@@ -508,7 +733,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     return () => {
       socket.off('class_started', handleClassStarted);
     };
-  }, [hasCompletedOnboarding, currentUser?.id, socket, addNotification, showAlert, router]);
+  }, [hasCompletedOnboarding, currentUserId, socket, addNotification, showAlert, router, isStorageLoaded]);
 
   const unreadCount = useMemo(() => {
     return notifications.filter((notification) => !notification.read).length;
@@ -528,3 +753,4 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
   return value;
 });
+

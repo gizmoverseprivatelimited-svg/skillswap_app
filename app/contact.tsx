@@ -166,8 +166,13 @@ export default function ContactScreen() {
             <View style={styles.locationCard}>
               <MapPin size={20} color={Colors.light.textSecondary} />
               <Text style={styles.locationText}>
-                Skill Swap is a global community. Wherever you are, we're here to help.
+                Leteski is a global community. Wherever you are, we're here to help.
               </Text>
+            </View>
+
+            <View style={styles.companyInfoCard}>
+              <Text style={styles.companyNameText}>Gizmoverse Private Limited</Text>
+              <Text style={styles.companyProductText}>leteski is a product of Gizmoverse Private Limited</Text>
             </View>
 
             <View style={styles.bottomSpacer} />
@@ -355,6 +360,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     color: Colors.light.textSecondary,
+  },
+  companyInfoCard: {
+    marginTop: 20,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: Colors.light.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    gap: 4,
+  },
+  companyNameText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  companyProductText: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    textAlign: 'center',
   },
   bottomSpacer: {
     height: 40,

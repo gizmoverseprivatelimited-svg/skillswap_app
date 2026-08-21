@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  StyleSheet, Text, View, FlatList, TouchableOpacity, Image, TextInput, RefreshControl, ScrollView,
+  StyleSheet, Text, View, FlatList, TouchableOpacity, Image, TextInput, RefreshControl, ScrollView, useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Search, X, Calendar, Clock, Users, Coins, Sparkles, Video, CheckCircle2, Layers, RotateCcw } from 'lucide-react-native';
@@ -19,7 +19,7 @@ import url from '@/constants/backurl';
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800';
 const DEFAULT_AVATAR = 'https://i.pravatar.cc/150?img=1';
 
-function ClassCardItem({ item, router, isEnrolledUser }: { item: ClassWithTeacher; router: any; isEnrolledUser: boolean }) {
+function ClassCardItem({ item, router, isEnrolledUser, cardWidth, numColumns }: { item: ClassWithTeacher; router: any; isEnrolledUser: boolean; cardWidth?: any; numColumns?: number }) {
   const seatsLeft = item.maxCapacity - item.enrolledCount;
   const fillPct = Math.round((item.enrolledCount / item.maxCapacity) * 100);
   const isFree = item.seatPriceCredits === 0;
@@ -42,7 +42,7 @@ function ClassCardItem({ item, router, isEnrolledUser }: { item: ClassWithTeache
   };
 
   return (
-    <View style={[s.card, isCancelled && s.cardCancelled]}>
+    <View style={[s.card, isCancelled ? s.cardCancelled : null, Boolean(numColumns && numColumns > 1) ? { width: cardWidth } : null]}>
       <TouchableOpacity
         onPress={() => router.push(`/class/${item.id}` as any)}
         activeOpacity={0.85}
@@ -50,7 +50,10 @@ function ClassCardItem({ item, router, isEnrolledUser }: { item: ClassWithTeache
         <View style={s.coverWrap}>
           <Image
             source={{ uri: coverUrl }}
-            style={s.cover}
+            style={[
+              s.cover,
+              (numColumns ?? 1) >= 4 ? { height: 140 } : (numColumns ?? 1) >= 3 ? { height: 155 } : (numColumns ?? 1) >= 2 ? { height: 170 } : { height: 190 }
+            ]}
             onError={() => setCoverUrl(DEFAULT_COVER)}
           />
           {isCancelled && (
@@ -153,6 +156,23 @@ function ClassCardItem({ item, router, isEnrolledUser }: { item: ClassWithTeache
 export default function ClassesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+
+  const numColumns = useMemo(() => {
+    if (windowWidth >= 840) return 4;
+    if (windowWidth >= 600) return 3;
+    if (windowWidth >= 400) return 2;
+    return 1;
+  }, [windowWidth]);
+
+  const cardWidth = useMemo(() => {
+    if (numColumns === 1) return '100%';
+    const totalPadding = 40;
+    const totalGap = (numColumns - 1) * 16;
+    const availableWidth = windowWidth - totalPadding - totalGap;
+    return Math.max(160, Math.floor(availableWidth / numColumns));
+  }, [windowWidth, numColumns]);
+
   const { getClassesWithTeachers, isEnrolled } = useClasses();
   const { currentUser } = useCurrentUser();
   const { isBlocked } = useSafety();
@@ -228,8 +248,16 @@ export default function ClassesScreen() {
 
   const renderClassCard = useCallback(({ item }: { item: ClassWithTeacher }) => {
     const enrolledUser = currentUser?.id ? isEnrolled(item.id, currentUser.id) || String(item.teacherId) === String(currentUser.id) : false;
-    return <ClassCardItem item={item} router={router} isEnrolledUser={enrolledUser} />;
-  }, [router, currentUser?.id, isEnrolled]);
+    return (
+      <ClassCardItem 
+        item={item} 
+        router={router} 
+        isEnrolledUser={enrolledUser} 
+        cardWidth={cardWidth} 
+        numColumns={numColumns} 
+      />
+    );
+  }, [router, currentUser?.id, isEnrolled, cardWidth, numColumns]);
 
   return (
     <View style={s.container}>
@@ -374,11 +402,14 @@ export default function ClassesScreen() {
       </View>
 
       <FlatList
+        key={`classes-list-${numColumns}`}
+        numColumns={numColumns}
+        columnWrapperStyle={numColumns > 1 ? { gap: 16, marginBottom: 16 } : undefined}
         style={{ flex: 1 }}
         data={filteredClasses}
         keyExtractor={item => item.id}
         renderItem={renderClassCard}
-        ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+        ItemSeparatorComponent={numColumns === 1 ? () => <View style={{ height: 16 }} /> : undefined}
         contentContainerStyle={s.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.light.primary} />}

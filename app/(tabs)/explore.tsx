@@ -11,6 +11,7 @@ import {
   Easing,
   Pressable,
   FlatList,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -25,7 +26,12 @@ import {
   MapPin,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
-import { getSkillsWithUsers, mockUsers, categories } from '@/mocks/data';
+import { getSkillsWithUsers, mockUsers } from '@/mocks/data';
+import {
+  MAIN_CATEGORIES,
+  getSubcategoriesForCategory,
+  findCategoryForSubcategory,
+} from '@/constants/categories';
 import type { SkillLevel, SkillWithUser, User } from '@/types';
 import { useCurrentUser } from '@/providers/current-user';
 import { useSafety } from '@/providers/safety';
@@ -61,9 +67,27 @@ const ROLE_TABS: { key: RoleTab; label: string; icon: typeof GraduationCap }[] =
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+
+  const numColumns = useMemo(() => {
+    if (windowWidth >= 840) return 4;
+    if (windowWidth >= 600) return 3;
+    if (windowWidth >= 400) return 2;
+    return 1;
+  }, [windowWidth]);
+
+  const cardWidth = useMemo(() => {
+    if (numColumns === 1) return '100%';
+    const totalPadding = 40;
+    const totalGap = (numColumns - 1) * 16;
+    const availableWidth = windowWidth - totalPadding - totalGap;
+    return Math.max(160, Math.floor(availableWidth / numColumns));
+  }, [windowWidth, numColumns]);
+
   const [activeTab, setActiveTab] = useState<RoleTab>('teachers');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
   const [filters, setFilters] = useState<FiltersState>({
     level: 'Any',
     minRating: 0,
@@ -121,12 +145,15 @@ export default function ExploreScreen() {
   const clearAll = useCallback(() => {
     setFilters({ level: 'Any', minRating: 0, sortBy: 'Relevance' });
     setSelectedCategory('All');
+    setSelectedSubcategory('All');
     setSearchQuery('');
   }, []);
 
   // --- TEACHERS: skills offered ---
   const filteredSkills = useMemo<SkillWithUser[]>(() => {
     const q = searchQuery.trim().toLowerCase();
+    const subcategories = getSubcategoriesForCategory(selectedCategory);
+
     let list = skillsWithUsers.filter((skill) => {
       const teacherId = skill.userId || skill.user?.id;
       if (teacherId && isBlocked(teacherId, currentUser?.id)) return false;
@@ -137,7 +164,32 @@ export default function ExploreScreen() {
       const userNameMatches = matchUserSearch(skill.user, q);
 
       const matchesSearch = q.length === 0 ? true : titleMatches || descMatches || subCatMatches || userNameMatches;
-      const matchesCategory = selectedCategory === 'All' || skill.category === (selectedCategory as any);
+
+      let matchesCategory = true;
+      if (selectedCategory !== 'All') {
+        const skillCat = (skill.category || '').trim();
+        const skillSubCat = (skill.subCategory || (skill as any).subcategory || '').trim();
+        const skillTitle = (skill.title || '').trim().toLowerCase();
+        const skillDesc = (skill.description || '').trim().toLowerCase();
+
+        if (selectedSubcategory !== 'All') {
+          const subQ = selectedSubcategory.toLowerCase();
+          matchesCategory =
+            skillSubCat.toLowerCase() === subQ ||
+            skillCat.toLowerCase() === subQ ||
+            skillTitle.includes(subQ) ||
+            skillDesc.includes(subQ);
+        } else {
+          const isDirectCat = skillCat.toLowerCase() === selectedCategory.toLowerCase();
+          const isParentCat = findCategoryForSubcategory(skillCat)?.toLowerCase() === selectedCategory.toLowerCase();
+          const isParentSubCat = findCategoryForSubcategory(skillSubCat)?.toLowerCase() === selectedCategory.toLowerCase();
+          const isSubInList = subcategories.some(
+            (sub) => sub.toLowerCase() === skillSubCat.toLowerCase() || sub.toLowerCase() === skillCat.toLowerCase()
+          );
+          matchesCategory = isDirectCat || isParentCat || isParentSubCat || isSubInList;
+        }
+      }
+
       const matchesLevel = filters.level === 'Any' || skill.level === filters.level;
       const matchesRating = (skill.user?.rating ?? 0) >= filters.minRating;
       return matchesSearch && matchesCategory && matchesLevel && matchesRating;
@@ -158,12 +210,14 @@ export default function ExploreScreen() {
         break;
     }
     return list;
-  }, [filters.level, filters.minRating, filters.sortBy, searchQuery, selectedCategory, skillsWithUsers]);
+  }, [filters.level, filters.minRating, filters.sortBy, searchQuery, selectedCategory, selectedSubcategory, skillsWithUsers, currentUser?.id, isBlocked, matchUserSearch]);
 
   // --- LEARNERS: users wanting skills ---
   const filteredLearners = useMemo<User[]>(() => {
     const q = searchQuery.trim().toLowerCase();
     const cleanQ = q.startsWith('@') ? q.slice(1) : q;
+    const subcategories = getSubcategoriesForCategory(selectedCategory);
+
     let list = (otherUsers || []).filter((u) => (u.skillsWanted || []).length > 0);
     if (q.length > 0) {
       list = list.filter((u) => {
@@ -176,9 +230,22 @@ export default function ExploreScreen() {
         return userMatch || skillMatch || locationMatch;
       });
     }
+
     if (selectedCategory !== 'All') {
-      list = list.filter((u) => (u.skillsWanted || []).some((s) => s === selectedCategory));
+      list = list.filter((u) =>
+        (u.skillsWanted || []).some((s) => {
+          const sText = (typeof s === 'string' ? s : (s as any)?.title || '').trim();
+          if (selectedSubcategory !== 'All') {
+            return sText.toLowerCase().includes(selectedSubcategory.toLowerCase());
+          }
+          const isDirectCat = sText.toLowerCase() === selectedCategory.toLowerCase();
+          const isParent = findCategoryForSubcategory(sText)?.toLowerCase() === selectedCategory.toLowerCase();
+          const isSub = subcategories.some((sub) => sub.toLowerCase() === sText.toLowerCase());
+          return isDirectCat || isParent || isSub;
+        })
+      );
     }
+
     if (filters.minRating > 0) {
       list = list.filter((u) => (u.rating ?? 0) >= filters.minRating);
     }
@@ -196,12 +263,14 @@ export default function ExploreScreen() {
         break;
     }
     return list;
-  }, [filters.minRating, filters.sortBy, otherUsers, searchQuery, selectedCategory]);
+  }, [filters.minRating, filters.sortBy, otherUsers, searchQuery, selectedCategory, selectedSubcategory, matchUserSearch]);
 
   // --- SWAPPERS: users who both teach and learn ---
   const filteredSwappers = useMemo<User[]>(() => {
     const q = searchQuery.trim().toLowerCase();
     const cleanQ = q.startsWith('@') ? q.slice(1) : q;
+    const subcategories = getSubcategoriesForCategory(selectedCategory);
+
     let list = (otherUsers || []).filter((u) => (u.skillsOffered || []).length > 0 && (u.skillsWanted || []).length > 0);
     if (q.length > 0) {
       list = list.filter((u) => {
@@ -218,12 +287,41 @@ export default function ExploreScreen() {
         return userMatch || teachMatch || wantMatch || locationMatch;
       });
     }
+
     if (selectedCategory !== 'All') {
-      list = list.filter((u) =>
-        u.skillsOffered.some((s) => s.category === selectedCategory) ||
-        u.skillsWanted.some((s) => s === selectedCategory)
-      );
+      list = list.filter((u) => {
+        const hasOffer = (u.skillsOffered || []).some((s) => {
+          const sCat = (s.category || '').trim();
+          const sSubCat = (s.subCategory || (s as any).subcategory || '').trim();
+          const sTitle = (s.title || '').trim();
+          if (selectedSubcategory !== 'All') {
+            const subQ = selectedSubcategory.toLowerCase();
+            return sSubCat.toLowerCase() === subQ || sCat.toLowerCase() === subQ || sTitle.toLowerCase().includes(subQ);
+          }
+          return (
+            sCat.toLowerCase() === selectedCategory.toLowerCase() ||
+            findCategoryForSubcategory(sCat)?.toLowerCase() === selectedCategory.toLowerCase() ||
+            findCategoryForSubcategory(sSubCat)?.toLowerCase() === selectedCategory.toLowerCase() ||
+            subcategories.some((sub) => sub.toLowerCase() === sSubCat.toLowerCase() || sub.toLowerCase() === sCat.toLowerCase())
+          );
+        });
+
+        const hasWant = (u.skillsWanted || []).some((s) => {
+          const sText = (typeof s === 'string' ? s : (s as any)?.title || '').trim();
+          if (selectedSubcategory !== 'All') {
+            return sText.toLowerCase().includes(selectedSubcategory.toLowerCase());
+          }
+          return (
+            sText.toLowerCase() === selectedCategory.toLowerCase() ||
+            findCategoryForSubcategory(sText)?.toLowerCase() === selectedCategory.toLowerCase() ||
+            subcategories.some((sub) => sub.toLowerCase() === sText.toLowerCase())
+          );
+        });
+
+        return hasOffer || hasWant;
+      });
     }
+
     if (filters.minRating > 0) {
       list = list.filter((u) => (u.rating ?? 0) >= filters.minRating);
     }
@@ -241,7 +339,7 @@ export default function ExploreScreen() {
         break;
     }
     return list;
-  }, [filters.minRating, filters.sortBy, otherUsers, searchQuery, selectedCategory]);
+  }, [filters.minRating, filters.sortBy, otherUsers, searchQuery, selectedCategory, selectedSubcategory, matchUserSearch]);
 
   const translateY = slideAnim.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] });
   const backdropOpacity = slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
@@ -253,11 +351,20 @@ export default function ExploreScreen() {
 
   const renderSkillCard = useCallback(({ item }: { item: SkillWithUser }) => (
     <TouchableOpacity
-      style={styles.skillCard}
+      style={[
+        styles.skillCard,
+        numColumns > 1 && { width: cardWidth },
+      ]}
       onPress={() => router.push(`/skill/${item.id}` as any)}
       activeOpacity={0.85}
     >
-      <Image source={{ uri: resolveImageUrl(item.imageUrl, DEFAULT_SKILL_IMAGE) }} style={styles.skillImage} />
+      <Image
+        source={{ uri: resolveImageUrl(item.imageUrl, DEFAULT_SKILL_IMAGE) }}
+        style={[
+          styles.skillImage,
+          numColumns >= 4 ? { height: 145 } : numColumns >= 3 ? { height: 160 } : numColumns >= 2 ? { height: 180 } : { height: 200 }
+        ]}
+      />
       <View style={styles.skillContent}>
         <View style={styles.skillHeader}>
           <Text style={styles.categoryLabel}>{item.category}</Text>
@@ -282,11 +389,14 @@ export default function ExploreScreen() {
         </View>
       </View>
     </TouchableOpacity>
-  ), [router]);
+  ), [router, numColumns, cardWidth]);
 
   const renderLearnerCard = useCallback(({ item }: { item: User }) => (
     <TouchableOpacity
-      style={styles.personCard}
+      style={[
+        styles.personCard,
+        numColumns > 1 && { width: cardWidth },
+      ]}
       onPress={() => router.push(`/profile/${item.id}` as any)}
       activeOpacity={0.85}
     >
@@ -314,11 +424,14 @@ export default function ExploreScreen() {
         <Text style={styles.personSwaps}>{item.totalSwaps} exchanges completed</Text>
       </View>
     </TouchableOpacity>
-  ), [router]);
+  ), [router, numColumns, cardWidth]);
 
   const renderSwapperCard = useCallback(({ item }: { item: User }) => (
     <TouchableOpacity
-      style={styles.personCard}
+      style={[
+        styles.personCard,
+        numColumns > 1 && { width: cardWidth },
+      ]}
       onPress={() => router.push(`/profile/${item.id}` as any)}
       activeOpacity={0.85}
     >
@@ -368,7 +481,7 @@ export default function ExploreScreen() {
         <Text style={styles.personSwaps}>{item.totalSwaps} exchanges completed</Text>
       </View>
     </TouchableOpacity>
-  ), [router]);
+  ), [router, numColumns, cardWidth]);
 
   return (
     <View style={styles.container}>
@@ -414,6 +527,85 @@ export default function ExploreScreen() {
         })}
       </View>
 
+      {/* Main Category Horizontal Bar */}
+      <View style={styles.exploreCategoriesBar}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.exploreCategoriesScroll}
+        >
+          {['All', ...MAIN_CATEGORIES].map((category) => (
+            <TouchableOpacity
+              key={category}
+              style={[
+                styles.exploreCategoryChip,
+                selectedCategory === category && styles.exploreCategoryChipActive,
+              ]}
+              onPress={() => {
+                setSelectedCategory(category);
+                setSelectedSubcategory('All');
+              }}
+              activeOpacity={0.75}
+            >
+              <Text
+                style={[
+                  styles.exploreCategoryText,
+                  selectedCategory === category && styles.exploreCategoryTextActive,
+                ]}
+              >
+                {category}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {selectedCategory !== 'All' && getSubcategoriesForCategory(selectedCategory).length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.exploreSubcategoriesScroll}
+          >
+            <TouchableOpacity
+              style={[
+                styles.exploreSubcategoryChip,
+                selectedSubcategory === 'All' && styles.exploreSubcategoryChipActive,
+              ]}
+              onPress={() => setSelectedSubcategory('All')}
+              activeOpacity={0.75}
+            >
+              <Text
+                style={[
+                  styles.exploreSubcategoryText,
+                  selectedSubcategory === 'All' && styles.exploreSubcategoryTextActive,
+                ]}
+              >
+                All {selectedCategory}
+              </Text>
+            </TouchableOpacity>
+            {getSubcategoriesForCategory(selectedCategory).map((sub) => (
+              <TouchableOpacity
+                key={sub}
+                style={[
+                  styles.exploreSubcategoryChip,
+                  selectedSubcategory === sub && styles.exploreSubcategoryChipActive,
+                ]}
+                onPress={() => setSelectedSubcategory(sub)}
+                activeOpacity={0.75}
+              >
+                <Text
+                  style={[
+                    styles.exploreSubcategoryText,
+                    selectedSubcategory === sub && styles.exploreSubcategoryTextActive,
+                  ]}
+                >
+                  {sub}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+      </View>
+
       {isFilterOpen && (
         <Pressable style={styles.backdrop} onPress={toggleFilters} testID="filters-backdrop">
           <Animated.View style={[styles.filtersCard, { transform: [{ translateY }], opacity: backdropOpacity }]}
@@ -429,11 +621,14 @@ export default function ExploreScreen() {
             <View style={styles.filterGroup}>
               <Text style={styles.groupLabel}>Category</Text>
               <View style={styles.rowChips}>
-                {categories.map((cat) => (
+                {['All', ...MAIN_CATEGORIES].map((cat) => (
                   <TouchableOpacity
                     key={cat}
                     style={[styles.pill, selectedCategory === cat && styles.pillActive]}
-                    onPress={() => setSelectedCategory(cat)}
+                    onPress={() => {
+                      setSelectedCategory(cat);
+                      setSelectedSubcategory('All');
+                    }}
                     testID={`category-${cat}`}
                   >
                     <Text style={[styles.pillText, selectedCategory === cat && styles.pillTextActive]}>{cat}</Text>
@@ -441,6 +636,33 @@ export default function ExploreScreen() {
                 ))}
               </View>
             </View>
+
+            {selectedCategory !== 'All' && getSubcategoriesForCategory(selectedCategory).length > 0 && (
+              <View style={styles.filterGroup}>
+                <Text style={styles.groupLabel}>Subcategory ({selectedCategory})</Text>
+                <View style={styles.rowChips}>
+                  <TouchableOpacity
+                    style={[styles.pill, selectedSubcategory === 'All' && styles.pillActive]}
+                    onPress={() => setSelectedSubcategory('All')}
+                  >
+                    <Text style={[styles.pillText, selectedSubcategory === 'All' && styles.pillTextActive]}>
+                      All {selectedCategory}
+                    </Text>
+                  </TouchableOpacity>
+                  {getSubcategoriesForCategory(selectedCategory).map((sub) => (
+                    <TouchableOpacity
+                      key={sub}
+                      style={[styles.pill, selectedSubcategory === sub && styles.pillActive]}
+                      onPress={() => setSelectedSubcategory(sub)}
+                    >
+                      <Text style={[styles.pillText, selectedSubcategory === sub && styles.pillTextActive]}>
+                        {sub}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
 
             {activeTab === 'teachers' && (
               <View style={styles.filterGroup}>
@@ -514,10 +736,13 @@ export default function ExploreScreen() {
 
       {activeTab === 'teachers' && (
         <FlatList
+          key={`explore-teachers-${numColumns}`}
+          numColumns={numColumns}
+          columnWrapperStyle={numColumns > 1 ? { gap: 16, marginBottom: 16 } : undefined}
           data={filteredSkills}
           keyExtractor={(item) => item.id}
           renderItem={renderSkillCard}
-          ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+          ItemSeparatorComponent={numColumns === 1 ? () => <View style={{ height: 16 }} /> : undefined}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={<EmptyState text="No teachers match your filters." />}
@@ -526,10 +751,13 @@ export default function ExploreScreen() {
 
       {activeTab === 'learners' && (
         <FlatList
+          key={`explore-learners-${numColumns}`}
+          numColumns={numColumns}
+          columnWrapperStyle={numColumns > 1 ? { gap: 16, marginBottom: 16 } : undefined}
           data={filteredLearners}
           keyExtractor={(item) => item.id}
           renderItem={renderLearnerCard}
-          ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+          ItemSeparatorComponent={numColumns === 1 ? () => <View style={{ height: 16 }} /> : undefined}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={<EmptyState text="No learners match your filters." />}
@@ -538,10 +766,13 @@ export default function ExploreScreen() {
 
       {activeTab === 'swappers' && (
         <FlatList
+          key={`explore-swappers-${numColumns}`}
+          numColumns={numColumns}
+          columnWrapperStyle={numColumns > 1 ? { gap: 16, marginBottom: 16 } : undefined}
           data={filteredSwappers}
           keyExtractor={(item) => item.id}
           renderItem={renderSwapperCard}
-          ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+          ItemSeparatorComponent={numColumns === 1 ? () => <View style={{ height: 16 }} /> : undefined}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={<EmptyState text="No swappers match your filters." />}
@@ -641,6 +872,65 @@ const styles = StyleSheet.create({
   },
   roleTabTextActive: {
     color: '#FFFFFF',
+  },
+  exploreCategoriesBar: {
+    backgroundColor: Colors.light.background,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.borderLight,
+  },
+  exploreCategoriesScroll: {
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+  },
+  exploreCategoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 14,
+    backgroundColor: Colors.light.backgroundTertiary,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  exploreCategoryChipActive: {
+    backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
+  },
+  exploreCategoryText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.light.text,
+  },
+  exploreCategoryTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700' as const,
+  },
+  exploreSubcategoriesScroll: {
+    paddingHorizontal: 20,
+    paddingTop: 6,
+    paddingBottom: 2,
+  },
+  exploreSubcategoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+    marginRight: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.2)',
+  },
+  exploreSubcategoryChipActive: {
+    backgroundColor: '#6366F1',
+    borderColor: '#6366F1',
+  },
+  exploreSubcategoryText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#4F46E5',
+  },
+  exploreSubcategoryTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700' as const,
   },
   backdrop: {
     ...StyleSheet.absoluteFill,

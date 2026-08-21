@@ -42,10 +42,36 @@ export interface VerificationRequest {
   documentUrl?: string;
 }
 
+export type CertificationStatus = 'pending' | 'approved' | 'rejected';
+
+export interface CertificationRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  skillId: string;
+  skillTitle: string;
+  documentUri?: string;
+  status: CertificationStatus;
+  submittedAt: string;
+  reviewedAt?: string;
+  reviewNote?: string;
+}
+
+export interface SubmitCertificationInput {
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  skillId: string;
+  skillTitle: string;
+  documentUri?: string;
+}
+
 interface AdminContextValue {
   users: AdminUser[];
   reviews: AdminReview[];
   verificationRequests: VerificationRequest[];
+  certificationRequests: CertificationRequest[];
   isAdminAuthenticated: boolean;
   adminLogin: (email: string, password: string) => Promise<void>;
   adminLogout: () => Promise<void>;
@@ -57,18 +83,23 @@ interface AdminContextValue {
   rejectReview: (reviewId: string, note: string) => void;
   approveVerification: (requestId: string) => void;
   rejectVerification: (requestId: string, reason: string) => void;
+  submitCertification: (input: SubmitCertificationInput) => void;
+  approveCertification: (requestId: string) => void;
+  rejectCertification: (requestId: string, reason: string) => void;
+  getSkillCertificationStatus: (userId: string, skillId: string) => CertificationStatus | null;
   stats: {
     totalUsers: number;
     activeUsers: number;
     bannedUsers: number;
     pendingReviews: number;
     pendingVerifications: number;
+    pendingCertifications: number;
     totalSwaps: number;
   };
   isLoading: boolean;
 }
 
-
+const CERTIFICATIONS_STORAGE_KEY = '@skillswap/admin_certifications';
 
 const seedAdminUsers = (): AdminUser[] => {
   return mockUsers.map((user, index) => ({
@@ -215,6 +246,47 @@ const seedVerificationRequests = (): VerificationRequest[] => {
   ];
 };
 
+const seedCertificationRequests = (): CertificationRequest[] => {
+  const now = new Date();
+  return [
+    {
+      id: 'cr-1',
+      userId: '2',
+      userName: 'Rahul Verma',
+      userAvatar: 'https://i.pravatar.cc/150?img=12',
+      skillId: '3',
+      skillTitle: 'Web Development (React)',
+      documentUri: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400',
+      status: 'pending',
+      submittedAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'cr-2',
+      userId: '3',
+      userName: 'Ananya Reddy',
+      userAvatar: 'https://i.pravatar.cc/150?img=5',
+      skillId: '5',
+      skillTitle: 'Hindi Conversation',
+      documentUri: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400',
+      status: 'pending',
+      submittedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'cr-3',
+      userId: '4',
+      userName: 'Arjun Mehta',
+      userAvatar: 'https://i.pravatar.cc/150?img=13',
+      skillId: '7',
+      skillTitle: 'Piano Fundamentals',
+      documentUri: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400',
+      status: 'approved',
+      submittedAt: new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+      reviewedAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      reviewNote: 'ABRSM certificate verified',
+    },
+  ];
+};
+
 export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(() => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
@@ -222,6 +294,7 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
   // const [reviews, setReviews] = useState<AdminReview[]>(seedReviews);
   const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [verificationRequests, setVerificationRequests] = useState<VerificationRequest[]>([]);
+  const [certificationRequests, setCertificationRequests] = useState<CertificationRequest[]>(seedCertificationRequests);
 
   const adminLogin = useCallback(async (email: string, password: string) => {
     console.log('[Admin] Login attempt', { email });
@@ -334,6 +407,56 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
       console.error('[Admin] Fetch verifications failed', error);
     }
   }
+
+  async function fetchCertifications() {
+    try {
+      const stored = await AsyncStorage.getItem(CERTIFICATIONS_STORAGE_KEY);
+      let requests: CertificationRequest[] = stored ? JSON.parse(stored) : seedCertificationRequests();
+
+      // Scan backend skills to include all live uploaded certificates
+      try {
+        const res = await fetch(`${url}/skills/with-users`);
+        if (res.ok) {
+          const skills = await res.json();
+          if (Array.isArray(skills)) {
+            skills.forEach((sk: any) => {
+              if (sk.certificateUri) {
+                const userId = String(sk.userId?._id || sk.userId?.id || sk.userId || '');
+                const skillId = String(sk._id || sk.id || '');
+                const existingIdx = requests.findIndex(r => String(r.userId) === userId && String(r.skillId) === skillId);
+                if (existingIdx === -1) {
+                  requests.unshift({
+                    id: `cr-db-${skillId}`,
+                    userId,
+                    userName: sk.user?.name || 'Teacher',
+                    userAvatar: sk.user?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                    skillId,
+                    skillTitle: sk.title || 'Skill',
+                    documentUri: sk.certificateUri,
+                    status: (sk.certificateStatus as CertificationStatus) || 'pending',
+                    submittedAt: sk.createdAt || new Date().toISOString(),
+                  });
+                } else {
+                  requests[existingIdx].documentUri = sk.certificateUri;
+                  if (sk.certificateStatus) {
+                    requests[existingIdx].status = sk.certificateStatus;
+                  }
+                }
+              }
+            });
+          }
+        }
+      } catch (dbErr) {
+        console.warn('[Admin] Scan backend skills for certificates error:', dbErr);
+      }
+
+      setCertificationRequests(requests);
+      await AsyncStorage.setItem(CERTIFICATIONS_STORAGE_KEY, JSON.stringify(requests)).catch(() => {});
+    } catch (error) {
+      console.error('[Admin] Fetch certifications failed', error);
+    }
+  }
+
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
@@ -342,6 +465,7 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
           allusers(),
           fetchReviews(),
           fetchVerificationRequests(),
+          fetchCertifications(),
         ]);
       } catch (error) {
         console.error('[Admin] Fetch data failed', error);
@@ -721,19 +845,106 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
     []
   );
 
+  const submitCertification = useCallback((input: SubmitCertificationInput) => {
+    console.log('[Admin] New certification request', { userId: input.userId, skillId: input.skillId });
+    setCertificationRequests(prev => {
+      const entry: CertificationRequest = {
+        id: `cr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        ...input,
+        status: 'pending',
+        submittedAt: new Date().toISOString(),
+      };
+      const existingIdx = prev.findIndex(c => String(c.userId) === String(input.userId) && String(c.skillId) === String(input.skillId));
+      let next: CertificationRequest[];
+      if (existingIdx >= 0) {
+        next = [...prev];
+        next[existingIdx] = entry;
+      } else {
+        next = [entry, ...prev];
+      }
+      AsyncStorage.setItem(CERTIFICATIONS_STORAGE_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+
+    if (input.skillId && !input.skillId.startsWith('onboard-')) {
+      fetch(`${url}/skills/${input.skillId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          certificateUri: input.documentUri,
+          certificateStatus: 'pending',
+        }),
+      }).catch(e => console.warn('[Admin] Sync skill certificate error:', e));
+    }
+  }, []);
+
+  const approveCertification = useCallback((requestId: string) => {
+    console.log('[Admin] Approving certification', { requestId });
+    setCertificationRequests(prev => {
+      const target = prev.find(c => c.id === requestId);
+      const next = prev.map(c =>
+        c.id === requestId ? { ...c, status: 'approved' as CertificationStatus, reviewedAt: new Date().toISOString() } : c
+      );
+      AsyncStorage.setItem(CERTIFICATIONS_STORAGE_KEY, JSON.stringify(next)).catch(() => {});
+
+      if (target?.skillId && !target.skillId.startsWith('onboard-')) {
+        fetch(`${url}/skills/${target.skillId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ certificateStatus: 'approved' }),
+        }).catch(e => console.warn('[Admin] Sync approve error:', e));
+      }
+
+      return next;
+    });
+  }, []);
+
+  const rejectCertification = useCallback((requestId: string, reason: string) => {
+    console.log('[Admin] Rejecting certification', { requestId, reason });
+    setCertificationRequests(prev => {
+      const target = prev.find(c => c.id === requestId);
+      const next = prev.map(c =>
+        c.id === requestId ? { ...c, status: 'rejected' as CertificationStatus, reviewedAt: new Date().toISOString(), reviewNote: reason } : c
+      );
+      AsyncStorage.setItem(CERTIFICATIONS_STORAGE_KEY, JSON.stringify(next)).catch(() => {});
+
+      if (target?.skillId && !target.skillId.startsWith('onboard-')) {
+        fetch(`${url}/skills/${target.skillId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ certificateStatus: 'rejected' }),
+        }).catch(e => console.warn('[Admin] Sync reject error:', e));
+      }
+
+      return next;
+    });
+  }, []);
+
+  const getSkillCertificationStatus = useCallback((userId: string, skillId: string): CertificationStatus | null => {
+    const uStr = String(userId || '');
+    const sStr = String(skillId || '');
+    const forSkill = certificationRequests.filter(c => String(c.userId) === uStr && String(c.skillId) === sStr);
+    if (forSkill.length === 0) return null;
+    if (forSkill.some(c => c.status === 'approved')) return 'approved';
+    const latest = [...forSkill].sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];
+    return latest?.status ?? null;
+  }, [certificationRequests]);
+
   const stats = useMemo(() => ({
     totalUsers: users.length,
     activeUsers: users.filter(u => u.banStatus === 'active').length,
     bannedUsers: users.filter(u => u.banStatus === 'banned').length,
     pendingReviews: reviews.filter(r => r.moderationStatus === 'pending').length,
     pendingVerifications: verificationRequests.filter(vr => vr.status === 'pending').length,
+    pendingCertifications: certificationRequests.filter(c => c.status === 'pending').length,
     totalSwaps: users.reduce((sum, u) => sum + u.totalSwaps, 0),
-  }), [users, reviews, verificationRequests]);
+  }), [users, reviews, verificationRequests, certificationRequests]);
 
   return useMemo<AdminContextValue>(() => ({
     users,
     reviews,
     verificationRequests,
+    certificationRequests,
     isAdminAuthenticated,
     adminLogin,
     adminLogout,
@@ -745,8 +956,11 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
     rejectReview,
     approveVerification,
     rejectVerification,
+    submitCertification,
+    approveCertification,
+    rejectCertification,
+    getSkillCertificationStatus,
     stats,
-
     isLoading,
-  }), [users, reviews, verificationRequests, isAdminAuthenticated, adminLogin, adminLogout, banUser, unbanUser, suspendUser, updateUserCredits, approveReview, rejectReview, approveVerification, rejectVerification, stats, isLoading]);
+  }), [users, reviews, verificationRequests, certificationRequests, isAdminAuthenticated, adminLogin, adminLogout, banUser, unbanUser, suspendUser, updateUserCredits, approveReview, rejectReview, approveVerification, rejectVerification, submitCertification, approveCertification, rejectCertification, getSkillCertificationStatus, stats, isLoading]);
 });

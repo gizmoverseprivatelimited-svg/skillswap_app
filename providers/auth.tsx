@@ -51,7 +51,7 @@ const sendDebugLog = (msg: string, data: any) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message: msg, data }),
-  }).catch(() => {});
+  }).catch(() => { });
 };
 
 export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() => {
@@ -74,6 +74,36 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
     let normalizedUser: AuthUser | null = null;
     if (newUser) {
       normalizedUser = normalizeUser(newUser);
+      try {
+        const guestDataStr = await AsyncStorage.getItem('@skillswap/onboarding_complete_guest_data')
+          || await AsyncStorage.getItem('@skillswap/onboarding_complete_1_data')
+          || await AsyncStorage.getItem('@skillswap/onboarding_pending_data');
+        if (guestDataStr && normalizedUser?.id) {
+          const guestData = JSON.parse(guestDataStr);
+          if (guestData && (guestData.skillsToTeach?.length > 0 || guestData.skillsToLearn?.length > 0 || guestData.teacherProfile)) {
+            fetch(`${url}/users/onboarding`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: normalizedUser.id,
+                skillsToTeach: guestData.skillsToTeach || [],
+                skillsToLearn: guestData.skillsToLearn || [],
+                experienceLevels: guestData.experienceLevels || {},
+                learningGoals: guestData.learningGoals || [],
+                availability: guestData.availability || [],
+                communicationPreference: guestData.communicationPreference || '',
+                matchingPreferences: guestData.matchingPreferences || { location: '', virtual: true, inPerson: false },
+                teacherProfile: guestData.teacherProfile,
+              }),
+            }).catch((err) => console.warn('[Auth] Pending onboarding sync error:', err));
+            if (guestData.teacherProfile && !(normalizedUser as any).teacherProfile) {
+              (normalizedUser as any).teacherProfile = guestData.teacherProfile;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Auth] Guest onboarding check error:', err);
+      }
       await AsyncStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
     }
     setToken(newToken);

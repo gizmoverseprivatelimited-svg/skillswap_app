@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { MapPin, Star, Users, ArrowRight, Award, Clock, CalendarCheck2, IndianRupee, Sparkles, Coins, Trash2, Edit, Calendar, Repeat, CreditCard } from 'lucide-react-native';
+import { MapPin, Star, Users, ArrowRight, Award, Clock, CalendarCheck2, IndianRupee, Sparkles, Coins, Trash2, Edit, Calendar, Repeat, CreditCard, BadgeCheck } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '../../constants/colors';
@@ -427,6 +427,12 @@ export default function SkillDetailScreen() {
             <View style={styles.levelBadge}>
               <Text style={styles.levelText}>{skill.level}</Text>
             </View>
+            {skill.certificateUri && (
+              <View style={styles.certVerifiedBadge}>
+                <BadgeCheck size={14} color="#10B981" />
+                <Text style={styles.certVerifiedBadgeText}>Certified</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.titleRow}>
@@ -787,6 +793,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700' as const,
     color: Colors.light.primary,
+  },
+  certVerifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  certVerifiedBadgeText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#10B981',
   },
   titleRow: {
     flexDirection: 'row',

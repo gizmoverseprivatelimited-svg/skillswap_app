@@ -3,8 +3,10 @@ import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './auth';
 import url from '@/constants/backurl';
-import type { Skill, OnboardingRole, SkillCategory, SkillLevel } from '../types';
+import type { Skill, OnboardingRole, SkillCategory, SkillLevel, TeacherProfileData, TeacherCertification, CareerEntry } from '../types';
 import { findCategoryForSubcategory, getCategoryImageUrl } from '@/constants/categories';
+
+export type { OnboardingRole, TeacherCertification, CareerEntry, TeacherProfileData };
 
 const ONBOARDING_KEY = '@skillswap/onboarding_complete';
 
@@ -15,6 +17,7 @@ export interface OnboardingData {
   learningGoals: string[];
   availability: string[];
   communicationPreference: string;
+  teacherProfile?: TeacherProfileData;
   matchingPreferences: {
     location: string;
     virtual: boolean;
@@ -39,14 +42,19 @@ interface OnboardingContextValue {
 export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingContextValue>(() => {
   const { isAuthenticated, user, updateUser } = useAuth();
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean>(false);
-  const [isChecking, setIsChecking] = useState<boolean>(true);
+  const [isChecking, setIsChecking] = useState<boolean>(false);
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [onboardingData, setOnboardingData] = useState<Partial<OnboardingData>>({});
   
   const totalSteps = 7;
 
   useEffect(() => {
-    checkOnboardingStatus();
+    if (isAuthenticated && user?.id) {
+      checkOnboardingStatus();
+    } else {
+      setHasCompletedOnboarding(false);
+      setIsChecking(false);
+    }
   }, [isAuthenticated, user?.id]);
 
   const checkOnboardingStatus = useCallback(async () => {
@@ -93,18 +101,19 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
   const completeOnboarding = useCallback(async (dataOverride?: Partial<OnboardingData>) => {
     const finalData = dataOverride ? { ...onboardingData, ...dataOverride } : onboardingData;
     console.log('[Onboarding] Completing onboarding with data:', finalData);
-    if (!user) {
-      console.error('[Onboarding] Cannot complete without user');
-      return;
-    }
-
     try {
-      // For guest users, complete onboarding purely locally
-      if (user.id === '1') {
-        const key = `${ONBOARDING_KEY}_${user.id}`;
+      // Save pending onboarding data so it can be synced upon login/signup
+      await AsyncStorage.setItem('@skillswap/onboarding_pending_data', JSON.stringify(finalData));
+      await AsyncStorage.setItem('@skillswap/onboarding_complete_guest_data', JSON.stringify(finalData));
+      await AsyncStorage.setItem(`${ONBOARDING_KEY}_guest`, 'true');
+
+      // For logged out or guest users, complete onboarding locally
+      if (!user || user.id === '1' || (user as any).isDemo) {
+        const userId = user?.id || '1';
+        const key = `${ONBOARDING_KEY}_${userId}`;
         await AsyncStorage.setItem(key, 'true');
         
-        const dataKey = `${ONBOARDING_KEY}_${user.id}_data`;
+        const dataKey = `${ONBOARDING_KEY}_${userId}_data`;
         await AsyncStorage.setItem(dataKey, JSON.stringify(finalData));
 
         if (Array.isArray(finalData.skillsToTeach)) {
@@ -120,7 +129,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
               subCategory: skill,
               description: `I can teach and share knowledge in ${skill}.`,
               level: ((finalData.experienceLevels && finalData.experienceLevels[skill]) as SkillLevel) || 'Intermediate',
-              userId: user.id,
+              userId: userId,
               imageUrl: catImage,
             };
           });
@@ -130,7 +139,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
         setHasCompletedOnboarding(true);
         setCurrentStep(0);
         setOnboardingData({});
-        console.log('[Onboarding] Completed locally for guest user');
+        console.log('[Onboarding] Completed locally for guest / logged out user');
         return;
       }
 
@@ -152,6 +161,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
             virtual: true,
             inPerson: false,
           },
+          teacherProfile: finalData.teacherProfile,
         }),
       });
 

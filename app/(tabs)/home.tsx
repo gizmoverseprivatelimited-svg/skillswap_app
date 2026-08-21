@@ -14,14 +14,19 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { RefreshCcw, Star, TrendingUp, Users, Zap, GraduationCap, BookOpen, ArrowLeftRight, Sparkles, Bell, Bot, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '../../constants/colors';
-import { getSkillsWithUsers, categories } from '../../mocks/data';
+import { getSkillsWithUsers } from '../../mocks/data';
 import { formatPrice } from '../../constants/locale';
 import MatchCard from '../../components/MatchCard';
 import { useCurrentUser } from '../../providers/current-user';
 import { useNotifications } from '../../providers/notifications';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resolveImageUrl } from '../../lib/resolveImageUrl';
-import { getCategoryImageUrl } from '@/constants/categories';
+import {
+  MAIN_CATEGORIES,
+  getSubcategoriesForCategory,
+  findCategoryForSubcategory,
+  getCategoryImageUrl,
+} from '@/constants/categories';
 import { useSafety } from '@/providers/safety';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
@@ -32,6 +37,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
   const [skillsWithUsers, setSkillsWithUsers] = useState<any[]>([]);
 
   const promotedScrollRef = useRef<ScrollView>(null);
@@ -99,9 +105,9 @@ export default function HomeScreen() {
   };
 
   const numSkillColumns = useMemo(() => {
-    if (windowWidth >= 1024) return 4;
-    if (windowWidth >= 768) return 3;
-    if (windowWidth >= 540) return 2;
+    if (windowWidth >= 840) return 4;
+    if (windowWidth >= 600) return 3;
+    if (windowWidth >= 400) return 2;
     return 1;
   }, [windowWidth]);
 
@@ -110,7 +116,7 @@ export default function HomeScreen() {
     const totalPadding = 40;
     const totalGap = (numSkillColumns - 1) * 16;
     const availableWidth = windowWidth - totalPadding - totalGap;
-    return Math.floor(availableWidth / numSkillColumns);
+    return Math.max(160, Math.floor(availableWidth / numSkillColumns));
   }, [windowWidth, numSkillColumns]);
 
   const { unreadCount } = useNotifications();
@@ -194,9 +200,39 @@ export default function HomeScreen() {
     });
   }, [allAvailableSkills, currentUser, isBlocked]);
 
-  const filteredSkills = selectedCategory === 'All' 
-    ? otherSkillsWithUsers 
-    : otherSkillsWithUsers.filter(skill => skill.category === selectedCategory);
+  const filteredSkills = useMemo(() => {
+    if (selectedCategory === 'All') {
+      return otherSkillsWithUsers;
+    }
+
+    const subcategories = getSubcategoriesForCategory(selectedCategory);
+
+    return otherSkillsWithUsers.filter((skill) => {
+      const skillCat = (skill.category || '').trim();
+      const skillSubCat = (skill.subCategory || (skill as any).subcategory || '').trim();
+      const skillTitle = (skill.title || '').trim().toLowerCase();
+      const skillDesc = (skill.description || '').trim().toLowerCase();
+
+      // If a specific subcategory is selected
+      if (selectedSubcategory !== 'All') {
+        const subQ = selectedSubcategory.toLowerCase();
+        return (
+          skillSubCat.toLowerCase() === subQ ||
+          skillCat.toLowerCase() === subQ ||
+          skillTitle.includes(subQ) ||
+          skillDesc.includes(subQ)
+        );
+      }
+
+      // If category is selected without a specific subcategory
+      const isDirectCat = skillCat.toLowerCase() === selectedCategory.toLowerCase();
+      const isParentCat = findCategoryForSubcategory(skillCat)?.toLowerCase() === selectedCategory.toLowerCase();
+      const isParentSubCat = findCategoryForSubcategory(skillSubCat)?.toLowerCase() === selectedCategory.toLowerCase();
+      const isSubInList = subcategories.some((sub) => sub.toLowerCase() === skillSubCat.toLowerCase() || sub.toLowerCase() === skillCat.toLowerCase());
+
+      return isDirectCat || isParentCat || isParentSubCat || isSubInList;
+    });
+  }, [otherSkillsWithUsers, selectedCategory, selectedSubcategory]);
 
   const featuredSkills = otherSkillsWithUsers.slice(0, 3);
   const promotedSkills = useMemo(() => otherSkillsWithUsers.filter(s => s.promoted).slice(0, 10), [otherSkillsWithUsers]);
@@ -608,14 +644,17 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.categoriesScroll}
             >
-              {categories.map((category) => (
+              {['All', ...MAIN_CATEGORIES].map((category) => (
                 <TouchableOpacity
                   key={category}
                   style={[
                     styles.categoryChip,
                     selectedCategory === category && styles.categoryChipActive,
                   ]}
-                  onPress={() => setSelectedCategory(category)}
+                  onPress={() => {
+                    setSelectedCategory(category);
+                    setSelectedSubcategory('All');
+                  }}
                 >
                   <Text
                     style={[
@@ -628,12 +667,71 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+
+            {selectedCategory !== 'All' && getSubcategoriesForCategory(selectedCategory).length > 0 && (
+              <View style={styles.subcategoriesContainer}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.subcategoriesScroll}
+                >
+                  <TouchableOpacity
+                    style={[
+                      styles.subcategoryChip,
+                      selectedSubcategory === 'All' && styles.subcategoryChipActive,
+                    ]}
+                    onPress={() => setSelectedSubcategory('All')}
+                    activeOpacity={0.75}
+                  >
+                    <Text
+                      style={[
+                        styles.subcategoryText,
+                        selectedSubcategory === 'All' && styles.subcategoryTextActive,
+                      ]}
+                    >
+                      All {selectedCategory}
+                    </Text>
+                  </TouchableOpacity>
+                  {getSubcategoriesForCategory(selectedCategory).map((sub) => (
+                    <TouchableOpacity
+                      key={sub}
+                      style={[
+                        styles.subcategoryChip,
+                        selectedSubcategory === sub && styles.subcategoryChipActive,
+                      ]}
+                      onPress={() => setSelectedSubcategory(sub)}
+                      activeOpacity={0.75}
+                    >
+                      <Text
+                        style={[
+                          styles.subcategoryText,
+                          selectedSubcategory === sub && styles.subcategoryTextActive,
+                        ]}
+                      >
+                        {sub}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {selectedCategory === 'All' ? 'All Skills' : selectedCategory}
-            </Text>
+            <View style={styles.skillsSectionHeader}>
+              <Text style={styles.sectionTitleWithoutPadding}>
+                {selectedCategory === 'All'
+                  ? 'All Skills'
+                  : selectedSubcategory !== 'All'
+                  ? `${selectedCategory} • ${selectedSubcategory}`
+                  : selectedCategory}
+              </Text>
+              <View style={styles.skillsCountBadge}>
+                <Text style={styles.skillsCountText}>
+                  {filteredSkills.length} {filteredSkills.length === 1 ? 'skill' : 'skills'}
+                </Text>
+              </View>
+            </View>
             <View style={[
               styles.skillsGrid,
               numSkillColumns > 1 && {
@@ -656,7 +754,10 @@ export default function HomeScreen() {
                 >
                   <Image
                     source={{ uri: resolveImageUrl(skill.imageUrl, getCategoryImageUrl(skill.category || skill.title)) }}
-                    style={[styles.skillImage, numSkillColumns >= 3 && { height: 160 }]}
+                    style={[
+                      styles.skillImage,
+                      numSkillColumns >= 4 ? { height: 145 } : numSkillColumns >= 3 ? { height: 160 } : numSkillColumns >= 2 ? { height: 180 } : { height: 200 }
+                    ]}
                     defaultSource={{ uri: DEFAULT_SKILL_IMAGE }}
                   />
                   <View style={styles.skillContent}>
@@ -1213,6 +1314,53 @@ const styles = StyleSheet.create({
   },
   categoryTextActive: {
     color: '#FFFFFF',
+  },
+  subcategoriesContainer: {
+    marginTop: 10,
+  },
+  subcategoriesScroll: {
+    paddingLeft: 20,
+    paddingRight: 10,
+  },
+  subcategoryChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.2)',
+  },
+  subcategoryChipActive: {
+    backgroundColor: '#6366F1',
+    borderColor: '#6366F1',
+  },
+  subcategoryText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#4F46E5',
+  },
+  subcategoryTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700' as const,
+  },
+  skillsSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  skillsCountBadge: {
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  skillsCountText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#6366F1',
   },
   skillsGrid: {
     paddingHorizontal: 20,

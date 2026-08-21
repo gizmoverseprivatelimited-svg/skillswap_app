@@ -26,6 +26,8 @@ interface CurrentUserContextValue {
   earnCredits: (amount: number) => void;
   spendCredits: (amount: number) => void;
   removeSkill: (skillId: string) => void;
+  attachSkillCertificate: (skillId: string, documentUri: string) => void;
+  removeSkillCertificate: (skillId: string) => void;
   isLoading: boolean;
 }
 
@@ -74,6 +76,9 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
           updated.skillsWanted = [...prev.skillsWanted, ...additions];
         }
       }
+      if (data.teacherProfile) {
+        updated.teacherProfile = data.teacherProfile;
+      }
       return updated;
     });
   }, []);
@@ -120,14 +125,69 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
       let data = await getUsers();
       if (Array.isArray(data)) {
         setUsers(data);
-        if (!currentId) {
-          setCurrentUser(null);
-          return;
+      }
+      if (!currentId) {
+        setCurrentUser(null);
+        return;
+      }
+
+      if (currentId !== '1') {
+        let loadedUser: any = null;
+        try {
+          const directRes = await fetch(`${url}/users/${currentId}`);
+          if (directRes.ok) {
+            const freshUser = await directRes.json();
+            if (freshUser && (freshUser.id || freshUser._id)) {
+              loadedUser = freshUser;
+            }
+          }
+        } catch (fetchErr) {
+          console.warn('[CurrentUser] Direct fetch user error, falling back to allUsers:', fetchErr);
         }
 
-        if (currentId !== '1') {
+        if (!loadedUser && Array.isArray(data)) {
           let authUser = data.find((u: any) => String(u.id || u._id) === String(currentId));
-          setCurrentUser(authUser || null);
+          if (authUser) {
+            loadedUser = authUser;
+          }
+        }
+
+        if (loadedUser) {
+          // If teacherProfile is not populated on DB user, check AsyncStorage
+          if (!loadedUser.teacherProfile) {
+            try {
+              const storedOnboarding = await AsyncStorage.getItem(`@skillswap/onboarding_complete_${currentId}_data`)
+                || await AsyncStorage.getItem('@skillswap/onboarding_complete_guest_data')
+                || await AsyncStorage.getItem('@skillswap/onboarding_complete_1_data')
+                || await AsyncStorage.getItem('@skillswap/onboarding_pending_data');
+              if (storedOnboarding) {
+                const parsed = JSON.parse(storedOnboarding);
+                if (parsed?.teacherProfile) {
+                  loadedUser = { ...loadedUser, teacherProfile: parsed.teacherProfile };
+                  // Persist to backend so it's in MongoDB permanently
+                  fetch(`${url}/users/onboarding`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      userId: currentId,
+                      skillsToTeach: parsed.skillsToTeach || [],
+                      skillsToLearn: parsed.skillsToLearn || [],
+                      experienceLevels: parsed.experienceLevels || {},
+                      learningGoals: parsed.learningGoals || [],
+                      availability: parsed.availability || [],
+                      communicationPreference: parsed.communicationPreference || '',
+                      matchingPreferences: parsed.matchingPreferences || { location: '', virtual: true, inPerson: false },
+                      teacherProfile: parsed.teacherProfile,
+                    }),
+                  }).catch(() => {});
+                }
+              }
+            } catch (e) {
+              console.warn('[CurrentUser] Onboarding local check error:', e);
+            }
+          }
+          setCurrentUser(loadedUser);
+          return;
         }
       }
     } catch (err) {
@@ -269,11 +329,77 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
     }
   }, [currentUser?.id, loadUser]);
 
+  const attachSkillCertificate = useCallback(async (skillId: string, documentUri: string) => {
+    setCurrentUser(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        skillsOffered: (prev.skillsOffered || []).map(s =>
+          String(s.id || (s as any)._id) === String(skillId) ? { ...s, certificateUri: documentUri, certificateStatus: 'pending' } : s
+        ),
+      };
+    });
+
+    if (skillId && !skillId.startsWith('onboard-')) {
+      try {
+        await fetch(`${url}/skills/${skillId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            certificateUri: documentUri,
+            certificateStatus: 'pending',
+          }),
+        });
+      } catch (err) {
+        console.warn('[CurrentUserProvider] attachSkillCertificate backend sync error:', err);
+      }
+    }
+  }, []);
+
+  const removeSkillCertificate = useCallback(async (skillId: string) => {
+    setCurrentUser(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        skillsOffered: (prev.skillsOffered || []).map(s =>
+          String(s.id || (s as any)._id) === String(skillId) ? { ...s, certificateUri: undefined, certificateStatus: undefined } : s
+        ),
+      };
+    });
+
+    if (skillId && !skillId.startsWith('onboard-')) {
+      try {
+        await fetch(`${url}/skills/${skillId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            certificateUri: '',
+            certificateStatus: undefined,
+          }),
+        });
+      } catch (err) {
+        console.warn('[CurrentUserProvider] removeSkillCertificate backend sync error:', err);
+      }
+    }
+  }, []);
+
+  const allUsersMerged = useMemo(() => {
+    if (!currentUser) return users;
+    const currentId = String(currentUser.id || (currentUser as any)._id || '');
+    const existingIndex = users.findIndex((u) => String(u.id || (u as any)._id || '') === currentId);
+    if (existingIndex >= 0) {
+      const copy = [...users];
+      copy[existingIndex] = { ...copy[existingIndex], ...currentUser };
+      return copy;
+    }
+    return [currentUser, ...users];
+  }, [users, currentUser]);
+
   const value = useMemo<CurrentUserContextValue>(() => {
     return {
       loadUser,
       currentUser,
-      allUsers: users,
+      allUsers: allUsersMerged,
       recommendations,
       topRecommendations,
       teachMatches,
@@ -285,9 +411,11 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
       earnCredits,
       spendCredits,
       removeSkill,
+      attachSkillCertificate,
+      removeSkillCertificate,
       isLoading,
     };
-  }, [recommendations, loadUser, users, currentUser, topRecommendations, teachMatches, learnMatches, swapMatches, userRole, applyOnboardingData, refreshRecommendations, earnCredits, spendCredits, removeSkill, isLoading]);
+  }, [recommendations, loadUser, allUsersMerged, currentUser, topRecommendations, teachMatches, learnMatches, swapMatches, userRole, applyOnboardingData, refreshRecommendations, earnCredits, spendCredits, removeSkill, attachSkillCertificate, removeSkillCertificate, isLoading]);
 
   return value;
 });

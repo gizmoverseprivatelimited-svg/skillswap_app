@@ -186,6 +186,11 @@ export default function HelpScreen() {
             </Text>
           </View>
 
+          <View style={styles.companyInfoCard}>
+            <Text style={styles.companyNameText}>Gizmoverse Private Limited</Text>
+            <Text style={styles.companyProductText}>leteski is a product of Gizmoverse Private Limited</Text>
+          </View>
+
           <View style={styles.bottomSpacer} />
         </View>
       </ScrollView>
@@ -336,6 +341,27 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  companyInfoCard: {
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: Colors.light.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    gap: 4,
+  },
+  companyNameText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  companyProductText: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    textAlign: 'center',
   },
   bottomSpacer: {
     height: 40,

@@ -77,6 +77,22 @@ export const mockUsers: User[] = [
     joinedDate: '2024-02-10',
     credits: 25,
     premiumTier: 'free',
+    role: 'teacher',
+    teacherProfile: {
+      languages: ['English', 'Hindi', 'Kannada'],
+      qualifications: ["Bachelor's Degree", 'Industry Expert'],
+      isCertified: true,
+      certifications: [
+        { id: 'seed-cert-1', title: 'AWS Certified Solutions Architect' },
+        { id: 'seed-cert-2', title: 'Google UX Design Certificate', documentUri: 'mock://certificate/ux-design.pdf' },
+      ],
+      yearsTeaching: '3–5 years',
+      careerHistory: [
+        { id: 'seed-career-1', role: 'Software Engineer', organization: 'TCS', years: '2017–2021' },
+        { id: 'seed-career-2', role: 'Coding Instructor', organization: 'Whitehat Jr', years: '2021–2023' },
+      ],
+      privateTuition: true,
+    },
   },
   {
     id: '3',
@@ -93,6 +109,21 @@ export const mockUsers: User[] = [
     credits: 120,
     premiumTier: 'elite',
     premiumExpiresAt: '2026-11-05',
+    role: 'teacher',
+    teacherProfile: {
+      languages: ['Telugu', 'Hindi', 'English', 'Tamil'],
+      qualifications: ["Master's Degree", 'B.Ed / D.El.Ed'],
+      isCertified: true,
+      certifications: [
+        { id: 'seed-cert-3', title: 'CTET — Central Teacher Eligibility Test', documentUri: 'mock://certificate/ctet.pdf' },
+      ],
+      yearsTeaching: '5–10 years',
+      careerHistory: [
+        { id: 'seed-career-3', role: 'Language Teacher', organization: 'Delhi Public School', years: '2016–2021' },
+        { id: 'seed-career-4', role: 'Freelance Language Coach', organization: 'Self-employed', years: '2021–present' },
+      ],
+      privateTuition: true,
+    },
   },
   {
     id: '4',
@@ -108,6 +139,20 @@ export const mockUsers: User[] = [
     joinedDate: '2024-03-20',
     credits: 10,
     premiumTier: 'free',
+    role: 'teacher',
+    teacherProfile: {
+      languages: ['Hindi', 'English'],
+      qualifications: ["Bachelor's Degree", 'Professional Certification'],
+      isCertified: true,
+      certifications: [
+        { id: 'seed-cert-4', title: 'ABRSM Grade 8 Piano', documentUri: 'mock://certificate/abrsm.pdf' },
+      ],
+      yearsTeaching: '1–3 years',
+      careerHistory: [
+        { id: 'seed-career-5', role: 'Music Instructor', organization: 'Sangeet Academy', years: '2 years' },
+      ],
+      privateTuition: true,
+    },
   },
   {
     id: '5',

@@ -7,11 +7,13 @@ import {
   TouchableOpacity,
   TextInput,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import {
   Sparkles,
   GraduationCap,
@@ -43,9 +45,19 @@ import {
   Hammer,
   UserCheck,
   Layers,
+  Languages,
+  Upload,
+  Plus,
+  FileCheck2,
+  BadgeCheck,
 } from 'lucide-react-native';
-import { OnboardingRole } from '@/types';
-import { useOnboarding } from '@/providers/onboarding';
+import {
+  useOnboarding,
+  OnboardingRole,
+  TeacherCertification,
+  CareerEntry,
+  TeacherProfileData,
+} from '@/providers/onboarding';
 import { useCurrentUser } from '@/providers/current-user';
 import {
   CATEGORY_STRUCTURE,
@@ -82,7 +94,31 @@ const skillLevels: SkillLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'Expe
 const availabilityOptions = ['Weekday Mornings', 'Weekday Afternoons', 'Weekday Evenings', 'Weekends', 'Flexible'];
 const communicationOptions = ['Video Call', 'In Person', 'Chat', 'Mix of All'];
 
-type StepKey = 'welcome' | 'role' | 'teach' | 'experience' | 'learn' | 'availability' | 'summary';
+const languageOptions = [
+  'English', 'Hindi', 'Bengali', 'Tamil', 'Telugu', 'Marathi',
+  'Kannada', 'Malayalam', 'Gujarati', 'Punjabi', 'Urdu', 'Odia',
+];
+const qualificationOptions = [
+  "High School", "Bachelor's Degree", "Master's Degree", 'PhD / Doctorate',
+  'B.Ed / D.El.Ed', 'Diploma', 'Professional Certification',
+  'Industry Expert', 'Self-taught Expert',
+];
+const experienceOptions = ['None yet', '1–3 years', '3–5 years', '5–10 years', '10+ years'];
+
+const genId = (prefix: string): string =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+type StepKey =
+  | 'welcome'
+  | 'role'
+  | 'teach'
+  | 'experience'
+  | 'languages'
+  | 'credentials'
+  | 'career'
+  | 'learn'
+  | 'availability'
+  | 'summary';
 
 const ROLE_OPTIONS: {
   key: OnboardingRole;
@@ -119,10 +155,27 @@ export default function OnboardingScreen() {
   const [virtualEnabled, setVirtualEnabled] = useState<boolean>(true);
   const [inPersonEnabled, setInPersonEnabled] = useState<boolean>(false);
 
+  // Teacher credentials
+  const [languages, setLanguages] = useState<string[]>([]);
+  const [customLanguage, setCustomLanguage] = useState<string>('');
+  const [qualifications, setQualifications] = useState<string[]>([]);
+  const [isCertified, setIsCertified] = useState<boolean>(false);
+  const [certTitle, setCertTitle] = useState<string>('');
+  const [certifications, setCertifications] = useState<TeacherCertification[]>([]);
+  const [yearsTeaching, setYearsTeaching] = useState<string>('');
+  const [careerRole, setCareerRole] = useState<string>('');
+  const [careerOrg, setCareerOrg] = useState<string>('');
+  const [careerYears, setCareerYears] = useState<string>('');
+  const [careerHistory, setCareerHistory] = useState<CareerEntry[]>([]);
+  const [privateTuition, setPrivateTuition] = useState<boolean>(false);
+
   const steps = useMemo<StepKey[]>(() => {
     const list: StepKey[] = ['welcome', 'role'];
     if (role === 'teacher' || role === 'swap') {
       list.push('teach', 'experience');
+    }
+    if (role === 'teacher') {
+      list.push('languages', 'credentials', 'career');
     }
     if (role === 'learner' || role === 'swap') {
       list.push('learn');
@@ -156,6 +209,18 @@ export default function OnboardingScreen() {
       updateOnboardingData({ skillsToTeach: getFinalTeachSkills() });
     } else if (currentStep === 'experience') {
       updateOnboardingData({ skillsToTeach: getFinalTeachSkills(), experienceLevels: getFinalExperienceLevels() });
+    } else if (currentStep === 'career') {
+      updateOnboardingData({
+        teacherProfile: {
+          languages,
+          qualifications,
+          isCertified,
+          certifications,
+          yearsTeaching,
+          careerHistory,
+          privateTuition,
+        },
+      });
     } else if (currentStep === 'learn') {
       updateOnboardingData({ skillsToLearn: getFinalLearnSkills(), learningGoals });
     } else if (currentStep === 'availability') {
@@ -184,6 +249,15 @@ export default function OnboardingScreen() {
       learningGoals,
       availability,
       communicationPreference: communication,
+      teacherProfile: role === 'teacher' ? {
+        languages,
+        qualifications,
+        isCertified,
+        certifications,
+        yearsTeaching,
+        careerHistory,
+        privateTuition,
+      } : undefined,
       matchingPreferences: { location, virtual: virtualEnabled, inPerson: inPersonEnabled },
     };
 
@@ -212,6 +286,12 @@ export default function OnboardingScreen() {
         return selectedTeachSkills.length > 0 && (!selectedTeachSkills.includes('Other') || customTeachCategory.trim().length > 0);
       case 'experience':
         return selectedTeachSkills.every(skill => experienceLevels[skill]);
+      case 'languages':
+        return languages.length > 0;
+      case 'credentials':
+        return !isCertified || certifications.length > 0;
+      case 'career':
+        return true;
       case 'learn':
         return selectedLearnSkills.length > 0 && (!selectedLearnSkills.includes('Other') || customLearnCategory.trim().length > 0);
       case 'availability':
@@ -221,6 +301,104 @@ export default function OnboardingScreen() {
       default:
         return true;
     }
+  };
+
+  // ---- Teacher credentials handlers ----
+  const toggleLanguage = (lang: string) => {
+    if (languages.includes(lang)) {
+      setLanguages(languages.filter(l => l !== lang));
+    } else {
+      setLanguages([...languages, lang]);
+    }
+  };
+
+  const addCustomLanguage = () => {
+    const trimmed = customLanguage.trim();
+    if (trimmed.length === 0) return;
+    if (!languages.some(l => l.toLowerCase() === trimmed.toLowerCase())) {
+      setLanguages([...languages, trimmed]);
+    }
+    setCustomLanguage('');
+  };
+
+  const toggleQualification = (q: string) => {
+    if (qualifications.includes(q)) {
+      setQualifications(qualifications.filter(item => item !== q));
+    } else {
+      setQualifications([...qualifications, q]);
+    }
+  };
+
+  const addCertification = () => {
+    const trimmed = certTitle.trim();
+    if (trimmed.length === 0) return;
+    setCertifications(prev => [...prev, { id: genId('cert'), title: trimmed }]);
+    setCertTitle('');
+  };
+
+  const removeCertification = (id: string) => {
+    setCertifications(prev => prev.filter(c => c.id !== id));
+  };
+
+  const pickCertificate = async (certId: string) => {
+    try {
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Please allow access to your photos to upload a certificate document.');
+          return;
+        }
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.7,
+        base64: true,
+      });
+      const asset = result.assets?.[0];
+      if (!result.canceled && asset) {
+        let uri = asset.uri;
+        if (asset.base64) {
+          const mime = asset.mimeType || (asset.uri?.endsWith('.png') ? 'image/png' : 'image/jpeg');
+          uri = `data:${mime};base64,${asset.base64}`;
+        } else if (Platform.OS === 'web' && asset.uri && asset.uri.startsWith('blob:')) {
+          try {
+            const resp = await fetch(asset.uri);
+            const blob = await resp.blob();
+            uri = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          } catch (e) {
+            console.warn('[Onboarding] Failed to convert blob to data URI:', e);
+          }
+        }
+        setCertifications(prev => prev.map(c => (c.id === certId ? { ...c, documentUri: uri } : c)));
+      }
+    } catch (error) {
+      console.warn('[Onboarding] Document pick failed:', error);
+    }
+  };
+
+  const addCareerEntry = () => {
+    const roleName = careerRole.trim();
+    if (roleName.length === 0) return;
+    setCareerHistory(prev => [...prev, {
+      id: genId('career'),
+      role: roleName,
+      organization: careerOrg.trim(),
+      years: careerYears.trim(),
+    }]);
+    setCareerRole('');
+    setCareerOrg('');
+    setCareerYears('');
+  };
+
+  const removeCareerEntry = (id: string) => {
+    setCareerHistory(prev => prev.filter(e => e.id !== id));
   };
 
   const toggleSkillSelection = (skill: string, isTeach: boolean) => {
@@ -837,6 +1015,241 @@ export default function OnboardingScreen() {
     </View>
   );
 
+  const renderLanguagesStep = () => (
+    <View style={styles.stepContainer}>
+      <View style={styles.iconContainer}>
+        <Languages size={48} color="#10B981" strokeWidth={1.5} />
+      </View>
+      <Text style={styles.title}>Languages you speak</Text>
+      <Text style={styles.subtitle}>
+        Students love knowing which languages you can teach in. Select all that apply.
+      </Text>
+      <View style={styles.chipWrap}>
+        {languageOptions.map((lang) => {
+          const selected = languages.includes(lang);
+          return (
+            <TouchableOpacity
+              key={lang}
+              style={[styles.chip, selected && styles.chipSelected]}
+              onPress={() => toggleLanguage(lang)}
+            >
+              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{lang}</Text>
+            </TouchableOpacity>
+          );
+        })}
+        {languages
+          .filter((l) => !languageOptions.includes(l))
+          .map((lang) => (
+            <TouchableOpacity
+              key={lang}
+              style={[styles.chip, styles.chipSelected]}
+              onPress={() => toggleLanguage(lang)}
+            >
+              <Text style={[styles.chipText, styles.chipTextSelected]}>{lang}</Text>
+              <X size={14} color="#fff" />
+            </TouchableOpacity>
+          ))}
+      </View>
+      <View style={styles.addRow}>
+        <TextInput
+          style={styles.addRowInput}
+          placeholder="Add another language"
+          placeholderTextColor="#999"
+          value={customLanguage}
+          onChangeText={setCustomLanguage}
+          onSubmitEditing={addCustomLanguage}
+        />
+        <TouchableOpacity style={styles.addRowButton} onPress={addCustomLanguage}>
+          <Plus size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderCredentialsStep = () => (
+    <View style={styles.stepContainer}>
+      <View style={styles.iconContainer}>
+        <Award size={48} color="#10B981" strokeWidth={1.5} />
+      </View>
+      <Text style={styles.title}>Qualifications & certifications</Text>
+      <Text style={styles.subtitle}>
+        Your formal background builds trust with students and helps your profile rank higher.
+      </Text>
+      <Text style={styles.sectionLabel}>Qualifications</Text>
+      <View style={styles.chipWrap}>
+        {qualificationOptions.map((q) => {
+          const selected = qualifications.includes(q);
+          return (
+            <TouchableOpacity
+              key={q}
+              style={[styles.chip, selected && styles.chipSelected]}
+              onPress={() => toggleQualification(q)}
+            >
+              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{q}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <TouchableOpacity
+        style={[styles.certifiedToggle, isCertified && styles.certifiedToggleActive]}
+        onPress={() => setIsCertified(!isCertified)}
+        activeOpacity={0.75}
+      >
+        <View style={[styles.certifiedToggleIcon, isCertified && styles.certifiedToggleIconActive]}>
+          <BadgeCheck size={22} color={isCertified ? '#fff' : '#10B981'} />
+        </View>
+        <View style={styles.certifiedToggleContent}>
+          <Text style={[styles.certifiedToggleTitle, isCertified && styles.certifiedToggleTitleActive]}>
+            I am certified or professionally qualified
+          </Text>
+          <Text style={styles.certifiedToggleSubtitle}>
+            Add your certificates and upload the documents below
+          </Text>
+        </View>
+      </TouchableOpacity>
+
+      {isCertified && (
+        <View style={styles.certSection}>
+          {certifications.map((cert) => (
+            <View key={cert.id} style={styles.certCard}>
+              <View style={styles.certCardHeader}>
+                <View style={styles.certCardTitleWrap}>
+                  <Award size={16} color="#10B981" />
+                  <Text style={styles.certCardTitle} numberOfLines={1}>{cert.title}</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => removeCertification(cert.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <X size={16} color="#999" />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={[styles.uploadButton, cert.documentUri && styles.uploadButtonDone]}
+                onPress={() => pickCertificate(cert.id)}
+              >
+                {cert.documentUri
+                  ? <FileCheck2 size={16} color="#065F46" />
+                  : <Upload size={16} color="#059669" />}
+                <Text style={[styles.uploadButtonText, cert.documentUri && styles.uploadButtonTextDone]}>
+                  {cert.documentUri ? 'Document uploaded ✓' : 'Upload certificate document'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          <View style={styles.addRow}>
+            <TextInput
+              style={styles.addRowInput}
+              placeholder="e.g. CTET, AWS Certified, Grade 8 Piano"
+              placeholderTextColor="#999"
+              value={certTitle}
+              onChangeText={setCertTitle}
+              onSubmitEditing={addCertification}
+            />
+            <TouchableOpacity style={styles.addRowButton} onPress={addCertification}>
+              <Plus size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderCareerStep = () => (
+    <View style={styles.stepContainer}>
+      <View style={styles.iconContainer}>
+        <Briefcase size={48} color="#10B981" strokeWidth={1.5} />
+      </View>
+      <Text style={styles.title}>Your teaching experience</Text>
+      <Text style={styles.subtitle}>
+        Past jobs, tuitions, and professional roles that make you a great teacher.
+      </Text>
+
+      <Text style={styles.sectionLabel}>Years of teaching experience</Text>
+      <View style={styles.chipWrap}>
+        {experienceOptions.map((opt) => {
+          const selected = yearsTeaching === opt;
+          return (
+            <TouchableOpacity
+              key={opt}
+              style={[styles.chip, selected && styles.chipSelected]}
+              onPress={() => setYearsTeaching(opt)}
+            >
+              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{opt}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <TouchableOpacity
+        style={[styles.certifiedToggle, privateTuition && styles.certifiedToggleActive]}
+        onPress={() => setPrivateTuition(!privateTuition)}
+        activeOpacity={0.75}
+      >
+        <View style={[styles.certifiedToggleIcon, privateTuition && styles.certifiedToggleIconActive]}>
+          <GraduationCap size={22} color={privateTuition ? '#fff' : '#10B981'} />
+        </View>
+        <View style={styles.certifiedToggleContent}>
+          <Text style={[styles.certifiedToggleTitle, privateTuition && styles.certifiedToggleTitleActive]}>
+            I have given private tuitions or coaching
+          </Text>
+          <Text style={styles.certifiedToggleSubtitle}>
+            Home tuitions, coaching centres, or online 1-on-1 teaching
+          </Text>
+        </View>
+      </TouchableOpacity>
+
+      <Text style={styles.sectionLabel}>Past career & jobs</Text>
+      {careerHistory.map((entry) => (
+        <View key={entry.id} style={styles.careerCard}>
+          <View style={styles.careerIconWrap}>
+            <Briefcase size={16} color="#10B981" />
+          </View>
+          <View style={styles.careerContent}>
+            <Text style={styles.careerRole}>{entry.role}</Text>
+            <Text style={styles.careerMeta}>
+              {[entry.organization, entry.years].filter(Boolean).join(' · ') || '—'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => removeCareerEntry(entry.id)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <X size={16} color="#999" />
+          </TouchableOpacity>
+        </View>
+      ))}
+      <View style={styles.careerForm}>
+        <TextInput
+          style={styles.careerInput}
+          placeholder="Role (e.g. Software Engineer, School Teacher)"
+          placeholderTextColor="#999"
+          value={careerRole}
+          onChangeText={setCareerRole}
+        />
+        <TextInput
+          style={styles.careerInput}
+          placeholder="Organization (e.g. TCS, Kendriya Vidyalaya)"
+          placeholderTextColor="#999"
+          value={careerOrg}
+          onChangeText={setCareerOrg}
+        />
+        <TextInput
+          style={styles.careerInput}
+          placeholder="Years (e.g. 2018–2022 or 3 years)"
+          placeholderTextColor="#999"
+          value={careerYears}
+          onChangeText={setCareerYears}
+        />
+        <TouchableOpacity style={styles.addCareerButton} onPress={addCareerEntry}>
+          <Plus size={18} color="#fff" />
+          <Text style={styles.addCareerButtonText}>Add experience</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   const renderFinalStep = () => {
     const roleLabel = role ? ROLE_OPTIONS.find(r => r.key === role)?.label : '';
     return (
@@ -856,6 +1269,41 @@ export default function OnboardingScreen() {
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Teaching:</Text>
               <Text style={styles.summaryValue}>{getFinalTeachSkills().join(', ')}</Text>
+            </View>
+          )}
+          {role === 'teacher' && languages.length > 0 && (
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Languages:</Text>
+              <Text style={styles.summaryValue}>{languages.join(', ')}</Text>
+            </View>
+          )}
+          {role === 'teacher' && qualifications.length > 0 && (
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Qualifications:</Text>
+              <Text style={styles.summaryValue}>{qualifications.join(', ')}</Text>
+            </View>
+          )}
+          {role === 'teacher' && certifications.length > 0 && (
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Certifications:</Text>
+              <Text style={styles.summaryValue}>
+                {certifications.length} certificate{certifications.length === 1 ? '' : 's'}
+                {certifications.some((c) => c.documentUri)
+                  ? ` (${certifications.filter((c) => c.documentUri).length} document${certifications.filter((c) => c.documentUri).length === 1 ? '' : 's'} uploaded)`
+                  : ''}
+              </Text>
+            </View>
+          )}
+          {role === 'teacher' && (careerHistory.length > 0 || yearsTeaching) && (
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Experience:</Text>
+              <Text style={styles.summaryValue}>
+                {yearsTeaching || '—'}
+                {careerHistory.length > 0
+                  ? ` · ${careerHistory.length} past role${careerHistory.length === 1 ? '' : 's'}`
+                  : ''}
+                {privateTuition ? ' · Private tuition experience' : ''}
+              </Text>
             </View>
           )}
           {(role === 'learner' || role === 'swap') && selectedLearnSkills.length > 0 && (
@@ -879,6 +1327,9 @@ export default function OnboardingScreen() {
       case 'role': return renderRoleStep();
       case 'teach': return renderTeachSkillsStep();
       case 'experience': return renderExperienceLevelStep();
+      case 'languages': return renderLanguagesStep();
+      case 'credentials': return renderCredentialsStep();
+      case 'career': return renderCareerStep();
       case 'learn': return renderLearnSkillsStep();
       case 'availability': return renderAvailabilityStep();
       case 'summary': return renderFinalStep();
@@ -1265,4 +1716,47 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700' as const,
   },
+
+  // Teacher onboarding — chips & inputs
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap' as const, gap: 8, marginBottom: 16 },
+  chip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, backgroundColor: '#F5F5F5', borderWidth: 1, borderColor: '#E0E0E0' },
+  chipSelected: { backgroundColor: '#10B981', borderColor: '#10B981' },
+  chipText: { fontSize: 14, color: '#666', fontWeight: '500' as const },
+  chipTextSelected: { color: '#fff', fontWeight: '600' as const },
+  sectionLabel: { fontSize: 15, fontWeight: '600' as const, color: '#333', marginBottom: 10, marginTop: 8 },
+  addRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  addRowInput: { flex: 1, backgroundColor: '#F5F5F5', borderRadius: 12, padding: 14, fontSize: 15, color: '#333', borderWidth: 1, borderColor: '#E0E0E0' },
+  addRowButton: { width: 50, borderRadius: 12, backgroundColor: '#10B981', alignItems: 'center', justifyContent: 'center' },
+
+  // Certified toggle
+  certifiedToggle: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#fff', borderWidth: 2, borderColor: '#E0E0E0', borderRadius: 16, padding: 16, marginTop: 8, marginBottom: 16 },
+  certifiedToggleActive: { borderColor: '#10B981', backgroundColor: '#F0FDF4' },
+  certifiedToggleIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#ECFDF5', alignItems: 'center', justifyContent: 'center' },
+  certifiedToggleIconActive: { backgroundColor: '#10B981' },
+  certifiedToggleContent: { flex: 1 },
+  certifiedToggleTitle: { fontSize: 15, fontWeight: '600' as const, color: '#333', marginBottom: 2 },
+  certifiedToggleTitleActive: { color: '#065F46' },
+  certifiedToggleSubtitle: { fontSize: 12, color: '#888', lineHeight: 16 },
+
+  // Certifications
+  certSection: { gap: 10 },
+  certCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14, padding: 14 },
+  certCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  certCardTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 },
+  certCardTitle: { fontSize: 15, fontWeight: '600' as const, color: '#1A1A1A', flexShrink: 1 },
+  uploadButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: '#ECFDF5', borderWidth: 1.5, borderColor: '#10B981', borderStyle: 'dashed' as const },
+  uploadButtonDone: { backgroundColor: '#D1FAE5', borderColor: '#34D399', borderStyle: 'solid' as const },
+  uploadButtonText: { fontSize: 13, fontWeight: '600' as const, color: '#059669' },
+  uploadButtonTextDone: { color: '#065F46' },
+
+  // Career history
+  careerCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14, padding: 14, marginBottom: 10 },
+  careerIconWrap: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#ECFDF5', alignItems: 'center', justifyContent: 'center' },
+  careerContent: { flex: 1 },
+  careerRole: { fontSize: 15, fontWeight: '600' as const, color: '#1A1A1A' },
+  careerMeta: { fontSize: 12, color: '#888', marginTop: 2 },
+  careerForm: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 14, padding: 14, gap: 10, marginTop: 4 },
+  careerInput: { backgroundColor: '#fff', borderRadius: 10, padding: 12, fontSize: 14, color: '#333', borderWidth: 1, borderColor: '#E5E7EB' },
+  addCareerButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 10, backgroundColor: '#10B981' },
+  addCareerButtonText: { fontSize: 14, color: '#fff', fontWeight: '600' as const },
 });
