@@ -81,12 +81,6 @@ export function usePushNotifications() {
         if (Notification.permission === 'granted') {
           const n = new Notification(title, { body, data: data as any });
           n.onclick = handleNotificationClick;
-        } else if (Notification.permission !== 'denied') {
-          const permission = await Notification.requestPermission();
-          if (permission === 'granted') {
-            const n = new Notification(title, { body, data: data as any });
-            n.onclick = handleNotificationClick;
-          }
         }
       }
       return;

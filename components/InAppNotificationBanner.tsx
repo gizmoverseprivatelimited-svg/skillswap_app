@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { StyleSheet, Text, View, Animated, TouchableOpacity, Platform } from 'react-native';
 import { useNotifications } from '../providers/notifications';
+import { useAuth } from '../providers/auth';
 import { Bell, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +29,8 @@ const saveStoredAlertedId = (id: string) => {
 };
 
 export function InAppNotificationBanner() {
+  const auth = useAuth();
+  const isLoggedIn = Boolean(auth?.isAuthenticated && auth?.user && !auth?.user?.isDemo);
   const { notifications, markAsRead } = useNotifications();
   const [activeNotification, setActiveNotification] = useState<any>(null);
   const alertedIdsRef = useRef<Set<string>>(getStoredAlertedIds());
@@ -51,7 +54,7 @@ export function InAppNotificationBanner() {
   useEffect(() => {
     const timer = setTimeout(() => {
       isStartupRef.current = false;
-    }, 2000);
+    }, 3500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -65,6 +68,10 @@ export function InAppNotificationBanner() {
   }, [notifications, activeNotification, dismissBanner]);
 
   useEffect(() => {
+    if (!isLoggedIn) {
+      return;
+    }
+
     // If still in startup phase, index all existing notifications without popping up
     if (isStartupRef.current) {
       notifications.forEach((n) => {
@@ -109,7 +116,7 @@ export function InAppNotificationBanner() {
         return () => clearTimeout(timer);
       }
     }
-  }, [notifications, dismissBanner, slideAnim, insets.top]);
+  }, [notifications, dismissBanner, slideAnim, insets.top, isLoggedIn]);
 
   const handlePress = () => {
     if (!activeNotification) return;
@@ -134,7 +141,7 @@ export function InAppNotificationBanner() {
     }
   };
 
-  if (!activeNotification) return null;
+  if (!isLoggedIn || !activeNotification) return null;
 
   const isVideoCall = activeNotification.metadata?.type === 'video-call';
 

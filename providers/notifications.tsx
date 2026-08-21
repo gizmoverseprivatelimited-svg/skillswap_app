@@ -8,6 +8,7 @@ import { useSkillSwaps } from './skill-swaps';
 import { usePushNotifications } from '../lib/push-notifications';
 import { useOnboarding } from './onboarding';
 import { useAlert } from './alert';
+import { useAuth } from './auth';
 import url from '@/constants/backurl';
 import { useSocket } from '@/providers/socket';
 
@@ -88,12 +89,15 @@ const getEventKey = (input: { category?: string; title?: string; body?: string; 
 };
 
 export const [NotificationsProvider, useNotifications] = createContextHook<NotificationsContextValue>(() => {
+  const auth = useAuth();
+  const isAuthUser = Boolean(auth?.isAuthenticated && auth?.user && !auth?.user?.isDemo);
   const { currentUser, topRecommendations, allUsers } = useCurrentUser();
   const { swaps, scheduledSwaps } = useSkillSwaps();
   const { hasCompletedOnboarding } = useOnboarding();
   const { socket } = useSocket();
   const { showAlert } = useAlert();
   const router = useRouter();
+  const mountTimestampRef = useRef<number>(Date.now());
 
   // Handle both string and numeric IDs safely
   const currentUserId = currentUser?.id ? String(currentUser.id) : undefined;
@@ -246,7 +250,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   }, [expoPushToken, currentUserId, hasCompletedOnboarding]);
 
   const addNotification = useCallback((input: AddNotificationInput) => {
-    if (!currentUserId) return;
+    if (!currentUserId || !isAuthUser) return;
 
     const eventKey = getEventKey(input);
 
@@ -258,6 +262,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       return;
     }
 
+    const isStartup = Date.now() - mountTimestampRef.current < 4000;
+    const shouldSkip = Boolean(input.skipPopup || isStartup || !isAuthUser);
+
     const payload: NotificationItem = {
       id: generateNotificationId(),
       title: input.title,
@@ -266,10 +273,10 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       metadata: {
         ...input.metadata,
         eventKey,
-        skipPopup: input.skipPopup,
+        skipPopup: shouldSkip,
       },
       read: false,
-      createdAt: input.skipPopup
+      createdAt: shouldSkip
         ? new Date(Date.now() - 60 * 1000).toISOString()
         : new Date().toISOString(),
     };
@@ -295,10 +302,10 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
     console.log('[Notifications] Added notification', payload);
 
-    if (!input.skipPopup) {
+    if (!shouldSkip) {
       schedulePushNotification(input.title, input.body, input.metadata ?? {});
     }
-  }, [currentUserId, schedulePushNotification, persistNotifications, persistSeenKeys]);
+  }, [currentUserId, isAuthUser, schedulePushNotification, persistNotifications, persistSeenKeys]);
 
   const markAsRead = useCallback((id: string) => {
     setNotifications((prev) => {
@@ -363,7 +370,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
   // Handle Swaps Status Changes
   useEffect(() => {
-    if (!hasCompletedOnboarding || !isStorageLoaded || !currentUserId) return;
+    if (!isAuthUser || !hasCompletedOnboarding || !isStorageLoaded || !currentUserId) return;
 
     const isFirstRun = isInitialSwapsLoadRef.current;
 
@@ -396,6 +403,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
+          skipPopup: true,
           eventKey,
         });
         return;
@@ -410,6 +418,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
+          skipPopup: true,
           eventKey,
         });
         return;
@@ -424,6 +433,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
+          skipPopup: true,
           eventKey,
         });
         return;
@@ -438,6 +448,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
+          skipPopup: true,
           eventKey,
         });
       }
@@ -447,11 +458,11 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       isInitialSwapsLoadRef.current = false;
       persistSeenKeys();
     }
-  }, [addNotification, allUsers, currentUserId, swaps, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys]);
+  }, [addNotification, allUsers, currentUserId, isAuthUser, swaps, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys]);
 
   // Handle Swap Reminders
   useEffect(() => {
-    if (!hasCompletedOnboarding || !isStorageLoaded || !currentUserId) return;
+    if (!isAuthUser || !hasCompletedOnboarding || !isStorageLoaded || !currentUserId) return;
 
     const isFirstRun = isInitialRemindersLoadRef.current;
 
@@ -498,6 +509,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
                 swapId: swap.id,
                 startsAt: acceptedSlot.startISO,
               },
+              skipPopup: true,
               eventKey,
             });
           }
@@ -511,14 +523,14 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     };
 
     createReminderNotifications();
-  }, [addNotification, allUsers, currentUserId, scheduledSwaps, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys]);
+  }, [addNotification, allUsers, currentUserId, isAuthUser, scheduledSwaps, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys]);
 
   const isInitialChatLoadRef = useRef<boolean>(true);
   const isInitialReviewsLoadRef = useRef<boolean>(true);
 
   // Monitor incoming chat messages and alert the user
   useEffect(() => {
-    if (!hasCompletedOnboarding || !isStorageLoaded || !currentUserId || swaps.length === 0) {
+    if (!isAuthUser || !hasCompletedOnboarding || !isStorageLoaded || !currentUserId || swaps.length === 0) {
       return;
     }
 
@@ -561,6 +573,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
                 swapId: swap.id,
                 type: isVideoCallAlert ? 'video-call' : undefined,
               },
+              skipPopup: !isVideoCallAlert,
               eventKey,
             });
           } else {
@@ -574,11 +587,11 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       isInitialChatLoadRef.current = false;
       persistSeenKeys();
     }
-  }, [swaps, currentUserId, allUsers, addNotification, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys]);
+  }, [swaps, currentUserId, isAuthUser, allUsers, addNotification, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys]);
 
   // Monitor incoming reviews and alert the user
   useEffect(() => {
-    if (!hasCompletedOnboarding || !isStorageLoaded || !currentUserId || currentUserId === '1') {
+    if (!isAuthUser || !hasCompletedOnboarding || !isStorageLoaded || !currentUserId || currentUserId === '1') {
       return;
     }
 
@@ -613,6 +626,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
                 metadata: {
                   rating: rev.rating,
                 },
+                skipPopup: true,
                 eventKey,
               });
             } else {
@@ -642,11 +656,11 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         socket.off('review_created', handleNewReview);
       };
     }
-  }, [currentUserId, addNotification, hasCompletedOnboarding, isStorageLoaded, socket, persistSeenKeys]);
+  }, [currentUserId, isAuthUser, addNotification, hasCompletedOnboarding, isStorageLoaded, socket, persistSeenKeys]);
 
   // Real-time socket notification for class enrollment alerts to class teacher
   useEffect(() => {
-    if (!hasCompletedOnboarding || !isStorageLoaded || !currentUserId || !socket) return;
+    if (!isAuthUser || !hasCompletedOnboarding || !isStorageLoaded || !currentUserId || !socket) return;
 
     const handleClassUpdated = (data: { classId: string; action: string; studentId: string; teacherId?: string; classTitle?: string }) => {
       if (data && data.action === 'enrolled') {
@@ -676,11 +690,11 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     return () => {
       socket.off('class_updated', handleClassUpdated);
     };
-  }, [hasCompletedOnboarding, currentUserId, socket, allUsers, addNotification, isStorageLoaded]);
+  }, [hasCompletedOnboarding, isAuthUser, currentUserId, socket, allUsers, addNotification, isStorageLoaded]);
 
   // Real-time socket notification for when teacher starts a live class
   useEffect(() => {
-    if (!hasCompletedOnboarding || !isStorageLoaded || !currentUserId || !socket) return;
+    if (!isAuthUser || !hasCompletedOnboarding || !isStorageLoaded || !currentUserId || !socket) return;
 
     const handleClassStarted = (data: {
       classId: string;
@@ -711,20 +725,6 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             metadata: { classId: data.classId, action: 'join_class' },
             eventKey,
           });
-
-          if (showAlert) {
-            showAlert(
-              '🎥 Live Class Started!',
-              `${teacher} has started "${title}". Join the live session now!`,
-              [
-                { text: 'Later', style: 'cancel' },
-                {
-                  text: 'Join Class Now',
-                  onPress: () => router.push(`/class/call/${data.classId}` as any),
-                },
-              ]
-            );
-          }
         }
       }
     };
@@ -733,7 +733,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     return () => {
       socket.off('class_started', handleClassStarted);
     };
-  }, [hasCompletedOnboarding, currentUserId, socket, addNotification, showAlert, router, isStorageLoaded]);
+  }, [hasCompletedOnboarding, isAuthUser, currentUserId, socket, addNotification, router, isStorageLoaded]);
 
   const unreadCount = useMemo(() => {
     return notifications.filter((notification) => !notification.read).length;
