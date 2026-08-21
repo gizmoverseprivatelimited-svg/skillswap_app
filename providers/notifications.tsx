@@ -554,10 +554,14 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             return;
           }
 
-          // On first run / startup, index all existing historical messages as seen so they don't alert
-          if (isFirstRun) {
-            seenKeysRef.current.add(eventKey);
-            return;
+          // Check if message was sent before app mount / startup
+          const msgTime = msg.createdAt ? new Date(msg.createdAt).getTime() : 0;
+          const isOldMessage = isFirstRun || Number.isNaN(msgTime) || msgTime <= mountTimestampRef.current;
+
+          seenKeysRef.current.add(eventKey);
+
+          if (isOldMessage) {
+            return; // NEVER alert or popup for old messages
           }
 
           const isVideoCallAlert = msg.body.includes("started the video call");
@@ -573,11 +577,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
                 swapId: swap.id,
                 type: isVideoCallAlert ? 'video-call' : undefined,
               },
-              skipPopup: !isVideoCallAlert,
+              skipPopup: false,
               eventKey,
             });
-          } else {
-            seenKeysRef.current.add(eventKey);
           }
         });
       }
