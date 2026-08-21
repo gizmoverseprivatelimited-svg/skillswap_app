@@ -64,7 +64,13 @@ export function usePushNotifications() {
     };
   }, []);
 
+  const appMountTimeRef = useRef<number>(Date.now());
+
   const schedulePushNotification = async (title: string, body: string, data?: Record<string, unknown>, trigger?: any) => {
+    // Ignore any notification schedule calls during initial startup/mount
+    if (Date.now() - appMountTimeRef.current < 5000) {
+      return;
+    }
 
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined' && 'Notification' in window) {
