@@ -34,6 +34,7 @@ export function InAppNotificationBanner() {
   const { notifications, markAsRead } = useNotifications();
   const [activeNotification, setActiveNotification] = useState<any>(null);
   const alertedIdsRef = useRef<Set<string>>(getStoredAlertedIds());
+  const mountTimeRef = useRef<number>(Date.now());
   const isStartupRef = useRef<boolean>(true);
   const slideAnim = useRef(new Animated.Value(-150)).current;
   const router = useRouter();
@@ -53,7 +54,7 @@ export function InAppNotificationBanner() {
   useEffect(() => {
     const timer = setTimeout(() => {
       isStartupRef.current = false;
-    }, 2500);
+    }, 4000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -83,7 +84,15 @@ export function InAppNotificationBanner() {
     const latest = notifications[0];
     if (!latest || latest.read) return;
 
-    // Show popup banner for new notifications received at RUNTIME
+    // Check if notification was created before or at app mount (historical notification)
+    const notifTime = new Date(latest.createdAt).getTime();
+    if (!Number.isNaN(notifTime) && notifTime <= mountTimeRef.current) {
+      alertedIdsRef.current.add(latest.id);
+      saveStoredAlertedId(latest.id);
+      return;
+    }
+
+    // Only show popup for genuinely new notifications received at RUNTIME after project load
     if (!alertedIdsRef.current.has(latest.id)) {
       alertedIdsRef.current.add(latest.id);
       saveStoredAlertedId(latest.id);
