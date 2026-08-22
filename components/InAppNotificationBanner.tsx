@@ -1,41 +1,15 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { StyleSheet, Text, View, Animated, TouchableOpacity, Platform } from 'react-native';
+import React, { useEffect, useRef, useCallback } from 'react';
+import { StyleSheet, Text, View, Animated, TouchableOpacity } from 'react-native';
 import { useNotifications } from '../providers/notifications';
 import { useAuth } from '../providers/auth';
-import { Bell, X, MessageSquare, Video, Sparkles } from 'lucide-react-native';
+import { Bell, X, MessageSquare, Video } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const getStoredAlertedIds = (): Set<string> => {
-  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.sessionStorage) {
-    try {
-      const stored = window.sessionStorage.getItem('@skillswap/alerted_notification_ids');
-      if (stored) {
-        return new Set(JSON.parse(stored));
-      }
-    } catch {}
-  }
-  return new Set();
-};
-
-const saveStoredAlertedId = (id: string) => {
-  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.sessionStorage) {
-    try {
-      const current = getStoredAlertedIds();
-      current.add(id);
-      window.sessionStorage.setItem('@skillswap/alerted_notification_ids', JSON.stringify(Array.from(current)));
-    } catch {}
-  }
-};
 
 export function InAppNotificationBanner() {
   const auth = useAuth();
   const isLoggedIn = Boolean(auth?.isAuthenticated && auth?.user && !auth?.user?.isDemo);
-  const { notifications, markAsRead } = useNotifications();
-  const [activeNotification, setActiveNotification] = useState<any>(null);
-  const alertedIdsRef = useRef<Set<string>>(getStoredAlertedIds());
-  const isInitialMountRef = useRef<boolean>(true);
-  const mountTimeRef = useRef<number>(Date.now());
+  const { bannerNotification, clearBannerNotification, markAsRead } = useNotifications();
   const slideAnim = useRef(new Animated.Value(-150)).current;
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -46,80 +20,41 @@ export function InAppNotificationBanner() {
       duration: 250,
       useNativeDriver: true,
     }).start(() => {
-      setActiveNotification(null);
+      clearBannerNotification();
     });
-  }, [slideAnim]);
+  }, [slideAnim, clearBannerNotification]);
 
-  // If notifications list is cleared or current active notification is read/removed, dismiss banner
+  // When a new bannerNotification arrives from the provider, slide it in
   useEffect(() => {
-    if (!activeNotification) return;
-    const currentInList = notifications.find((n) => n.id === activeNotification.id);
-    if (!currentInList || currentInList.read) {
+    if (!isLoggedIn || !bannerNotification) {
+      return;
+    }
+
+    // Slide down
+    Animated.spring(slideAnim, {
+      toValue: insets.top + 24,
+      useNativeDriver: true,
+      tension: 45,
+      friction: 8,
+    }).start();
+
+    // Auto dismiss after 5 seconds
+    const timer = setTimeout(() => {
       dismissBanner();
-    }
-  }, [notifications, activeNotification, dismissBanner]);
+    }, 5000);
 
-  useEffect(() => {
-    if (!isLoggedIn) {
-      return;
-    }
-
-    // On initial mount / first render, index all existing notifications as already seen so they never popup
-    if (isInitialMountRef.current) {
-      isInitialMountRef.current = false;
-      notifications.forEach((n) => {
-        alertedIdsRef.current.add(n.id);
-        saveStoredAlertedId(n.id);
-      });
-      return;
-    }
-
-    const latest = notifications[0];
-    if (!latest || latest.read) return;
-
-    // Check if notification was created before or at app mount (historical notification)
-    const notifTime = new Date(latest.createdAt).getTime();
-    if (!Number.isNaN(notifTime) && notifTime <= mountTimeRef.current) {
-      alertedIdsRef.current.add(latest.id);
-      saveStoredAlertedId(latest.id);
-      return;
-    }
-
-    // Only show popup for genuinely new notifications received at RUNTIME after project load
-    if (!alertedIdsRef.current.has(latest.id)) {
-      alertedIdsRef.current.add(latest.id);
-      saveStoredAlertedId(latest.id);
-
-      if (!latest.metadata?.skipPopup) {
-        setActiveNotification(latest);
-
-        // Slide down
-        Animated.spring(slideAnim, {
-          toValue: insets.top + 24,
-          useNativeDriver: true,
-          tension: 45,
-          friction: 8,
-        }).start();
-
-        // Auto dismiss after 5 seconds
-        const timer = setTimeout(() => {
-          dismissBanner();
-        }, 5000);
-
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [notifications, dismissBanner, slideAnim, insets.top, isLoggedIn]);
+    return () => clearTimeout(timer);
+  }, [bannerNotification, isLoggedIn, dismissBanner, slideAnim, insets.top]);
 
   const handlePress = () => {
-    if (!activeNotification) return;
-    markAsRead(activeNotification.id);
+    if (!bannerNotification) return;
+    markAsRead(bannerNotification.id);
     dismissBanner();
 
-    const swapId = activeNotification.metadata?.swapId;
-    const classId = activeNotification.metadata?.classId;
-    const userId = activeNotification.metadata?.userId;
-    const type = activeNotification.metadata?.type;
+    const swapId = bannerNotification.metadata?.swapId;
+    const classId = bannerNotification.metadata?.classId;
+    const userId = bannerNotification.metadata?.userId;
+    const type = bannerNotification.metadata?.type;
     
     if (type === 'video-call' && swapId) {
       router.push(`/call/${swapId}?isJoining=true` as never);
@@ -134,10 +69,10 @@ export function InAppNotificationBanner() {
     }
   };
 
-  if (!isLoggedIn || !activeNotification) return null;
+  if (!isLoggedIn || !bannerNotification) return null;
 
-  const isVideoCall = activeNotification.metadata?.type === 'video-call';
-  const isMessage = activeNotification.metadata?.type === 'chat-message' || activeNotification.title?.toLowerCase().includes('message');
+  const isVideoCall = bannerNotification.metadata?.type === 'video-call';
+  const isMessage = bannerNotification.metadata?.type === 'chat-message' || bannerNotification.title?.toLowerCase().includes('message');
 
   return (
     <Animated.View style={[styles.bannerContainer, { transform: [{ translateY: slideAnim }] }]}>
@@ -152,9 +87,9 @@ export function InAppNotificationBanner() {
           )}
         </View>
         <View style={styles.textContainer}>
-          <Text style={styles.title} numberOfLines={1}>{activeNotification.title}</Text>
+          <Text style={styles.title} numberOfLines={1}>{bannerNotification.title}</Text>
           <Text style={[styles.body, isVideoCall && { color: '#FFFFFF', fontWeight: '600' }]} numberOfLines={2}>
-            {activeNotification.body} {isVideoCall ? '— Tap to join!' : ''}
+            {bannerNotification.body} {isVideoCall ? '— Tap to join!' : ''}
           </Text>
         </View>
         <TouchableOpacity onPress={dismissBanner} style={styles.closeButton}>

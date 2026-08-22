@@ -24,6 +24,8 @@ export interface NotificationItem {
   category: NotificationCategory;
   read: boolean;
   metadata?: NotificationMetadata;
+  /** Only true for notifications genuinely received at runtime (not loaded from storage or generated during startup). Used by InAppNotificationBanner. */
+  _receivedAtRuntime?: boolean;
 }
 
 interface AddNotificationInput {
@@ -43,6 +45,10 @@ interface NotificationsContextValue {
   markAllAsRead: () => void;
   removeNotification: (id: string) => void;
   clearAll: () => void;
+  /** The latest notification that should be shown as an in-app banner popup. Only set for genuinely runtime notifications. */
+  bannerNotification: NotificationItem | null;
+  /** Clear the current banner notification (after displaying or dismissing it). */
+  clearBannerNotification: () => void;
 }
 
 const REMINDER_THRESHOLDS_HOURS: number[] = [24, 1];
@@ -117,10 +123,13 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           const dismissed: string[] = dismissedJson ? JSON.parse(dismissedJson) : [];
           const dismissedSet = new Set(dismissed);
           return sortNotifications(
-            items.filter((i) => {
-              const eventKey = getEventKey(i);
-              return !dismissedSet.has(i.id) && !dismissedSet.has(eventKey) && !dismissedSet.has(i.title);
-            })
+            items
+              .filter((i) => {
+                const eventKey = getEventKey(i);
+                return !dismissedSet.has(i.id) && !dismissedSet.has(eventKey) && !dismissedSet.has(i.title);
+              })
+              // Strip runtime flag — loaded-from-storage notifications must never trigger the banner
+              .map((i) => ({ ...i, _receivedAtRuntime: false }))
           );
         } catch { }
       }
@@ -130,6 +139,12 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
   const [isStorageLoaded, setIsStorageLoaded] = useState<boolean>(false);
   const { expoPushToken, schedulePushNotification } = usePushNotifications();
+
+  // Dedicated banner notification state — ONLY set when addNotification creates
+  // a genuinely runtime notification. Never set from storage or initial data loading.
+  // This is the single source of truth for InAppNotificationBanner.
+  const [bannerNotification, setBannerNotification] = useState<NotificationItem | null>(null);
+  const clearBannerNotification = useCallback(() => setBannerNotification(null), []);
 
   const seenKeysRef = useRef<Set<string>>(new Set<string>());
   const dismissedKeysRef = useRef<Set<string>>(new Set<string>());
@@ -181,10 +196,13 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         seenKeysRef.current = seenSet;
 
         // Filter out any dismissed notifications from the active list
-        const activeItems = storedItems.filter((item) => {
-          const eKey = getEventKey(item);
-          return !dismissedSet.has(item.id) && !dismissedSet.has(eKey) && !dismissedSet.has(item.title);
-        });
+        // Also strip _receivedAtRuntime — loaded-from-storage notifications must never trigger the banner
+        const activeItems = storedItems
+          .filter((item) => {
+            const eKey = getEventKey(item);
+            return !dismissedSet.has(item.id) && !dismissedSet.has(eKey) && !dismissedSet.has(item.title);
+          })
+          .map((item) => ({ ...item, _receivedAtRuntime: false }));
 
         const sorted = sortNotifications(activeItems);
         setNotifications(sorted);
@@ -297,6 +315,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       createdAt: shouldSkip
         ? new Date(Date.now() - 60 * 1000).toISOString()
         : new Date().toISOString(),
+      // Mark as runtime notification only if it's not a startup/skip notification
+      // This flag is the single source of truth for InAppNotificationBanner
+      _receivedAtRuntime: !shouldSkip,
     };
 
     if (!isLiveCall) {
@@ -329,7 +350,12 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
     console.log('[Notifications] Added notification', payload);
 
-    if (!shouldSkip) {
+    if (!shouldSkip && bannerReadyRef.current) {
+      // Push to the dedicated banner queue — this is the ONLY path that shows the banner.
+      // Notifications loaded from storage, or generated during initial data processing, never reach here
+      // because bannerReadyRef is false until all initial effects have completed their first pass.
+      setBannerNotification(payload);
+
       schedulePushNotification(input.title, input.body, input.metadata ?? {});
 
       const isVideoCall = isLiveCall;
@@ -444,7 +470,26 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
   const isInitialSwapsLoadRef = useRef<boolean>(true);
   const isInitialRemindersLoadRef = useRef<boolean>(true);
+  const isInitialChatLoadRef = useRef<boolean>(true);
+  const isInitialReviewsLoadRef = useRef<boolean>(true);
   const swapSeenStateRef = useRef<Map<string, string>>(new Map());
+
+  // Banner readiness gate: only allow setBannerNotification after ALL initial
+  // data processing effects have completed their first pass. This prevents the
+  // banner from showing for any notification generated during the initial
+  // backend data load, no matter how long the API takes.
+  const bannerReadyRef = useRef<boolean>(false);
+
+  const checkAndSetBannerReady = useCallback(() => {
+    if (
+      !isInitialSwapsLoadRef.current &&
+      !isInitialRemindersLoadRef.current &&
+      !isInitialChatLoadRef.current &&
+      !isInitialReviewsLoadRef.current
+    ) {
+      bannerReadyRef.current = true;
+    }
+  }, []);
 
   // Handle Swaps Status Changes
   useEffect(() => {
@@ -534,6 +579,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
     if (isFirstRun && swaps.length > 0) {
       isInitialSwapsLoadRef.current = false;
+      checkAndSetBannerReady();
       persistSeenKeys();
     }
   }, [addNotification, allUsers, currentUserId, isAuthUser, swaps, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys]);
@@ -596,15 +642,13 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
       if (isFirstRun && scheduledSwaps.length > 0) {
         isInitialRemindersLoadRef.current = false;
+        checkAndSetBannerReady();
         persistSeenKeys();
       }
     };
 
     createReminderNotifications();
   }, [addNotification, allUsers, currentUserId, isAuthUser, scheduledSwaps, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys]);
-
-  const isInitialChatLoadRef = useRef<boolean>(true);
-  const isInitialReviewsLoadRef = useRef<boolean>(true);
 
   // Monitor incoming chat messages and alert the user
   useEffect(() => {
@@ -662,6 +706,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
     if (isFirstRun && swaps.length > 0) {
       isInitialChatLoadRef.current = false;
+      checkAndSetBannerReady();
       persistSeenKeys();
     }
   }, [swaps, currentUserId, isAuthUser, allUsers, addNotification, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys]);
@@ -713,6 +758,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
           if (isFirstRun) {
             isInitialReviewsLoadRef.current = false;
+            checkAndSetBannerReady();
             persistSeenKeys();
           }
         }
@@ -899,8 +945,10 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       markAllAsRead,
       removeNotification,
       clearAll,
+      bannerNotification,
+      clearBannerNotification,
     };
-  }, [notifications, unreadCount, addNotification, markAsRead, markAllAsRead, removeNotification, clearAll]);
+  }, [notifications, unreadCount, addNotification, markAsRead, markAllAsRead, removeNotification, clearAll, bannerNotification, clearBannerNotification]);
 
   return value;
 });
