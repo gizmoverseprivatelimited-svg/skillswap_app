@@ -3,30 +3,45 @@ import url from '@/constants/backurl';
 /**
  * Resolves an image URL to a fully-qualified URI.
  *
- * - If the path starts with `/uploads`, prepend the API base URL.
- * - If the path is already an absolute URL (`http://` or `https://`), return as-is.
- * - If the path is falsy, return the provided fallback (or undefined).
+ * - If the path starts with `http://`, `https://`, `data:`, `file://`, or `blob:`, return as-is.
+ * - If the path starts with `/uploads` or `uploads/` or relative path, prepends the API base URL.
+ * - Handles Windows backslashes and whitespace.
+ * - If the path is falsy, returns the provided fallback.
  */
 export function resolveImageUrl(
   path: string | null | undefined,
   fallback?: string,
 ): string | undefined {
-  if (!path) {
+  if (!path || typeof path !== 'string' || path.trim() === '') {
     return fallback || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
   }
 
-  // console.log(path);
+  const cleanPath = path.trim().replace(/\\/g, '/');
 
-
-  if (path.startsWith('/uploads')) {
-    return `${url}${path}`;
+  // Already a full URL, data URI, blob, or file URI
+  if (
+    cleanPath.startsWith('http://') ||
+    cleanPath.startsWith('https://') ||
+    cleanPath.startsWith('data:') ||
+    cleanPath.startsWith('file://') ||
+    cleanPath.startsWith('blob:')
+  ) {
+    return cleanPath;
   }
 
-  // Already a full URL
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return path;
+  // Prepend API base URL for server uploads or relative paths
+  if (cleanPath.startsWith('/uploads')) {
+    return `${url}${cleanPath}`;
   }
 
-  // Local file or other scheme (e.g. file://)
-  return path;
+  if (cleanPath.startsWith('uploads/')) {
+    return `${url}/${cleanPath}`;
+  }
+
+  if (cleanPath.startsWith('/')) {
+    return `${url}${cleanPath}`;
+  }
+
+  return `${url}/${cleanPath}`;
 }
+

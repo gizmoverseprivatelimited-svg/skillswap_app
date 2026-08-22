@@ -4,6 +4,7 @@ import { getUsers, mockUsers } from '../mocks/data';
 import type { User, Review, SkillSwapRequest, UserVerifications, VerificationStatus } from '../types';
 import url from '@/constants/backurl';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSocket } from '@/providers/socket';
 
 const ADMIN_SESSION_KEY = '@skillswap/admin_session';
 
@@ -87,6 +88,7 @@ interface AdminContextValue {
   approveCertification: (requestId: string) => void;
   rejectCertification: (requestId: string, reason: string) => void;
   getSkillCertificationStatus: (userId: string, skillId: string) => CertificationStatus | null;
+  refreshCertifications: () => Promise<void>;
   stats: {
     totalUsers: number;
     activeUsers: number;
@@ -288,6 +290,7 @@ const seedCertificationRequests = (): CertificationRequest[] => {
 };
 
 export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(() => {
+  const { socket } = useSocket();
   const [isLoading, setIsLoading] = useState(true);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
   const [users, setUsers] = useState<AdminUser[]>(seedAdminUsers);
@@ -424,6 +427,9 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
                 const userId = String(sk.userId?._id || sk.userId?.id || sk.userId || '');
                 const skillId = String(sk._id || sk.id || '');
                 const existingIdx = requests.findIndex(r => String(r.userId) === userId && String(r.skillId) === skillId);
+                const reviewNote = sk.certificateReviewNote || sk.reviewNote;
+                const reviewedAt = sk.certificateReviewedAt || sk.reviewedAt;
+
                 if (existingIdx === -1) {
                   requests.unshift({
                     id: `cr-db-${skillId}`,
@@ -435,11 +441,19 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
                     documentUri: sk.certificateUri,
                     status: (sk.certificateStatus as CertificationStatus) || 'pending',
                     submittedAt: sk.createdAt || new Date().toISOString(),
+                    reviewedAt,
+                    reviewNote,
                   });
                 } else {
                   requests[existingIdx].documentUri = sk.certificateUri;
                   if (sk.certificateStatus) {
                     requests[existingIdx].status = sk.certificateStatus;
+                  }
+                  if (reviewNote !== undefined) {
+                    requests[existingIdx].reviewNote = reviewNote;
+                  }
+                  if (reviewedAt !== undefined) {
+                    requests[existingIdx].reviewedAt = reviewedAt;
                   }
                 }
               }
@@ -475,6 +489,26 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
     }
     loadData();
   }, []);
+
+  // Real-time socket listener for certifications
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleCertificationEvent = (data: any) => {
+      console.log('[Socket.IO Admin] Certification real-time event received:', data);
+      fetchCertifications();
+    };
+
+    socket.on('certification_submitted', handleCertificationEvent);
+    socket.on('certification_updated', handleCertificationEvent);
+    socket.on('skill_updated', handleCertificationEvent);
+
+    return () => {
+      socket.off('certification_submitted', handleCertificationEvent);
+      socket.off('certification_updated', handleCertificationEvent);
+      socket.off('skill_updated', handleCertificationEvent);
+    };
+  }, [socket]);
 
   // const banUser = useCallback((userId: string, reason: string) => {
   //   console.log('[Admin] Banning user', { userId, reason });
@@ -878,46 +912,96 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
     }
   }, []);
 
-  const approveCertification = useCallback((requestId: string) => {
+  const approveCertification = useCallback(async (requestId: string) => {
     console.log('[Admin] Approving certification', { requestId });
+    let targetSkillId = '';
+
     setCertificationRequests(prev => {
-      const target = prev.find(c => c.id === requestId);
+      const target = prev.find(c => String(c.id) === String(requestId) || String(c.skillId) === String(requestId));
+      targetSkillId = target?.skillId || String(requestId).replace('cr-db-', '');
       const next = prev.map(c =>
-        c.id === requestId ? { ...c, status: 'approved' as CertificationStatus, reviewedAt: new Date().toISOString() } : c
+        (String(c.id) === String(requestId) || String(c.skillId) === String(requestId))
+          ? {
+              ...c,
+              status: 'approved' as CertificationStatus,
+              reviewedAt: new Date().toISOString(),
+              reviewNote: 'Certificate approved by Admin',
+            }
+          : c
       );
       AsyncStorage.setItem(CERTIFICATIONS_STORAGE_KEY, JSON.stringify(next)).catch(() => {});
-
-      if (target?.skillId && !target.skillId.startsWith('onboard-')) {
-        fetch(`${url}/skills/${target.skillId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ certificateStatus: 'approved' }),
-        }).catch(e => console.warn('[Admin] Sync approve error:', e));
-      }
-
       return next;
     });
+
+    if (targetSkillId && !targetSkillId.startsWith('onboard-')) {
+      const cleanSkillId = targetSkillId.replace('cr-db-', '');
+      try {
+        const res = await fetch(`${url}/skills/${cleanSkillId}/certificate/approve`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note: 'Certificate approved by Admin' }),
+        });
+        if (!res.ok) {
+          await fetch(`${url}/skills/${cleanSkillId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              certificateStatus: 'approved',
+              certificateReviewNote: 'Certificate approved by Admin',
+              certificateReviewedAt: new Date().toISOString(),
+            }),
+          });
+        }
+      } catch (e) {
+        console.warn('[Admin] Sync approve error:', e);
+      }
+    }
   }, []);
 
-  const rejectCertification = useCallback((requestId: string, reason: string) => {
+  const rejectCertification = useCallback(async (requestId: string, reason: string) => {
     console.log('[Admin] Rejecting certification', { requestId, reason });
+    let targetSkillId = '';
+
     setCertificationRequests(prev => {
-      const target = prev.find(c => c.id === requestId);
+      const target = prev.find(c => String(c.id) === String(requestId) || String(c.skillId) === String(requestId));
+      targetSkillId = target?.skillId || String(requestId).replace('cr-db-', '');
       const next = prev.map(c =>
-        c.id === requestId ? { ...c, status: 'rejected' as CertificationStatus, reviewedAt: new Date().toISOString(), reviewNote: reason } : c
+        (String(c.id) === String(requestId) || String(c.skillId) === String(requestId))
+          ? {
+              ...c,
+              status: 'rejected' as CertificationStatus,
+              reviewedAt: new Date().toISOString(),
+              reviewNote: reason,
+            }
+          : c
       );
       AsyncStorage.setItem(CERTIFICATIONS_STORAGE_KEY, JSON.stringify(next)).catch(() => {});
-
-      if (target?.skillId && !target.skillId.startsWith('onboard-')) {
-        fetch(`${url}/skills/${target.skillId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ certificateStatus: 'rejected' }),
-        }).catch(e => console.warn('[Admin] Sync reject error:', e));
-      }
-
       return next;
     });
+
+    if (targetSkillId && !targetSkillId.startsWith('onboard-')) {
+      const cleanSkillId = targetSkillId.replace('cr-db-', '');
+      try {
+        const res = await fetch(`${url}/skills/${cleanSkillId}/certificate/reject`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason }),
+        });
+        if (!res.ok) {
+          await fetch(`${url}/skills/${cleanSkillId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              certificateStatus: 'rejected',
+              certificateReviewNote: reason,
+              certificateReviewedAt: new Date().toISOString(),
+            }),
+          });
+        }
+      } catch (e) {
+        console.warn('[Admin] Sync reject error:', e);
+      }
+    }
   }, []);
 
   const getSkillCertificationStatus = useCallback((userId: string, skillId: string): CertificationStatus | null => {
@@ -960,6 +1044,7 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
     approveCertification,
     rejectCertification,
     getSkillCertificationStatus,
+    refreshCertifications: fetchCertifications,
     stats,
     isLoading,
   }), [users, reviews, verificationRequests, certificationRequests, isAdminAuthenticated, adminLogin, adminLogout, banUser, unbanUser, suspendUser, updateUserCredits, approveReview, rejectReview, approveVerification, rejectVerification, submitCertification, approveCertification, rejectCertification, getSkillCertificationStatus, stats, isLoading]);

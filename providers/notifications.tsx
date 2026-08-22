@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import createContextHook from '@nkzw/create-context-hook';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCurrentUser } from './current-user';
 import { useSkillSwaps } from './skill-swaps';
@@ -77,13 +77,16 @@ const setWebItem = (key: string, value: string): void => {
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
     try {
       window.localStorage.setItem(key, value);
-    } catch {}
+    } catch { }
   }
 };
 
 const getEventKey = (input: { category?: string; title?: string; body?: string; eventKey?: string; metadata?: Record<string, unknown> }): string => {
   if (input.eventKey) return input.eventKey;
   if (input.metadata?.eventKey && typeof input.metadata.eventKey === 'string') return input.metadata.eventKey;
+  if (input.metadata?.type === 'chat-message') {
+    return `msg:${input.metadata.swapId || ''}:${input.metadata.authorId || ''}:${input.body || ''}:${Date.now()}`;
+  }
   if (input.category && input.title) return `${input.category}:${input.title}`;
   return `${input.title || 'alert'}`;
 };
@@ -97,7 +100,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   const { socket } = useSocket();
   const { showAlert } = useAlert();
   const router = useRouter();
+  const pathname = usePathname();
   const mountTimestampRef = useRef<number>(Date.now());
+  const lastCallPopupTimeRef = useRef<Map<string, number>>(new Map());
 
   // Handle both string and numeric IDs safely
   const currentUserId = currentUser?.id ? String(currentUser.id) : undefined;
@@ -117,7 +122,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
               return !dismissedSet.has(i.id) && !dismissedSet.has(eventKey) && !dismissedSet.has(i.title);
             })
           );
-        } catch {}
+        } catch { }
       }
     }
     return [];
@@ -253,17 +258,30 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     if (!currentUserId || !isAuthUser) return;
 
     const eventKey = getEventKey(input);
+    const meta = (input.metadata || {}) as any;
+    const isLiveCall =
+      meta.type === 'video-call' ||
+      input.title.toLowerCase().includes('video call') ||
+      input.title.toLowerCase().includes('calling') ||
+      input.body.toLowerCase().includes('video call') ||
+      input.body.toLowerCase().includes('calling');
 
-    // If this specific event has been dismissed by user or already seen, ignore completely
-    if (dismissedKeysRef.current.has(eventKey) || dismissedKeysRef.current.has(input.title)) {
-      return;
-    }
-    if (seenKeysRef.current.has(eventKey) || seenKeysRef.current.has(input.title)) {
-      return;
+    // If this specific event has been dismissed by user or already seen, ignore (except live calls)
+    if (!isLiveCall) {
+      if (dismissedKeysRef.current.has(eventKey)) {
+        return;
+      }
+      if (seenKeysRef.current.has(eventKey)) {
+        return;
+      }
+    } else {
+      // Clear past dismissal/seen cache for live call so incoming calls are always delivered
+      dismissedKeysRef.current.delete(eventKey);
+      seenKeysRef.current.delete(eventKey);
     }
 
     const isStartup = Date.now() - mountTimestampRef.current < 4000;
-    const shouldSkip = Boolean(input.skipPopup || isStartup || !isAuthUser);
+    const shouldSkip = isLiveCall ? false : (input.skipPopup === true || (input.skipPopup === undefined && isStartup) || !isAuthUser);
 
     const payload: NotificationItem = {
       id: generateNotificationId(),
@@ -281,9 +299,10 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         : new Date().toISOString(),
     };
 
-    seenKeysRef.current.add(eventKey);
+    if (!isLiveCall) {
+      seenKeysRef.current.add(eventKey);
+    }
     seenKeysRef.current.add(payload.id);
-    seenKeysRef.current.add(input.title);
     persistSeenKeys();
 
     setNotifications((prev) => {
@@ -292,7 +311,15 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         if (item.id === payload.id) return false;
         const existingKey = getEventKey(item);
         if (existingKey === eventKey) return false;
-        if (item.title === input.title && item.category === input.category) return false;
+        // Ensure at most ONE video call notification item per swap in the list
+        if (
+          input.metadata?.type === 'video-call' &&
+          input.metadata?.swapId &&
+          item.metadata?.type === 'video-call' &&
+          String(item.metadata?.swapId) === String(input.metadata.swapId)
+        ) {
+          return false;
+        }
         return true;
       });
       const next = sortNotifications([payload, ...filtered]);
@@ -304,8 +331,59 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
     if (!shouldSkip) {
       schedulePushNotification(input.title, input.body, input.metadata ?? {});
+
+      const isVideoCall = isLiveCall;
+      const isLiveClass =
+        meta.action === 'join_class' ||
+        input.title.toLowerCase().includes('live class');
+
+      if (isVideoCall && meta.swapId) {
+        const swapKey = String(meta.swapId);
+        // Suppress alert popup if current user is already on the call screen
+        if (pathname && (pathname.includes(`/call/${swapKey}`) || pathname.includes(`call/${swapKey}`))) {
+          console.log('[Notifications] Suppressed call alert popup because user is already on call screen for swap', swapKey);
+          return;
+        }
+
+        const lastCallAlertTime = lastCallPopupTimeRef.current.get(swapKey) || 0;
+        if (Date.now() - lastCallAlertTime < 1200) {
+          console.log('[Notifications] Suppressed rapid duplicate call alert popup for swap', swapKey);
+          return;
+        }
+        lastCallPopupTimeRef.current.set(swapKey, Date.now());
+
+        showAlert(
+          input.title,
+          input.body,
+          [
+            { text: 'Decline', style: 'cancel' },
+            {
+              text: 'Join Call',
+              style: 'default',
+              onPress: () => {
+                router.push(`/call/${meta.swapId}?mode=${meta.mode || 'video'}&isJoining=true` as any);
+              },
+            },
+          ]
+        );
+      } else if (isLiveClass && meta.classId) {
+        showAlert(
+          input.title,
+          input.body,
+          [
+            { text: 'Later', style: 'cancel' },
+            {
+              text: 'Join Class',
+              style: 'default',
+              onPress: () => {
+                router.push(`/call/${meta.classId}?mode=video` as any);
+              },
+            },
+          ]
+        );
+      }
     }
-  }, [currentUserId, isAuthUser, schedulePushNotification, persistNotifications, persistSeenKeys]);
+  }, [currentUserId, isAuthUser, schedulePushNotification, persistNotifications, persistSeenKeys, showAlert, router]);
 
   const markAsRead = useCallback((id: string) => {
     setNotifications((prev) => {
@@ -403,7 +481,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
-          skipPopup: true,
+          skipPopup: false,
           eventKey,
         });
         return;
@@ -418,7 +496,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
-          skipPopup: true,
+          skipPopup: false,
           eventKey,
         });
         return;
@@ -433,7 +511,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
-          skipPopup: true,
+          skipPopup: false,
           eventKey,
         });
         return;
@@ -448,7 +526,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
-          skipPopup: true,
+          skipPopup: false,
           eventKey,
         });
       }
@@ -546,7 +624,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
       if (Array.isArray(swap.negotiationNotes)) {
         swap.negotiationNotes.forEach((msg) => {
-          const msgId = msg.id || (msg as any)._id || '';
+          const msgId = String(msg.id || (msg as any)._id || '');
           if (!msgId) return;
 
           const eventKey = `msg:${msgId}`;
@@ -554,28 +632,25 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             return;
           }
 
-          // Check if message was sent before app mount / startup
-          const msgTime = msg.createdAt ? new Date(msg.createdAt).getTime() : 0;
-          const isOldMessage = isFirstRun || Number.isNaN(msgTime) || msgTime <= mountTimestampRef.current;
-
           seenKeysRef.current.add(eventKey);
 
-          if (isOldMessage) {
-            return; // NEVER alert or popup for old messages
+          // On initial app load/startup, index all existing historical messages as seen so they never alert
+          if (isFirstRun) {
+            return;
           }
 
-          const isVideoCallAlert = msg.body.includes("started the video call");
+          const isVideoCallAlert = typeof msg.body === 'string' && msg.body.includes("started the video call");
           if (
             String(msg.authorId) !== currentUserId &&
-            (!msg.isSystem || isVideoCallAlert)
+            !msg.isSystem &&
+            !isVideoCallAlert
           ) {
             addNotification({
               category: 'swap',
-              title: isVideoCallAlert ? `Incoming Video Call from ${senderName}` : `New message from ${senderName}`,
+              title: `New message from ${senderName}`,
               body: msg.body,
               metadata: {
                 swapId: swap.id,
-                type: isVideoCallAlert ? 'video-call' : undefined,
               },
               skipPopup: false,
               eventKey,
@@ -585,7 +660,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       }
     });
 
-    if (isFirstRun) {
+    if (isFirstRun && swaps.length > 0) {
       isInitialChatLoadRef.current = false;
       persistSeenKeys();
     }
@@ -628,7 +703,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
                 metadata: {
                   rating: rev.rating,
                 },
-                skipPopup: true,
+                skipPopup: false,
                 eventKey,
               });
             } else {
@@ -682,6 +757,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             category: 'class',
             title: 'New enrollment',
             body: `${studentName} enrolled in your class "${titleName}"`,
+            skipPopup: false,
             eventKey,
           });
         }
@@ -725,6 +801,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             title: '📹 Live Class Started!',
             body: `${teacher} has started "${title}". Tap to join now!`,
             metadata: { classId: data.classId, action: 'join_class' },
+            skipPopup: false,
             eventKey,
           });
         }
@@ -736,6 +813,78 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       socket.off('class_started', handleClassStarted);
     };
   }, [hasCompletedOnboarding, isAuthUser, currentUserId, socket, addNotification, router, isStorageLoaded]);
+
+  // Real-time socket listener for incoming video / voice calls
+  useEffect(() => {
+    if (!isAuthUser || !hasCompletedOnboarding || !isStorageLoaded || !currentUserId || !socket) return;
+
+    const handleIncomingCall = (data: {
+      swapId?: string;
+      callerId?: string;
+      callerName?: string;
+      callerAvatar?: string;
+      title?: string;
+      body?: string;
+      mode?: string;
+    }) => {
+      console.log('[Socket.IO] Received incoming call event:', data);
+      if (data && data.swapId && String(data.callerId) !== currentUserId) {
+        const swapKey = String(data.swapId);
+        // If current user is already on the call screen for this swap, skip popup alert
+        if (pathname && (pathname.includes(`/call/${swapKey}`) || pathname.includes(`call/${swapKey}`))) {
+          console.log('[Notifications] Suppressed incoming call popup because user is already on call screen for', swapKey);
+          return;
+        }
+
+        const caller = data.callerName || 'Your partner';
+        const mode = data.mode || 'video';
+        const eventKey = `call:${data.swapId}:${Date.now()}`;
+
+        addNotification({
+          category: 'swap',
+          title: data.title || `Incoming ${mode === 'voice' ? 'Voice' : 'Video'} Call`,
+          body: data.body || `${caller} started the video call. Tap to join!`,
+          metadata: {
+            swapId: data.swapId,
+            type: 'video-call',
+            callerId: data.callerId,
+            callerName: caller,
+            mode,
+          },
+          eventKey,
+          skipPopup: false,
+        });
+      }
+    };
+
+    const handleNewNotification = (data: {
+      category?: string;
+      title: string;
+      body: string;
+      metadata?: any;
+    }) => {
+      console.log('[Socket.IO] Received new_notification event:', data);
+      if (data && data.title) {
+        const uniqueKey = `socket:${data.category || 'swap'}:${data.metadata?.swapId || ''}:${Date.now()}`;
+        addNotification({
+          category: (data.category as any) || 'swap',
+          title: data.title,
+          body: data.body,
+          metadata: data.metadata,
+          eventKey: uniqueKey,
+          skipPopup: false,
+        });
+      }
+    };
+
+    socket.on('incoming_call', handleIncomingCall);
+    socket.on('new_notification', handleNewNotification);
+
+    return () => {
+      socket.off('incoming_call', handleIncomingCall);
+      socket.off('new_notification', handleNewNotification);
+    };
+  }, [hasCompletedOnboarding, isAuthUser, currentUserId, socket, addNotification, isStorageLoaded]);
 
   const unreadCount = useMemo(() => {
     return notifications.filter((notification) => !notification.read).length;

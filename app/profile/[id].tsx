@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   TextInput,
+  useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import {
@@ -104,6 +105,21 @@ export default function UserProfileScreen() {
   }, [profileUser, allUsers, currentUser, id]);
 
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+
+  const numSkillColumns = useMemo(() => {
+    if (windowWidth >= 1024) return 3;
+    if (windowWidth >= 640) return 2;
+    return 1;
+  }, [windowWidth]);
+
+  const skillCardWidth = useMemo(() => {
+    if (numSkillColumns === 1) return '100%';
+    const totalPadding = 40;
+    const totalGap = (numSkillColumns - 1) * 16;
+    const availableWidth = windowWidth - totalPadding - totalGap;
+    return Math.max(240, Math.floor(availableWidth / numSkillColumns));
+  }, [windowWidth, numSkillColumns]);
 
   const fetchProfileUser = useCallback(async () => {
     if (!id) return;
@@ -570,12 +586,27 @@ export default function UserProfileScreen() {
               <Text style={styles.badgeText}>{(user.skillsOffered || []).length}</Text>
             </View>
           </View>
-          <View style={styles.skillsGrid}>
+          <View
+            style={[
+              styles.skillsGrid,
+              numSkillColumns > 1 && {
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                gap: 16,
+              },
+            ]}
+          >
             {(user.skillsOffered || []).map((skill: any, i: number) => (
               <TouchableOpacity
                 key={i}
-                style={styles.skillCard}
+                style={[
+                  styles.skillCard,
+                  numSkillColumns > 1 && {
+                    width: skillCardWidth,
+                  },
+                ]}
                 onPress={() => router.push(`/skill/${skill._id || skill.id}` as any)}
+                activeOpacity={0.85}
               >
                 {skill.imageUrl ? (
                   <Image

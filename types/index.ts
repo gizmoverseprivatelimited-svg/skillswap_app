@@ -42,6 +42,9 @@ export interface Skill {
   promoted?: boolean;
   promoTagline?: string;
   certificateUri?: string;
+  certificateStatus?: 'pending' | 'approved' | 'rejected';
+  certificateReviewNote?: string;
+  certificateReviewedAt?: string;
 }
 export type OnboardingRole = 'teacher' | 'learner' | 'swap';
 export type SwapType = 'teach' | 'learn' | 'swap';

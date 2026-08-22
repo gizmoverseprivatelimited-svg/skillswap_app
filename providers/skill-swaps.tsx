@@ -299,17 +299,10 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
       if (!response.ok) {
         throw new Error(`Failed to fetch swaps (${response.status})`);
       }
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (parseErr) {
-        console.error(`[SkillSwaps] JSON Parse failed for ${fullUrl}. Response snippet:`, text.substring(0, 200));
-        throw parseErr;
-      }
-      const normalizeSwap = data.map((swap: any): SkillSwapRequest => ({
+      const data = await response.json();
+      const normalizeSwap = (data || []).map((swap: any): SkillSwapRequest => ({
         ...swap,
-        id: swap._id,
+        id: swap._id || swap.id,
       }));
       setAllSwaps(normalizeSwap);
     } catch (err) {
@@ -339,15 +332,8 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
       if (!response.ok) {
         throw new Error(`Failed to fetch swaps (${response.status})`);
       }
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (parseErr) {
-        console.error(`[SkillSwaps] JSON Parse failed for ${fullUrl}. Response snippet:`, text.substring(0, 200));
-        throw parseErr;
-      }
-      const normalizeSwap = data.map((swap: any): SkillSwapRequest => ({
+      const data = await response.json();
+      const normalizeSwap = (data || []).map((swap: any): SkillSwapRequest => ({
         ...swap,
         id: swap._id || swap.id,
       }));
@@ -367,18 +353,17 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
         setLoading(false);
       }
     }
-  }, [currentUser?.id, currentUser?.skillsOffered]);
+  }, [currentUser?.id]);
 
   useEffect(() => {
-    fetchAllSwaps();
+    fetchAllSwaps(allSwaps.length > 0);
 
     if (!currentUser?.id || currentUser.id.length < 4) {
       setSwaps(buildSeedCompletedSwaps());
       setLoading(false);
-      return;
+    } else {
+      fetchSwaps(swaps.length > 0);
     }
-
-    fetchSwaps();
 
     if (socket) {
       const handleSwapUpdate = (data?: any) => {
@@ -416,10 +401,6 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
         }
         fetchSwaps(true);
         fetchAllSwaps(true);
-        if (currentUser?.id) {
-          loadUser(true);
-          refreshUserEarnings(currentUser.id);
-        }
       };
 
       socket.on('swap_updated', handleSwapUpdate);

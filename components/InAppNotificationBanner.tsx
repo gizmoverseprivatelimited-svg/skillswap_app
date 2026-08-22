@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { StyleSheet, Text, View, Animated, TouchableOpacity, Platform } from 'react-native';
 import { useNotifications } from '../providers/notifications';
 import { useAuth } from '../providers/auth';
-import { Bell, X } from 'lucide-react-native';
+import { Bell, X, MessageSquare, Video, Sparkles } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -34,7 +34,6 @@ export function InAppNotificationBanner() {
   const { notifications, markAsRead } = useNotifications();
   const [activeNotification, setActiveNotification] = useState<any>(null);
   const alertedIdsRef = useRef<Set<string>>(getStoredAlertedIds());
-  const mountTimeRef = useRef<number>(Date.now());
   const isStartupRef = useRef<boolean>(true);
   const slideAnim = useRef(new Animated.Value(-150)).current;
   const router = useRouter();
@@ -50,11 +49,11 @@ export function InAppNotificationBanner() {
     });
   }, [slideAnim]);
 
-  // Grace period on app load to ensure initial state/persisted notifications never trigger a popup
+  // Grace period on initial app load to ensure existing historical notifications don't trigger banner
   useEffect(() => {
     const timer = setTimeout(() => {
       isStartupRef.current = false;
-    }, 3500);
+    }, 2500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -84,15 +83,7 @@ export function InAppNotificationBanner() {
     const latest = notifications[0];
     if (!latest || latest.read) return;
 
-    // Check if notification was created before or at app mount (historical notification)
-    const notifTime = new Date(latest.createdAt).getTime();
-    if (!Number.isNaN(notifTime) && notifTime <= mountTimeRef.current) {
-      alertedIdsRef.current.add(latest.id);
-      saveStoredAlertedId(latest.id);
-      return;
-    }
-
-    // Only show popup for genuinely new notifications received at RUNTIME after project load
+    // Show popup banner for new notifications received at RUNTIME
     if (!alertedIdsRef.current.has(latest.id)) {
       alertedIdsRef.current.add(latest.id);
       saveStoredAlertedId(latest.id);
@@ -102,9 +93,9 @@ export function InAppNotificationBanner() {
 
         // Slide down
         Animated.spring(slideAnim, {
-          toValue: insets.top + 32, // Position below notches/status bars with safe space
+          toValue: insets.top + 24,
           useNativeDriver: true,
-          tension: 40,
+          tension: 45,
           friction: 8,
         }).start();
 
@@ -144,15 +135,18 @@ export function InAppNotificationBanner() {
   if (!isLoggedIn || !activeNotification) return null;
 
   const isVideoCall = activeNotification.metadata?.type === 'video-call';
+  const isMessage = activeNotification.metadata?.type === 'chat-message' || activeNotification.title?.toLowerCase().includes('message');
 
   return (
     <Animated.View style={[styles.bannerContainer, { transform: [{ translateY: slideAnim }] }]}>
       <TouchableOpacity activeOpacity={0.9} onPress={handlePress} style={[styles.bannerContent, isVideoCall && styles.videoCallBannerContent]}>
-        <View style={[styles.iconContainer, isVideoCall && styles.videoCallIconContainer]}>
+        <View style={[styles.iconContainer, isVideoCall && styles.videoCallIconContainer, isMessage && styles.messageIconContainer]}>
           {isVideoCall ? (
-            <View style={styles.videoIconInner} /> // Fallback placeholder if no video icon
+            <Video size={18} color="#FFFFFF" />
+          ) : isMessage ? (
+            <MessageSquare size={18} color="#FFFFFF" />
           ) : (
-            <Bell size={20} color="#FFFFFF" />
+            <Bell size={18} color="#FFFFFF" />
           )}
         </View>
         <View style={styles.textContainer}>
@@ -208,11 +202,8 @@ const styles = StyleSheet.create({
   videoCallIconContainer: {
     backgroundColor: '#10B981', // Bright Emerald
   },
-  videoIconInner: {
-    width: 14,
-    height: 10,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 2,
+  messageIconContainer: {
+    backgroundColor: '#3B82F6', // Sky Blue for chat messages
   },
   textContainer: {
     flex: 1,

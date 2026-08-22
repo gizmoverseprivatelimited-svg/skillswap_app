@@ -22,6 +22,8 @@ interface Use100msCallProps {
   currentUserId?: string;
   partnerId?: string;
   socket?: any;
+  initialMicOn?: boolean;
+  initialVideoOn?: boolean;
 }
 
 const ICE_SERVERS = {
@@ -46,6 +48,8 @@ export function use100msCall({
   currentUserId,
   partnerId,
   socket,
+  initialMicOn = true,
+  initialVideoOn = true,
 }: Use100msCallProps) {
   const [participants, setParticipants] = useState<CallParticipant[]>(initialParticipants);
   const [messages, setMessages] = useState<CallMessage[]>([]);
@@ -86,7 +90,7 @@ export function use100msCall({
 
   // 1. Web Media (Camera & Mic) and WebRTC Peer Connection
   useEffect(() => {
-    if (Platform.OS !== 'web') return;
+    if (Platform.OS !== 'web' || !roomId) return;
     let isCancelled = false;
     const enableVideo = mode === 'video';
 
@@ -136,6 +140,12 @@ export function use100msCall({
         }
 
         if (stream) {
+          if (initialMicOn === false) {
+            stream.getAudioTracks().forEach(t => { t.enabled = false; });
+          }
+          if (initialVideoOn === false || !enableVideo) {
+            stream.getVideoTracks().forEach(t => { t.enabled = false; });
+          }
           webStreamRef.current = stream;
         }
         setIsConnecting(false);
@@ -148,8 +158,8 @@ export function use100msCall({
                 ...p,
                 status: 'connected' as const,
                 mediaStream: stream || undefined,
-                isVideoOff: !enableVideo || !stream,
-                isMuted: false,
+                isVideoOff: initialVideoOn === false || !enableVideo || !stream,
+                isMuted: initialMicOn === false,
               };
             }
             return {
@@ -577,13 +587,13 @@ export function use100msCall({
           const rawMsg = data.message || '';
 
           const incoming: CallMessage = {
-            id: generateCallMessageId(),
+            id: data.id || generateCallMessageId(),
             authorId: data.sender?.peerID || 'peer',
             authorName: data.sender?.name || 'Participant',
             body: rawMsg,
             createdAt: new Date().toISOString(),
           };
-          setMessages(prev => [...prev, incoming]);
+          setMessages(prev => (prev.some(m => m.id === incoming.id) ? prev : [...prev, incoming]));
         });
 
         hms.addEventListener(HMSUpdateListenerActions.ON_SPEAKER, (data: any) => {
@@ -872,7 +882,7 @@ export function use100msCall({
         senderName: userName || 'You',
         timestamp: Date.now(),
       };
-      setReactions(prev => [...prev.slice(-15), reaction]);
+      setReactions(prev => (prev.some(r => r.id === reaction.id) ? prev : [...prev.slice(-15), reaction]));
 
       if (hmsInstanceRef.current) {
         const payload = JSON.stringify({ type: 'reaction', emoji });
@@ -880,14 +890,14 @@ export function use100msCall({
       }
       if (broadcastChannelRef.current) {
         try {
-          broadcastChannelRef.current.postMessage({ type: 'reaction', room: roomId, reaction });
+          broadcastChannelRef.current.postMessage({ type: 'reaction', room: roomId, senderId: currentUserId, reaction });
         } catch (e) {}
       }
       if (socket) {
-        socket.emit('call_reaction', { room: roomId, reaction });
+        socket.emit('call_reaction', { room: roomId, senderId: currentUserId, partnerId, to: partnerId, reaction });
       }
     },
-    [userName, socket, roomId]
+    [userName, socket, roomId, currentUserId, partnerId]
   );
 
   // Host Moderation: Mute a remote participant
@@ -931,7 +941,7 @@ export function use100msCall({
         createdAt: new Date().toISOString(),
       };
 
-      setMessages(prev => [...prev, msg]);
+      setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
 
       if (hmsInstanceRef.current) {
         hmsInstanceRef.current.sendBroadcastMessage(text.trim()).catch((err: any) => {
@@ -940,11 +950,11 @@ export function use100msCall({
       }
       if (broadcastChannelRef.current) {
         try {
-          broadcastChannelRef.current.postMessage({ type: 'chat', room: roomId, message: msg });
+          broadcastChannelRef.current.postMessage({ type: 'chat', room: roomId, senderId: authorId, message: msg });
         } catch (e) {}
       }
       if (socket) {
-        socket.emit('call_chat_message', { room: roomId, message: msg });
+        socket.emit('call_chat_message', { room: roomId, senderId: authorId, message: msg });
       }
     },
     [socket, roomId]

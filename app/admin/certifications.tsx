@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, TextInput, Modal, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, TextInput, Modal, ActivityIndicator, RefreshControl } from 'react-native';
 import { Stack } from 'expo-router';
-import { BadgeCheck, ShieldX, Clock, CheckCircle, XCircle, Award, FileCheck2, Filter, ExternalLink, X, Eye } from 'lucide-react-native';
+import { BadgeCheck, ShieldX, Clock, CheckCircle, XCircle, Award, FileCheck2, Filter, X, Eye } from 'lucide-react-native';
 import { useAdmin, CertificationRequest, CertificationStatus } from '@/providers/admin';
+import { useAlert } from '@/providers/alert';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
@@ -11,13 +12,14 @@ const DEFAULT_CERT_IMAGE = 'https://images.unsplash.com/photo-1589330694653-ded6
 type CFilter = 'all' | CertificationStatus;
 
 function CertificateDocImage({ uri, onPress }: { uri?: string; onPress: () => void }) {
-  const currentUri = uri || DEFAULT_CERT_IMAGE;
-  const [imgSrc, setImgSrc] = useState<string>(currentUri);
+  const resolved = resolveImageUrl(uri, DEFAULT_CERT_IMAGE) || DEFAULT_CERT_IMAGE;
+  const [imgSrc, setImgSrc] = useState<string>(resolved);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    if (uri) {
-      setImgSrc(uri);
-    }
+    const nextUrl = resolveImageUrl(uri, DEFAULT_CERT_IMAGE) || DEFAULT_CERT_IMAGE;
+    setImgSrc(nextUrl);
+    setLoading(true);
   }, [uri]);
 
   return (
@@ -25,12 +27,19 @@ function CertificateDocImage({ uri, onPress }: { uri?: string; onPress: () => vo
       <Image
         source={{ uri: imgSrc }}
         style={s.docImage}
-        resizeMode="contain"
+        resizeMode="cover"
+        onLoadEnd={() => setLoading(false)}
         onError={(err) => {
           console.warn('[Admin] Certificate image load error:', err?.nativeEvent);
           setImgSrc(DEFAULT_CERT_IMAGE);
+          setLoading(false);
         }}
       />
+      {loading && (
+        <View style={s.docLoader}>
+          <ActivityIndicator size="small" color="#0EA5E9" />
+        </View>
+      )}
       <View style={s.docOverlay}>
         <Eye size={14} color="#FFF" />
         <Text style={s.docOverlayText}>Tap to view full certificate</Text>
@@ -40,12 +49,24 @@ function CertificateDocImage({ uri, onPress }: { uri?: string; onPress: () => vo
 }
 
 export default function CertificationApprovals() {
-  const { certificationRequests, approveCertification, rejectCertification } = useAdmin();
+  const { certificationRequests, approveCertification, rejectCertification, refreshCertifications } = useAdmin();
+  const { showAlert } = useAlert();
   const [filter, setFilter] = useState<CFilter>('pending');
   const [rejectModalVisible, setRejectModalVisible] = useState<boolean>(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState<string>('');
   const [previewUri, setPreviewUri] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshCertifications?.();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshCertifications]);
 
   const filteredRequests = useMemo(() => {
     if (filter === 'all') return certificationRequests;
@@ -58,11 +79,11 @@ export default function CertificationApprovals() {
   );
 
   const handleApprove = useCallback((id: string) => {
-    Alert.alert('Approve Certification', 'Mark this skill certificate as verified?', [
+    showAlert('Approve Certification', 'Mark this skill certificate as verified?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Approve', onPress: () => approveCertification(id) },
     ]);
-  }, [approveCertification]);
+  }, [approveCertification, showAlert]);
 
   const handleReject = useCallback(() => {
     if (!selectedId || !rejectReason.trim()) return;
@@ -88,17 +109,29 @@ export default function CertificationApprovals() {
   return (
     <View style={s.container}>
       <Stack.Screen options={{ title: 'Certifications', headerStyle: { backgroundColor: '#0F172A' }, headerTintColor: '#F8FAFC' }} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterRow} contentContainerStyle={{ gap: 8 }}>
-        {filters.map(f => (
-          <TouchableOpacity key={f.value} style={[s.chip, filter === f.value && s.chipActive]} onPress={() => setFilter(f.value)}>
-            <Text style={[s.chipText, filter === f.value && s.chipTextActive]}>{f.label}{f.count !== undefined && f.count > 0 ? ` (${f.count})` : ''}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      
+      {/* Filter Bar */}
+      <View style={s.filterWrap}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterRow} contentContainerStyle={s.filterContent}>
+          {filters.map(f => (
+            <TouchableOpacity key={f.value} style={[s.chip, filter === f.value && s.chipActive]} onPress={() => setFilter(f.value)}>
+              <Text style={[s.chipText, filter === f.value && s.chipTextActive]}>{f.label}{f.count !== undefined && f.count > 0 ? ` (${f.count})` : ''}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0EA5E9']} tintColor="#0EA5E9" />
+        }
+      >
         {filteredRequests.map(cr => {
           const sc = statusConfig(cr.status);
-          const docUri = cr.documentUri || DEFAULT_CERT_IMAGE;
+          const resolvedDocUri = resolveImageUrl(cr.documentUri, DEFAULT_CERT_IMAGE) || DEFAULT_CERT_IMAGE;
 
           return (
             <View key={cr.id} style={s.card}>
@@ -128,7 +161,10 @@ export default function CertificationApprovals() {
                 </View>
                 <CertificateDocImage
                   uri={cr.documentUri}
-                  onPress={() => setPreviewUri(docUri)}
+                  onPress={() => {
+                    setPreviewLoading(true);
+                    setPreviewUri(resolvedDocUri);
+                  }}
                 />
               </View>
               {cr.reviewNote && (
@@ -176,15 +212,32 @@ export default function CertificationApprovals() {
       {/* Full Size Image Preview Modal */}
       <Modal visible={Boolean(previewUri)} transparent animationType="fade" onRequestClose={() => setPreviewUri(null)}>
         <View style={s.previewModalOverlay}>
-          <TouchableOpacity style={s.closePreviewBtn} onPress={() => setPreviewUri(null)}>
-            <X size={20} color="#FFF" />
+          <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={() => setPreviewUri(null)} />
+          <TouchableOpacity
+            style={s.closePreviewBtn}
+            onPress={() => setPreviewUri(null)}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <X size={22} color="#FFF" />
           </TouchableOpacity>
           {previewUri && (
-            <Image
-              source={{ uri: previewUri }}
-              style={s.fullPreviewImage}
-              resizeMode="contain"
-            />
+            <View style={s.fullPreviewContainer} pointerEvents="box-none">
+              <Image
+                source={{ uri: previewUri }}
+                style={s.fullPreviewImage}
+                resizeMode="contain"
+                onLoadEnd={() => setPreviewLoading(false)}
+                onError={(err) => {
+                  console.warn('[Admin] Full preview image load error:', err?.nativeEvent);
+                  setPreviewLoading(false);
+                }}
+              />
+              {previewLoading && (
+                <View style={s.previewLoader}>
+                  <ActivityIndicator size="large" color="#FFFFFF" />
+                </View>
+              )}
+            </View>
           )}
         </View>
       </Modal>
@@ -194,7 +247,21 @@ export default function CertificationApprovals() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F5F9' },
-  filterRow: { backgroundColor: '#FFF', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  filterWrap: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  filterRow: {
+    flexGrow: 0,
+    marginBottom: 4,
+  },
+  filterContent: {
+    gap: 8,
+  },
   chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#F1F5F9' },
   chipActive: { backgroundColor: '#0F172A' },
   chipText: { fontSize: 13, fontWeight: '600' as const, color: '#64748B' },
@@ -205,7 +272,8 @@ const s = StyleSheet.create({
   skillBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, alignSelf: 'flex-start', backgroundColor: '#E0F2FE' },
   docPreviewWrap: { borderRadius: 12, overflow: 'hidden', height: 180, backgroundColor: '#F8FAFC', position: 'relative', borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
   docImage: { width: '100%', height: 180, borderRadius: 12 },
-  docOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(15,23,42,0.7)', paddingHorizontal: 12, paddingVertical: 8 },
+  docLoader: { ...StyleSheet.absoluteFill, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+  docOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(15,23,42,0.75)', paddingHorizontal: 12, paddingVertical: 8 },
   docOverlayText: { color: '#FFF', fontSize: 12, fontWeight: '600' as const },
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 12 },
   actionText: { color: '#FFF', fontSize: 14, fontWeight: '700' as const },
@@ -214,6 +282,9 @@ const s = StyleSheet.create({
   modalInput: { backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#0F172A', marginBottom: 16, minHeight: 80, textAlignVertical: 'top' as const },
   rejectBtn: { alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: '#EF4444', marginBottom: 12 },
   previewModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center', padding: 16 },
-  closePreviewBtn: { position: 'absolute', top: 44, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', zIndex: 10 },
-  fullPreviewImage: { width: '100%', height: '80%' },
+  closePreviewBtn: { position: 'absolute', top: 48, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center', zIndex: 20 },
+  fullPreviewContainer: { width: '100%', height: '85%', justifyContent: 'center', alignItems: 'center' },
+  fullPreviewImage: { width: '100%', height: '100%' },
+  previewLoader: { ...StyleSheet.absoluteFill, justifyContent: 'center', alignItems: 'center' },
 });
+

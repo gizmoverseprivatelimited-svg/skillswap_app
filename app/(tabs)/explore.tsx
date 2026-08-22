@@ -12,8 +12,9 @@ import {
   Pressable,
   FlatList,
   useWindowDimensions,
+  RefreshControl,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import {
   ChevronDown,
   Search,
@@ -24,6 +25,7 @@ import {
   BookOpen,
   ArrowLeftRight,
   MapPin,
+  BadgeCheck,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { getSkillsWithUsers, mockUsers } from '@/mocks/data';
@@ -113,12 +115,42 @@ export default function ExploreScreen() {
     );
   }, []);
 
-  const { currentUser, allUsers } = useCurrentUser();
+  const { currentUser, allUsers, loadUser } = useCurrentUser();
   const { isBlocked } = useSafety();
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+
+  const fetchExploreData = useCallback(async () => {
+    try {
+      const [skills] = await Promise.all([
+        getSkillsWithUsers(),
+        loadUser ? loadUser(true) : Promise.resolve(),
+      ]);
+      if (Array.isArray(skills)) {
+        setSkillsWithUsers(skills);
+      }
+    } catch (err) {
+      console.warn('[Explore] fetchExploreData error:', err);
+    }
+  }, [loadUser]);
 
   useEffect(() => {
-    getSkillsWithUsers().then(setSkillsWithUsers).catch(console.error);
-  }, []);
+    fetchExploreData();
+  }, [fetchExploreData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchExploreData();
+    }, [fetchExploreData])
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchExploreData();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchExploreData]);
 
   // Use backend users for learners/swappers, fall back to mockUsers if empty (excluding blocked users)
   const otherUsers = useMemo(() => {
@@ -349,139 +381,168 @@ export default function ExploreScreen() {
     : activeTab === 'learners' ? filteredLearners.length
     : filteredSwappers.length;
 
-  const renderSkillCard = useCallback(({ item }: { item: SkillWithUser }) => (
-    <TouchableOpacity
-      style={[
-        styles.skillCard,
-        numColumns > 1 && { width: cardWidth },
-      ]}
-      onPress={() => router.push(`/skill/${item.id}` as any)}
-      activeOpacity={0.85}
-    >
-      <Image
-        source={{ uri: resolveImageUrl(item.imageUrl, DEFAULT_SKILL_IMAGE) }}
+  const renderSkillCard = useCallback(({ item }: { item: SkillWithUser }) => {
+    const rawRating = item.user?.rating;
+    const ratingVal = typeof rawRating === 'number' ? rawRating.toFixed(1) : (rawRating ? Number(rawRating).toFixed(1) : '5.0');
+    const swapsVal = item.user?.totalSwaps ?? 0;
+    const exchangesText = `${swapsVal} ${swapsVal === 1 ? 'exchange' : 'exchanges'}`;
+
+    return (
+      <TouchableOpacity
         style={[
-          styles.skillImage,
-          numColumns >= 4 ? { height: 145 } : numColumns >= 3 ? { height: 160 } : numColumns >= 2 ? { height: 180 } : { height: 200 }
+          styles.skillCard,
+          numColumns > 1 && { width: cardWidth },
         ]}
-      />
-      <View style={styles.skillContent}>
-        <View style={styles.skillHeader}>
-          <Text style={styles.categoryLabel}>{item.category}</Text>
-          <View style={styles.levelBadge}>
-            <Text style={styles.levelText}>{item.level}</Text>
+        onPress={() => router.push(`/skill/${item.id}` as any)}
+        activeOpacity={0.85}
+      >
+        <Image
+          source={{ uri: resolveImageUrl(item.imageUrl, DEFAULT_SKILL_IMAGE) }}
+          style={[
+            styles.skillImage,
+            numColumns >= 4 ? { height: 145 } : numColumns >= 3 ? { height: 160 } : numColumns >= 2 ? { height: 180 } : { height: 200 }
+          ]}
+        />
+        <View style={styles.skillContent}>
+          <View style={styles.skillHeader}>
+            <Text style={styles.categoryLabel}>{item.category}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {item.certificateStatus === 'approved' && (
+                <View style={styles.certifiedBadge}>
+                  <BadgeCheck size={11} color="#10B981" />
+                  <Text style={styles.certifiedBadgeText}>Certified</Text>
+                </View>
+              )}
+              <View style={styles.levelBadge}>
+                <Text style={styles.levelText}>{item.level}</Text>
+              </View>
+            </View>
           </View>
-        </View>
-        <Text style={styles.skillTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.skillDescription} numberOfLines={2}>{item.description}</Text>
-        <View style={styles.skillFooter}>
-          <View style={styles.userInfo}>
-            <Image source={{ uri: resolveImageUrl(item.user.avatarUrl, DEFAULT_AVATAR) }} style={styles.userAvatar} />
-            <View style={styles.userDetails}>
-              <Text style={styles.userName} numberOfLines={1}>{item.user.username ? (item.user.username.startsWith('@') ? item.user.username : `@${item.user.username}`) : `@${item.user.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
-              <View style={styles.ratingRow}>
-                <Star size={12} fill={Colors.light.accent} color={Colors.light.accent} />
-                <Text style={styles.ratingText}>{item.user.rating}</Text>
-                <Text style={styles.swapsText}>• {item.user.totalSwaps} exchanges</Text>
+          <Text style={styles.skillTitle} numberOfLines={2}>{item.title}</Text>
+          <Text style={styles.skillDescription} numberOfLines={2}>{item.description}</Text>
+          <View style={styles.skillFooter}>
+            <View style={styles.userInfo}>
+              <Image source={{ uri: resolveImageUrl(item.user.avatarUrl, DEFAULT_AVATAR) }} style={styles.userAvatar} />
+              <View style={styles.userDetails}>
+                <Text style={styles.userName} numberOfLines={1}>{item.user.username ? (item.user.username.startsWith('@') ? item.user.username : `@${item.user.username}`) : `@${item.user.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
+                <View style={styles.ratingRow}>
+                  <Star size={12} fill={Colors.light.accent} color={Colors.light.accent} />
+                  <Text style={styles.ratingText}>{ratingVal}</Text>
+                  <Text style={styles.swapsText}>• {exchangesText}</Text>
+                </View>
               </View>
             </View>
           </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  ), [router, numColumns, cardWidth]);
+      </TouchableOpacity>
+    );
+  }, [router, numColumns, cardWidth]);
 
-  const renderLearnerCard = useCallback(({ item }: { item: User }) => (
-    <TouchableOpacity
-      style={[
-        styles.personCard,
-        numColumns > 1 && { width: cardWidth },
-      ]}
-      onPress={() => router.push(`/profile/${item.id}` as any)}
-      activeOpacity={0.85}
-    >
-      <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatar} />
-      <View style={styles.personContent}>
-        <View style={styles.personHeader}>
-          <Text style={styles.personName} numberOfLines={1}>{item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
-          <View style={styles.ratingPill}>
-            <Star size={11} fill={Colors.light.accent} color={Colors.light.accent} />
-            <Text style={styles.ratingPillText}>{item.rating}</Text>
-          </View>
-        </View>
-        <View style={styles.personLocationRow}>
-          <MapPin size={12} color={Colors.light.textTertiary} />
-          <Text style={styles.personLocation} numberOfLines={1}>{item.location}</Text>
-        </View>
-        <Text style={styles.wantsLabel}>Wants to learn</Text>
-        <View style={styles.chipRow}>
-          {item.skillsWanted.slice(0, 4).map((s) => (
-            <View key={s} style={styles.wantChip}>
-              <Text style={styles.wantChipText}>{s}</Text>
-            </View>
-          ))}
-        </View>
-        <Text style={styles.personSwaps}>{item.totalSwaps} exchanges completed</Text>
-      </View>
-    </TouchableOpacity>
-  ), [router, numColumns, cardWidth]);
+  const renderLearnerCard = useCallback(({ item }: { item: User }) => {
+    const rawRating = item.rating;
+    const ratingVal = typeof rawRating === 'number' ? rawRating.toFixed(1) : (rawRating ? Number(rawRating).toFixed(1) : '5.0');
+    const swapsVal = item.totalSwaps ?? 0;
+    const exchangesText = `${swapsVal} ${swapsVal === 1 ? 'exchange' : 'exchanges'} completed`;
 
-  const renderSwapperCard = useCallback(({ item }: { item: User }) => (
-    <TouchableOpacity
-      style={[
-        styles.personCard,
-        numColumns > 1 && { width: cardWidth },
-      ]}
-      onPress={() => router.push(`/profile/${item.id}` as any)}
-      activeOpacity={0.85}
-    >
-      <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatar} />
-      <View style={styles.personContent}>
-        <View style={styles.personHeader}>
-          <Text style={styles.personName} numberOfLines={1}>{item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
-          <View style={styles.ratingPill}>
-            <Star size={11} fill={Colors.light.accent} color={Colors.light.accent} />
-            <Text style={styles.ratingPillText}>{item.rating}</Text>
-          </View>
-        </View>
-        <View style={styles.personLocationRow}>
-          <MapPin size={12} color={Colors.light.textTertiary} />
-          <Text style={styles.personLocation} numberOfLines={1}>{item.location}</Text>
-        </View>
-        <View style={styles.swapSection}>
-          <View style={styles.swapHalf}>
-            <Text style={styles.swapHalfLabel}>Teaches</Text>
-            <View style={styles.chipRow}>
-              {item.skillsOffered.slice(0, 2).map((s, idx) => {
-                const title = typeof s === 'string' ? s : s.title || String(s);
-                const key = typeof s === 'string' ? s : (s.id || s._id || `teach-${idx}`);
-                return (
-                  <View key={key} style={styles.teachChip}>
-                    <Text style={styles.teachChipText} numberOfLines={1}>{title}</Text>
-                  </View>
-                );
-              })}
+    return (
+      <TouchableOpacity
+        style={[
+          styles.personCard,
+          numColumns > 1 && { width: cardWidth },
+        ]}
+        onPress={() => router.push(`/profile/${item.id}` as any)}
+        activeOpacity={0.85}
+      >
+        <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatar} />
+        <View style={styles.personContent}>
+          <View style={styles.personHeader}>
+            <Text style={styles.personName} numberOfLines={1}>{item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
+            <View style={styles.ratingPill}>
+              <Star size={11} fill={Colors.light.accent} color={Colors.light.accent} />
+              <Text style={styles.ratingPillText}>{ratingVal}</Text>
             </View>
           </View>
-          <View style={styles.swapDivider} />
-          <View style={styles.swapHalf}>
-            <Text style={styles.swapHalfLabel}>Learns</Text>
-            <View style={styles.chipRow}>
-              {item.skillsWanted.slice(0, 2).map((s, idx) => {
-                const text = typeof s === 'string' ? s : String(s);
-                return (
-                  <View key={`want-${idx}-${text}`} style={styles.wantChip}>
-                    <Text style={styles.wantChipText}>{text}</Text>
-                  </View>
-                );
-              })}
+          <View style={styles.personLocationRow}>
+            <MapPin size={12} color={Colors.light.textTertiary} />
+            <Text style={styles.personLocation} numberOfLines={1}>{item.location}</Text>
+          </View>
+          <Text style={styles.wantsLabel}>Wants to learn</Text>
+          <View style={styles.chipRow}>
+            {item.skillsWanted.slice(0, 4).map((s) => (
+              <View key={s} style={styles.wantChip}>
+                <Text style={styles.wantChipText}>{s}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.personSwaps}>{exchangesText}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  }, [router, numColumns, cardWidth]);
+
+  const renderSwapperCard = useCallback(({ item }: { item: User }) => {
+    const rawRating = item.rating;
+    const ratingVal = typeof rawRating === 'number' ? rawRating.toFixed(1) : (rawRating ? Number(rawRating).toFixed(1) : '5.0');
+    const swapsVal = item.totalSwaps ?? 0;
+    const exchangesText = `${swapsVal} ${swapsVal === 1 ? 'exchange' : 'exchanges'} completed`;
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.personCard,
+          numColumns > 1 && { width: cardWidth },
+        ]}
+        onPress={() => router.push(`/profile/${item.id}` as any)}
+        activeOpacity={0.85}
+      >
+        <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatar} />
+        <View style={styles.personContent}>
+          <View style={styles.personHeader}>
+            <Text style={styles.personName} numberOfLines={1}>{item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
+            <View style={styles.ratingPill}>
+              <Star size={11} fill={Colors.light.accent} color={Colors.light.accent} />
+              <Text style={styles.ratingPillText}>{ratingVal}</Text>
             </View>
           </View>
+          <View style={styles.personLocationRow}>
+            <MapPin size={12} color={Colors.light.textTertiary} />
+            <Text style={styles.personLocation} numberOfLines={1}>{item.location}</Text>
+          </View>
+          <View style={styles.swapSection}>
+            <View style={styles.swapHalf}>
+              <Text style={styles.swapHalfLabel}>Teaches</Text>
+              <View style={styles.chipRow}>
+                {item.skillsOffered.slice(0, 2).map((s, idx) => {
+                  const title = typeof s === 'string' ? s : s.title || String(s);
+                  const key = typeof s === 'string' ? s : (s.id || s._id || `teach-${idx}`);
+                  return (
+                    <View key={key} style={styles.teachChip}>
+                      <Text style={styles.teachChipText} numberOfLines={1}>{title}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+            <View style={styles.swapDivider} />
+            <View style={styles.swapHalf}>
+              <Text style={styles.swapHalfLabel}>Learns</Text>
+              <View style={styles.chipRow}>
+                {item.skillsWanted.slice(0, 2).map((s, idx) => {
+                  const text = typeof s === 'string' ? s : String(s);
+                  return (
+                    <View key={`want-${idx}-${text}`} style={styles.wantChip}>
+                      <Text style={styles.wantChipText}>{text}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+          <Text style={styles.personSwaps}>{exchangesText}</Text>
         </View>
-        <Text style={styles.personSwaps}>{item.totalSwaps} exchanges completed</Text>
-      </View>
-    </TouchableOpacity>
-  ), [router, numColumns, cardWidth]);
+      </TouchableOpacity>
+    );
+  }, [router, numColumns, cardWidth]);
 
   return (
     <View style={styles.container}>
@@ -745,6 +806,7 @@ export default function ExploreScreen() {
           ItemSeparatorComponent={numColumns === 1 ? () => <View style={{ height: 16 }} /> : undefined}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={<EmptyState text="No teachers match your filters." />}
         />
       )}
@@ -760,6 +822,7 @@ export default function ExploreScreen() {
           ItemSeparatorComponent={numColumns === 1 ? () => <View style={{ height: 16 }} /> : undefined}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={<EmptyState text="No learners match your filters." />}
         />
       )}
@@ -775,6 +838,7 @@ export default function ExploreScreen() {
           ItemSeparatorComponent={numColumns === 1 ? () => <View style={{ height: 16 }} /> : undefined}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={<EmptyState text="No swappers match your filters." />}
         />
       )}
@@ -1084,6 +1148,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700' as const,
     color: Colors.light.primary,
+  },
+  certifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  certifiedBadgeText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: '#059669',
   },
   skillTitle: {
     fontSize: 18,

@@ -1,9 +1,10 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import CallScreen from '@/components/CallScreen';
+import CallPreviewScreen from '@/components/CallPreviewScreen';
 import { useCurrentUser } from '@/providers/current-user';
 import { useAuth } from '@/providers/auth';
 import { useSkillSwaps } from '@/providers/skill-swaps';
@@ -21,12 +22,13 @@ import {
 } from '@/lib/call-engine';
 
 export default function UnifiedCallScreen() {
-  const { swapId, classId, id, mode, isJoining } = useLocalSearchParams<{
+  const { swapId, classId, id, mode, isJoining, partnerId: queryPartnerId } = useLocalSearchParams<{
     swapId?: string;
     classId?: string;
     id?: string;
     mode?: string;
     isJoining?: string;
+    partnerId?: string;
   }>();
   const targetId = (swapId || classId || id || '') as string;
   const router = useRouter();
@@ -36,6 +38,9 @@ export default function UnifiedCallScreen() {
   const { getClassById, classes } = useClasses();
   const { socket } = useSocket();
 
+  const [hasJoined, setHasJoined] = useState<boolean>(false);
+  const [initialMicOn, setInitialMicOn] = useState<boolean>(true);
+  const [initialVideoOn, setInitialVideoOn] = useState<boolean>(mode !== 'voice');
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | undefined>(undefined);
   const [isTeacher, setIsTeacher] = useState(false);
@@ -62,20 +67,27 @@ export default function UnifiedCallScreen() {
       {
         id: targetId,
         requesterId: currentUserId,
-        recipientId: 'partner-id',
+        recipientId: queryPartnerId || 'partner-id',
         status: 'scheduled',
       }
     );
-  }, [getSwapById, swaps, allSwaps, targetId, cls, currentUserId]);
+  }, [getSwapById, swaps, allSwaps, targetId, cls, currentUserId, queryPartnerId]);
 
   const partner = useMemo(() => {
     if (!swap) return undefined;
-    const partnerId =
-      String(swap.requesterId) === String(currentUserId) ? swap.recipientId : swap.requesterId;
-    return (
-      allUsers?.find((u: any) => String(u.id) === String(partnerId) || String(u._id) === String(partnerId)) ||
-      mockUsers.find((u: any) => String(u.id) === String(partnerId) || String(u._id) === String(partnerId)) || {
-        id: partnerId || 'partner',
+    const reqId = String((swap.requesterId as any)?._id || (swap.requesterId as any)?.id || swap.requesterId || '');
+    const recId = String((swap.recipientId as any)?._id || (swap.recipientId as any)?.id || swap.recipientId || '');
+    const resolvedPartnerId = queryPartnerId || (reqId === String(currentUserId) ? recId : reqId);
+
+    const foundUser =
+      allUsers?.find((u: any) => String(u.id || u._id) === String(resolvedPartnerId)) ||
+      mockUsers.find((u: any) => String(u.id || u._id) === String(resolvedPartnerId));
+
+    if (foundUser) return foundUser;
+
+    if (resolvedPartnerId && resolvedPartnerId !== 'partner-id' && resolvedPartnerId !== 'partner' && resolvedPartnerId !== '[object Object]') {
+      return {
+        id: resolvedPartnerId,
         name: (swap as any).partnerName || (swap as any).otherUserName || 'Partner',
         avatarUrl: (swap as any).partnerAvatar || '',
         bio: '',
@@ -88,9 +100,10 @@ export default function UnifiedCallScreen() {
         skillsOffered: [],
         skillsWanted: [],
         completedSwapsCount: 0,
-      }
-    );
-  }, [allUsers, currentUserId, swap]);
+      };
+    }
+    return undefined;
+  }, [allUsers, currentUserId, swap, queryPartnerId]);
 
   // Fetch 100ms Room Code from Backend & Database
   useEffect(() => {
@@ -143,16 +156,16 @@ export default function UnifiedCallScreen() {
       }
     }
 
-    if (router.canGoBack()) {
-      router.back();
-    } else if (cls) {
+    if (cls) {
       router.replace(`/class/${cls.id}` as any);
-    } else if (swap) {
+    } else if (swap && swap.id && swap.id !== 'partner-id') {
       router.replace(`/swaps/${swap.id}` as any);
+    } else if (targetId && targetId !== 'partner-id') {
+      router.replace(`/swaps/${targetId}` as any);
     } else {
-      router.replace('/(tabs)/home' as any);
+      router.replace('/(tabs)/swaps' as any);
     }
-  }, [cls, isTeacher, swap, router]);
+  }, [cls, isTeacher, swap, targetId, router]);
 
   // Real-time socket listener: if teacher ends class, automatically exit students
   useEffect(() => {
@@ -194,6 +207,8 @@ export default function UnifiedCallScreen() {
     );
   }, [currentUser, currentUserId, authUser]);
 
+  const isJoiningCall = isJoining === 'true' || isJoining === '1';
+
   const initialParticipants: CallParticipant[] = useMemo(() => {
     if (cls) {
       const teacher =
@@ -232,12 +247,12 @@ export default function UnifiedCallScreen() {
         'host'
       );
       remote.isVideoOff = callMode !== 'video';
-      remote.status = 'connected';
+      remote.status = isJoiningCall ? 'connected' : 'connecting';
       return [local, remote];
     }
 
     return [];
-  }, [cls, partner, effectiveUser, allUsers, callMode]);
+  }, [cls, partner, effectiveUser, allUsers, callMode, isJoiningCall]);
 
   // Live 100ms / WebRTC real-time connection hook
   const {
@@ -259,21 +274,105 @@ export default function UnifiedCallScreen() {
     sendMessage,
     leaveCall,
   } = use100msCall({
-    roomCode,
-    authToken,
+    roomCode: hasJoined ? roomCode : null,
+    authToken: hasJoined ? authToken : undefined,
     userName: effectiveUser.name || (isTeacher ? 'Teacher' : 'Participant'),
     isTeacher,
     initialParticipants,
     mode: callMode,
     onEndCall: handleEndCall,
-    roomId: targetId,
+    roomId: hasJoined ? targetId : undefined,
     currentUserId: effectiveUser.id,
     partnerId: partner?.id,
     socket,
+    initialMicOn,
+    initialVideoOn,
   });
 
-  const roomTitle = cls ? cls.title : `Skill swap with ${partner?.name || 'Partner'}`;
+  const roomTitle = cls ? cls.title : 'Skill Swap Session';
   const isGroupCall = Boolean(cls);
+
+  // Send notification alert to partner once when entering the Call Preview Screen as caller/initiator
+  const hasAlertedPartnerRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    const reqId = String((swap?.requesterId as any)?._id || (swap?.requesterId as any)?.id || swap?.requesterId || '');
+    const recId = String((swap?.recipientId as any)?._id || (swap?.recipientId as any)?.id || swap?.recipientId || '');
+    const resolvedPartnerId = String(partner?.id || (partner as any)?._id || queryPartnerId || (reqId === String(effectiveUser?.id) ? recId : reqId) || '');
+
+    const isValidPartnerId = Boolean(
+      resolvedPartnerId &&
+      resolvedPartnerId !== 'partner-id' &&
+      resolvedPartnerId !== 'partner' &&
+      resolvedPartnerId !== '[object Object]' &&
+      resolvedPartnerId.length > 2
+    );
+
+    if (!hasJoined && !isJoiningCall && socket && targetId && effectiveUser?.id && isValidPartnerId && !hasAlertedPartnerRef.current) {
+      hasAlertedPartnerRef.current = true;
+
+      console.log('[UnifiedCallScreen] Emitting incoming call alert to partner from Call Preview Screen:', resolvedPartnerId);
+
+      socket.emit('swap_call_started', {
+        swapId: targetId,
+        callerId: effectiveUser.id,
+        callerName: effectiveUser.name || 'Your partner',
+        partnerId: resolvedPartnerId,
+        recipientId: resolvedPartnerId,
+        mode: callMode,
+      });
+    }
+  }, [hasJoined, isJoiningCall, socket, targetId, effectiveUser, partner, swap, queryPartnerId, callMode]);
+
+  const handleExitPreview = useCallback(() => {
+    console.log('[UnifiedCallScreen] User exited from call preview screen');
+
+    try {
+      leaveCall();
+    } catch (e) {}
+
+    handleEndCall();
+  }, [leaveCall, handleEndCall]);
+
+  // Show Pre-Call Camera & Mic Preview Screen first before joining
+  if (!hasJoined) {
+    return (
+      <CallPreviewScreen
+        roomTitle={roomTitle}
+        userName={effectiveUser.name || (isTeacher ? 'Teacher' : 'You')}
+        userAvatar={effectiveUser.avatarUrl}
+        partnerName={cls ? (isTeacher ? `${(cls as any).enrolledCount || 0} Students enrolled` : (cls as any).teacherName || (cls as any).teacher?.name || 'Teacher') : partner?.name}
+        partnerAvatar={partner?.avatarUrl}
+        isTeacher={isTeacher}
+        isGroupCall={isGroupCall}
+        initialMicOn={initialMicOn}
+        initialVideoOn={initialVideoOn}
+        onJoin={({ isMicOn, isVideoOn }) => {
+          setInitialMicOn(isMicOn);
+          setInitialVideoOn(isVideoOn);
+          setHasJoined(true);
+
+          if (!isJoiningCall && socket && targetId) {
+            const reqId = String((swap?.requesterId as any)?._id || (swap?.requesterId as any)?.id || swap?.requesterId || '');
+            const recId = String((swap?.recipientId as any)?._id || (swap?.recipientId as any)?.id || swap?.recipientId || '');
+            const resolvedPartnerId = String(partner?.id || (partner as any)?._id || queryPartnerId || (reqId === String(effectiveUser?.id) ? recId : reqId) || '');
+
+            if (resolvedPartnerId && resolvedPartnerId !== 'partner-id' && resolvedPartnerId !== 'partner' && resolvedPartnerId.length > 2) {
+              socket.emit('swap_call_started', {
+                swapId: targetId,
+                callerId: effectiveUser.id,
+                callerName: effectiveUser.name || 'Your partner',
+                partnerId: resolvedPartnerId,
+                recipientId: resolvedPartnerId,
+                mode: callMode,
+              });
+            }
+          }
+        }}
+        onCancel={handleExitPreview}
+      />
+    );
+  }
 
   return (
     <CallScreen

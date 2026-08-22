@@ -20,7 +20,7 @@ import {
   Mic, MicOff, Video, VideoOff, PhoneOff, MessageSquare, Users as UsersIcon,
   Hand, Send, Wifi, Signal, Volume2, Grid3x3, Maximize2,
   ChevronDown, Circle, Sparkles, SwitchCamera, MonitorUp, Smile,
-  MoreVertical, VolumeX, UserMinus, ShieldCheck, Check,
+  MoreVertical, VolumeX, UserMinus, ShieldCheck, Check, User, UserCheck, UserX,
 } from 'lucide-react-native';
 import {
   type CallParticipant,
@@ -102,33 +102,87 @@ export default function CallScreen({
   const [layout, setLayout] = useState<'grid' | 'spotlight'>(isGroupCall ? 'spotlight' : 'spotlight');
   const [connecting, setConnecting] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const scrollRef = useRef<FlatList>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   // Floating reaction animations
   const [activeReactions, setActiveReactions] = useState<{ id: string; emoji: string; anim: Animated.Value; left: number }[]>([]);
+  const [reactionToast, setReactionToast] = useState<{ id: string; emoji: string; senderName?: string } | null>(null);
+  const reactionToastAnim = useRef(new Animated.Value(0)).current;
+  const lastAnimatedReactionIdRef = useRef<string | null>(null);
 
-  // Trigger floating reaction animation
-  const triggerFloatingReaction = useCallback((emoji: string) => {
+  // In-call Event Toast (Peer joined / Peer left)
+  const [callEventToast, setCallEventToast] = useState<{ id: string; message: string; type: 'join' | 'leave' | 'info' } | null>(null);
+  const callEventToastAnim = useRef(new Animated.Value(0)).current;
+  const lastSystemMsgIdRef = useRef<string | null>(null);
+
+  const triggerEventToast = useCallback((message: string, type: 'join' | 'leave' | 'info' = 'info') => {
+    const id = `evt-${Date.now()}`;
+    setCallEventToast({ id, message, type });
+    callEventToastAnim.setValue(0);
+    Animated.sequence([
+      Animated.spring(callEventToastAnim, {
+        toValue: 1,
+        friction: 6,
+        tension: 80,
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+      Animated.delay(2600),
+      Animated.timing(callEventToastAnim, {
+        toValue: 0,
+        duration: 350,
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+    ]).start(() => {
+      setCallEventToast(prev => (prev?.id === id ? null : prev));
+    });
+  }, [callEventToastAnim]);
+
+  // Trigger floating reaction animation & pop-up toast
+  const triggerFloatingReaction = useCallback((emoji: string, senderName?: string) => {
+    // 1. Floating bubble animation moving upwards
     const anim = new Animated.Value(0);
     const id = `react-${Date.now()}-${Math.random()}`;
-    const left = Math.random() * (SCREEN_WIDTH - 80) + 30;
+    const left = Math.random() * (SCREEN_WIDTH - 120) + 40;
 
     setActiveReactions(prev => [...prev.slice(-10), { id, emoji, anim, left }]);
 
     Animated.timing(anim, {
       toValue: 1,
-      duration: 2400,
-      useNativeDriver: true,
+      duration: 2500,
+      useNativeDriver: Platform.OS !== 'web',
     }).start(() => {
       setActiveReactions(prev => prev.filter(r => r.id !== id));
     });
-  }, []);
+
+    // 2. Reaction Pop-up Toast banner
+    setReactionToast({ id, emoji, senderName });
+    reactionToastAnim.setValue(0);
+    Animated.sequence([
+      Animated.spring(reactionToastAnim, {
+        toValue: 1,
+        friction: 6,
+        tension: 80,
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+      Animated.delay(1800),
+      Animated.timing(reactionToastAnim, {
+        toValue: 0,
+        duration: 350,
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+    ]).start(() => {
+      setReactionToast(prev => (prev?.id === id ? null : prev));
+    });
+  }, [reactionToastAnim]);
 
   // Sync external incoming reactions
   useEffect(() => {
-    if (reactions.length > 0) {
+    if (reactions && reactions.length > 0) {
       const latest = reactions[reactions.length - 1];
-      triggerFloatingReaction(latest.emoji);
+      if (latest && latest.id !== lastAnimatedReactionIdRef.current) {
+        lastAnimatedReactionIdRef.current = latest.id;
+        triggerFloatingReaction(latest.emoji, latest.senderName);
+      }
     }
   }, [reactions, triggerFloatingReaction]);
 
@@ -142,12 +196,41 @@ export default function CallScreen({
   // Sync external messages
   useEffect(() => {
     if (externalMessages && externalMessages.length > 0) {
-      setMessages(externalMessages);
+      setMessages(prev => {
+        const existingIds = new Set(prev.map(m => m.id));
+        const newItems = externalMessages.filter(m => !existingIds.has(m.id));
+        if (newItems.length === 0) {
+          return externalMessages.length === prev.length ? prev : externalMessages;
+        }
+        return [...prev, ...newItems];
+      });
     }
   }, [externalMessages]);
 
+  // Watch for in-call system events (Join / Leave)
+  useEffect(() => {
+    const all = [...messages, ...(externalMessages || [])];
+    if (all.length > 0) {
+      const latestSys = all.filter(m => m.isSystem).pop();
+      if (latestSys && latestSys.id !== lastSystemMsgIdRef.current) {
+        lastSystemMsgIdRef.current = latestSys.id;
+        const text = latestSys.body || '';
+        if (text.includes('joined the call')) {
+          triggerEventToast(text, 'join');
+        } else if (text.includes('left the call') || text.includes('ended')) {
+          triggerEventToast(text, 'leave');
+        }
+      }
+    }
+  }, [messages, externalMessages, triggerEventToast]);
+
   const localParticipant = useMemo(() => participants.find(p => p.isLocal) ?? null, [participants]);
   const remoteParticipants = useMemo(() => participants.filter(p => !p.isLocal), [participants]);
+
+  const isOnlyOneUser = useMemo(() => {
+    const connectedRemotes = remoteParticipants.filter(p => p.status === 'connected');
+    return connectedRemotes.length === 0;
+  }, [remoteParticipants]);
 
   const spotlightParticipant = useMemo(() => {
     // 1. If explicit spotlight ID matches a non-local participant with live video, return it
@@ -170,38 +253,46 @@ export default function CallScreen({
     participants.find(p => p.screenShareTrackId || p.screenShareStream || (p.isLocal && isScreenSharing)) ?? null,
   [participants, isScreenSharing]);
 
-  // Timer + connecting simulation
+  // Timer + connecting initialization
   useEffect(() => {
     startCallTimer(setDuration);
     const connectTimeout = setTimeout(() => {
       setConnecting(false);
-      setParticipants(prev => prev.map(p => p.status === 'connecting' ? { ...p, status: 'connected' as const } : p));
+      setParticipants(prev =>
+        prev.map(p => {
+          if (p.isLocal) return { ...p, status: 'connected' as const };
+          if (isGroupCall && p.status === 'connecting') return { ...p, status: 'connected' as const };
+          return p;
+        })
+      );
       if (messages.length === 0) {
         setMessages([{
           id: generateCallMessageId(),
           authorId: 'system',
           authorName: 'SkillSwap',
-          body: `Encrypted call connected: ${roomTitle}`,
+          body: `Encrypted call session ready: ${roomTitle}`,
           createdAt: new Date().toISOString(),
           isSystem: true,
         }]);
       }
     }, 1500);
 
-    const remoteIds = remoteParticipants.map(p => p.id);
-    startSpeakingSimulator(remoteIds, (speakingId) => {
-      setParticipants(prev => prev.map(p => ({
-        ...p,
-        isSpeaking: p.id === speakingId && !p.isMuted,
-      })));
-    });
+    if (isGroupCall) {
+      const remoteIds = remoteParticipants.map(p => p.id);
+      startSpeakingSimulator(remoteIds, (speakingId) => {
+        setParticipants(prev => prev.map(p => ({
+          ...p,
+          isSpeaking: p.id === speakingId && !p.isMuted,
+        })));
+      });
+    }
 
     return () => {
       clearTimeout(connectTimeout);
       stopCallTimer();
       stopSpeakingSimulator();
     };
-  }, []);
+  }, [isGroupCall, roomTitle]);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -235,8 +326,11 @@ export default function CallScreen({
   }, [localParticipant, onToggleHand]);
 
   const handleSendReaction = useCallback((emoji: string) => {
-    triggerFloatingReaction(emoji);
-    if (onSendReaction) onSendReaction(emoji);
+    if (onSendReaction) {
+      onSendReaction(emoji);
+    } else {
+      triggerFloatingReaction(emoji);
+    }
     setBottomPanel('none');
   }, [onSendReaction, triggerFloatingReaction]);
 
@@ -245,15 +339,16 @@ export default function CallScreen({
     const text = chatDraft.trim();
     if (onSendMessage) {
       onSendMessage(text);
+    } else {
+      const msg: CallMessage = {
+        id: generateCallMessageId(),
+        authorId: localParticipant.id,
+        authorName: localParticipant.name,
+        body: text,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
     }
-    const msg: CallMessage = {
-      id: generateCallMessageId(),
-      authorId: localParticipant.id,
-      authorName: localParticipant.name,
-      body: text,
-      createdAt: new Date().toISOString(),
-    };
-    setMessages(prev => [...prev, msg]);
     setChatDraft('');
   }, [localParticipant, chatDraft, onSendMessage]);
 
@@ -273,20 +368,92 @@ export default function CallScreen({
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#0A0F1D', '#0F172A', '#020617']} style={styles.gradient}>
-        {/* Floating Reactions Overlay */}
+        {/* Floating Reactions Overlay & Pop-up Toast */}
         <View pointerEvents="none" style={styles.reactionsOverlay}>
+          {/* In-Call Peer Join / Leave Event Banner */}
+          {callEventToast && (
+            <Animated.View
+              style={[
+                styles.eventToast,
+                callEventToast.type === 'join'
+                  ? styles.eventToastJoin
+                  : callEventToast.type === 'leave'
+                  ? styles.eventToastLeave
+                  : styles.eventToastInfo,
+                {
+                  opacity: callEventToastAnim,
+                  transform: [
+                    {
+                      translateY: callEventToastAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-24, 0],
+                      }),
+                    },
+                    {
+                      scale: callEventToastAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.8, 1],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              {callEventToast.type === 'join' ? (
+                <UserCheck size={18} color="#34D399" />
+              ) : callEventToast.type === 'leave' ? (
+                <UserX size={18} color="#F87171" />
+              ) : (
+                <UsersIcon size={18} color="#818CF8" />
+              )}
+              <Text style={styles.eventToastText}>{callEventToast.message}</Text>
+            </Animated.View>
+          )}
+
+          {/* Reaction Pop-up Toast banner */}
+          {reactionToast && (
+            <Animated.View
+              style={[
+                styles.reactionToast,
+                {
+                  opacity: reactionToastAnim,
+                  transform: [
+                    {
+                      translateY: reactionToastAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-24, 0],
+                      }),
+                    },
+                    {
+                      scale: reactionToastAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.75, 1],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <Text style={styles.reactionToastEmoji}>{reactionToast.emoji}</Text>
+              <Text style={styles.reactionToastText}>
+                {reactionToast.senderName ? `${reactionToast.senderName} reacted` : 'Reaction'}
+              </Text>
+            </Animated.View>
+          )}
+
+          {/* Flying emojis */}
           {activeReactions.map(r => {
             const translateY = r.anim.interpolate({
               inputRange: [0, 1],
-              outputRange: [SCREEN_HEIGHT * 0.7, SCREEN_HEIGHT * 0.15],
+              outputRange: [0, -SCREEN_HEIGHT * 0.65],
             });
             const opacity = r.anim.interpolate({
-              inputRange: [0, 0.15, 0.8, 1],
-              outputRange: [0, 1, 0.9, 0],
+              inputRange: [0, 0.1, 0.75, 1],
+              outputRange: [0, 1, 0.95, 0],
             });
             const scale = r.anim.interpolate({
-              inputRange: [0, 0.2, 0.8, 1],
-              outputRange: [0.6, 1.3, 1.1, 0.8],
+              inputRange: [0, 0.2, 0.75, 1],
+              outputRange: [0.5, 1.4, 1.1, 0.75],
             });
 
             return (
@@ -297,7 +464,9 @@ export default function CallScreen({
                   { left: r.left, transform: [{ translateY }, { scale }], opacity },
                 ]}
               >
-                <Text style={styles.floatingEmojiText}>{r.emoji}</Text>
+                <View style={styles.floatingEmojiBubble}>
+                  <Text style={styles.floatingEmojiText}>{r.emoji}</Text>
+                </View>
               </Animated.View>
             );
           })}
@@ -329,10 +498,23 @@ export default function CallScreen({
               </TouchableOpacity>
             )}
 
-            {/* Participant count */}
-            <TouchableOpacity style={styles.participantCount} onPress={() => setBottomPanel('participants')} activeOpacity={0.8}>
-              <UsersIcon size={14} color="#A5B4FC" />
-              <Text style={styles.participantCountText}>{participants.length}</Text>
+            {/* Participant count / Only You Status */}
+            <TouchableOpacity
+              style={[styles.participantCount, isOnlyOneUser && styles.onlyYouBadge]}
+              onPress={() => setBottomPanel('participants')}
+              activeOpacity={0.8}
+            >
+              {isOnlyOneUser ? (
+                <>
+                  <User size={13} color="#F59E0B" />
+                  <Text style={styles.onlyYouBadgeText}>Only you are in the call</Text>
+                </>
+              ) : (
+                <>
+                  <UsersIcon size={14} color="#A5B4FC" />
+                  <Text style={styles.participantCountText}>{participants.length}</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -359,7 +541,23 @@ export default function CallScreen({
               onSpotlight={handleSpotlight}
             />
           ) : (
-            <GridView participants={participants} mode={mode} onSpotlight={handleSpotlight} />
+            <GridView
+              participants={participants}
+              mode={mode}
+              isOnlyOneUser={isOnlyOneUser}
+              onSpotlight={handleSpotlight}
+            />
+          )}
+
+          {/* Waiting for partner status pill */}
+          {isOnlyOneUser && !connecting && (
+            <View style={styles.aloneStatusOverlay} pointerEvents="none">
+              <View style={styles.aloneStatusPill}>
+                <View style={styles.aloneStatusDot} />
+                <Text style={styles.aloneStatusTitle}>Only you are in the call</Text>
+                <Text style={styles.aloneStatusSub}>Waiting for your partner to join...</Text>
+              </View>
+            </View>
           )}
         </View>
 
@@ -589,13 +787,14 @@ function ScreenShareView({
 }
 
 function GridView({
-  participants, mode, onSpotlight,
+  participants, mode, isOnlyOneUser, onSpotlight,
 }: {
   participants: CallParticipant[];
   mode: CallMode;
+  isOnlyOneUser?: boolean;
   onSpotlight: (id: string) => void;
 }) {
-  const numColumns = participants.length <= 2 ? 1 : participants.length <= 4 ? 2 : 3;
+  const numColumns = isOnlyOneUser ? 1 : participants.length <= 2 ? 1 : participants.length <= 4 ? 2 : 3;
 
   return (
     <View style={styles.gridContainer}>
@@ -603,7 +802,11 @@ function GridView({
         {participants.map(p => (
           <TouchableOpacity
             key={p.id}
-            style={[styles.gridTile, { width: `${100 / numColumns - 2}%` } as ViewStyle]}
+            style={[
+              styles.gridTile,
+              { width: `${100 / numColumns - 2}%` } as ViewStyle,
+              isOnlyOneUser && styles.singleUserTile,
+            ]}
             onPress={() => onSpotlight(p.id)}
             activeOpacity={0.85}
           >
@@ -717,7 +920,7 @@ interface BottomPanelViewProps {
   onMuteParticipant?: (id: string) => void;
   onRemoveParticipant?: (id: string) => void;
   onClose: () => void;
-  scrollRef: React.RefObject<FlatList | null>;
+  scrollRef: React.RefObject<ScrollView | null>;
   onSpotlight: (id: string) => void;
   bottomInset: number;
 }
@@ -761,20 +964,41 @@ function BottomPanelView({
       {/* 1. In-Call Chat */}
       {panel === 'chat' && (
         <View style={styles.chatWrap}>
-          <FlatList
+          <ScrollView
             ref={scrollRef as any}
-            data={messages}
-            keyExtractor={item => item.id}
+            style={{ flex: 1 }}
             contentContainerStyle={styles.chatListContent}
-            renderItem={({ item }) => (
-              <View style={[styles.chatBubble, item.authorId === 'system' ? styles.chatBubbleSystem : styles.chatBubbleUser]}>
-                {item.authorId !== 'system' && (
-                  <Text style={styles.chatAuthor}>{item.authorName}</Text>
-                )}
-                <Text style={styles.chatBody}>{item.body}</Text>
-              </View>
-            )}
-          />
+            onContentSizeChange={() => {
+              (scrollRef as any)?.current?.scrollToEnd?.({ animated: true });
+            }}
+          >
+            {(messages || []).map((item, idx) => {
+              if (!item) return null;
+              const isSystem = item.authorId === 'system' || item.isSystem;
+              const authorName = item.authorName || 'Participant';
+              const body = typeof item.body === 'string'
+                ? item.body
+                : (typeof (item as any).message === 'string'
+                  ? (item as any).message
+                  : typeof (item as any).text === 'string'
+                    ? (item as any).text
+                    : String(item.body || ''));
+              return (
+                <View
+                  key={item.id || `msg-${idx}-${item.createdAt || ''}`}
+                  style={[
+                    styles.chatBubble,
+                    isSystem ? styles.chatBubbleSystem : styles.chatBubbleUser,
+                  ]}
+                >
+                  {!isSystem && (
+                    <Text style={styles.chatAuthor}>{authorName}</Text>
+                  )}
+                  <Text style={styles.chatBody}>{body}</Text>
+                </View>
+              );
+            })}
+          </ScrollView>
           <View style={[styles.chatInputRow, { paddingBottom: Math.max(bottomInset, 12) }]}>
             <TextInput
               style={styles.chatInput}
@@ -795,20 +1019,24 @@ function BottomPanelView({
       {/* 2. Participants List & Host Moderation */}
       {panel === 'participants' && (
         <ScrollView style={styles.peopleList} contentContainerStyle={{ paddingBottom: bottomInset + 16 }}>
-          {participants.map(p => (
-            <View key={p.id} style={styles.personRow}>
-              <View style={styles.personAvatarWrap}>
-                <Text style={styles.personAvatarText}>{p.name.charAt(0).toUpperCase()}</Text>
-              </View>
-              <View style={styles.personInfo}>
-                <View style={styles.personNameRow}>
-                  <Text style={styles.personName}>{p.isLocal ? `${p.name} (You)` : p.name}</Text>
-                  {p.role === 'teacher' && <View style={styles.personBadge}><Text style={styles.personBadgeText}>Host</Text></View>}
+          {(participants || []).map((p, idx) => {
+            if (!p) return null;
+            const displayName = p.name || (p.isLocal ? 'You' : 'Participant');
+            const initial = displayName.charAt(0).toUpperCase() || 'U';
+            return (
+              <View key={p.id || `participant-${idx}`} style={styles.personRow}>
+                <View style={styles.personAvatarWrap}>
+                  <Text style={styles.personAvatarText}>{initial}</Text>
                 </View>
-                <Text style={styles.personStatus}>{p.status === 'connected' ? 'In Call' : 'Connecting...'}</Text>
-              </View>
+                <View style={styles.personInfo}>
+                  <View style={styles.personNameRow}>
+                    <Text style={styles.personName}>{p.isLocal ? `${displayName} (You)` : displayName}</Text>
+                    {p.role === 'teacher' && <View style={styles.personBadge}><Text style={styles.personBadgeText}>Host</Text></View>}
+                  </View>
+                  <Text style={styles.personStatus}>{p.status === 'connected' ? 'In Call' : 'Connecting...'}</Text>
+                </View>
 
-              <View style={styles.personActions}>
+                <View style={styles.personActions}>
                 {p.isMuted && <MicOff size={16} color="#94A3B8" style={{ marginRight: 8 }} />}
                 {isTeacher && !p.isLocal && (
                   <>
@@ -826,7 +1054,8 @@ function BottomPanelView({
                 )}
               </View>
             </View>
-          ))}
+          );
+        })}
         </ScrollView>
       )}
 
@@ -923,14 +1152,146 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 999,
+    zIndex: 9999,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 80,
+  },
+  reactionToast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(15, 23, 42, 0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.45)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 12,
+  },
+  reactionToastEmoji: {
+    fontSize: 22,
+  },
+  reactionToastText: {
+    color: '#F8FAFC',
+    fontSize: 14,
+    fontWeight: '700' as const,
   },
   floatingReaction: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 140,
+  },
+  floatingEmojiBubble: {
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    borderRadius: 32,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   floatingEmojiText: {
-    fontSize: 42,
+    fontSize: 44,
+  },
+
+  // Event Toasts (Peer joined / left)
+  eventToast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.94)',
+    borderWidth: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 14,
+    marginBottom: 8,
+  },
+  eventToastJoin: {
+    borderColor: 'rgba(52, 211, 153, 0.6)',
+    backgroundColor: 'rgba(6, 78, 59, 0.85)',
+  },
+  eventToastLeave: {
+    borderColor: 'rgba(248, 113, 113, 0.6)',
+    backgroundColor: 'rgba(127, 29, 29, 0.85)',
+  },
+  eventToastInfo: {
+    borderColor: 'rgba(129, 140, 248, 0.6)',
+    backgroundColor: 'rgba(30, 27, 75, 0.85)',
+  },
+  eventToastText: {
+    color: '#F8FAFC',
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
+
+  // Only You Badge in TopBar
+  onlyYouBadge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    borderWidth: 1,
+  },
+  onlyYouBadgeText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#FDE68A',
+  },
+
+  // Alone Status Overlay in Video Area
+  aloneStatusOverlay: {
+    position: 'absolute',
+    bottom: 24,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
+  },
+  aloneStatusPill: {
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignItems: 'center',
+    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  aloneStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F59E0B',
+  },
+  aloneStatusTitle: {
+    color: '#F8FAFC',
+    fontSize: 13,
+    fontWeight: '700' as const,
+  },
+  aloneStatusSub: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '500' as const,
+  },
+  singleUserTile: {
+    width: '100%',
+    height: '100%',
   },
 
   // Top bar

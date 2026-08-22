@@ -625,10 +625,12 @@ export default function SwapDetailScreen() {
     }
 
     const callerName = currentUser?.name || 'Partner';
-    const callerId = currentUser?.id || '';
-    const partnerId = partner?.id || (swap?.requesterId === callerId ? swap?.recipientId : swap?.requesterId);
+    const callerId = String(currentUser?.id || (currentUser as any)?._id || '');
+    const reqId = String((swap?.requesterId as any)?._id || (swap?.requesterId as any)?.id || swap?.requesterId || '');
+    const recId = String((swap?.recipientId as any)?._id || (swap?.recipientId as any)?.id || swap?.recipientId || '');
+    const partnerId = String(partner?.id || (partner as any)?._id || (reqId === callerId ? recId : reqId));
 
-    // 1. Post real-time call alert message to swap thread so partner gets notified instantly
+    // 1. Post real-time call alert message to swap thread
     if (swap?.id && callerId) {
       addMessage({
         requestId: swap.id,
@@ -638,20 +640,23 @@ export default function SwapDetailScreen() {
       });
     }
 
-    // 2. Emit real-time socket call alert to partner
-    if (socket && swap?.id) {
-      socket.emit('call_peer_joined', { room: swap.id, userId: callerId, userName: callerName });
-      socket.emit('swap_call_started', { swapId: swap.id, callerId, callerName, partnerId, mode: callMode });
-      if (partnerId) {
-        socket.emit('call_signal', { room: swap.id, type: 'incoming_call', to: partnerId, callerId, callerName, mode: callMode });
-      }
+    // 2. Emit real-time call alert to partner
+    if (socket && partnerId && partnerId !== 'partner-id' && partnerId !== 'partner' && partnerId.length > 2) {
+      socket.emit('swap_call_started', {
+        swapId: swap?.id || id,
+        callerId,
+        callerName,
+        partnerId,
+        recipientId: partnerId,
+        mode: callMode,
+      });
     }
 
-    // 3. Navigate immediately to call room
-    router.push(`/call/${swap?.id || id}?mode=${callMode}` as any);
-  }, [currentUser, partner, swap, id, addMessage, socket, router, showAlert]);
+    // 3. Navigate immediately to call room preview
+    router.push(`/call/${swap?.id || id}?mode=${callMode}&partnerId=${partnerId}` as any);
+  }, [currentUser, partner, swap, id, addMessage, router, showAlert, socket]);
 
-  if (loading) {
+  if (loading && !swap) {
     return (
       <View style={styles.loadingContainer}>
         <Stack.Screen options={{ headerShown: false }} />

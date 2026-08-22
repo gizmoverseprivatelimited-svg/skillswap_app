@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   Share,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -102,6 +103,22 @@ export default function ProfileScreen() {
   const [reviews, setReviews] = useState<any>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  const { width: windowWidth } = useWindowDimensions();
+
+  const numSkillColumns = useMemo(() => {
+    if (windowWidth >= 1024) return 3;
+    if (windowWidth >= 640) return 2;
+    return 1;
+  }, [windowWidth]);
+
+  const skillCardWidth = useMemo(() => {
+    if (numSkillColumns === 1) return '100%';
+    const totalPadding = 40;
+    const totalGap = (numSkillColumns - 1) * 16;
+    const availableWidth = windowWidth - totalPadding - totalGap;
+    return Math.max(240, Math.floor(availableWidth / numSkillColumns));
+  }, [windowWidth, numSkillColumns]);
+
   const isTeacher = Boolean(
     currentUser?.teacherProfile ||
     currentUser?.role === 'teacher' ||
@@ -133,31 +150,46 @@ export default function ProfileScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
-        quality: 0.7,
-        base64: true,
+        quality: 0.8,
       });
       const asset = result.assets?.[0];
       if (!result.canceled && asset) {
-        let uri = asset.uri;
-        if (asset.base64) {
-          const mime = asset.mimeType || (asset.uri?.endsWith('.png') ? 'image/png' : 'image/jpeg');
-          uri = `data:${mime};base64,${asset.base64}`;
-        } else if (Platform.OS === 'web' && asset.uri && asset.uri.startsWith('blob:')) {
-          try {
-            const resp = await fetch(asset.uri);
-            const blob = await resp.blob();
-            uri = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-            });
-          } catch (e) {
-            console.warn('[Profile] Failed to convert blob to data URI:', e);
-          }
+        const formData = new FormData();
+        const filename = asset.fileName || asset.uri.split('/').pop() || 'certificate.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = asset.mimeType || (match ? `image/${match[1]}` : 'image/jpeg');
+
+        if (Platform.OS === 'web') {
+          const resp = await fetch(asset.uri);
+          const blob = await resp.blob();
+          formData.append('certificate', blob, filename);
+        } else {
+          // @ts-ignore
+          formData.append('certificate', {
+            uri: asset.uri,
+            name: filename,
+            type,
+          });
         }
 
-        if (attachSkillCertificate) attachSkillCertificate(skillId, uri);
+        const uploadEndpoint = skillId && !String(skillId).startsWith('onboard-')
+          ? `${url}/skills/${skillId}/certificate`
+          : `${url}/skills/upload-certificate`;
+
+        const uploadRes = await fetch(uploadEndpoint, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadRes.ok) {
+          const errorData = await uploadRes.json().catch(() => ({}));
+          throw new Error(errorData.error || errorData.message || 'Failed to upload certificate');
+        }
+
+        const uploadData = await uploadRes.json();
+        const savedUri = uploadData.certificateUri;
+
+        if (attachSkillCertificate) attachSkillCertificate(skillId, savedUri);
         if (currentUser) {
           const uid = String(currentUser.id || (currentUser as any)._id || '');
           submitCertification({
@@ -166,14 +198,14 @@ export default function ProfileScreen() {
             userAvatar: currentUser.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
             skillId: String(skillId),
             skillTitle: skillTitle || 'Skill',
-            documentUri: uri,
+            documentUri: savedUri,
           });
         }
-        showAlert('Certificate submitted', `Your certificate for "${skillTitle}" has been submitted for admin verification.`);
+        showAlert('Certificate submitted', `Your certificate for "${skillTitle}" has been uploaded and submitted for admin verification.`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.warn('[Profile] Certificate upload failed:', error);
-      showAlert('Upload failed', 'Could not attach the document. Please try again.');
+      showAlert('Upload failed', error?.message || 'Could not upload the document. Please try again.');
     }
   };
 
@@ -641,7 +673,16 @@ export default function ProfileScreen() {
                 <Text style={styles.addSkillButtonText}>Add Skill</Text>
               </TouchableOpacity>
             </View>
-            <View style={styles.skillsGrid}>
+            <View
+              style={[
+                styles.skillsGrid,
+                numSkillColumns > 1 && {
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  gap: 16,
+                },
+              ]}
+            >
               {(currentUser?.skillsOffered || []).map((skill, index) => {
                 const skId = skill._id || skill.id;
                 const certStatus = skill.certificateUri && currentUser ? getSkillCertificationStatus(currentUser.id, skId) : null;
@@ -652,7 +693,15 @@ export default function ProfileScreen() {
                     : { Icon: Clock, color: '#F59E0B', label: 'Under admin review' };
 
                 return (
-                  <View key={skId || index} style={styles.skillCardWrap}>
+                  <View
+                    key={skId || index}
+                    style={[
+                      styles.skillCardWrap,
+                      numSkillColumns > 1 && {
+                        width: skillCardWidth,
+                      },
+                    ]}
+                  >
                     <TouchableOpacity
                       style={styles.skillCard}
                       onPress={() => router.push(`/skill/${skId}` as any)}
@@ -1485,7 +1534,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   skillCard: {
-    height: 160,
+    height: 170,
     borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: Colors.light.backgroundTertiary,

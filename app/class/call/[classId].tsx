@@ -5,8 +5,10 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { useState, useEffect, useCallback } from 'react';
 import HMSView from '@/components/HMSView';
+import CallPreviewScreen from '@/components/CallPreviewScreen';
 import { useCurrentUser } from '@/providers/current-user';
 import { useAuth } from '@/providers/auth';
+import { useClasses } from '@/providers/classes';
 import { useSocket } from '@/providers/socket';
 import url from '@/constants/backurl';
 
@@ -15,13 +17,19 @@ export default function ClassCallScreen() {
   const router = useRouter();
   const { currentUser, isLoading: isUserLoading } = useCurrentUser();
   const { user: authUser } = useAuth();
+  const { getClassById } = useClasses();
   const { socket } = useSocket();
 
+  const [hasJoined, setHasJoined] = useState<boolean>(false);
+  const [initialMicOn, setInitialMicOn] = useState<boolean>(true);
+  const [initialVideoOn, setInitialVideoOn] = useState<boolean>(true);
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | undefined>(undefined);
   const [loadingCode, setLoadingCode] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isTeacher, setIsTeacher] = useState(false);
+
+  const cls = classId ? getClassById(classId) : null;
 
   const currentUserId = currentUser?.id || (currentUser as any)?._id || authUser?.id || (authUser as any)?._id || '';
 
@@ -113,6 +121,27 @@ export default function ClassCallScreen() {
           </View>
         </LinearGradient>
       </View>
+    );
+  }
+
+  if (!hasJoined) {
+    return (
+      <CallPreviewScreen
+        roomTitle={cls?.title || 'Live Group Class'}
+        userName={currentUser?.name || authUser?.name || (isTeacher ? 'Teacher' : 'Student')}
+        userAvatar={currentUser?.avatarUrl || (authUser as any)?.avatarUrl}
+        partnerName={cls ? (isTeacher ? `${(cls as any).enrolledCount || 0} Enrolled Students` : (cls as any).teacherName || (cls as any).teacher?.name || 'Teacher') : undefined}
+        isTeacher={isTeacher}
+        isGroupCall={true}
+        initialMicOn={initialMicOn}
+        initialVideoOn={initialVideoOn}
+        onJoin={({ isMicOn, isVideoOn }) => {
+          setInitialMicOn(isMicOn);
+          setInitialVideoOn(isVideoOn);
+          setHasJoined(true);
+        }}
+        onCancel={handleEndCall}
+      />
     );
   }
 

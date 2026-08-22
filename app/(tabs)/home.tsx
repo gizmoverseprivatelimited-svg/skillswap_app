@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { RefreshCcw, Star, TrendingUp, Users, Zap, GraduationCap, BookOpen, ArrowLeftRight, Sparkles, Bell, Bot, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { RefreshCcw, Star, TrendingUp, Users, Zap, GraduationCap, BookOpen, ArrowLeftRight, Sparkles, Bell, Bot, ChevronLeft, ChevronRight, BadgeCheck } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '../../constants/colors';
 import { getSkillsWithUsers } from '../../mocks/data';
@@ -386,9 +386,17 @@ export default function HomeScreen() {
                       style={styles.promotedGradient}
                     >
                       <View style={styles.promotedBadgeRow}>
-                        <View style={styles.promotedBadge}>
-                          <Sparkles size={10} color="#F59E0B" />
-                          <Text style={styles.promotedBadgeText}>PROMOTED</Text>
+                        <View style={styles.promotedBadgesGroup}>
+                          <View style={styles.promotedBadge}>
+                            <Sparkles size={10} color="#FFFFFF" />
+                            <Text style={styles.promotedBadgeText}>PROMOTED</Text>
+                          </View>
+                          {skill.certificateStatus === 'approved' && (
+                            <View style={styles.promotedCertBadge}>
+                              <BadgeCheck size={11} color="#FFFFFF" />
+                              <Text style={styles.promotedCertBadgeText}>CERTIFIED</Text>
+                            </View>
+                          )}
                         </View>
                         {skill.pricingModel !== 'free' && (
                           <View style={styles.promotedPriceBadge}>
@@ -603,8 +611,16 @@ export default function HomeScreen() {
                     style={styles.featuredOverlay}
                   >
                     <View style={styles.featuredBadgeRow}>
-                      <View style={styles.levelBadge}>
-                        <Text style={styles.levelBadgeText}>{skill.level}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <View style={styles.levelBadge}>
+                          <Text style={styles.levelBadgeText}>{skill.level}</Text>
+                        </View>
+                        {skill.certificateStatus === 'approved' && (
+                          <View style={styles.featuredCertBadge}>
+                            <BadgeCheck size={11} color="#34D399" />
+                            <Text style={styles.featuredCertBadgeText}>Certified</Text>
+                          </View>
+                        )}
                       </View>
                       <View style={styles.trendingBadge}>
                         <TrendingUp size={12} color="#FFFFFF" />
@@ -763,8 +779,16 @@ export default function HomeScreen() {
                   <View style={styles.skillContent}>
                     <View style={styles.skillHeader}>
                       <Text style={styles.categoryLabel}>{skill.category}</Text>
-                      <View style={styles.skillLevelBadge}>
-                        <Text style={styles.skillLevelText}>{skill.level}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        {skill.certificateStatus === 'approved' && (
+                          <View style={styles.skillCertifiedBadge}>
+                            <BadgeCheck size={11} color="#10B981" />
+                            <Text style={styles.skillCertifiedBadgeText}>Certified</Text>
+                          </View>
+                        )}
+                        <View style={styles.skillLevelBadge}>
+                          <Text style={styles.skillLevelText}>{skill.level}</Text>
+                        </View>
                       </View>
                     </View>
                     <Text style={styles.skillTitle} numberOfLines={2}>
@@ -927,16 +951,25 @@ const styles = StyleSheet.create({
   promotedBadgeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  promotedBadgesGroup: {
+    flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    flexShrink: 1,
   },
   promotedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: 'rgba(245, 158, 11, 0.95)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   promotedBadgeText: {
     fontSize: 10,
@@ -944,14 +977,30 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },
-  promotedPriceBadge: {
+  promotedCertBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: 'rgba(16, 185, 129, 0.95)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  promotedCertBadgeText: {
+    fontSize: 10,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  promotedPriceBadge: {
+    backgroundColor: 'rgba(99, 102, 241, 0.95)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   promotedPriceText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700' as const,
     color: '#FFFFFF',
   },
@@ -1409,6 +1458,38 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700' as const,
     color: Colors.light.primary,
+  },
+  skillCertifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  skillCertifiedBadgeText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: '#059669',
+  },
+  featuredCertBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.45)',
+  },
+  featuredCertBadgeText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: '#34D399',
   },
   skillTitle: {
     fontSize: 18,

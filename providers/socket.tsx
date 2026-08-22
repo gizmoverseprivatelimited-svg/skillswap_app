@@ -34,8 +34,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       console.log('[Socket.IO Frontend] Connected:', socket.id);
       setIsConnected(true);
 
-      if (currentUser?.id) {
-        socket.emit('join_room', currentUser.id);
+      const uId = currentUser?.id || (currentUser as any)?._id;
+      if (uId) {
+        socket.emit('join_room', String(uId));
+        if ((currentUser as any)?._id && String((currentUser as any)._id) !== String(uId)) {
+          socket.emit('join_room', String((currentUser as any)._id));
+        }
       }
     });
 
@@ -55,10 +59,14 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const socket = socketRef.current;
-    if (socket && socket.connected && currentUser?.id) {
-      socket.emit('join_room', currentUser.id);
+    const uId = currentUser?.id || (currentUser as any)?._id;
+    if (socket && socket.connected && uId) {
+      socket.emit('join_room', String(uId));
+      if ((currentUser as any)?._id && String((currentUser as any)._id) !== String(uId)) {
+        socket.emit('join_room', String((currentUser as any)._id));
+      }
     }
-  }, [currentUser?.id]);
+  }, [currentUser?.id, (currentUser as any)?._id]);
 
   const emit = (event: string, data?: any) => {
     if (socketRef.current) {
