@@ -281,7 +281,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     }
 
     const isStartup = Date.now() - mountTimestampRef.current < 4000;
-    const shouldSkip = isLiveCall ? false : (input.skipPopup === true || (input.skipPopup === undefined && isStartup) || !isAuthUser);
+    const shouldSkip = isLiveCall ? false : (input.skipPopup === true || isStartup || !isAuthUser);
 
     const payload: NotificationItem = {
       id: generateNotificationId(),

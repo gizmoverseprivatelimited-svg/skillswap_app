@@ -34,8 +34,8 @@ export function InAppNotificationBanner() {
   const { notifications, markAsRead } = useNotifications();
   const [activeNotification, setActiveNotification] = useState<any>(null);
   const alertedIdsRef = useRef<Set<string>>(getStoredAlertedIds());
+  const isInitialMountRef = useRef<boolean>(true);
   const mountTimeRef = useRef<number>(Date.now());
-  const isStartupRef = useRef<boolean>(true);
   const slideAnim = useRef(new Animated.Value(-150)).current;
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -49,14 +49,6 @@ export function InAppNotificationBanner() {
       setActiveNotification(null);
     });
   }, [slideAnim]);
-
-  // Grace period on initial app load to ensure existing historical notifications don't trigger banner
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      isStartupRef.current = false;
-    }, 4000);
-    return () => clearTimeout(timer);
-  }, []);
 
   // If notifications list is cleared or current active notification is read/removed, dismiss banner
   useEffect(() => {
@@ -72,8 +64,9 @@ export function InAppNotificationBanner() {
       return;
     }
 
-    // If still in startup phase, index all existing notifications without popping up
-    if (isStartupRef.current) {
+    // On initial mount / first render, index all existing notifications as already seen so they never popup
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
       notifications.forEach((n) => {
         alertedIdsRef.current.add(n.id);
         saveStoredAlertedId(n.id);
