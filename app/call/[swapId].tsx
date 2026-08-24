@@ -143,12 +143,12 @@ export default function UnifiedCallScreen() {
   const handleEndCall = useCallback(async () => {
     if (cls && isTeacher) {
       try {
-        await fetch(`${url}/classes/${cls.id}/end`, {
+        await fetch(`${url}/classes/${cls.id}/end-call`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });
       } catch (err) {
-        console.error('[CallScreen] Error ending class session on leave:', err);
+        console.error('[CallScreen] Error stopping live class stream on leave:', err);
       }
     }
 
