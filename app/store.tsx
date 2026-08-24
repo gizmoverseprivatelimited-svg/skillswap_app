@@ -85,6 +85,7 @@ export default function StoreScreen() {
     } else {
       try {
         setIsProcessing(true);
+        const origin = Platform.OS === 'web' && typeof window !== 'undefined' ? (window as any).location.origin : '';
         const response = await fetch(`${url}/payments/create-order`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -92,13 +93,15 @@ export default function StoreScreen() {
             userId: currentUser?.id,
             purchaseType: 'credits',
             packageId,
+            origin,
           }),
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Purchase failed');
 
-        const originParam = Platform.OS === 'web' && typeof window !== 'undefined' ? `&origin=${encodeURIComponent((window as any).location.origin)}` : '';
-        const checkoutUrl = `${url}/payments/checkout?orderId=${data.orderId}&amount=${data.amount}&userId=${currentUser?.id}&purchaseType=credits&packageId=${packageId}${originParam}`;
+        const originParam = origin ? `&origin=${encodeURIComponent(origin)}` : '';
+        const sessionParam = data.paymentSessionId ? `&paymentSessionId=${encodeURIComponent(data.paymentSessionId)}` : '';
+        const checkoutUrl = `${url}/payments/checkout?orderId=${data.orderId}${sessionParam}&amount=${data.amount}&userId=${currentUser?.id}&purchaseType=credits&packageId=${packageId}${originParam}`;
 
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           (window as any).location.href = checkoutUrl;
@@ -164,6 +167,7 @@ export default function StoreScreen() {
     } else {
       try {
         setIsProcessing(true);
+        const origin = Platform.OS === 'web' && typeof window !== 'undefined' ? (window as any).location.origin : '';
         const response = await fetch(`${url}/payments/create-order`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -172,13 +176,15 @@ export default function StoreScreen() {
             purchaseType: 'premium',
             tier,
             duration,
+            origin,
           }),
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Purchase failed');
 
-        const originParam = Platform.OS === 'web' && typeof window !== 'undefined' ? `&origin=${encodeURIComponent((window as any).location.origin)}` : '';
-        const checkoutUrl = `${url}/payments/checkout?orderId=${data.orderId}&amount=${data.amount}&userId=${currentUser?.id}&purchaseType=premium&tier=${tier}&duration=${duration}${originParam}`;
+        const originParam = origin ? `&origin=${encodeURIComponent(origin)}` : '';
+        const sessionParam = data.paymentSessionId ? `&paymentSessionId=${encodeURIComponent(data.paymentSessionId)}` : '';
+        const checkoutUrl = `${url}/payments/checkout?orderId=${data.orderId}${sessionParam}&amount=${data.amount}&userId=${currentUser?.id}&purchaseType=premium&tier=${tier}&duration=${duration}${originParam}`;
 
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           (window as any).location.href = checkoutUrl;
