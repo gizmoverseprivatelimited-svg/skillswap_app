@@ -56,10 +56,10 @@ export function InAppNotificationBanner() {
     const userId = bannerNotification.metadata?.userId;
     const type = bannerNotification.metadata?.type;
     
-    if (type === 'video-call' && swapId) {
-      router.push(`/call/${swapId}?isJoining=true` as never);
+    if ((type === 'video-call' || type === 'class-video-call') && (swapId || classId)) {
+      router.push(`/call/${classId || swapId}?mode=video&isJoining=true` as never);
     } else if (classId) {
-      router.push(`/class/call/${classId}` as never);
+      router.push(`/class/${classId}` as never);
     } else if (swapId) {
       router.push(`/swaps/${swapId}` as never);
     } else if (userId) {
@@ -71,7 +71,7 @@ export function InAppNotificationBanner() {
 
   if (!isLoggedIn || !bannerNotification) return null;
 
-  const isVideoCall = bannerNotification.metadata?.type === 'video-call';
+  const isVideoCall = bannerNotification.metadata?.type === 'video-call' || bannerNotification.metadata?.type === 'class-video-call';
   const isMessage = bannerNotification.metadata?.type === 'chat-message' || bannerNotification.title?.toLowerCase().includes('message');
 
   return (

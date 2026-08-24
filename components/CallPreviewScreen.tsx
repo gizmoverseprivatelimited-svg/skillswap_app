@@ -7,7 +7,8 @@ import {
   Image,
   ActivityIndicator,
   Platform,
-  Dimensions,
+  ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -27,7 +28,6 @@ import {
 import LiveVideoTrack from './LiveVideoTrack';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
 
 export interface CallPreviewScreenProps {
@@ -57,6 +57,11 @@ export default function CallPreviewScreen({
   onJoin,
   onCancel,
 }: CallPreviewScreenProps) {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 380 || windowHeight < 680;
+  const isTabletOrDesktop = windowWidth >= 768;
+  const dynamicPreviewHeight = isTabletOrDesktop ? 380 : Math.min(Math.max(windowHeight * 0.36, 210), 340);
+
   const [isMicOn, setIsMicOn] = useState<boolean>(initialMicOn);
   const [isVideoOn, setIsVideoOn] = useState<boolean>(initialVideoOn);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
@@ -210,39 +215,44 @@ export default function CallPreviewScreen({
           </TouchableOpacity>
         </View>
 
-        <View style={styles.contentWrap}>
-          {/* Room / Meeting Title */}
-          <View style={styles.titleSection}>
-            <View style={styles.tagRow}>
-              {isGroupCall ? (
-                <View style={styles.roomTypeBadge}>
-                  <GraduationCap size={12} color="#818CF8" />
-                  <Text style={styles.roomTypeText}>Group Workshop</Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <View style={styles.contentWrap}>
+            {/* Room / Meeting Title */}
+            <View style={styles.titleSection}>
+              <View style={styles.tagRow}>
+                {isGroupCall ? (
+                  <View style={styles.roomTypeBadge}>
+                    <GraduationCap size={12} color="#818CF8" />
+                    <Text style={styles.roomTypeText}>Group Workshop</Text>
+                  </View>
+                ) : (
+                  <View style={styles.roomTypeBadge}>
+                    <Users size={12} color="#34D399" />
+                    <Text style={styles.roomTypeText}>1:1 Skill Swap</Text>
+                  </View>
+                )}
+                <View style={styles.liveIndicator}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveText}>Ready to Join</Text>
                 </View>
-              ) : (
-                <View style={styles.roomTypeBadge}>
-                  <Users size={12} color="#34D399" />
-                  <Text style={styles.roomTypeText}>1:1 Skill Swap</Text>
-                </View>
-              )}
-              <View style={styles.liveIndicator}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveText}>Ready to Join</Text>
               </View>
+
+              <Text style={styles.roomTitleText} numberOfLines={2}>
+                {displayTitle}
+              </Text>
+              {partnerName ? (
+                <Text style={styles.partnerSubtext}>
+                  With <Text style={{ color: '#F8FAFC', fontWeight: '700' }}>{partnerName}</Text>
+                </Text>
+              ) : null}
             </View>
 
-            <Text style={styles.roomTitleText} numberOfLines={2}>
-              {displayTitle}
-            </Text>
-            {partnerName ? (
-              <Text style={styles.partnerSubtext}>
-                With <Text style={{ color: '#F8FAFC', fontWeight: '700' }}>{partnerName}</Text>
-              </Text>
-            ) : null}
-          </View>
-
-          {/* Video Preview Viewport */}
-          <View style={styles.previewCard}>
+            {/* Video Preview Viewport */}
+            <View style={[styles.previewCard, { height: dynamicPreviewHeight }]}>
             <View style={styles.previewContainer}>
               {isVideoOn && localStream ? (
                 <LiveVideoTrack
@@ -359,8 +369,9 @@ export default function CallPreviewScreen({
             </TouchableOpacity>
           </View>
         </View>
-      </LinearGradient>
-    </View>
+      </ScrollView>
+    </LinearGradient>
+  </View>
   );
 }
 
@@ -372,14 +383,22 @@ const styles = StyleSheet.create({
   gradient: {
     flex: 1,
     paddingTop: Platform.OS === 'ios' ? 54 : 32,
-    paddingHorizontal: 20,
-    paddingBottom: 28,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingBottom: 24,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 12,
+    maxWidth: 680,
+    width: '100%',
+    alignSelf: 'center',
   },
   backButton: {
     flexDirection: 'row',

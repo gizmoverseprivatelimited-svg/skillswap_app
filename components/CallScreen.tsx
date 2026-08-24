@@ -13,6 +13,7 @@ import {
   Image,
   Animated,
   Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -92,13 +93,16 @@ export default function CallScreen({
   externalMessages,
 }: CallScreenProps) {
   const insets = useSafeAreaInsets();
-  const [participants, setParticipants] = useState<CallParticipant[]>(initialParticipants);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 380;
+  const isVerySmallScreen = windowWidth < 340;
+  const participants = initialParticipants || [];
   const [duration, setDuration] = useState(0);
   const [bottomPanel, setBottomPanel] = useState<BottomPanel>('none');
   const [messages, setMessages] = useState<CallMessage[]>(externalMessages || []);
   const [chatDraft, setChatDraft] = useState('');
   const [spotlightId, setSpotlightId] = useState<string | null>(
-    isGroupCall ? initialParticipants.find(p => !p.isLocal)?.id ?? null : initialParticipants.find(p => !p.isLocal)?.id ?? null,
+    isGroupCall ? (initialParticipants?.find(p => !p.isLocal)?.id ?? null) : (initialParticipants?.find(p => !p.isLocal)?.id ?? null)
   );
   const [layout, setLayout] = useState<'grid' | 'spotlight'>(isGroupCall ? 'spotlight' : 'spotlight');
   const [connecting, setConnecting] = useState(false);
@@ -168,7 +172,7 @@ export default function CallScreen({
       Animated.delay(1800),
       Animated.timing(reactionToastAnim, {
         toValue: 0,
-        duration: 350,
+        duration: 300,
         useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start(() => {
@@ -176,7 +180,7 @@ export default function CallScreen({
     });
   }, [reactionToastAnim]);
 
-  // Sync external incoming reactions
+  // Sync incoming reactions from props
   useEffect(() => {
     if (reactions && reactions.length > 0) {
       const latest = reactions[reactions.length - 1];
@@ -187,14 +191,7 @@ export default function CallScreen({
     }
   }, [reactions, triggerFloatingReaction]);
 
-  // Sync participants from parent when updated by 100ms / WebRTC
-  useEffect(() => {
-    if (initialParticipants && initialParticipants.length > 0) {
-      setParticipants(initialParticipants);
-    }
-  }, [initialParticipants]);
-
-  // Sync external messages
+  // Sync external messages (e.g. Chat from 100ms/WebRTC)
   useEffect(() => {
     if (externalMessages && externalMessages.length > 0) {
       setMessages(prev => {
@@ -228,45 +225,52 @@ export default function CallScreen({
   const localParticipant = useMemo(() => participants.find(p => p.isLocal) ?? null, [participants]);
   const remoteParticipants = useMemo(() => participants.filter(p => !p.isLocal), [participants]);
 
+  // Actually joined participants (Local user + active connected remote peers)
+  const joinedParticipants = useMemo(() => {
+    return participants.filter(p => p.isLocal || p.status === 'connected' || Boolean(p.mediaStream) || Boolean(p.videoTrackId));
+  }, [participants]);
+
+  const joinedCount = joinedParticipants.length;
+
   const isOnlyOneUser = useMemo(() => {
-    const connectedRemotes = remoteParticipants.filter(p => p.status === 'connected');
-    return connectedRemotes.length === 0;
+    const activeRemotes = remoteParticipants.filter(p => p.status === 'connected' || Boolean(p.mediaStream) || Boolean(p.videoTrackId));
+    return activeRemotes.length === 0;
   }, [remoteParticipants]);
 
   const spotlightParticipant = useMemo(() => {
-    // 1. If explicit spotlight ID matches a non-local participant with live video, return it
-    const explicit = participants.find(p => p.id === spotlightId && !p.isLocal);
-    if (explicit && (explicit.videoTrackId || explicit.mediaStream)) {
-      return explicit;
+    // 1. If explicit spotlight ID matches a non-local participant, return it
+    if (spotlightId) {
+      const explicit = participants.find(p => p.id === spotlightId && !p.isLocal);
+      if (explicit) return explicit;
     }
-    // 2. Prioritize any remote participant that has live video
+    // 2. In a group class, if user is student, prioritize teacher's video
+    if (!isTeacher) {
+      const teacherRemote = remoteParticipants.find(p => p.role === 'teacher' || p.role === 'host');
+      if (teacherRemote && (teacherRemote.videoTrackId || teacherRemote.mediaStream)) {
+        return teacherRemote;
+      }
+      if (teacherRemote) return teacherRemote;
+    }
+    // 3. Prioritize any remote participant that has live video
     const liveRemote = remoteParticipants.find(p => p.videoTrackId || p.mediaStream);
     if (liveRemote) return liveRemote;
 
-    // 3. Prioritize any connected remote participant
+    // 4. Prioritize any connected remote participant
     const connectedRemote = remoteParticipants.find(p => p.status === 'connected');
     if (connectedRemote) return connectedRemote;
 
-    return explicit ?? remoteParticipants[0] ?? null;
-  }, [participants, spotlightId, remoteParticipants]);
+    return remoteParticipants[0] ?? localParticipant;
+  }, [participants, spotlightId, remoteParticipants, isTeacher, localParticipant]);
 
   const screenSharingParticipant = useMemo(() =>
     participants.find(p => p.screenShareTrackId || p.screenShareStream || (p.isLocal && isScreenSharing)) ?? null,
-  [participants, isScreenSharing]);
-
-  // Sync participants whenever live participants list updates
-  useEffect(() => {
-    setParticipants(initialParticipants);
-  }, [initialParticipants]);
+    [participants, isScreenSharing]);
 
   // Timer + connecting initialization
   useEffect(() => {
     startCallTimer(setDuration);
     const connectTimeout = setTimeout(() => {
       setConnecting(false);
-      setParticipants(prev =>
-        prev.map(p => (p.isLocal ? { ...p, status: 'connected' as const } : p))
-      );
       if (messages.length === 0) {
         setMessages([{
           id: generateCallMessageId(),
@@ -294,27 +298,15 @@ export default function CallScreen({
 
   const toggleMute = useCallback(() => {
     if (onToggleMute) onToggleMute();
-    if (!localParticipant) return;
-    setParticipants(prev => prev.map(p =>
-      p.isLocal ? { ...p, isMuted: !p.isMuted, isSpeaking: false } : p,
-    ));
-  }, [localParticipant, onToggleMute]);
+  }, [onToggleMute]);
 
   const toggleVideo = useCallback(() => {
     if (onToggleVideo) onToggleVideo();
-    if (!localParticipant) return;
-    setParticipants(prev => prev.map(p =>
-      p.isLocal ? { ...p, isVideoOff: !p.isVideoOff } : p,
-    ));
-  }, [localParticipant, onToggleVideo]);
+  }, [onToggleVideo]);
 
   const toggleHand = useCallback(() => {
     if (onToggleHand) onToggleHand();
-    if (!localParticipant) return;
-    setParticipants(prev => prev.map(p =>
-      p.isLocal ? { ...p, isHandRaised: !p.isHandRaised } : p,
-    ));
-  }, [localParticipant, onToggleHand]);
+  }, [onToggleHand]);
 
   const handleSendReaction = useCallback((emoji: string) => {
     if (onSendReaction) {
@@ -369,8 +361,8 @@ export default function CallScreen({
                 callEventToast.type === 'join'
                   ? styles.eventToastJoin
                   : callEventToast.type === 'leave'
-                  ? styles.eventToastLeave
-                  : styles.eventToastInfo,
+                    ? styles.eventToastLeave
+                    : styles.eventToastInfo,
                 {
                   opacity: callEventToastAnim,
                   transform: [
@@ -466,46 +458,41 @@ export default function CallScreen({
         {/* Top bar */}
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <View style={styles.topBarLeft}>
-            <View style={styles.roomBadge}>
-              <Circle size={8} color="#34D399" fill="#34D399" />
+            <View style={[styles.roomBadge, { maxWidth: isVerySmallScreen ? 110 : isSmallScreen ? 140 : 260 }]}>
+              <Circle size={isSmallScreen ? 7 : 8} color="#34D399" fill="#34D399" />
               <Text style={styles.roomTitle} numberOfLines={1}>{roomTitle}</Text>
             </View>
-            <Text style={styles.durationText}>
-              {connecting ? 'Connecting...' : formatDuration(duration)}
-            </Text>
+            <View style={styles.durationPill}>
+              <Text style={styles.durationText}>
+                {connecting ? 'Connecting...' : formatDuration(duration)}
+              </Text>
+            </View>
           </View>
 
           <View style={styles.topBarRight}>
             {/* Network quality signal badge */}
             <View style={styles.signalBadge}>
-              <Signal size={13} color="#34D399" />
-              <Wifi size={13} color="#34D399" />
+              <Signal size={isSmallScreen ? 11 : 13} color="#34D399" />
+              {!isVerySmallScreen && <Wifi size={isSmallScreen ? 11 : 13} color="#34D399" />}
             </View>
 
             {/* Quick Switch Camera Button on Mobile */}
             {mode === 'video' && onSwitchCamera && (
-              <TouchableOpacity style={styles.topBarIconBtn} onPress={onSwitchCamera} activeOpacity={0.8}>
-                <SwitchCamera size={16} color="#F8FAFC" />
+              <TouchableOpacity style={styles.topBarIconBtn} onPress={onSwitchCamera} activeOpacity={0.7} accessibilityLabel="Switch Camera">
+                <SwitchCamera size={isSmallScreen ? 14 : 16} color="#F8FAFC" />
               </TouchableOpacity>
             )}
 
-            {/* Participant count / Only You Status */}
+            {/* Realtime Joined Count Status */}
             <TouchableOpacity
-              style={[styles.participantCount, isOnlyOneUser && styles.onlyYouBadge]}
+              style={styles.participantCount}
               onPress={() => setBottomPanel('participants')}
               activeOpacity={0.8}
             >
-              {isOnlyOneUser ? (
-                <>
-                  <User size={13} color="#F59E0B" />
-                  <Text style={styles.onlyYouBadgeText}>Only you are in the call</Text>
-                </>
-              ) : (
-                <>
-                  <UsersIcon size={14} color="#A5B4FC" />
-                  <Text style={styles.participantCountText}>{participants.length}</Text>
-                </>
-              )}
+              <UsersIcon size={isSmallScreen ? 12 : 14} color="#A5B4FC" />
+              <Text style={styles.participantCountText}>
+                {isSmallScreen ? `${joinedCount}` : `${joinedCount} joined`}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -520,6 +507,8 @@ export default function CallScreen({
               localParticipant={localParticipant}
               remoteParticipants={remoteParticipants}
               mode={mode}
+              isTeacher={isTeacher}
+              isGroupCall={isGroupCall}
               onSpotlight={handleSpotlight}
             />
           ) : layout === 'spotlight' && spotlightParticipant ? (
@@ -528,6 +517,7 @@ export default function CallScreen({
               localParticipant={localParticipant}
               mode={mode}
               isGroupCall={isGroupCall}
+              isTeacher={isTeacher}
               remoteParticipants={remoteParticipants}
               onSpotlight={handleSpotlight}
             />
@@ -535,13 +525,15 @@ export default function CallScreen({
             <GridView
               participants={participants}
               mode={mode}
+              isTeacher={isTeacher}
+              isGroupCall={isGroupCall}
               isOnlyOneUser={isOnlyOneUser}
               onSpotlight={handleSpotlight}
             />
           )}
 
-          {/* Waiting for partner status pill */}
-          {isOnlyOneUser && !connecting && (
+          {/* Waiting for partner status pill (1:1 calls only) */}
+          {!isGroupCall && isOnlyOneUser && !connecting && (
             <View style={styles.aloneStatusOverlay} pointerEvents="none">
               <View style={styles.aloneStatusPill}>
                 <View style={styles.aloneStatusDot} />
@@ -558,6 +550,7 @@ export default function CallScreen({
             panel={bottomPanel}
             messages={messages}
             participants={participants}
+            joinedCount={joinedCount}
             chatDraft={chatDraft}
             isTeacher={isTeacher}
             selectedAudioDevice={selectedAudioDevice}
@@ -597,8 +590,8 @@ export default function CallScreen({
                 />
               )}
 
-              {/* Screen share toggle */}
-              {onToggleScreenShare && (
+              {/* Screen share toggle: Only teacher in group calls, or both in 1:1 */}
+              {onToggleScreenShare && (!isGroupCall || isTeacher) && (
                 <CallControl
                   icon={<MonitorUp size={22} color={isScreenSharing ? '#38BDF8' : '#FFFFFF'} />}
                   active={isScreenSharing}
@@ -665,14 +658,19 @@ interface SpotlightViewProps {
   localParticipant: CallParticipant | null;
   mode: CallMode;
   isGroupCall: boolean;
+  isTeacher?: boolean;
   remoteParticipants: CallParticipant[];
   onSpotlight: (id: string) => void;
 }
 
 function SpotlightView({
-  participant, localParticipant, mode, isGroupCall, remoteParticipants, onSpotlight,
+  participant, localParticipant, mode, isGroupCall, isTeacher, remoteParticipants, onSpotlight,
 }: SpotlightViewProps) {
-  const targetRemote = !participant.isLocal ? participant : (remoteParticipants[0] ?? participant);
+  // If user is a student in a group class, always spotlight the teacher
+  const targetRemote = (!isTeacher && isGroupCall)
+    ? (remoteParticipants.find(p => p.role === 'teacher' || p.role === 'host') ?? (!participant.isLocal ? participant : (remoteParticipants[0] ?? participant)))
+    : (!participant.isLocal ? participant : (remoteParticipants[0] ?? participant));
+
   const isTeacherTarget = targetRemote.role === 'teacher' || targetRemote.role === 'host';
 
   return (
@@ -717,8 +715,8 @@ function SpotlightView({
         </View>
       )}
 
-      {/* Filmstrip for group classes */}
-      {isGroupCall && remoteParticipants.length > 1 && (
+      {/* Filmstrip: ONLY the teacher sees all students in group classes */}
+      {isTeacher && isGroupCall && remoteParticipants.length > 1 && (
         <View style={styles.filmstrip}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filmstripContent}>
             {remoteParticipants.filter(p => p.id !== targetRemote.id).map(p => (
@@ -743,11 +741,13 @@ interface ScreenShareViewProps {
   localParticipant: CallParticipant | null;
   remoteParticipants: CallParticipant[];
   mode: CallMode;
+  isTeacher?: boolean;
+  isGroupCall?: boolean;
   onSpotlight: (id: string) => void;
 }
 
 function ScreenShareView({
-  sharer, localParticipant, remoteParticipants, mode, onSpotlight,
+  sharer, localParticipant, remoteParticipants, mode, isTeacher, isGroupCall, onSpotlight,
 }: ScreenShareViewProps) {
   const hasLiveScreen = Boolean(sharer.screenShareTrackId || sharer.screenShareStream);
 
@@ -782,34 +782,43 @@ function ScreenShareView({
         </View>
       )}
 
-      {/* Ribbon of participants */}
-      <View style={styles.filmstrip}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filmstripContent}>
-          {remoteParticipants.map(p => (
-            <TouchableOpacity key={p.id} style={styles.filmstripTile} onPress={() => onSpotlight(p.id)} activeOpacity={0.8}>
-              <ParticipantTile participant={p} mode={mode} isSmall />
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      {/* Ribbon of participants: only teacher sees other students in group classes */}
+      {(!isGroupCall || isTeacher) && remoteParticipants.length > 1 && (
+        <View style={styles.filmstrip}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filmstripContent}>
+            {remoteParticipants.map(p => (
+              <TouchableOpacity key={p.id} style={styles.filmstripTile} onPress={() => onSpotlight(p.id)} activeOpacity={0.8}>
+                <ParticipantTile participant={p} mode={mode} isSmall />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
     </View>
   );
 }
 
 function GridView({
-  participants, mode, isOnlyOneUser, onSpotlight,
+  participants, mode, isTeacher, isGroupCall, isOnlyOneUser, onSpotlight,
 }: {
   participants: CallParticipant[];
   mode: CallMode;
+  isTeacher?: boolean;
+  isGroupCall?: boolean;
   isOnlyOneUser?: boolean;
   onSpotlight: (id: string) => void;
 }) {
-  const numColumns = isOnlyOneUser ? 1 : participants.length <= 2 ? 1 : participants.length <= 4 ? 2 : 3;
+  // Students in group calls only see the teacher and their self tile
+  const visibleParticipants = (!isTeacher && isGroupCall)
+    ? participants.filter(p => p.isLocal || p.role === 'teacher' || p.role === 'host')
+    : participants;
+
+  const numColumns = isOnlyOneUser ? 1 : visibleParticipants.length <= 2 ? 1 : visibleParticipants.length <= 4 ? 2 : 3;
 
   return (
     <View style={styles.gridContainer}>
       <View style={styles.gridInner}>
-        {participants.map(p => (
+        {visibleParticipants.map(p => (
           <TouchableOpacity
             key={p.id}
             style={[
@@ -944,6 +953,7 @@ interface BottomPanelViewProps {
   panel: BottomPanel;
   messages: CallMessage[];
   participants: CallParticipant[];
+  joinedCount?: number;
   chatDraft: string;
   isTeacher?: boolean;
   selectedAudioDevice?: AudioDevice;
@@ -964,6 +974,7 @@ function BottomPanelView({
   panel,
   messages,
   participants,
+  joinedCount = 1,
   chatDraft,
   isTeacher,
   selectedAudioDevice,
@@ -986,7 +997,7 @@ function BottomPanelView({
       <View style={styles.bottomPanelHeader}>
         <Text style={styles.bottomPanelTitle}>
           {panel === 'chat' && 'In-Call Messages'}
-          {panel === 'participants' && `Participants (${participants.length})`}
+          {panel === 'participants' && `In Call (${joinedCount} joined)`}
           {panel === 'reactions' && 'Send Reaction'}
           {panel === 'more' && 'Call Options'}
           {panel === 'audioDevices' && 'Audio Output'}
@@ -1074,10 +1085,17 @@ function BottomPanelView({
                     )}
                   </View>
                   <View style={styles.personStatusRow}>
-                    <View style={[styles.statusDot, { backgroundColor: p.status === 'connected' ? '#10B981' : '#F59E0B' }]} />
-                    <Text style={styles.personStatus}>
-                      {p.status === 'connected' ? (!p.isVideoOff ? 'Live Video' : 'Audio Only') : 'Connecting...'}
-                    </Text>
+                    {(() => {
+                      const isUserJoined = p.isLocal || p.status === 'connected' || Boolean(p.mediaStream) || Boolean(p.videoTrackId);
+                      return (
+                        <>
+                          <View style={[styles.statusDot, { backgroundColor: isUserJoined ? '#10B981' : '#64748B' }]} />
+                          <Text style={[styles.personStatus, !isUserJoined && { color: '#94A3B8' }]}>
+                            {isUserJoined ? (!p.isVideoOff ? 'Live Video' : 'Audio Only') : 'Not joined yet'}
+                          </Text>
+                        </>
+                      );
+                    })()}
                   </View>
                 </View>
 
@@ -1345,40 +1363,68 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingHorizontal: 12,
+    paddingBottom: 10,
     zIndex: 10,
+    maxWidth: 1100,
+    width: '100%',
+    alignSelf: 'center',
+    gap: 6,
   },
-  topBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  roomBadge: {
+  topBarLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(30, 41, 59, 0.8)',
-    paddingHorizontal: 10,
+    flex: 1,
+    minWidth: 0,
+  },
+  roomBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(30, 41, 59, 0.85)',
+    paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 20,
-    maxWidth: SCREEN_WIDTH * 0.45,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  roomTitle: { fontSize: 13, fontWeight: '700', color: '#F8FAFC' },
-  durationText: { fontSize: 13, fontWeight: '600', color: '#94A3B8' },
-  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  roomTitle: { fontSize: 12, fontWeight: '700', color: '#F8FAFC' },
+  durationPill: {
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  durationText: { fontSize: 11, fontWeight: '700', color: '#CBD5E1' },
+  topBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+  },
   signalBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 5,
-    borderRadius: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
   },
   topBarIconBtn: {
-    backgroundColor: 'rgba(30, 41, 59, 0.8)',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    backgroundColor: 'rgba(30, 41, 59, 0.85)',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   participantCount: {
     flexDirection: 'row',
@@ -1387,12 +1433,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(99, 102, 241, 0.2)',
     paddingHorizontal: 8,
     paddingVertical: 5,
-    borderRadius: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
   },
-  participantCountText: { fontSize: 12, fontWeight: '700', color: '#A5B4FC' },
+  participantCountText: { fontSize: 11, fontWeight: '700', color: '#A5B4FC' },
 
   // Video Area
-  videoArea: { flex: 1, paddingHorizontal: 12, paddingBottom: 8 },
+  videoArea: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
+  },
 
   // Connecting
   connectingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
@@ -1420,7 +1475,7 @@ const styles = StyleSheet.create({
   spotlightVideo: { flex: 1, borderRadius: 20, overflow: 'hidden', backgroundColor: '#1E293B' },
   selfPip: {
     position: 'absolute',
-    bottom: 16,
+    bottom: 36,
     right: 16,
     width: 105,
     height: 145,
@@ -1435,7 +1490,7 @@ const styles = StyleSheet.create({
     elevation: 8,
     zIndex: 20,
   },
-  filmstrip: { position: 'absolute', top: 12, left: 12, right: 12, zIndex: 15 },
+  filmstrip: { position: 'absolute', top: 50, left: 16, right: 16, zIndex: 15 },
   filmstripContent: { gap: 8 },
   filmstripTile: { width: 85, height: 110, borderRadius: 12, overflow: 'hidden' },
 
@@ -1450,8 +1505,8 @@ const styles = StyleSheet.create({
   screenShareTitle: { fontSize: 16, fontWeight: '700', color: '#F8FAFC' },
   screenShareBadge: {
     position: 'absolute',
-    top: 12,
-    left: 12,
+    top: 20,
+    left: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -1469,8 +1524,8 @@ const styles = StyleSheet.create({
 
   // Participant tile
   tileContainer: { flex: 1, borderRadius: 20, overflow: 'hidden', backgroundColor: '#1E293B', position: 'relative' },
-  tileVideo: { flex: 1, position: 'relative' },
-  liveVideoTrack: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  tileVideo: { flex: 1, width: '100%', height: '100%', position: 'relative' },
+  liveVideoTrack: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
   tileVideoGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   tileVideoInitial: { fontSize: 48, fontWeight: '800', color: 'rgba(255,255,255,0.15)' },
   tileAvatarWrap: { flex: 1, display: 'none' },
@@ -1581,21 +1636,26 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 14,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
+    maxWidth: 720,
+    width: '100%',
+    alignSelf: 'center',
   },
   controlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    width: '100%',
   },
   controlBtn: {
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
     paddingVertical: 6,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     borderRadius: 14,
-    minWidth: 46,
+    minWidth: 40,
+    flexShrink: 1,
   },
   controlIconWrap: {
     position: 'relative',
@@ -1615,9 +1675,9 @@ const styles = StyleSheet.create({
   },
   controlBadgeText: { fontSize: 9, fontWeight: '800', color: '#FFFFFF' },
   endCallBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: '#EF4444',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1634,6 +1694,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
+    maxWidth: 720,
+    width: '100%',
+    alignSelf: 'center',
   },
   bottomPanelHeader: {
     flexDirection: 'row',

@@ -62,7 +62,7 @@ interface ClassesContextValue {
   isEnrolled: (classId: string, studentId: string) => boolean;
   createClass: (input: CreateClassInput) => GroupClass;
   enrollInClass: (classId: string) => { success: boolean; error?: string };
-  cancelEnrollment: (classId: string) => void;
+  cancelEnrollment: (classId: string) => { success: boolean; error?: string };
   completeClass: (classId: string) => void;
   cancelClass: (classId: string) => void;
   refreshClasses: () => Promise<void>;
@@ -118,9 +118,13 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
 
     socket.on('class_updated', handleClassUpdated);
     socket.on('class_started', handleClassUpdated);
+    socket.on('class_call_started', handleClassUpdated);
+    socket.on('class_ended', handleClassUpdated);
     return () => {
       socket.off('class_updated', handleClassUpdated);
       socket.off('class_started', handleClassUpdated);
+      socket.off('class_call_started', handleClassUpdated);
+      socket.off('class_ended', handleClassUpdated);
     };
   }, [socket, fetchClassesFromBackend]);
 
@@ -344,10 +348,14 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
     return { success: true };
   }, [classes, isEnrolled, isBlocked, currentUser, activeEnrollments, spendCredits, earnCredits, addNotification, loadUser, refreshUserEarnings]);
 
-  const cancelEnrollment = useCallback((classId: string) => {
-    if (!currentUser) return;
+  const cancelEnrollment = useCallback((classId: string): { success: boolean; error?: string } => {
+    if (!currentUser) return { success: false, error: 'Not authenticated' };
     const cls = classes.find(c => String(c.id) === String(classId) || String((c as any)._id) === String(classId));
-    if (!cls) return;
+    if (!cls) return { success: false, error: 'Class not found' };
+
+    if ((cls as any).hasStarted || (cls as any).isLive || (cls as any).startedAt) {
+      return { success: false, error: 'Cannot cancel enrollment. The class has already started.' };
+    }
 
     setEnrollments(prev =>
       prev.map(e =>
@@ -379,6 +387,8 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
       body: `You cancelled enrollment in "${cls.title}". ${cost > 0 ? `${cost} credits refunded.` : ''}`,
       category: 'class',
     });
+
+    return { success: true };
   }, [classes, currentUser, earnCredits, addNotification, loadUser, refreshUserEarnings]);
 
   const completeClass = useCallback((classId: string) => {

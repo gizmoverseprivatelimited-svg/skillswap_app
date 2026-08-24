@@ -370,19 +370,35 @@ export default function UnifiedCallScreen() {
           setHasJoined(true);
 
           if (!isJoiningCall && socket && targetId) {
-            const reqId = String((swap?.requesterId as any)?._id || (swap?.requesterId as any)?.id || swap?.requesterId || '');
-            const recId = String((swap?.recipientId as any)?._id || (swap?.recipientId as any)?.id || swap?.recipientId || '');
-            const resolvedPartnerId = String(partner?.id || (partner as any)?._id || queryPartnerId || (reqId === String(effectiveUser?.id) ? recId : reqId) || '');
+            if (cls && isTeacher) {
+              const rawEnrollments = (cls as any).enrollments || (cls as any).enrolledUserIds || [];
+              const studentIds = (Array.isArray(rawEnrollments) ? rawEnrollments : [])
+                .map((e: any) => String(typeof e === 'object' && e !== null ? (e.studentId?._id || e.studentId?.id || e.studentId || e._id || e.id) : e))
+                .filter((id: string) => id && id !== String(effectiveUser.id) && id !== '[object Object]');
 
-            if (resolvedPartnerId && resolvedPartnerId !== 'partner-id' && resolvedPartnerId !== 'partner' && resolvedPartnerId.length > 2) {
-              socket.emit('swap_call_started', {
-                swapId: targetId,
+              socket.emit('class_call_started', {
+                classId: cls.id,
+                classTitle: cls.title,
                 callerId: effectiveUser.id,
-                callerName: effectiveUser.name || 'Your partner',
-                partnerId: resolvedPartnerId,
-                recipientId: resolvedPartnerId,
+                callerName: effectiveUser.name || 'Teacher',
+                studentIds,
                 mode: callMode,
               });
+            } else {
+              const reqId = String((swap?.requesterId as any)?._id || (swap?.requesterId as any)?.id || swap?.requesterId || '');
+              const recId = String((swap?.recipientId as any)?._id || (swap?.recipientId as any)?.id || swap?.recipientId || '');
+              const resolvedPartnerId = String(partner?.id || (partner as any)?._id || queryPartnerId || (reqId === String(effectiveUser?.id) ? recId : reqId) || '');
+
+              if (resolvedPartnerId && resolvedPartnerId !== 'partner-id' && resolvedPartnerId !== 'partner' && resolvedPartnerId.length > 2) {
+                socket.emit('swap_call_started', {
+                  swapId: targetId,
+                  callerId: effectiveUser.id,
+                  callerName: effectiveUser.name || 'Your partner',
+                  partnerId: resolvedPartnerId,
+                  recipientId: resolvedPartnerId,
+                  mode: callMode,
+                });
+              }
             }
           }
         }}

@@ -62,6 +62,7 @@ export function use100msCall({
   const webStreamRef = useRef<MediaStream | null>(null);
   const webScreenStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const meshPeerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const candidateQueueRef = useRef<RTCIceCandidateInit[]>([]);
   const broadcastChannelRef = useRef<any>(null);
 
@@ -77,7 +78,7 @@ export function use100msCall({
   const partnerIdRef = useRef(partnerId);
   partnerIdRef.current = partnerId;
 
-  // Sync initial participants while preserving active media streams and roles
+  // Sync initial participants while preserving active media streams, remote peers, and roles
   useEffect(() => {
     if (!initialParticipants || initialParticipants.length === 0) return;
     setParticipants(prev => {
@@ -87,21 +88,33 @@ export function use100msCall({
           p.isLocal && activeStream ? { ...p, mediaStream: activeStream } : p
         );
       }
-      return initialParticipants.map(initP => {
-        const existing = prev.find(p => p.id === initP.id || (p.isLocal && initP.isLocal));
-        if (existing) {
-          return {
-            ...initP,
-            role: initP.role || existing.role,
-            mediaStream: initP.isLocal ? (activeStream || existing.mediaStream) : (existing.mediaStream || initP.mediaStream),
-            videoTrackId: existing.videoTrackId || initP.videoTrackId,
-            status: existing.status === 'connected' ? 'connected' : initP.status,
-            isVideoOff: existing.isVideoOff !== undefined ? existing.isVideoOff : initP.isVideoOff,
-            isMuted: existing.isMuted !== undefined ? existing.isMuted : initP.isMuted,
-          };
-        }
-        return initP.isLocal && activeStream ? { ...initP, mediaStream: activeStream } : initP;
+
+      // 1. Update existing participants in state
+      const updatedExisting = prev.map(existing => {
+        const matchingInit = initialParticipants.find(
+          initP => String(initP.id) === String(existing.id) || (initP.isLocal && existing.isLocal)
+        );
+        if (!matchingInit) return existing; // Keep dynamically discovered WebRTC mesh peers!
+        return {
+          ...matchingInit,
+          ...existing,
+          name: matchingInit.name || existing.name,
+          role: matchingInit.role || existing.role,
+          avatarUrl: matchingInit.avatarUrl || existing.avatarUrl,
+          mediaStream: existing.isLocal ? (activeStream || existing.mediaStream) : existing.mediaStream,
+          videoTrackId: existing.videoTrackId || matchingInit.videoTrackId,
+          status: existing.status === 'connected' ? 'connected' : matchingInit.status,
+          isVideoOff: existing.isVideoOff !== undefined ? existing.isVideoOff : matchingInit.isVideoOff,
+          isMuted: existing.isMuted !== undefined ? existing.isMuted : matchingInit.isMuted,
+        };
       });
+
+      // 2. Add any new initial participants not already in prev
+      const newInitials = initialParticipants.filter(
+        initP => !prev.some(p => String(p.id) === String(initP.id) || (p.isLocal && initP.isLocal))
+      );
+
+      return [...updatedExisting, ...newInitials];
     });
   }, [initialParticipants]);
 
@@ -111,12 +124,37 @@ export function use100msCall({
     let isCancelled = false;
     const enableVideo = mode === 'video';
     const activeSocket = socketRef.current;
+    let presenceHeartbeat: any = null;
     let handleSignalMessage: ((msg: any) => void) | undefined;
     let handlePeerJoined: ((data: any) => Promise<void>) | undefined;
+    let handlePeerPresent: ((data: any) => Promise<void>) | undefined;
     let handlePeerLeft: ((data: any) => void) | undefined;
     let handleReactionMessage: ((data: any) => void) | undefined;
     let handleChatMessage: ((data: any) => void) | undefined;
     let handleCallEnded: ((data?: any) => void) | undefined;
+
+    const onCallSignal = (data: any) => { if (typeof handleSignalMessage === 'function') handleSignalMessage(data); };
+    const onCallPeerJoined = (data: any) => { if (typeof handlePeerJoined === 'function') void handlePeerJoined(data); };
+    const onCallPeerPresent = (data: any) => { if (typeof handlePeerPresent === 'function') void handlePeerPresent(data); };
+    const onCallPeerLeft = (data: any) => { if (typeof handlePeerLeft === 'function') handlePeerLeft(data); };
+    const onCallReaction = (data: any) => { if (typeof handleReactionMessage === 'function') handleReactionMessage(data); };
+    const onCallChatMessage = (data: any) => { if (typeof handleChatMessage === 'function') handleChatMessage(data); };
+    const onCallEnded = (data: any) => { if (typeof handleCallEnded === 'function') handleCallEnded(data); };
+
+    if (activeSocket) {
+      activeSocket.emit('join_call_room', { room: roomId, userId: currentUserId });
+      activeSocket.on('call_signal', onCallSignal);
+      activeSocket.on('signal', onCallSignal);
+      activeSocket.on('call_peer_joined', onCallPeerJoined);
+      activeSocket.on('peer_joined', onCallPeerJoined);
+      activeSocket.on('call_peer_present', onCallPeerPresent);
+      activeSocket.on('peer_present', onCallPeerPresent);
+      activeSocket.on('call_peer_left', onCallPeerLeft);
+      activeSocket.on('peer_left', onCallPeerLeft);
+      activeSocket.on('call_reaction', onCallReaction);
+      activeSocket.on('call_chat_message', onCallChatMessage);
+      activeSocket.on('call_ended', onCallEnded);
+    }
 
     // Broadcast channel for instantaneous cross-tab/cross-window signaling
     const channelName = `skillswap_call_${roomId || 'general'}`;
@@ -195,54 +233,11 @@ export function use100msCall({
       setIsConnected(true);
       setIsConnecting(false);
 
-      // 1b. Setup RTCPeerConnection for P2P connection
+      // 1b. Multi-Peer WebRTC Mesh Architecture
       if (typeof RTCPeerConnection !== 'undefined' && stream) {
-        const pc = new RTCPeerConnection(ICE_SERVERS);
-        peerConnectionRef.current = pc;
-
-        // Add local tracks to peer connection
-        stream.getTracks().forEach(track => {
-          if (stream) pc.addTrack(track, stream);
-        });
-
-        // Handle incoming remote track
-        pc.ontrack = (event: RTCTrackEvent) => {
-          console.log('[use100msCall Web] Received remote stream track:', event.track?.kind, event.streams);
-          const remoteStream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream([event.track]);
-          
-          setParticipants(prev => {
-            const hasRemote = prev.some(p => !p.isLocal);
-            if (!hasRemote) {
-              return [
-                ...prev,
-                {
-                  id: String(partnerId || 'remote-peer'),
-                  name: 'Partner',
-                  avatarUrl: '',
-                  role: 'student' as const,
-                  isLocal: false,
-                  mediaStream: remoteStream,
-                  status: 'connected' as const,
-                  isVideoOff: false,
-                  isMuted: false,
-                  isHandRaised: false,
-                  isSpeaking: false,
-                  joinedAt: new Date().toISOString(),
-                }
-              ];
-            }
-            return prev.map(p =>
-              !p.isLocal
-                ? {
-                  ...p,
-                  mediaStream: remoteStream,
-                  status: 'connected' as const,
-                  isVideoOff: false,
-                }
-                : p
-            );
-          });
-        };
+        meshPeerConnectionsRef.current.clear();
+        const peerConnections = meshPeerConnectionsRef.current;
+        const candidateQueues = new Map<string, RTCIceCandidateInit[]>();
 
         // Helper to send WebRTC signals across all available communication transports
         const sendSignal = (payload: any) => {
@@ -250,7 +245,7 @@ export function use100msCall({
             ...payload,
             room: roomId,
             senderId: currentUserId,
-            targetId: payload.targetId || payload.to || partnerIdRef.current,
+            targetId: payload.targetId || payload.to,
             timestamp: Date.now(),
           };
 
@@ -271,152 +266,275 @@ export function use100msCall({
           }
         };
 
-        // ICE candidate handler
-        pc.onicecandidate = event => {
-          if (event.candidate) {
-            sendSignal({
-              type: 'candidate',
-              candidate: event.candidate,
-              targetId: partnerIdRef.current,
+        const drainCandidateQueue = async (targetId: string, pc: RTCPeerConnection) => {
+          const queue = candidateQueues.get(targetId) || [];
+          while (queue.length > 0) {
+            const cand = queue.shift();
+            if (cand) {
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(cand));
+              } catch (e) {
+                console.warn('[WebRTC Mesh] addIceCandidate error:', e);
+              }
+            }
+          }
+          candidateQueues.set(targetId, queue);
+        };
+
+        const getOrCreatePeerConnection = (targetId: string, role?: string, name?: string, avatarUrl?: string) => {
+          if (!targetId || targetId === currentUserId) return null;
+
+          let pc = peerConnections.get(targetId);
+          if (pc && pc.signalingState !== 'closed') {
+            return pc;
+          }
+
+          console.log('[WebRTC Mesh] Creating dedicated RTCPeerConnection for peer:', targetId, name);
+          pc = new RTCPeerConnection(ICE_SERVERS);
+          peerConnections.set(targetId, pc);
+
+          // Add local stream tracks to this peer connection (use active screenshare track if currently sharing)
+          if (stream) {
+            const activeScreenTrack = webScreenStreamRef.current?.getVideoTracks()[0];
+            const hasActiveScreen = activeScreenTrack && activeScreenTrack.readyState === 'live';
+
+            stream.getTracks().forEach(track => {
+              try {
+                if (track.kind === 'video' && hasActiveScreen) {
+                  // Add the live screen share track directly to the new peer connection
+                  pc!.addTrack(activeScreenTrack, stream!);
+                } else {
+                  pc!.addTrack(track, stream!);
+                }
+              } catch (e) {
+                console.warn('[WebRTC Mesh] addTrack error:', e);
+              }
             });
           }
+
+          // Handle incoming remote media tracks exclusively for this specific peer
+          pc.ontrack = (event: RTCTrackEvent) => {
+            console.log('[WebRTC Mesh] Received remote track from peer:', targetId, event.track?.kind);
+            const remoteStream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream([event.track]);
+
+            setParticipants(prev => {
+              const existing = prev.find(p => p.id === targetId);
+              if (existing) {
+                return prev.map(p =>
+                  p.id === targetId
+                    ? {
+                        ...p,
+                        mediaStream: remoteStream,
+                        screenShareStream: (p.screenShareStream || Boolean(p.screenShareTrackId)) ? remoteStream : p.screenShareStream,
+                        status: 'connected' as const,
+                        isVideoOff: false,
+                        name: name || p.name,
+                        avatarUrl: avatarUrl || p.avatarUrl,
+                        role: (role as any) || p.role || 'student',
+                      }
+                    : p
+                );
+              }
+              return [
+                ...prev,
+                {
+                  id: targetId,
+                  name: name || 'Participant',
+                  avatarUrl: avatarUrl || '',
+                  role: (role as any) || 'student',
+                  isLocal: false,
+                  mediaStream: remoteStream,
+                  status: 'connected' as const,
+                  isVideoOff: false,
+                  isMuted: false,
+                  isHandRaised: false,
+                  isSpeaking: false,
+                  joinedAt: new Date().toISOString(),
+                }
+              ];
+            });
+          };
+
+          // ICE candidate handler for this specific peer
+          pc.onicecandidate = (event) => {
+            if (event.candidate) {
+              sendSignal({
+                type: 'candidate',
+                candidate: event.candidate,
+                targetId,
+                to: targetId,
+              });
+            }
+          };
+
+          pc.onconnectionstatechange = () => {
+            console.log(`[WebRTC Mesh] Peer ${targetId} Connection State:`, pc!.connectionState);
+            if (pc!.connectionState === 'connected') {
+              setIsConnected(true);
+              setParticipants(prev => prev.map(p => (p.id === targetId ? { ...p, status: 'connected' as const } : p)));
+            } else if (pc!.connectionState === 'disconnected' || pc!.connectionState === 'failed') {
+              console.log(`[WebRTC Mesh] Disconnected from peer: ${targetId}`);
+            }
+          };
+
+          return pc;
         };
 
-        pc.onconnectionstatechange = () => {
-          console.log('[use100msCall Web] Connection State:', pc.connectionState);
-          if (pc.connectionState === 'connected') {
-            setIsConnected(true);
-            setParticipants(prev => prev.map(p => (!p.isLocal ? { ...p, status: 'connected' } : p)));
-          } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-            console.log('[use100msCall Web] Disconnected from peer');
-          }
-        };
-
-        // 1c. Signaling Handlers for both BroadcastChannel and Socket.IO
+        // Signaling message dispatcher for mesh WebRTC
         handleSignalMessage = async (msg: any) => {
           if (!msg || msg.senderId === currentUserId) return;
           if (msg.targetId && currentUserId && msg.targetId !== currentUserId) return;
 
-          try {
-            if (msg.type === 'offer' && pc) {
-              console.log('[use100msCall Web] Processing Offer from', msg.senderId);
-              await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
+          const senderId = String(msg.senderId);
 
-              // Process queued candidates
-              while (candidateQueueRef.current.length > 0) {
-                const cand = candidateQueueRef.current.shift();
-                if (cand) await pc.addIceCandidate(new RTCIceCandidate(cand));
+          try {
+            if (msg.type === 'offer') {
+              console.log('[WebRTC Mesh] Processing Offer from', senderId);
+              const pc = getOrCreatePeerConnection(senderId, msg.role, msg.userName, msg.userAvatar);
+              if (!pc) return;
+
+              const isPolite = String(currentUserId) > String(senderId);
+              const isCollision = pc.signalingState !== 'stable';
+
+              if (isCollision) {
+                if (!isPolite) {
+                  console.log('[WebRTC Mesh] Glare collision: Impolite peer ignoring incoming offer from', senderId);
+                  return;
+                }
+                console.log('[WebRTC Mesh] Glare collision: Polite peer rolling back to accept offer from', senderId);
+                try {
+                  await pc.setLocalDescription({ type: 'rollback' });
+                } catch (e) {
+                  console.warn('[WebRTC Mesh] Rollback error:', e);
+                }
               }
+
+              await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
+              await drainCandidateQueue(senderId, pc);
 
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
 
+              if (msg.isScreenSharing) {
+                setParticipants(prev =>
+                  prev.map(p =>
+                    p.id === senderId
+                      ? { ...p, screenShareStream: p.mediaStream }
+                      : p
+                  )
+                );
+              }
+
               sendSignal({
                 type: 'answer',
                 answer,
-                targetId: msg.senderId,
-                to: msg.senderId,
+                targetId: senderId,
+                to: senderId,
+                role: isTeacher ? 'teacher' : 'student',
+                userName: userNameRef.current,
+                isScreenSharing: Boolean(webScreenStreamRef.current && webScreenStreamRef.current.active),
               });
-            } else if (msg.type === 'answer' && pc) {
-              console.log('[use100msCall Web] Processing Answer from', msg.senderId);
-              if (pc.signalingState !== 'stable') {
+            } else if (msg.type === 'answer') {
+              console.log('[WebRTC Mesh] Processing Answer from', senderId);
+              const pc = peerConnections.get(senderId);
+              if (pc && pc.signalingState !== 'stable') {
                 await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
-                // Process queued candidates
-                while (candidateQueueRef.current.length > 0) {
-                  const cand = candidateQueueRef.current.shift();
-                  if (cand) await pc.addIceCandidate(new RTCIceCandidate(cand));
-                }
+                await drainCandidateQueue(senderId, pc);
               }
-            } else if (msg.type === 'candidate' && pc) {
-              if (pc.remoteDescription && pc.remoteDescription.type) {
-                await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+              if (msg.isScreenSharing) {
+                setParticipants(prev =>
+                  prev.map(p =>
+                    p.id === senderId
+                      ? { ...p, screenShareStream: p.mediaStream }
+                      : p
+                  )
+                );
+              }
+            } else if (msg.type === 'candidate' && msg.candidate) {
+              const pc = peerConnections.get(senderId);
+              if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+                try {
+                  await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+                } catch (e) {
+                  console.warn('[WebRTC Mesh] Add candidate error:', e);
+                }
               } else {
-                candidateQueueRef.current.push(msg.candidate);
+                const queue = candidateQueues.get(senderId) || [];
+                queue.push(msg.candidate);
+                candidateQueues.set(senderId, queue);
               }
             } else if (msg.type === 'media_state') {
               setParticipants(prev =>
                 prev.map(p =>
-                  !p.isLocal
+                  p.id === senderId
                     ? {
-                      ...p,
-                      isVideoOff: msg.isVideoOff !== undefined ? msg.isVideoOff : p.isVideoOff,
-                      isMuted: msg.isMuted !== undefined ? msg.isMuted : p.isMuted,
-                    }
+                        ...p,
+                        isVideoOff: msg.isVideoOff !== undefined ? msg.isVideoOff : p.isVideoOff,
+                        isMuted: msg.isMuted !== undefined ? msg.isMuted : p.isMuted,
+                      }
                     : p
                 )
               );
             } else if (msg.type === 'screenshare_state') {
+              console.log('[WebRTC Mesh] Received screenshare_state from', senderId, msg.isScreenSharing);
               setParticipants(prev =>
                 prev.map(p =>
-                  !p.isLocal
+                  p.id === senderId
                     ? {
-                      ...p,
-                      screenShareStream: msg.isScreenSharing ? p.mediaStream : undefined,
-                    }
+                        ...p,
+                        screenShareStream: msg.isScreenSharing ? (p.mediaStream || prev.find(x => x.id === senderId)?.mediaStream) : undefined,
+                      }
                     : p
                 )
               );
             } else if (msg.type === 'reaction') {
-              if (msg.senderId && currentUserId && msg.senderId === currentUserId) {
-                // Ignore local echo
-              } else {
-                const raw = msg.reaction || msg;
-                const emoji = typeof raw === 'string' ? raw : (raw.emoji || '');
-                if (emoji) {
-                  const reactionObj: CallReaction = {
-                    id: (typeof raw === 'object' && raw.id) || generateReactionId(),
-                    emoji,
-                    senderName: (typeof raw === 'object' && raw.senderName) || msg.senderName || 'Participant',
-                    timestamp: (typeof raw === 'object' && raw.timestamp) || Date.now(),
-                  };
-                  setReactions(prev => (prev.some(r => r.id === reactionObj.id) ? prev : [...prev.slice(-15), reactionObj]));
-                }
+              if (msg.senderId && currentUserId && msg.senderId === currentUserId) return;
+              const raw = msg.reaction || msg;
+              const emoji = typeof raw === 'string' ? raw : (raw.emoji || '');
+              if (emoji) {
+                const reactionObj: CallReaction = {
+                  id: (typeof raw === 'object' && raw.id) || generateReactionId(),
+                  emoji,
+                  senderName: (typeof raw === 'object' && raw.senderName) || msg.senderName || 'Participant',
+                  timestamp: (typeof raw === 'object' && raw.timestamp) || Date.now(),
+                };
+                setReactions(prev => (prev.some(r => r.id === reactionObj.id) ? prev : [...prev.slice(-15), reactionObj]));
               }
             } else if (msg.type === 'chat') {
               if (msg.message) {
                 const incoming = typeof msg.message === 'string'
                   ? { id: generateCallMessageId(), authorId: msg.senderId || 'peer', authorName: msg.senderName || 'Participant', body: msg.message, createdAt: new Date().toISOString() }
                   : {
-                    id: msg.message.id || generateCallMessageId(),
-                    authorId: msg.message.authorId || msg.senderId || 'peer',
-                    authorName: msg.message.authorName || msg.senderName || 'Participant',
-                    body: msg.message.body || msg.message.text || msg.message.message || '',
-                    createdAt: msg.message.createdAt || new Date().toISOString(),
-                    isSystem: Boolean(msg.message.isSystem),
-                  };
-                if (incoming.authorId && incoming.authorId === currentUserId) {
-                  // Ignore local echo from BroadcastChannel
-                } else {
-                  setMessages(prev => (prev.some(m => m.id === incoming.id) ? prev : [...prev, incoming]));
-                }
+                      id: msg.message.id || generateCallMessageId(),
+                      authorId: msg.message.authorId || msg.senderId || 'peer',
+                      authorName: msg.message.authorName || msg.senderName || 'Participant',
+                      body: msg.message.body || msg.message.text || msg.message.message || '',
+                      createdAt: msg.message.createdAt || new Date().toISOString(),
+                      isSystem: Boolean(msg.message.isSystem),
+                    };
+                if (incoming.authorId && incoming.authorId === currentUserId) return;
+                setMessages(prev => (prev.some(m => m.id === incoming.id) ? prev : [...prev, incoming]));
               }
             } else if (msg.type === 'call_ended') {
               onEndCall();
             }
           } catch (signalErr) {
-            console.warn('[use100msCall Web] Signal error:', signalErr);
+            console.warn('[WebRTC Mesh] Signal error:', signalErr);
           }
         };
 
-        if (bc) {
-          bc.onmessage = (evt: MessageEvent) => {
-            const data = evt.data;
-            if (data?.type === 'peer_joined') {
-              void handlePeerJoined?.(data);
-            } else {
-              void handleSignalMessage?.(data);
-            }
-          };
-        }
-
         handlePeerJoined = async (data: any) => {
-          console.log('[use100msCall Web] Peer joined event:', data);
-          if (data?.userId && String(data.userId) === String(currentUserId)) return;
+          console.log('[WebRTC Mesh] Peer joined event:', data);
+          const peerId = String(data?.userId || data?.senderId || '');
+          if (!peerId || peerId === String(currentUserId)) return;
+
           const peerName = data?.userName || data?.senderName || 'Partner';
+          const peerRole = data?.role || (data?.isTeacher ? 'teacher' : 'student');
+          const peerAvatar = data?.userAvatar || data?.avatarUrl || '';
 
           const sysMsg: CallMessage = {
             id: generateCallMessageId(),
-            authorId: data?.userId || 'system',
+            authorId: peerId,
             authorName: 'System',
             body: `${peerName} joined the call`,
             createdAt: new Date().toISOString(),
@@ -425,26 +543,63 @@ export function use100msCall({
           setMessages(prev => (prev.some(m => m.id === sysMsg.id) ? prev : [...prev, sysMsg]));
 
           setParticipants(prev => {
-            const hasRemote = prev.some(p => !p.isLocal);
-            if (!hasRemote && data?.userId) {
-              const newRemote: CallParticipant = {
-                id: String(data.userId),
+            const existing = prev.find(p => p.id === peerId);
+            if (existing) {
+              return prev.map(p =>
+                p.id === peerId
+                  ? { ...p, status: 'connected' as const, name: peerName, avatarUrl: peerAvatar || p.avatarUrl, role: peerRole || p.role }
+                  : p
+              );
+            }
+            return [
+              ...prev,
+              {
+                id: peerId,
                 name: peerName,
-                avatarUrl: data?.avatarUrl || '',
+                avatarUrl: peerAvatar,
+                role: peerRole || 'student',
                 isLocal: false,
                 isMuted: false,
                 isVideoOff: false,
                 isHandRaised: false,
                 isSpeaking: false,
-                status: 'connected',
-                role: 'guest',
+                status: 'connected' as const,
                 joinedAt: new Date().toISOString(),
-              };
-              return [...prev, newRemote];
-            }
-            return prev.map(p => (!p.isLocal ? { ...p, status: 'connected', name: p.name || peerName } : p));
+              }
+            ];
           });
 
+          // Reply with our presence so the new peer registers us immediately
+          const isCurrentlySharingScreen = Boolean(webScreenStreamRef.current && webScreenStreamRef.current.active);
+          const presencePayload = {
+            type: 'peer_present',
+            room: roomId,
+            userId: currentUserId,
+            userName: userNameRef.current,
+            role: isTeacher ? 'teacher' : 'student',
+            targetId: peerId,
+            to: peerId,
+            isScreenSharing: isCurrentlySharingScreen,
+          };
+          activeSocket?.emit('call_peer_present', presencePayload);
+          if (bc) {
+            try { bc.postMessage(presencePayload); } catch (e) {}
+          }
+
+          // If we are currently sharing screen, send direct screenshare_state notification to new joiner
+          if (isCurrentlySharingScreen) {
+            sendSignal({
+              type: 'screenshare_state',
+              room: roomId,
+              senderId: currentUserId,
+              targetId: peerId,
+              to: peerId,
+              isScreenSharing: true,
+            });
+          }
+
+          // Create offer for the new joiner
+          const pc = getOrCreatePeerConnection(peerId, peerRole, peerName, peerAvatar);
           if (pc && (pc.signalingState === 'stable' || pc.signalingState === 'have-local-offer')) {
             try {
               const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
@@ -452,23 +607,106 @@ export function use100msCall({
               sendSignal({
                 type: 'offer',
                 offer,
-                targetId: data?.userId || partnerId,
-                to: data?.userId || partnerId,
+                targetId: peerId,
+                to: peerId,
+                role: isTeacher ? 'teacher' : 'student',
+                userName: userNameRef.current,
+                isScreenSharing: isCurrentlySharingScreen,
               });
             } catch (err) {
-              console.warn('[use100msCall Web] Peer joined offer error:', err);
+              console.warn('[WebRTC Mesh] Create offer error for peer:', peerId, err);
+            }
+          }
+        };
+
+        handlePeerPresent = async (data: any) => {
+          console.log('[WebRTC Mesh] Peer present event:', data);
+          const peerId = String(data?.userId || data?.senderId || '');
+          if (!peerId || peerId === String(currentUserId)) return;
+
+          const peerName = data?.userName || data?.senderName || 'Partner';
+          const peerRole = data?.role || (data?.isTeacher ? 'teacher' : 'student');
+          const peerAvatar = data?.userAvatar || data?.avatarUrl || '';
+          const remoteIsSharingScreen = Boolean(data?.isScreenSharing);
+
+          setParticipants(prev => {
+            const existing = prev.find(p => p.id === peerId);
+            if (existing) {
+              return prev.map(p =>
+                p.id === peerId
+                  ? {
+                      ...p,
+                      status: 'connected' as const,
+                      name: peerName,
+                      avatarUrl: peerAvatar || p.avatarUrl,
+                      role: peerRole || p.role,
+                      screenShareStream: remoteIsSharingScreen ? (p.mediaStream || p.screenShareStream) : p.screenShareStream,
+                    }
+                  : p
+              );
+            }
+            return [
+              ...prev,
+              {
+                id: peerId,
+                name: peerName,
+                avatarUrl: peerAvatar,
+                role: peerRole || 'student',
+                isLocal: false,
+                isMuted: false,
+                isVideoOff: false,
+                isHandRaised: false,
+                isSpeaking: false,
+                status: 'connected' as const,
+                joinedAt: new Date().toISOString(),
+              }
+            ];
+          });
+
+          // Ensure connection exists and initiate offer if we are the designated offerer
+          const isCurrentlySharingScreen = Boolean(webScreenStreamRef.current && webScreenStreamRef.current.active);
+          const pc = getOrCreatePeerConnection(peerId, peerRole, peerName, peerAvatar);
+          if (pc && pc.signalingState === 'stable' && String(currentUserId) < String(peerId)) {
+            try {
+              const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+              await pc.setLocalDescription(offer);
+              sendSignal({
+                type: 'offer',
+                offer,
+                targetId: peerId,
+                to: peerId,
+                role: isTeacher ? 'teacher' : 'student',
+                userName: userNameRef.current,
+                isScreenSharing: isCurrentlySharingScreen,
+              });
+
+              if (isCurrentlySharingScreen) {
+                sendSignal({
+                  type: 'screenshare_state',
+                  room: roomId,
+                  senderId: currentUserId,
+                  targetId: peerId,
+                  to: peerId,
+                  isScreenSharing: true,
+                });
+              }
+            } catch (err) {
+              console.warn('[WebRTC Mesh] Present create offer error:', err);
             }
           }
         };
 
         handlePeerLeft = (data: any) => {
-          console.log('[use100msCall Web] Peer left event:', data);
-          if (data?.userId && String(data.userId) === String(currentUserId)) return;
-          const peerName = data?.userName || data?.senderName || 'Partner';
+          console.log('[WebRTC Mesh] Peer left event:', data);
+          const peerId = String(data?.userId || data?.senderId || '');
+          if (!peerId || peerId === String(currentUserId)) return;
 
+          const peerName = data?.userName || data?.senderName || 'Participant';
+
+          // In-call popup notification: Student/Peer left
           const sysMsg: CallMessage = {
             id: generateCallMessageId(),
-            authorId: data?.userId || 'system',
+            authorId: peerId,
             authorName: 'System',
             body: `${peerName} left the call`,
             createdAt: new Date().toISOString(),
@@ -476,9 +714,16 @@ export function use100msCall({
           };
           setMessages(prev => (prev.some(m => m.id === sysMsg.id) ? prev : [...prev, sysMsg]));
 
+          const existingPC = peerConnections.get(peerId);
+          if (existingPC) {
+            try { existingPC.close(); } catch (e) {}
+            peerConnections.delete(peerId);
+          }
+          candidateQueues.delete(peerId);
+
           setParticipants(prev =>
             prev.map(p =>
-              !p.isLocal ? { ...p, status: 'disconnected', mediaStream: undefined, videoTrackId: undefined } : p
+              p.id === peerId ? { ...p, status: 'disconnected' as const, mediaStream: undefined, videoTrackId: undefined } : p
             )
           );
         };
@@ -507,57 +752,72 @@ export function use100msCall({
             const incoming = typeof raw === 'string'
               ? { id: generateCallMessageId(), authorId: data?.senderId || 'peer', authorName: data?.senderName || 'Participant', body: raw, createdAt: new Date().toISOString() }
               : {
-                id: raw.id || generateCallMessageId(),
-                authorId: raw.authorId || data?.senderId || 'peer',
-                authorName: raw.authorName || data?.senderName || 'Participant',
-                body: raw.body || raw.text || raw.message || '',
-                createdAt: raw.createdAt || new Date().toISOString(),
-                isSystem: Boolean(raw.isSystem),
-              };
+                  id: raw.id || generateCallMessageId(),
+                  authorId: raw.authorId || data?.senderId || 'peer',
+                  authorName: raw.authorName || data?.senderName || 'Participant',
+                  body: raw.body || raw.text || raw.message || '',
+                  createdAt: raw.createdAt || new Date().toISOString(),
+                  isSystem: Boolean(raw.isSystem),
+                };
             if (incoming.authorId && incoming.authorId === currentUserId) return;
             setMessages(prev => (prev.some(m => m.id === incoming.id) ? prev : [...prev, incoming]));
           }
         };
 
         handleCallEnded = (data: any) => {
-          console.log('[use100msCall Web] Remote peer ended/left call:', data);
+          console.log('[WebRTC Mesh] Remote peer ended/left call:', data);
           handlePeerLeft?.(data || { userName: 'Partner' });
         };
-
-        if (activeSocket) {
-          activeSocket.emit('join_call_room', { room: roomId, userId: currentUserId });
-          activeSocket.on('call_signal', handleSignalMessage);
-          activeSocket.on('signal', handleSignalMessage);
-          activeSocket.on('call_peer_joined', handlePeerJoined);
-          activeSocket.on('peer_joined', handlePeerJoined);
-          activeSocket.on('call_peer_left', handlePeerLeft);
-          activeSocket.on('peer_left', handlePeerLeft);
-          activeSocket.on('call_reaction', handleReactionMessage);
-          activeSocket.on('call_chat_message', handleChatMessage);
-          activeSocket.on('call_ended', handleCallEnded);
-
-          // Announce local presence to room and partner
-          const peerJoinPayload = {
-            type: 'peer_joined',
-            room: roomId,
-            userId: currentUserId,
-            userName: userNameRef.current,
-            targetId: partnerIdRef.current,
-            to: partnerIdRef.current,
-          };
-          activeSocket.emit('call_peer_joined', peerJoinPayload);
-          if (bc) {
-            try { bc.postMessage(peerJoinPayload); } catch (e) { }
-          }
+        const peerJoinPayload = {
+          type: 'peer_joined',
+          room: roomId,
+          userId: currentUserId,
+          userName: userNameRef.current,
+          role: isTeacher ? 'teacher' : 'student',
+          targetId: partnerIdRef.current,
+          to: partnerIdRef.current,
+        };
+        activeSocket?.emit('call_peer_joined', peerJoinPayload);
+        if (bc) {
+          try { bc.postMessage(peerJoinPayload); } catch (e) {}
         }
 
-        // Caller initiates the offer if we have the lower ID or are caller
+        if (bc) {
+          bc.onmessage = (evt: MessageEvent) => {
+            const data = evt.data;
+            if (data?.type === 'peer_joined') {
+              void handlePeerJoined?.(data);
+            } else if (data?.type === 'peer_present') {
+              void handlePeerPresent?.(data);
+            } else {
+              void handleSignalMessage?.(data);
+            }
+          };
+        }
+
+        // Periodic presence heartbeat sync
+        presenceHeartbeat = setInterval(() => {
+          if (activeSocket) {
+            const isCurrentlySharingScreen = Boolean(webScreenStreamRef.current && webScreenStreamRef.current.active);
+            const heartbeatPayload = {
+              type: 'peer_present',
+              room: roomId,
+              userId: currentUserId,
+              userName: userNameRef.current,
+              role: isTeacher ? 'teacher' : 'student',
+              isScreenSharing: isCurrentlySharingScreen,
+            };
+            activeSocket.emit('call_peer_present', heartbeatPayload);
+          }
+        }, 3500);
+
+        // If partnerId was provided (1:1 call), initialize offer
         const currentPartnerId = partnerIdRef.current;
-        const isCaller = currentUserId && currentPartnerId ? String(currentUserId) < String(currentPartnerId) : true;
-        if (isCaller) {
+        if (currentPartnerId && currentUserId && String(currentUserId) < String(currentPartnerId)) {
           setTimeout(async () => {
             try {
-              if (pc.signalingState === 'stable') {
+              const pc = getOrCreatePeerConnection(currentPartnerId);
+              if (pc && pc.signalingState === 'stable') {
                 const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
                 await pc.setLocalDescription(offer);
                 sendSignal({
@@ -565,10 +825,12 @@ export function use100msCall({
                   offer,
                   targetId: currentPartnerId,
                   to: currentPartnerId,
+                  role: isTeacher ? 'teacher' : 'student',
+                  userName: userNameRef.current,
                 });
               }
             } catch (offerErr) {
-              console.warn('[use100msCall Web] Create offer error:', offerErr);
+              console.warn('[WebRTC Mesh] Initial 1:1 offer error:', offerErr);
             }
           }, 500);
         }
@@ -579,6 +841,9 @@ export function use100msCall({
 
     return () => {
       isCancelled = true;
+      if (presenceHeartbeat) {
+        clearInterval(presenceHeartbeat);
+      }
       if (webStreamRef.current) {
         webStreamRef.current.getTracks().forEach(track => track.stop());
         webStreamRef.current = null;
@@ -596,15 +861,17 @@ export function use100msCall({
         peerConnectionRef.current = null;
       }
       if (activeSocket) {
-        activeSocket.off('call_signal', handleSignalMessage);
-        activeSocket.off('signal', handleSignalMessage);
-        activeSocket.off('call_peer_joined', handlePeerJoined);
-        activeSocket.off('peer_joined', handlePeerJoined);
-        activeSocket.off('call_peer_left', handlePeerLeft);
-        activeSocket.off('peer_left', handlePeerLeft);
-        activeSocket.off('call_reaction', handleReactionMessage);
-        activeSocket.off('call_chat_message', handleChatMessage);
-        activeSocket.off('call_ended', handleCallEnded);
+        activeSocket.off('call_signal', onCallSignal);
+        activeSocket.off('signal', onCallSignal);
+        activeSocket.off('call_peer_joined', onCallPeerJoined);
+        activeSocket.off('peer_joined', onCallPeerJoined);
+        activeSocket.off('call_peer_present', onCallPeerPresent);
+        activeSocket.off('peer_present', onCallPeerPresent);
+        activeSocket.off('call_peer_left', onCallPeerLeft);
+        activeSocket.off('peer_left', onCallPeerLeft);
+        activeSocket.off('call_reaction', onCallReaction);
+        activeSocket.off('call_chat_message', onCallChatMessage);
+        activeSocket.off('call_ended', onCallEnded);
       }
     };
   }, [mode, roomId, currentUserId]);
@@ -684,20 +951,32 @@ export function use100msCall({
 
   // Screen Sharing (Start / Stop)
   const toggleScreenShare = useCallback(async () => {
+    // Only teacher can share screen in group classes (or both in 1:1)
+    if (!isTeacher && !partnerIdRef.current) {
+      console.warn('[use100msCall Web] Screen sharing is restricted to teachers in group classes.');
+      return;
+    }
+
     if (isScreenSharing) {
       if (webScreenStreamRef.current) {
         webScreenStreamRef.current.getTracks().forEach((t: any) => t.stop());
         webScreenStreamRef.current = null;
       }
 
-      // Revert peer connection video track back to camera track
-      if (peerConnectionRef.current && webStreamRef.current) {
-        const camTrack = webStreamRef.current.getVideoTracks()[0];
-        const senders = peerConnectionRef.current.getSenders();
-        const videoSender = senders.find(s => s.track?.kind === 'video');
-        if (videoSender && camTrack) {
-          videoSender.replaceTrack(camTrack).catch(e => console.warn('Revert cam track error:', e));
-        }
+      // Revert all mesh peer connections' video tracks back to camera track
+      const camTrack = webStreamRef.current?.getVideoTracks()[0];
+      if (camTrack) {
+        meshPeerConnectionsRef.current.forEach(pc => {
+          try {
+            const senders = pc.getSenders();
+            const videoSender = senders.find(s => s.track?.kind === 'video');
+            if (videoSender) {
+              videoSender.replaceTrack(camTrack).catch(e => console.warn('Revert cam track error:', e));
+            }
+          } catch (e) {
+            console.warn('Revert track error:', e);
+          }
+        });
       }
 
       // Broadcast screen share ended
@@ -728,13 +1007,19 @@ export function use100msCall({
 
           const screenTrack = screenStream.getVideoTracks()[0];
 
-          // Replace peer connection track with screenshare track
-          if (peerConnectionRef.current && screenTrack) {
-            const senders = peerConnectionRef.current.getSenders();
-            const videoSender = senders.find(s => s.track?.kind === 'video');
-            if (videoSender) {
-              videoSender.replaceTrack(screenTrack).catch(e => console.warn('Replace screenshare track error:', e));
-            }
+          // Replace video track on ALL mesh peer connections with screenshare track
+          if (screenTrack) {
+            meshPeerConnectionsRef.current.forEach(pc => {
+              try {
+                const senders = pc.getSenders();
+                const videoSender = senders.find(s => s.track?.kind === 'video');
+                if (videoSender) {
+                  videoSender.replaceTrack(screenTrack).catch(e => console.warn('Replace screenshare track error:', e));
+                }
+              } catch (e) {
+                console.warn('Replace screenshare track error:', e);
+              }
+            });
           }
 
           // Broadcast screenshare started
@@ -757,13 +1042,19 @@ export function use100msCall({
           screenTrack.onended = () => {
             // Auto revert when user clicks browser "Stop Sharing" button
             setIsScreenSharing(false);
-            if (peerConnectionRef.current && webStreamRef.current) {
-              const camTrack = webStreamRef.current.getVideoTracks()[0];
-              const senders = peerConnectionRef.current.getSenders();
-              const videoSender = senders.find(s => s.track?.kind === 'video');
-              if (videoSender && camTrack) {
-                videoSender.replaceTrack(camTrack).catch(e => console.warn('Revert cam track error:', e));
-              }
+            const camTrack = webStreamRef.current?.getVideoTracks()[0];
+            if (camTrack) {
+              meshPeerConnectionsRef.current.forEach(pc => {
+                try {
+                  const senders = pc.getSenders();
+                  const videoSender = senders.find(s => s.track?.kind === 'video');
+                  if (videoSender) {
+                    videoSender.replaceTrack(camTrack).catch(e => console.warn('Revert cam track error:', e));
+                  }
+                } catch (e) {
+                  console.warn('Revert cam track on end error:', e);
+                }
+              });
             }
             const endedMsg = {
               type: 'screenshare_state',
@@ -789,7 +1080,7 @@ export function use100msCall({
         }
       }
     }
-  }, [isScreenSharing, roomId, currentUserId, socket]);
+  }, [isScreenSharing, roomId, currentUserId, socket, isTeacher]);
 
   // Audio Device Routing
   const switchAudioOutput = useCallback(async (device: AudioDevice) => {

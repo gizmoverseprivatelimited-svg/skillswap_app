@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Calendar, Clock, Users, Coins, Plus, CheckCircle2, XCircle, Sparkles, Repeat, CreditCard } from 'lucide-react-native';
+import { Calendar, Clock, Users, Coins, Plus, CheckCircle2, XCircle, Sparkles, Repeat, CreditCard, Video } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
@@ -79,6 +79,16 @@ function MyClassCardItem({ item, currentUserId, router }: { item: ClassWithTeach
           <View style={s.seatRow}>
             {isFree ? <Sparkles size={14} color="#10B981" /> : <Coins size={14} color="#F59E0B" />}
             <Text style={s.seatText}>{isFree ? 'Free class' : formatCredits(item.seatPriceCredits)}</Text>
+            {Boolean(item.isLive) && item.status !== 'completed' && item.status !== 'cancelled' && (
+              <TouchableOpacity
+                style={s.joinLiveCardBtn}
+                onPress={() => router.push(`/call/${item.id}?mode=video` as any)}
+                activeOpacity={0.8}
+              >
+                <Video size={12} color="#FFFFFF" />
+                <Text style={s.joinLiveCardBtnText}>Join Live</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>
@@ -208,8 +218,10 @@ const s = StyleSheet.create({
   title: { fontSize: 17, fontWeight: '700' as const, color: Colors.light.text, marginBottom: 10, lineHeight: 23 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   metaText: { fontSize: 13, color: Colors.light.textTertiary, fontWeight: '500' as const, marginRight: 8 },
-  seatRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  seatRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   seatText: { fontSize: 13, fontWeight: '600' as const, color: Colors.light.primary },
+  joinLiveCardBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#10B981', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
+  joinLiveCardBtnText: { fontSize: 12, fontWeight: '700' as const, color: '#FFFFFF' },
   emptyWrap: { paddingVertical: 60, alignItems: 'center', gap: 16 },
   emptyText: { fontSize: 15, color: Colors.light.textTertiary, fontWeight: '500' as const, textAlign: 'center' },
   emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.light.primary, paddingHorizontal: 18, paddingVertical: 12, borderRadius: 14 },

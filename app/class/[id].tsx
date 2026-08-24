@@ -160,6 +160,11 @@ export default function ClassDetailScreen() {
 
   const handleCancelEnrollment = useCallback(() => {
     if (!cls) return;
+    const classHasStarted = Boolean(cls.hasStarted || cls.startedAt || cls.isLive);
+    if (classHasStarted) {
+      showAlert('Cannot Cancel Enrollment', 'This class has already started, so enrollment cannot be cancelled.');
+      return;
+    }
     showAlert(
       'Cancel enrollment?',
       `You'll be refunded ${getClassEnrollmentCost(cls.seatPriceCredits)} credits.`,
@@ -169,8 +174,12 @@ export default function ClassDetailScreen() {
           text: 'Cancel Enrollment',
           style: 'destructive',
           onPress: () => {
-            cancelEnrollment(cls.id);
-            setEnrolled(false);
+            const res = cancelEnrollment(cls.id);
+            if (res && res.error) {
+              showAlert('Cannot Cancel', res.error);
+            } else {
+              setEnrolled(false);
+            }
           },
         },
       ],
@@ -216,6 +225,16 @@ export default function ClassDetailScreen() {
 
   const handleStartClass = useCallback(async () => {
     if (!cls) return;
+    const isBeforeSchedule = !cls.hasStarted && !cls.isLive && cls.startISO && Date.now() < new Date(cls.startISO).getTime();
+    if (isBeforeSchedule) {
+      const formattedTime = new Date(cls.startISO).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      const formattedDate = new Date(cls.startISO).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' });
+      showAlert(
+        'Class Not Started Yet ⏰',
+        `You cannot start this class call before the scheduled date and time (${formattedDate} at ${formattedTime}).`
+      );
+      return;
+    }
     try {
       fetch(`${url}/classes/${cls.id}/start`, {
         method: 'POST',
@@ -226,7 +245,7 @@ export default function ClassDetailScreen() {
       console.error('[handleStartClass] Error:', err);
       router.push(`/call/${cls.id}?mode=video` as any);
     }
-  }, [cls, router]);
+  }, [cls, router, showAlert]);
 
   if (!cls) {
     return (
@@ -246,6 +265,13 @@ export default function ClassDetailScreen() {
   const isCompleted = cls.status === 'completed';
   const isCancelled = cls.status === 'cancelled';
   const classOpen = cls.status === 'open';
+
+  const isBeforeScheduledStart = useMemo(() => {
+    if (!cls?.startISO) return false;
+    const startTime = new Date(cls.startISO).getTime();
+    if (isNaN(startTime)) return false;
+    return Date.now() < startTime;
+  }, [cls?.startISO]);
 
   const formatDateFn = (iso: string) => {
     return new Date(iso).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -281,12 +307,21 @@ export default function ClassDetailScreen() {
     fetchTeacherReviews();
     if (socket) {
       const handleReviewCreated = () => fetchTeacherReviews();
+      const handleClassEvent = () => refreshClasses();
       socket.on('review_created', handleReviewCreated);
+      socket.on('class_started', handleClassEvent);
+      socket.on('class_call_started', handleClassEvent);
+      socket.on('class_updated', handleClassEvent);
+      socket.on('class_ended', handleClassEvent);
       return () => {
         socket.off('review_created', handleReviewCreated);
+        socket.off('class_started', handleClassEvent);
+        socket.off('class_call_started', handleClassEvent);
+        socket.off('class_updated', handleClassEvent);
+        socket.off('class_ended', handleClassEvent);
       };
     }
-  }, [fetchTeacherReviews, socket]);
+  }, [fetchTeacherReviews, refreshClasses, socket]);
 
   const teacherRating = useMemo(() => {
     const raw = reviewsStats?.averageRating ?? teacherUser?.rating ?? cls?.teacher?.rating ?? 0;
@@ -443,10 +478,19 @@ export default function ClassDetailScreen() {
             <View style={s.teacherActions}>
               {classOpen && (
                 <>
-                  <TouchableOpacity style={s.startClassBtn} onPress={handleStartClass} activeOpacity={0.8}>
-                    <Video size={20} color="#FFFFFF" />
-                    <Text style={s.startClassBtnText}>Start Class Call</Text>
-                  </TouchableOpacity>
+                  {!cls.hasStarted && !cls.isLive && isBeforeScheduledStart ? (
+                    <TouchableOpacity style={s.scheduledWaitingBtn} onPress={handleStartClass} activeOpacity={0.8}>
+                      <Clock size={18} color="#6366F1" />
+                      <Text style={s.scheduledWaitingBtnText}>
+                        Scheduled for {new Date(cls.startISO).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })} at {new Date(cls.startISO).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity style={[s.startClassBtn, cls.isLive && { backgroundColor: '#10B981' }]} onPress={handleStartClass} activeOpacity={0.8}>
+                      <Video size={20} color="#FFFFFF" />
+                      <Text style={s.startClassBtnText}>{cls.isLive ? 'Rejoin Class Call' : 'Start Class Call'}</Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity style={s.completeBtn} onPress={handleCompleteClass} activeOpacity={0.8}>
                     <CheckCircle2 size={20} color="#FFFFFF" />
                     <Text style={s.completeBtnText}>Mark Complete</Text>
@@ -464,14 +508,33 @@ export default function ClassDetailScreen() {
             <View>
               {enrolled && classOpen ? (
                 <>
-                  <TouchableOpacity style={[s.startClassBtn, { backgroundColor: '#8B5CF6' }]} onPress={() => router.push(`/call/${cls.id}?mode=video` as any)} activeOpacity={0.8}>
-                    <Video size={20} color="#FFFFFF" />
-                    <Text style={s.startClassBtnText}>Join Class Call</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={s.enrolledBtn} onPress={handleCancelEnrollment} activeOpacity={0.8}>
-                    <CheckCircle2 size={18} color="#FFFFFF" />
-                    <Text style={s.enrolledBtnText}>Enrolled — Tap to cancel</Text>
-                  </TouchableOpacity>
+                  {Boolean(cls.isLive) ? (
+                    <TouchableOpacity style={[s.startClassBtn, { backgroundColor: '#10B981' }]} onPress={() => router.push(`/call/${cls.id}?mode=video` as any)} activeOpacity={0.8}>
+                      <Video size={20} color="#FFFFFF" />
+                      <Text style={s.startClassBtnText}>Join Class Call (Live Now)</Text>
+                    </TouchableOpacity>
+                  ) : Boolean(cls.hasStarted || cls.startedAt) ? (
+                    <View style={s.waitingTeacherPill}>
+                      <Clock size={16} color="#6366F1" />
+                      <Text style={s.waitingTeacherText}>Class in session — Teacher will start call shortly</Text>
+                    </View>
+                  ) : (
+                    <View style={s.waitingTeacherPill}>
+                      <Clock size={16} color="#6366F1" />
+                      <Text style={s.waitingTeacherText}>Class not live yet — Teacher has not joined</Text>
+                    </View>
+                  )}
+                  {Boolean(cls.hasStarted || cls.startedAt || cls.isLive) ? (
+                    <View style={s.enrolledLockedPill}>
+                      <CheckCircle2 size={18} color="#FFFFFF" />
+                      <Text style={s.enrolledLockedText}>Enrolled — Class in progress</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity style={s.enrolledBtn} onPress={handleCancelEnrollment} activeOpacity={0.8}>
+                      <CheckCircle2 size={18} color="#FFFFFF" />
+                      <Text style={s.enrolledBtnText}>Enrolled — Tap to cancel</Text>
+                    </TouchableOpacity>
+                  )}
                 </>
               ) : !enrolled && classOpen && !isFull ? (
                 <TouchableOpacity style={s.enrollBtn} onPress={handleEnroll} activeOpacity={0.8}>
@@ -560,6 +623,8 @@ const s = StyleSheet.create({
   enrollBtnText: { fontSize: 16, fontWeight: '700' as const, color: '#FFFFFF' },
   enrolledBtn: { backgroundColor: '#10B981', borderRadius: 16, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
   enrolledBtnText: { fontSize: 15, fontWeight: '700' as const, color: '#FFFFFF' },
+  enrolledLockedPill: { backgroundColor: '#059669', borderRadius: 16, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  enrolledLockedText: { fontSize: 15, fontWeight: '700' as const, color: '#FFFFFF' },
   fullBtn: { backgroundColor: Colors.light.backgroundTertiary, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
   fullBtnText: { fontSize: 16, fontWeight: '700' as const, color: Colors.light.textTertiary },
   endedBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.light.backgroundTertiary, borderRadius: 16, paddingVertical: 16 },
@@ -568,6 +633,10 @@ const s = StyleSheet.create({
   teacherActions: { gap: 10 },
   startClassBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#6366F1', borderRadius: 16, paddingVertical: 16, marginBottom: 4 },
   startClassBtnText: { fontSize: 16, fontWeight: '700' as const, color: '#FFFFFF' },
+  scheduledWaitingBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 16, paddingVertical: 16, marginBottom: 4, borderWidth: 1.5, borderColor: 'rgba(99,102,241,0.3)', borderStyle: 'dashed' },
+  scheduledWaitingBtnText: { fontSize: 14, fontWeight: '700' as const, color: '#6366F1', textAlign: 'center' },
+  waitingTeacherPill: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(99,102,241,0.2)' },
+  waitingTeacherText: { fontSize: 14, fontWeight: '600' as const, color: '#6366F1', textAlign: 'center' },
   joinLiveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#10B981', borderRadius: 16, paddingVertical: 16, marginBottom: 8 },
   joinLiveBtnText: { fontSize: 16, fontWeight: '700' as const, color: '#FFFFFF' },
   completeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#10B981', borderRadius: 16, paddingVertical: 16 },

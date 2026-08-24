@@ -110,8 +110,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   const mountTimestampRef = useRef<number>(Date.now());
   const lastCallPopupTimeRef = useRef<Map<string, number>>(new Map());
 
-  // Handle both string and numeric IDs safely
-  const currentUserId = currentUser?.id ? String(currentUser.id) : undefined;
+  // Handle both string and numeric/mongo IDs safely
+  const currentUserId = currentUser ? String(currentUser.id || (currentUser as any)._id) : undefined;
+  const currentMongoId = (currentUser as any)?._id ? String((currentUser as any)._id) : undefined;
 
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
     if (currentUserId) {
@@ -279,9 +280,14 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     const meta = (input.metadata || {}) as any;
     const isLiveCall =
       meta.type === 'video-call' ||
+      meta.type === 'class-video-call' ||
+      meta.action === 'join_class' ||
+      meta.isClass === true ||
       input.title.toLowerCase().includes('video call') ||
+      input.title.toLowerCase().includes('live class') ||
       input.title.toLowerCase().includes('calling') ||
       input.body.toLowerCase().includes('video call') ||
+      input.body.toLowerCase().includes('live class') ||
       input.body.toLowerCase().includes('calling');
 
     // If this specific event has been dismissed by user or already seen, ignore (except live calls)
@@ -828,25 +834,35 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       enrolledStudentIds?: string[];
     }) => {
       if (data && data.classId) {
-        const isTeacher = String(data.teacherId) === currentUserId;
+        const teacherIdStr = String(data.teacherId);
+        const isTeacher = teacherIdStr === currentUserId || (currentMongoId && teacherIdStr === currentMongoId);
+        if (isTeacher) return;
+
         const isEnrolled = data.enrolledStudentIds && Array.isArray(data.enrolledStudentIds)
-          ? data.enrolledStudentIds.some((id) => String(id) === currentUserId)
-          : !isTeacher;
+          ? data.enrolledStudentIds.some((id) => {
+              const idStr = String(id);
+              return idStr === currentUserId || (currentMongoId && idStr === currentMongoId);
+            })
+          : true;
 
-        if (!isTeacher && isEnrolled) {
-          const eventKey = `class-started:${data.classId}`;
-          if (dismissedKeysRef.current.has(eventKey) || seenKeysRef.current.has(eventKey)) {
-            return;
-          }
-
+        if (isEnrolled) {
+          const eventKey = `class-started:${data.classId}:${Date.now()}`;
           const teacher = data.teacherName || 'Teacher';
           const title = data.classTitle || 'Group Class';
 
           addNotification({
             category: 'class',
-            title: '📹 Live Class Started!',
-            body: `${teacher} has started "${title}". Tap to join now!`,
-            metadata: { classId: data.classId, action: 'join_class' },
+            title: '🔴 Live Class Started!',
+            body: `${teacher} has started "${title}". Tap to join the live video session now!`,
+            metadata: {
+              swapId: data.classId,
+              classId: data.classId,
+              type: 'class-video-call',
+              mode: 'video',
+              action: 'join_class',
+              callerName: teacher,
+              isClass: true,
+            },
             skipPopup: false,
             eventKey,
           });
@@ -858,7 +874,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     return () => {
       socket.off('class_started', handleClassStarted);
     };
-  }, [hasCompletedOnboarding, isAuthUser, currentUserId, socket, addNotification, router, isStorageLoaded]);
+  }, [hasCompletedOnboarding, isAuthUser, currentUserId, currentMongoId, socket, addNotification, router, isStorageLoaded]);
 
   // Real-time socket listener for incoming video / voice calls
   useEffect(() => {
@@ -866,36 +882,44 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
     const handleIncomingCall = (data: {
       swapId?: string;
+      classId?: string;
       callerId?: string;
       callerName?: string;
       callerAvatar?: string;
       title?: string;
       body?: string;
       mode?: string;
+      metadata?: any;
     }) => {
       console.log('[Socket.IO] Received incoming call event:', data);
-      if (data && data.swapId && String(data.callerId) !== currentUserId) {
-        const swapKey = String(data.swapId);
-        // If current user is already on the call screen for this swap, skip popup alert
-        if (pathname && (pathname.includes(`/call/${swapKey}`) || pathname.includes(`call/${swapKey}`))) {
-          console.log('[Notifications] Suppressed incoming call popup because user is already on call screen for', swapKey);
+      const targetCallId = data.swapId || data.classId || data.metadata?.swapId || data.metadata?.classId;
+      const callerIdStr = String(data.callerId || '');
+      const isCaller = callerIdStr === currentUserId || (currentMongoId && callerIdStr === currentMongoId);
+      if (data && targetCallId && !isCaller) {
+        const callKey = String(targetCallId);
+        // If current user is already on the call screen for this call, skip popup alert
+        if (pathname && (pathname.includes(`/call/${callKey}`) || pathname.includes(`call/${callKey}`))) {
+          console.log('[Notifications] Suppressed incoming call popup because user is already on call screen for', callKey);
           return;
         }
 
-        const caller = data.callerName || 'Your partner';
+        const caller = data.callerName || 'Teacher';
         const mode = data.mode || 'video';
-        const eventKey = `call:${data.swapId}:${Date.now()}`;
+        const isClass = Boolean(data.metadata?.isClass || data.classId || data.metadata?.classId || data.title?.toLowerCase().includes('class'));
+        const eventKey = `call:${targetCallId}:${Date.now()}`;
 
         addNotification({
-          category: 'swap',
-          title: data.title || `Incoming ${mode === 'voice' ? 'Voice' : 'Video'} Call`,
-          body: data.body || `${caller} started the video call. Tap to join!`,
+          category: isClass ? 'class' : 'swap',
+          title: data.title || (isClass ? `🔴 Live Class: ${data.callerName || 'Teacher'}` : `Incoming ${mode === 'voice' ? 'Voice' : 'Video'} Call`),
+          body: data.body || `${caller} started the video session. Tap to join!`,
           metadata: {
-            swapId: data.swapId,
-            type: 'video-call',
+            swapId: targetCallId,
+            classId: isClass ? targetCallId : data.metadata?.classId,
+            type: isClass ? 'class-video-call' : 'video-call',
             callerId: data.callerId,
             callerName: caller,
             mode,
+            isClass,
           },
           eventKey,
           skipPopup: false,

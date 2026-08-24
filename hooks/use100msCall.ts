@@ -76,21 +76,32 @@ export function use100msCall({
           p.isLocal && activeStream ? { ...p, mediaStream: activeStream } : p
         );
       }
-      return initialParticipants.map(initP => {
-        const existing = prev.find(p => p.id === initP.id || (p.isLocal && initP.isLocal));
-        if (existing) {
-          return {
-            ...initP,
-            role: initP.role || existing.role,
-            mediaStream: initP.isLocal ? (activeStream || existing.mediaStream) : (existing.mediaStream || initP.mediaStream),
-            videoTrackId: existing.videoTrackId || initP.videoTrackId,
-            status: existing.status === 'connected' ? 'connected' : initP.status,
-            isVideoOff: existing.isVideoOff !== undefined ? existing.isVideoOff : initP.isVideoOff,
-            isMuted: existing.isMuted !== undefined ? existing.isMuted : initP.isMuted,
-          };
-        }
-        return initP.isLocal && activeStream ? { ...initP, mediaStream: activeStream } : initP;
+      // 1. Update existing participants in state
+      const updatedExisting = prev.map(existing => {
+        const matchingInit = initialParticipants.find(
+          initP => String(initP.id) === String(existing.id) || (initP.isLocal && existing.isLocal)
+        );
+        if (!matchingInit) return existing; // Keep dynamically discovered peers!
+        return {
+          ...matchingInit,
+          ...existing,
+          name: matchingInit.name || existing.name,
+          role: matchingInit.role || existing.role,
+          avatarUrl: matchingInit.avatarUrl || existing.avatarUrl,
+          mediaStream: existing.isLocal ? (activeStream || existing.mediaStream) : existing.mediaStream,
+          videoTrackId: existing.videoTrackId || matchingInit.videoTrackId,
+          status: existing.status === 'connected' ? 'connected' : matchingInit.status,
+          isVideoOff: existing.isVideoOff !== undefined ? existing.isVideoOff : matchingInit.isVideoOff,
+          isMuted: existing.isMuted !== undefined ? existing.isMuted : matchingInit.isMuted,
+        };
       });
+
+      // 2. Add any new initial participants not already in prev
+      const newInitials = initialParticipants.filter(
+        initP => !prev.some(p => String(p.id) === String(initP.id) || (p.isLocal && initP.isLocal))
+      );
+
+      return [...updatedExisting, ...newInitials];
     });
   }, [initialParticipants]);
 

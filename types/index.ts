@@ -400,6 +400,8 @@ export interface GroupClass {
   seatPriceCredits: number;
   status: ClassStatus;
   isLive?: boolean;
+  hasStarted?: boolean;
+  startedAt?: string;
   hmsRoomId?: string;
   createdAt: string;
 }
