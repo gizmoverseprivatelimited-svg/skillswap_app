@@ -10,13 +10,11 @@ import { useAuth } from '@/providers/auth';
 import { useSkillSwaps } from '@/providers/skill-swaps';
 import { useClasses } from '@/providers/classes';
 import { useSocket } from '@/providers/socket';
-import { mockUsers } from '@/mocks/data';
 import url from '@/constants/backurl';
 import { use100msCall } from '@/hooks/use100msCall';
 import {
   buildLocalParticipant,
   buildRemoteParticipant,
-  buildMockClassParticipants,
   type CallParticipant,
   type CallMode,
 } from '@/lib/call-engine';
@@ -79,9 +77,7 @@ export default function UnifiedCallScreen() {
     const recId = String((swap.recipientId as any)?._id || (swap.recipientId as any)?.id || swap.recipientId || '');
     const resolvedPartnerId = queryPartnerId || (reqId === String(currentUserId) ? recId : reqId);
 
-    const foundUser =
-      allUsers?.find((u: any) => String(u.id || u._id) === String(resolvedPartnerId)) ||
-      mockUsers.find((u: any) => String(u.id || u._id) === String(resolvedPartnerId));
+    const foundUser = allUsers?.find((u: any) => String(u.id || u._id) === String(resolvedPartnerId));
 
     if (foundUser) return foundUser;
 
@@ -211,31 +207,52 @@ export default function UnifiedCallScreen() {
 
   const initialParticipants: CallParticipant[] = useMemo(() => {
     if (cls) {
-      const teacher =
-        allUsers.find((u: any) => String(u.id) === String(cls.teacherId)) ||
-        mockUsers.find((u: any) => String(u.id) === String(cls.teacherId));
-      const localRole = cls.teacherId === effectiveUser.id ? 'teacher' : 'student';
+      const teacherId = String((cls as any).teacherId?._id || (cls as any).teacherId?.id || cls.teacherId || '');
+      const teacherName = (cls as any).teacherName || (cls as any).teacher?.name || 'Teacher';
+      const teacherAvatar = (cls as any).teacherAvatar || (cls as any).teacher?.avatarUrl || (cls as any).teacher?.avatar || '';
+
+      const teacher = allUsers.find((u: any) => String(u.id || u._id) === teacherId);
+      const isUserTeacher = teacherId === String(effectiveUser.id);
+      const localRole = isUserTeacher ? 'teacher' : 'student';
       const local = buildLocalParticipant(effectiveUser as any, localRole);
+      local.isVideoOff = callMode !== 'video';
 
       const others: CallParticipant[] = [];
-      if (teacher && teacher.id !== effectiveUser.id) {
+      if (!isUserTeacher && teacherId) {
         others.push(
           buildRemoteParticipant(
-            { id: teacher.id, name: teacher.name, avatarUrl: teacher.avatarUrl },
+            { id: teacherId, name: teacher?.name || teacherName, avatarUrl: teacher?.avatarUrl || teacherAvatar },
             'teacher'
           )
         );
       }
 
-      const enrolledStudents = (((cls as any).enrollments || (cls as any).enrolledUserIds || []) as any[])
-        .filter((e: any) => (e.studentId || e) !== effectiveUser.id && (e.status === 'enrolled' || typeof e === 'string'))
+      // Add real enrolled students from class database
+      const rawEnrollments = (cls as any).enrollments || (cls as any).enrolledUserIds || [];
+      const enrolledStudents = (Array.isArray(rawEnrollments) ? rawEnrollments : [])
         .map((e: any) => {
-          const sId = typeof e === 'string' ? e : e.studentId;
-          return allUsers.find((u: any) => u.id === sId) || mockUsers.find((u: any) => u.id === sId);
+          const sId = String(typeof e === 'object' && e !== null ? (e.studentId?._id || e.studentId?.id || e.studentId || e._id || e.id) : e);
+          const sName = typeof e === 'object' && e !== null ? (e.studentName || e.student?.name) : '';
+          const sAvatar = typeof e === 'object' && e !== null ? (e.studentAvatar || e.student?.avatarUrl) : '';
+          const userObj = allUsers.find((u: any) => String(u.id || u._id) === sId);
+          return {
+            id: sId,
+            name: userObj?.name || sName || 'Student',
+            avatarUrl: userObj?.avatarUrl || sAvatar || '',
+            role: 'student' as const,
+          };
         })
-        .filter((u: any): u is NonNullable<typeof u> => u !== undefined);
+        .filter((s) => s.id && s.id !== String(effectiveUser.id) && s.id !== teacherId && s.id !== '[object Object]');
 
-      others.push(...buildMockClassParticipants(Math.max(enrolledStudents.length, 3)));
+      enrolledStudents.forEach((student) => {
+        others.push(
+          buildRemoteParticipant(
+            { id: student.id, name: student.name, avatarUrl: student.avatarUrl },
+            'student'
+          )
+        );
+      });
+
       return [local, ...others];
     }
 

@@ -257,11 +257,11 @@ export function use100msCall({
           // Signal handler
           const handleSignalMessage = async (signalData: any) => {
             if (!signalData || signalData.senderId === currentUserId) return;
-            if (signalData.room && roomId && signalData.room !== roomId) return;
+            if (signalData.room && roomId && String(signalData.room) !== String(roomId)) return;
 
             try {
               if (signalData.type === 'offer') {
-                console.log('[WebRTC] Handling offer from partner...');
+                console.log('[WebRTC] Handling offer from peer:', signalData.senderId);
                 await pc.setRemoteDescription(new RTCSessionDescription(signalData.offer));
                 await drainCandidateQueue();
 
@@ -270,9 +270,10 @@ export function use100msCall({
                 sendSignal({
                   type: 'answer',
                   answer,
+                  targetId: signalData.senderId,
                 });
               } else if (signalData.type === 'answer') {
-                console.log('[WebRTC] Handling answer from partner...');
+                console.log('[WebRTC] Handling answer from peer:', signalData.senderId);
                 if (pc.signalingState === 'have-local-offer') {
                   await pc.setRemoteDescription(new RTCSessionDescription(signalData.answer));
                   await drainCandidateQueue();
@@ -284,9 +285,10 @@ export function use100msCall({
                   candidateQueueRef.current.push(signalData.candidate);
                 }
               } else if (signalData.type === 'media_state') {
+                const sId = signalData.senderId;
                 setParticipants(prev =>
                   prev.map(p =>
-                    !p.isLocal
+                    p.id === sId || (!p.isLocal && !prev.some(x => x.id === sId))
                       ? {
                           ...p,
                           isVideoOff: signalData.isVideoOff !== undefined ? signalData.isVideoOff : p.isVideoOff,
@@ -295,12 +297,25 @@ export function use100msCall({
                       : p
                   )
                 );
-              } else if (signalData.type === 'screenshare_state') {
-                const isPartnerScreenSharing = Boolean(signalData.isScreenSharing);
-                console.log('[WebRTC] Partner screenshare state changed:', isPartnerScreenSharing);
+              } else if (signalData.type === 'hand_state') {
+                const sId = signalData.senderId;
                 setParticipants(prev =>
                   prev.map(p =>
-                    !p.isLocal
+                    p.id === sId
+                      ? {
+                          ...p,
+                          isHandRaised: Boolean(signalData.isHandRaised),
+                        }
+                      : p
+                  )
+                );
+              } else if (signalData.type === 'screenshare_state') {
+                const isPartnerScreenSharing = Boolean(signalData.isScreenSharing);
+                const sId = signalData.senderId;
+                console.log('[WebRTC] Peer screenshare state changed:', sId, isPartnerScreenSharing);
+                setParticipants(prev =>
+                  prev.map(p =>
+                    p.id === sId || (!p.isLocal && !prev.some(x => x.id === sId))
                       ? {
                           ...p,
                           screenShareStream: isPartnerScreenSharing ? (p.mediaStream || p.screenShareStream) : undefined,
@@ -309,7 +324,7 @@ export function use100msCall({
                   )
                 );
               } else if (signalData.type === 'peer_joined') {
-                console.log('[WebRTC] Partner announced arrival, creating offer...');
+                console.log('[WebRTC] Peer announced arrival, creating offer...');
                 try {
                   const offer = await pc.createOffer({
                     offerToReceiveAudio: true,
@@ -319,6 +334,7 @@ export function use100msCall({
                   sendSignal({
                     type: 'offer',
                     offer,
+                    targetId: signalData.senderId,
                   });
                 } catch (err) {
                   console.warn('[WebRTC CreateOffer Error]', err);
@@ -327,6 +343,88 @@ export function use100msCall({
             } catch (sigErr) {
               console.warn('[WebRTC Signaling processing error]', sigErr);
             }
+          };
+
+          // Peer presence handler (When real users join/announce)
+          const handlePeerPresence = (peerData: any) => {
+            if (!peerData) return;
+            const pId = String(peerData.userId || peerData.senderId || '');
+            if (!pId || pId === currentUserId) return;
+            if (peerData.room && roomId && String(peerData.room) !== String(roomId)) return;
+
+            console.log('[use100msCall] Real-time peer present:', pId, peerData.userName);
+
+            setParticipants(prev => {
+              const existing = prev.find(p => p.id === pId);
+              if (existing) {
+                return prev.map(p =>
+                  p.id === pId
+                    ? {
+                        ...p,
+                        name: peerData.userName || p.name,
+                        avatarUrl: peerData.userAvatar || p.avatarUrl,
+                        status: 'connected' as const,
+                        isMuted: peerData.isMicOn !== undefined ? !peerData.isMicOn : p.isMuted,
+                        isVideoOff: peerData.isVideoOn !== undefined ? !peerData.isVideoOn : p.isVideoOff,
+                      }
+                    : p
+                );
+              }
+              // Add real remote participant
+              return [
+                ...prev,
+                {
+                  id: pId,
+                  name: peerData.userName || 'Participant',
+                  avatarUrl: peerData.userAvatar || '',
+                  role: peerData.role || (peerData.isTeacher ? 'teacher' : 'student'),
+                  isLocal: false,
+                  isMuted: peerData.isMicOn !== undefined ? !peerData.isMicOn : false,
+                  isVideoOff: peerData.isVideoOn !== undefined ? !peerData.isVideoOn : false,
+                  isHandRaised: false,
+                  isSpeaking: false,
+                  status: 'connected' as const,
+                  joinedAt: new Date().toISOString(),
+                  networkQuality: 5,
+                },
+              ];
+            });
+
+            // If it was peer_joined, reply with our presence
+            if (peerData.type === 'call_peer_joined' && socket) {
+              socket.emit('call_peer_present', {
+                room: roomId,
+                to: pId,
+                userId: currentUserId,
+                senderId: currentUserId,
+                userName,
+                userAvatar: initialParticipants.find(p => p.isLocal)?.avatarUrl || '',
+                role: isTeacher ? 'teacher' : 'student',
+                isTeacher,
+                isMicOn: initialMicOn !== false,
+                isVideoOn: initialVideoOn !== false,
+              });
+            }
+          };
+
+          const handlePeerLeftEvent = (data: any) => {
+            const pId = String(data?.userId || data?.senderId || '');
+            if (!pId || pId === currentUserId) return;
+            console.log('[use100msCall] Real-time peer left room:', pId);
+            setParticipants(prev => prev.filter(p => p.id !== pId));
+          };
+
+          const handleChatMessageEvent = (data: any) => {
+            if (!data?.message) return;
+            const msg: CallMessage = data.message;
+            if (msg.authorId === currentUserId) return;
+            setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
+          };
+
+          const handleReactionEvent = (data: any) => {
+            if (!data?.reaction) return;
+            const reaction: CallReaction = data.reaction;
+            setReactions(prev => (prev.some(r => r.id === reaction.id) ? prev : [...prev.slice(-15), reaction]));
           };
 
           // Attach BroadcastChannel listener
@@ -340,12 +438,31 @@ export function use100msCall({
           if (socket) {
             socket.emit('join_room', `call_${roomId}`);
             socket.emit('join_room', roomId);
+            socket.emit('join_call_room', { room: roomId, userId: currentUserId });
             if (currentUserId) socket.emit('join_room', currentUserId);
             if (partnerId) socket.emit('join_room', partnerId);
 
             socket.on('call_signal', handleSignalMessage);
             socket.on('signal', handleSignalMessage);
-            socket.on('call_peer_joined', handleSignalMessage);
+            socket.on('call_peer_joined', handlePeerPresence);
+            socket.on('call_peer_present', handlePeerPresence);
+            socket.on('call_peer_left', handlePeerLeftEvent);
+            socket.on('call_chat_message', handleChatMessageEvent);
+            socket.on('call_reaction', handleReactionEvent);
+
+            // Announce presence to room
+            socket.emit('call_peer_joined', {
+              type: 'call_peer_joined',
+              room: roomId,
+              userId: currentUserId,
+              senderId: currentUserId,
+              userName,
+              userAvatar: initialParticipants.find(p => p.isLocal)?.avatarUrl || '',
+              role: isTeacher ? 'teacher' : 'student',
+              isTeacher,
+              isMicOn: initialMicOn !== false,
+              isVideoOn: initialVideoOn !== false,
+            });
           }
 
           // Announce local arrival and create initial offer
@@ -372,9 +489,19 @@ export function use100msCall({
               bc.close();
             }
             if (socket) {
+              socket.emit('call_peer_left', {
+                room: roomId,
+                userId: currentUserId,
+                senderId: currentUserId,
+                userName,
+              });
               socket.off('call_signal', handleSignalMessage);
               socket.off('signal', handleSignalMessage);
-              socket.off('call_peer_joined', handleSignalMessage);
+              socket.off('call_peer_joined', handlePeerPresence);
+              socket.off('call_peer_present', handlePeerPresence);
+              socket.off('call_peer_left', handlePeerLeftEvent);
+              socket.off('call_chat_message', handleChatMessageEvent);
+              socket.off('call_reaction', handleReactionEvent);
             }
             if (peerConnectionRef.current) {
               peerConnectionRef.current.close();
@@ -386,7 +513,7 @@ export function use100msCall({
         console.warn('[use100msCall Web] Initialisation error:', err);
         setIsConnecting(false);
         setIsConnected(true);
-        setParticipants(prev => prev.map(p => ({ ...p, status: 'connected' as const })));
+        setParticipants(prev => prev.map(p => (p.isLocal ? { ...p, status: 'connected' as const } : p)));
       }
     }
 
@@ -978,11 +1105,19 @@ export function use100msCall({
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
     }
+    if (socket) {
+      socket.emit('call_peer_left', {
+        room: roomId,
+        userId: currentUserId,
+        senderId: currentUserId,
+        userName,
+      });
+    }
     if (hmsInstanceRef.current) {
       hmsInstanceRef.current.leave().catch(() => {});
     }
     onEndCall();
-  }, [onEndCall]);
+  }, [onEndCall, socket, roomId, currentUserId, userName]);
 
   return {
     participants,

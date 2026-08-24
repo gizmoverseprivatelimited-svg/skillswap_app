@@ -5,7 +5,6 @@ import { Calendar, Clock, Users, Coins, Star, Sparkles, CheckCircle2, XCircle, A
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
-import { mockUsers } from '@/mocks/data';
 import { useClasses } from '@/providers/classes';
 import { useCurrentUser } from '@/providers/current-user';
 import { useAlert } from '@/providers/alert';
@@ -84,9 +83,9 @@ export default function ClassDetailScreen() {
   }, [isCurrentlyEnrolled]);
 
   const enrolledStudents = useMemo(() => {
-    if (!cls) return [];
+    if (!cls || !cls.enrollments) return [];
     return cls.enrollments
-      .map(e => allUsers.find(u => String(u.id) === String(e.studentId)) ?? mockUsers.find(u => String(u.id) === String(e.studentId)))
+      .map(e => allUsers.find(u => String(u.id || (u as any)._id) === String(e.studentId || (e as any)._id || (e as any).student?._id)) || (e as any).student)
       .filter((u): u is NonNullable<typeof u> => u !== undefined);
   }, [cls, allUsers]);
 

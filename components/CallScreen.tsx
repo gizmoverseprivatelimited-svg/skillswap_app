@@ -253,17 +253,18 @@ export default function CallScreen({
     participants.find(p => p.screenShareTrackId || p.screenShareStream || (p.isLocal && isScreenSharing)) ?? null,
   [participants, isScreenSharing]);
 
+  // Sync participants whenever live participants list updates
+  useEffect(() => {
+    setParticipants(initialParticipants);
+  }, [initialParticipants]);
+
   // Timer + connecting initialization
   useEffect(() => {
     startCallTimer(setDuration);
     const connectTimeout = setTimeout(() => {
       setConnecting(false);
       setParticipants(prev =>
-        prev.map(p => {
-          if (p.isLocal) return { ...p, status: 'connected' as const };
-          if (isGroupCall && p.status === 'connecting') return { ...p, status: 'connected' as const };
-          return p;
-        })
+        prev.map(p => (p.isLocal ? { ...p, status: 'connected' as const } : p))
       );
       if (messages.length === 0) {
         setMessages([{
@@ -277,22 +278,11 @@ export default function CallScreen({
       }
     }, 1500);
 
-    if (isGroupCall) {
-      const remoteIds = remoteParticipants.map(p => p.id);
-      startSpeakingSimulator(remoteIds, (speakingId) => {
-        setParticipants(prev => prev.map(p => ({
-          ...p,
-          isSpeaking: p.id === speakingId && !p.isMuted,
-        })));
-      });
-    }
-
     return () => {
       clearTimeout(connectTimeout);
       stopCallTimer();
-      stopSpeakingSimulator();
     };
-  }, [isGroupCall, roomTitle]);
+  }, [roomTitle]);
 
   // Auto-scroll chat
   useEffect(() => {

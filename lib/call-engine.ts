@@ -116,29 +116,9 @@ export function buildRemoteParticipant(
   };
 }
 
-export function buildMockClassParticipants(count: number): CallParticipant[] {
-  const result: CallParticipant[] = [];
-  const usedNames = new Set<number>();
-  for (let i = 0; i < Math.min(count, 8); i++) {
-    let idx = Math.floor(Math.random() * NAME_POOL.length);
-    while (usedNames.has(idx)) idx = (idx + 1) % NAME_POOL.length;
-    usedNames.add(idx);
-    result.push({
-      id: `mock-student-${i}`,
-      name: NAME_POOL[idx],
-      avatarUrl: AVATAR_POOL[idx],
-      role: 'student',
-      isLocal: false,
-      isMuted: Math.random() > 0.4,
-      isVideoOff: Math.random() > 0.5,
-      isHandRaised: Math.random() > 0.85,
-      isSpeaking: false,
-      status: Math.random() > 0.15 ? 'connected' : 'connecting',
-      joinedAt: new Date(Date.now() - Math.random() * 120000).toISOString(),
-      networkQuality: Math.floor(Math.random() * 3) + 3,
-    });
-  }
-  return result;
+export function buildMockClassParticipants(_count: number): CallParticipant[] {
+  // Mock participants removed — real-time peers are used exclusively
+  return [];
 }
 
 export function formatDuration(seconds: number): string {
@@ -162,18 +142,10 @@ export function stopCallTimer(): void {
 }
 
 export function startSpeakingSimulator(
-  participantIds: string[],
-  onUpdate: (speakingId: string | null) => void,
+  _participantIds: string[],
+  _onUpdate: (speakingId: string | null) => void,
 ): void {
-  speakingInterval = setInterval(() => {
-    if (participantIds.length === 0) return;
-    if (Math.random() > 0.3) {
-      const idx = Math.floor(Math.random() * participantIds.length);
-      onUpdate(participantIds[idx]);
-    } else {
-      onUpdate(null);
-    }
-  }, 2500);
+  // Simulated speaking removed for real-time audio
 }
 
 export function stopSpeakingSimulator(): void {
