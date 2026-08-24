@@ -295,7 +295,9 @@ export type EarningSourceType =
   | 'bonus'
   | 'referral'
   | 'admin_adjustment'
-  | 'learner_bonus';
+  | 'learner_bonus'
+  | 'top_up'
+  | 'purchase';
 
 export type PayoutMethod = 'store_credit' | 'bank_transfer' | 'upi' | 'paypal';
 

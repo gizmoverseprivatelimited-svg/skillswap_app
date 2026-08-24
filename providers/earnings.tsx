@@ -136,7 +136,10 @@ export const [EarningsProvider, useEarnings] = createContextHook<EarningsContext
       if (res.ok) {
         const data = await res.json();
         setTransactions((prev) => {
-          const others = prev.filter((t) => t.userId !== userId);
+          const others = prev.filter((t) => {
+            const tUid = typeof t.userId === 'object' ? (t.userId as any)?._id : t.userId;
+            return String(tUid) !== String(userId);
+          });
           return [...data, ...others];
         });
       }
@@ -291,7 +294,10 @@ export const [EarningsProvider, useEarnings] = createContextHook<EarningsContext
         fetchUserSummary(userId);
       }
       return transactions
-        .filter((t) => t.userId === userId)
+        .filter((t) => {
+          const tUid = typeof t.userId === 'object' ? (t.userId as any)?._id : t.userId;
+          return String(tUid) === String(userId);
+        })
         .sort((a, b) => new Date(b.timestamp || b.createdAt || 0).getTime() - new Date(a.timestamp || a.createdAt || 0).getTime());
     },
     [transactions, fetchUserTransactions, fetchUserSummary]
