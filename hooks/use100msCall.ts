@@ -70,20 +70,26 @@ export function use100msCall({
   // Sync initial participants when updated
   useEffect(() => {
     setParticipants(prev => {
-      if (prev.length === 0) return initialParticipants;
+      const activeStream = webStreamRef.current;
+      if (prev.length === 0) {
+        return initialParticipants.map(p =>
+          p.isLocal && activeStream ? { ...p, mediaStream: activeStream } : p
+        );
+      }
       return initialParticipants.map(initP => {
         const existing = prev.find(p => p.id === initP.id || (p.isLocal && initP.isLocal));
         if (existing) {
           return {
             ...initP,
-            mediaStream: existing.mediaStream || initP.mediaStream,
+            role: initP.role || existing.role,
+            mediaStream: initP.isLocal ? (activeStream || existing.mediaStream) : (existing.mediaStream || initP.mediaStream),
             videoTrackId: existing.videoTrackId || initP.videoTrackId,
             status: existing.status === 'connected' ? 'connected' : initP.status,
             isVideoOff: existing.isVideoOff !== undefined ? existing.isVideoOff : initP.isVideoOff,
             isMuted: existing.isMuted !== undefined ? existing.isMuted : initP.isMuted,
           };
         }
-        return initP;
+        return initP.isLocal && activeStream ? { ...initP, mediaStream: activeStream } : initP;
       });
     });
   }, [initialParticipants]);

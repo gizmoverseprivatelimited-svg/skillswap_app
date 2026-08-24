@@ -397,7 +397,7 @@ export default function UnifiedCallScreen() {
       roomTitle={roomTitle}
       mode={callMode}
       isGroupCall={isGroupCall}
-      isTeacher={isTeacher}
+      isTeacher={Boolean(isTeacher || (cls && String((cls as any).teacherId?._id || (cls as any).teacherId?.id || cls.teacherId) === String(effectiveUser.id)))}
       onEndCall={leaveCall}
       onToggleMute={toggleMute}
       onToggleVideo={toggleVideo}

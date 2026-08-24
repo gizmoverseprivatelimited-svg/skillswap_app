@@ -77,15 +77,31 @@ export function use100msCall({
   const partnerIdRef = useRef(partnerId);
   partnerIdRef.current = partnerId;
 
-  // Sync initial participants only when newly added
+  // Sync initial participants while preserving active media streams and roles
   useEffect(() => {
     if (!initialParticipants || initialParticipants.length === 0) return;
     setParticipants(prev => {
-      if (prev.length === 0) return initialParticipants;
-      const prevIds = new Set(prev.map(p => p.id));
-      const newlyAdded = initialParticipants.filter(p => !prevIds.has(p.id) && !p.isLocal);
-      if (newlyAdded.length === 0) return prev;
-      return [...prev, ...newlyAdded];
+      const activeStream = webStreamRef.current;
+      if (prev.length === 0) {
+        return initialParticipants.map(p =>
+          p.isLocal && activeStream ? { ...p, mediaStream: activeStream } : p
+        );
+      }
+      return initialParticipants.map(initP => {
+        const existing = prev.find(p => p.id === initP.id || (p.isLocal && initP.isLocal));
+        if (existing) {
+          return {
+            ...initP,
+            role: initP.role || existing.role,
+            mediaStream: initP.isLocal ? (activeStream || existing.mediaStream) : (existing.mediaStream || initP.mediaStream),
+            videoTrackId: existing.videoTrackId || initP.videoTrackId,
+            status: existing.status === 'connected' ? 'connected' : initP.status,
+            isVideoOff: existing.isVideoOff !== undefined ? existing.isVideoOff : initP.isVideoOff,
+            isMuted: existing.isMuted !== undefined ? existing.isMuted : initP.isMuted,
+          };
+        }
+        return initP.isLocal && activeStream ? { ...initP, mediaStream: activeStream } : initP;
+      });
     });
   }, [initialParticipants]);
 

@@ -21,6 +21,7 @@ import {
   Hand, Send, Wifi, Signal, Volume2, Grid3x3, Maximize2,
   ChevronDown, Circle, Sparkles, SwitchCamera, MonitorUp, Smile,
   MoreVertical, VolumeX, UserMinus, ShieldCheck, Check, User, UserCheck, UserX,
+  Crown, GraduationCap,
 } from 'lucide-react-native';
 import {
   type CallParticipant,
@@ -672,6 +673,7 @@ function SpotlightView({
   participant, localParticipant, mode, isGroupCall, remoteParticipants, onSpotlight,
 }: SpotlightViewProps) {
   const targetRemote = !participant.isLocal ? participant : (remoteParticipants[0] ?? participant);
+  const isTeacherTarget = targetRemote.role === 'teacher' || targetRemote.role === 'host';
 
   return (
     <View style={styles.spotlightContainer}>
@@ -682,6 +684,24 @@ function SpotlightView({
           mode={mode}
           isLarge
         />
+
+        {/* Top Role Pill on Spotlight */}
+        <View style={styles.spotlightRoleBanner}>
+          {isTeacherTarget ? (
+            <View style={styles.spotlightTeacherPill}>
+              <Crown size={12} color="#FDE047" />
+              <Text style={styles.spotlightTeacherLabel}>TEACHER</Text>
+              <Text style={styles.spotlightNameText} numberOfLines={1}>{targetRemote.name}</Text>
+            </View>
+          ) : (
+            <View style={styles.spotlightStudentPill}>
+              <GraduationCap size={12} color="#93C5FD" />
+              <Text style={styles.spotlightStudentLabel}>STUDENT</Text>
+              <Text style={styles.spotlightNameText} numberOfLines={1}>{targetRemote.name}</Text>
+            </View>
+          )}
+        </View>
+
         {targetRemote.isSpeaking && (
           <View style={styles.speakingIndicator}>
             <View style={[styles.speakingDot, { backgroundColor: '#34D399' }]} />
@@ -863,14 +883,28 @@ function ParticipantTile({ participant, mode, isLarge, isSmall }: ParticipantTil
       {/* Name label */}
       {!isSmall && (
         <View style={styles.tileNameWrap}>
-          {participant.isMuted && <MicOff size={11} color="rgba(255,255,255,0.7)" />}
+          {participant.isMuted ? (
+            <View style={styles.tileMicMuted}>
+              <MicOff size={11} color="#EF4444" />
+            </View>
+          ) : (
+            <View style={styles.tileMicActive}>
+              <Mic size={11} color="#34D399" />
+            </View>
+          )}
           {participant.isHandRaised && <Hand size={11} color="#F59E0B" />}
           <Text style={styles.tileName} numberOfLines={1}>
-            {participant.isLocal ? 'You' : participant.name}
+            {participant.isLocal ? `${participant.name || 'You'} (You)` : participant.name}
           </Text>
-          {participant.role === 'teacher' && (
-            <View style={styles.roleBadge}>
-              <Text style={styles.roleBadgeText}>Host</Text>
+          {participant.role === 'teacher' || participant.role === 'host' ? (
+            <View style={styles.teacherRoleBadge}>
+              <Crown size={10} color="#FDE047" />
+              <Text style={styles.teacherRoleBadgeText}>Teacher</Text>
+            </View>
+          ) : (
+            <View style={styles.studentRoleBadge}>
+              <GraduationCap size={10} color="#93C5FD" />
+              <Text style={styles.studentRoleBadgeText}>Student</Text>
             </View>
           )}
         </View>
@@ -878,8 +912,14 @@ function ParticipantTile({ participant, mode, isLarge, isSmall }: ParticipantTil
 
       {/* Small tile badge */}
       {isSmall && (
-        <View style={styles.smallTileBadge}>
-          {participant.isMuted && <MicOff size={9} color="#FFFFFF" />}
+        <View style={styles.smallTileNameWrap}>
+          <Text style={styles.smallTileName} numberOfLines={1}>
+            {participant.isLocal ? 'You' : participant.name}
+          </Text>
+          {participant.role === 'teacher' || participant.role === 'host' ? (
+            <View style={styles.smallTeacherDot}><Crown size={9} color="#FDE047" /></View>
+          ) : null}
+          {participant.isMuted && <MicOff size={9} color="#EF4444" style={{ marginLeft: 3 }} />}
         </View>
       )}
 
@@ -951,34 +991,24 @@ function BottomPanelView({
         </TouchableOpacity>
       </View>
 
-      {/* 1. In-Call Chat */}
+      {/* 1. Chat Drawer */}
       {panel === 'chat' && (
-        <View style={styles.chatWrap}>
+        <View style={styles.chatDrawer}>
           <ScrollView
-            ref={scrollRef as any}
-            style={{ flex: 1 }}
-            contentContainerStyle={styles.chatListContent}
-            onContentSizeChange={() => {
-              (scrollRef as any)?.current?.scrollToEnd?.({ animated: true });
-            }}
+            ref={scrollRef}
+            style={styles.chatMessagesList}
+            contentContainerStyle={styles.chatMessagesContent}
           >
-            {(messages || []).map((item, idx) => {
-              if (!item) return null;
-              const isSystem = item.authorId === 'system' || item.isSystem;
-              const authorName = item.authorName || 'Participant';
-              const body = typeof item.body === 'string'
-                ? item.body
-                : (typeof (item as any).message === 'string'
-                  ? (item as any).message
-                  : typeof (item as any).text === 'string'
-                    ? (item as any).text
-                    : String(item.body || ''));
+            {messages.map(msg => {
+              const isMe = msg.authorId === 'you' || msg.authorName === 'You';
+              const isSystem = msg.isSystem;
+              const { id, body, authorName } = msg;
               return (
                 <View
-                  key={item.id || `msg-${idx}-${item.createdAt || ''}`}
+                  key={id}
                   style={[
                     styles.chatBubble,
-                    isSystem ? styles.chatBubbleSystem : styles.chatBubbleUser,
+                    isSystem ? styles.chatBubbleSystem : isMe ? styles.chatBubbleMe : styles.chatBubbleUser,
                   ]}
                 >
                   {!isSystem && (
@@ -1013,39 +1043,60 @@ function BottomPanelView({
             if (!p) return null;
             const displayName = p.name || (p.isLocal ? 'You' : 'Participant');
             const initial = displayName.charAt(0).toUpperCase() || 'U';
+            const isTeacherP = p.role === 'teacher' || p.role === 'host';
             return (
               <View key={p.id || `participant-${idx}`} style={styles.personRow}>
-                <View style={styles.personAvatarWrap}>
-                  <Text style={styles.personAvatarText}>{initial}</Text>
+                <View style={[styles.personAvatarWrap, isTeacherP && styles.teacherAvatarBorder]}>
+                  {p.avatarUrl ? (
+                    <Image source={{ uri: p.avatarUrl }} style={styles.personAvatarImg} />
+                  ) : (
+                    <Text style={styles.personAvatarText}>{initial}</Text>
+                  )}
                 </View>
                 <View style={styles.personInfo}>
                   <View style={styles.personNameRow}>
                     <Text style={styles.personName}>{p.isLocal ? `${displayName} (You)` : displayName}</Text>
-                    {p.role === 'teacher' && <View style={styles.personBadge}><Text style={styles.personBadgeText}>Host</Text></View>}
+                    {isTeacherP ? (
+                      <View style={styles.teacherRoleBadge}>
+                        <Crown size={10} color="#FDE047" />
+                        <Text style={styles.teacherRoleBadgeText}>Teacher</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.studentRoleBadge}>
+                        <GraduationCap size={10} color="#93C5FD" />
+                        <Text style={styles.studentRoleBadgeText}>Student</Text>
+                      </View>
+                    )}
                   </View>
-                  <Text style={styles.personStatus}>{p.status === 'connected' ? 'In Call' : 'Connecting...'}</Text>
+                  <View style={styles.personStatusRow}>
+                    <View style={[styles.statusDot, { backgroundColor: p.status === 'connected' ? '#10B981' : '#F59E0B' }]} />
+                    <Text style={styles.personStatus}>
+                      {p.status === 'connected' ? (!p.isVideoOff ? 'Live Video' : 'Audio Only') : 'Connecting...'}
+                    </Text>
+                  </View>
                 </View>
 
                 <View style={styles.personActions}>
-                {p.isMuted && <MicOff size={16} color="#94A3B8" style={{ marginRight: 8 }} />}
-                {isTeacher && !p.isLocal && (
-                  <>
-                    {onMuteParticipant && (
-                      <TouchableOpacity style={styles.hostActionBtn} onPress={() => onMuteParticipant(p.id)}>
-                        <VolumeX size={16} color="#F87171" />
-                      </TouchableOpacity>
-                    )}
-                    {onRemoveParticipant && (
-                      <TouchableOpacity style={styles.hostActionBtn} onPress={() => onRemoveParticipant(p.id)}>
-                        <UserMinus size={16} color="#F87171" />
-                      </TouchableOpacity>
-                    )}
-                  </>
-                )}
+                  {p.isMuted ? <MicOff size={16} color="#EF4444" style={{ marginRight: 8 }} /> : <Mic size={16} color="#10B981" style={{ marginRight: 8 }} />}
+                  {p.isHandRaised && <Hand size={16} color="#F59E0B" style={{ marginRight: 8 }} />}
+                  {isTeacher && !p.isLocal && (
+                    <>
+                      {onMuteParticipant && (
+                        <TouchableOpacity style={styles.hostActionBtn} onPress={() => onMuteParticipant(p.id)}>
+                          <VolumeX size={16} color="#F87171" />
+                        </TouchableOpacity>
+                      )}
+                      {onRemoveParticipant && (
+                        <TouchableOpacity style={styles.hostActionBtn} onPress={() => onRemoveParticipant(p.id)}>
+                          <UserMinus size={16} color="#F87171" />
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  )}
+                </View>
               </View>
-            </View>
-          );
-        })}
+            );
+          })}
         </ScrollView>
       )}
 
@@ -1425,26 +1476,99 @@ const styles = StyleSheet.create({
   waitingNotice: { fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 12, textAlign: 'center', paddingHorizontal: 16 },
   tileNameWrap: {
     position: 'absolute', bottom: 8, left: 8, right: 8,
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10,
   },
-  tileName: { fontSize: 12, fontWeight: '600', color: '#FFFFFF', flex: 1 },
-  roleBadge: {
-    backgroundColor: 'rgba(99, 102, 241, 0.8)',
-    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
+  tileName: { fontSize: 12, fontWeight: '700', color: '#FFFFFF', flex: 1 },
+  tileMicActive: { marginRight: 2 },
+  tileMicMuted: { marginRight: 2 },
+  teacherRoleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(124, 58, 237, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(253, 224, 71, 0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
-  roleBadgeText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
-  smallTileBadge: { position: 'absolute', bottom: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 4, padding: 2 },
+  teacherRoleBadgeText: { fontSize: 10, fontWeight: '800', color: '#FDE047', letterSpacing: 0.5 },
+  studentRoleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(30, 64, 175, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(147, 197, 253, 0.4)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  studentRoleBadgeText: { fontSize: 10, fontWeight: '700', color: '#BFDBFE' },
+  smallTileNameWrap: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    right: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  smallTileName: { fontSize: 9, fontWeight: '700', color: '#FFFFFF', flex: 1 },
+  smallTeacherDot: { backgroundColor: '#7C3AED', padding: 2, borderRadius: 4 },
   speakingBorder: { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, borderWidth: 2, borderRadius: 20 },
   speakingIndicator: {
-    position: 'absolute', top: 12, left: 12,
+    position: 'absolute', top: 12, right: 12,
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: 'rgba(0,0,0,0.6)',
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12,
   },
   speakingDot: { width: 8, height: 8, borderRadius: 4 },
   speakingText: { fontSize: 11, fontWeight: '700', color: '#34D399' },
+
+  // Spotlight Role Header Banner
+  spotlightRoleBanner: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    zIndex: 10,
+  },
+  spotlightTeacherPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(109, 40, 217, 0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(253, 224, 71, 0.7)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  spotlightTeacherLabel: { fontSize: 10, fontWeight: '900', color: '#FDE047', letterSpacing: 0.8 },
+  spotlightStudentPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(30, 58, 138, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(147, 197, 253, 0.5)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  spotlightStudentLabel: { fontSize: 10, fontWeight: '800', color: '#93C5FD', letterSpacing: 0.8 },
+  spotlightNameText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF', maxWidth: 120 },
 
   // Controls bar
   controlsBar: {
@@ -1519,9 +1643,11 @@ const styles = StyleSheet.create({
   panelCloseBtn: { padding: 4 },
 
   // Chat
-  chatWrap: { height: 320 },
-  chatListContent: { padding: 14, gap: 10 },
+  chatDrawer: { height: 340 },
+  chatMessagesList: { flex: 1 },
+  chatMessagesContent: { padding: 14, gap: 10 },
   chatBubble: { maxWidth: '80%', padding: 10, borderRadius: 14 },
+  chatBubbleMe: { backgroundColor: '#4F46E5', alignSelf: 'flex-end' },
   chatBubbleUser: { backgroundColor: '#334155', alignSelf: 'flex-start' },
   chatBubbleSystem: { backgroundColor: 'rgba(99, 102, 241, 0.2)', alignSelf: 'center' },
   chatAuthor: { fontSize: 11, fontWeight: '700', color: '#A5B4FC', marginBottom: 2 },
@@ -1564,21 +1690,24 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   personAvatarWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#475569',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
+    overflow: 'hidden',
   },
+  personAvatarImg: { width: '100%', height: '100%' },
+  teacherAvatarBorder: { borderWidth: 2, borderColor: '#FDE047' },
   personAvatarText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   personInfo: { flex: 1 },
   personNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   personName: { fontSize: 14, fontWeight: '600', color: '#F8FAFC' },
-  personBadge: { backgroundColor: 'rgba(99, 102, 241, 0.25)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  personBadgeText: { fontSize: 10, fontWeight: '700', color: '#A5B4FC' },
-  personStatus: { fontSize: 11, color: '#64748B' },
+  personStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  personStatus: { fontSize: 11, color: '#94A3B8' },
   personActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   hostActionBtn: {
     padding: 6,
