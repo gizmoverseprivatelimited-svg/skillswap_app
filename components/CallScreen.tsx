@@ -842,7 +842,12 @@ interface ParticipantTileProps {
 
 function ParticipantTile({ participant, mode, isLarge, isSmall }: ParticipantTileProps) {
   const showVideo = mode === 'video' && !participant.isVideoOff;
-  const hasLiveVideo = Boolean(participant.videoTrackId || participant.mediaStream);
+  const hasLiveVideo = Boolean(
+    participant.videoTrackId ||
+    (participant.mediaStream &&
+      typeof (participant.mediaStream as any).getVideoTracks === 'function' &&
+      (participant.mediaStream as any).getVideoTracks().length > 0)
+  );
   const isVideoActive = showVideo && hasLiveVideo;
   const showAvatar = !isVideoActive;
   const avatarSize = isLarge ? 80 : isSmall ? 28 : 48;

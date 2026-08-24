@@ -9,40 +9,56 @@ export interface LiveVideoTrackProps {
   style?: ViewStyle;
 }
 
-export default function LiveVideoTrack({ mediaStream, mirror = false, scaleType = 'fill', style }: LiveVideoTrackProps) {
+function LiveVideoTrackComponent({ mediaStream, mirror = false, scaleType = 'fill', style }: LiveVideoTrackProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  streamRef.current = mediaStream || null;
 
-  const bindStreamToVideo = useCallback((videoEl: HTMLVideoElement | null) => {
-    if (!videoEl || !mediaStream) return;
+  const bindStream = useCallback(() => {
+    const videoEl = videoRef.current;
+    const stream = streamRef.current;
+    if (!videoEl || !stream) return;
+
     try {
-      if (videoEl.srcObject !== mediaStream) {
-        videoEl.srcObject = mediaStream;
+      if (videoEl.srcObject !== stream) {
+        videoEl.srcObject = stream;
       }
-      videoEl.muted = mirror;
       videoEl.playsInline = true;
       videoEl.autoplay = true;
+      videoEl.muted = Boolean(mirror);
 
-      const playPromise = videoEl.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          console.warn('[LiveVideoTrack.web] Video play catch:', err);
-        });
+      if (videoEl.paused) {
+        const playPromise = videoEl.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err: any) => {
+            if (err?.name === 'AbortError') {
+              // Expected cleanup when React re-renders or unmounts component
+              return;
+            }
+            if (err?.name === 'NotAllowedError') {
+              // Browser autoplay policy restricted unmuted audio/video - retry muted
+              videoEl.muted = true;
+              videoEl.play().catch(() => {});
+            }
+          });
+        }
       }
     } catch (e) {
       console.warn('[LiveVideoTrack.web] bindStream error:', e);
     }
-  }, [mediaStream, mirror]);
-
-  const setVideoRef = useCallback((node: HTMLVideoElement | null) => {
-    videoRef.current = node;
-    bindStreamToVideo(node);
-  }, [bindStreamToVideo]);
+  }, [mirror]);
 
   useEffect(() => {
-    if (videoRef.current && mediaStream) {
-      bindStreamToVideo(videoRef.current);
+    bindStream();
+    if (mediaStream) {
+      mediaStream.onaddtrack = () => {
+        bindStream();
+      };
+      mediaStream.onremovetrack = () => {
+        bindStream();
+      };
     }
-  }, [mediaStream, mirror, bindStreamToVideo]);
+  }, [mediaStream, bindStream]);
 
   if (!mediaStream) {
     return <View style={[styles.container, style]} />;
@@ -65,14 +81,20 @@ export default function LiveVideoTrack({ mediaStream, mirror = false, scaleType 
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#000000',
+        borderRadius: (flattenedStyle as any)?.borderRadius || 0,
         ...(flattenedStyle as any),
       }}
     >
       <video
-        ref={setVideoRef}
+        ref={(el) => {
+          videoRef.current = el;
+          if (el) {
+            bindStream();
+          }
+        }}
         autoPlay
         playsInline
-        muted={mirror}
+        muted={Boolean(mirror)}
         style={{
           width: '100%',
           height: '100%',
@@ -85,9 +107,13 @@ export default function LiveVideoTrack({ mediaStream, mirror = false, scaleType 
   );
 }
 
+export default React.memo(LiveVideoTrackComponent);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: '100%',
+    height: '100%',
     backgroundColor: '#000000',
   },
 });

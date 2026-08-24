@@ -206,43 +206,79 @@ export function use100msCall({
         });
 
         // Handle incoming remote track
-        pc.ontrack = event => {
-          console.log('[use100msCall Web] Received remote stream track:', event.streams[0]);
-          const remoteStream = event.streams[0];
-          setParticipants(prev =>
-            prev.map(p =>
+        pc.ontrack = (event: RTCTrackEvent) => {
+          console.log('[use100msCall Web] Received remote stream track:', event.track?.kind, event.streams);
+          const remoteStream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream([event.track]);
+          
+          setParticipants(prev => {
+            const hasRemote = prev.some(p => !p.isLocal);
+            if (!hasRemote) {
+              return [
+                ...prev,
+                {
+                  id: String(partnerId || 'remote-peer'),
+                  name: 'Partner',
+                  avatarUrl: '',
+                  role: 'student' as const,
+                  isLocal: false,
+                  mediaStream: remoteStream,
+                  status: 'connected' as const,
+                  isVideoOff: false,
+                  isMuted: false,
+                  isHandRaised: false,
+                  isSpeaking: false,
+                  joinedAt: new Date().toISOString(),
+                }
+              ];
+            }
+            return prev.map(p =>
               !p.isLocal
                 ? {
                   ...p,
                   mediaStream: remoteStream,
-                  status: 'connected',
+                  status: 'connected' as const,
                   isVideoOff: false,
-                  isMuted: false,
                 }
                 : p
-            )
-          );
+            );
+          });
+        };
+
+        // Helper to send WebRTC signals across all available communication transports
+        const sendSignal = (payload: any) => {
+          const signalMsg = {
+            ...payload,
+            room: roomId,
+            senderId: currentUserId,
+            targetId: payload.targetId || payload.to || partnerIdRef.current,
+            timestamp: Date.now(),
+          };
+
+          // 1. BroadcastChannel (fast local/cross-tab sync)
+          if (bc) {
+            try {
+              bc.postMessage(signalMsg);
+            } catch (e) {}
+          }
+
+          // 2. Socket.IO signaling
+          const sock = socketRef.current || activeSocket || socket;
+          if (sock) {
+            try {
+              sock.emit('call_signal', signalMsg);
+              sock.emit('signal', signalMsg);
+            } catch (e) {}
+          }
         };
 
         // ICE candidate handler
         pc.onicecandidate = event => {
           if (event.candidate) {
-            const candidatePayload = {
+            sendSignal({
               type: 'candidate',
               candidate: event.candidate,
-              room: roomId,
-              senderId: currentUserId,
-              targetId: partnerId,
-            };
-            if (bc) {
-              try {
-                bc.postMessage(candidatePayload);
-              } catch (e) { }
-            }
-            if (socket) {
-              socket.emit('call_signal', candidatePayload);
-              socket.emit('signal', candidatePayload);
-            }
+              targetId: partnerIdRef.current,
+            });
           }
         };
 
@@ -259,10 +295,11 @@ export function use100msCall({
         // 1c. Signaling Handlers for both BroadcastChannel and Socket.IO
         handleSignalMessage = async (msg: any) => {
           if (!msg || msg.senderId === currentUserId) return;
+          if (msg.targetId && currentUserId && msg.targetId !== currentUserId) return;
 
           try {
             if (msg.type === 'offer' && pc) {
-              console.log('[use100msCall Web] Processing Offer');
+              console.log('[use100msCall Web] Processing Offer from', msg.senderId);
               await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
 
               // Process queued candidates
@@ -274,24 +311,14 @@ export function use100msCall({
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
 
-              const answerPayload = {
+              sendSignal({
                 type: 'answer',
                 answer,
-                room: roomId,
-                senderId: currentUserId,
                 targetId: msg.senderId,
-              };
-              if (bc) {
-                try {
-                  bc.postMessage(answerPayload);
-                } catch (e) { }
-              }
-              if (socket) {
-                socket.emit('call_signal', answerPayload);
-                socket.emit('signal', answerPayload);
-              }
+                to: msg.senderId,
+              });
             } else if (msg.type === 'answer' && pc) {
-              console.log('[use100msCall Web] Processing Answer');
+              console.log('[use100msCall Web] Processing Answer from', msg.senderId);
               if (pc.signalingState !== 'stable') {
                 await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
                 // Process queued candidates
@@ -422,21 +449,12 @@ export function use100msCall({
             try {
               const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
               await pc.setLocalDescription(offer);
-              const offerPayload = {
+              sendSignal({
                 type: 'offer',
                 offer,
-                room: roomId,
-                senderId: currentUserId,
                 targetId: data?.userId || partnerId,
                 to: data?.userId || partnerId,
-              };
-              if (bc) {
-                try { bc.postMessage(offerPayload); } catch (e) { }
-              }
-              if (socket) {
-                socket.emit('call_signal', offerPayload);
-                socket.emit('signal', offerPayload);
-              }
+              });
             } catch (err) {
               console.warn('[use100msCall Web] Peer joined offer error:', err);
             }
@@ -542,21 +560,12 @@ export function use100msCall({
               if (pc.signalingState === 'stable') {
                 const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
                 await pc.setLocalDescription(offer);
-                const offerPayload = {
+                sendSignal({
                   type: 'offer',
                   offer,
-                  room: roomId,
-                  senderId: currentUserId,
                   targetId: currentPartnerId,
                   to: currentPartnerId,
-                };
-                if (bc) {
-                  try { bc.postMessage(offerPayload); } catch (e) { }
-                }
-                if (activeSocket) {
-                  activeSocket.emit('call_signal', offerPayload);
-                  activeSocket.emit('signal', offerPayload);
-                }
+                });
               }
             } catch (offerErr) {
               console.warn('[use100msCall Web] Create offer error:', offerErr);

@@ -9,7 +9,7 @@ export interface LiveVideoTrackProps {
   style?: ViewStyle;
 }
 
-export default function LiveVideoTrack({
+function LiveVideoTrackComponent({
   trackId,
   mediaStream,
   mirror = false,
@@ -17,44 +17,52 @@ export default function LiveVideoTrack({
   style,
 }: LiveVideoTrackProps) {
   const videoRef = useRef<any>(null);
+  const streamRef = useRef<any>(null);
+  streamRef.current = mediaStream || null;
 
-  const bindStreamToVideo = useCallback(
-    (videoEl: any) => {
-      if (!videoEl || !mediaStream) return;
-      try {
-        if (videoEl.srcObject !== mediaStream) {
-          videoEl.srcObject = mediaStream;
-        }
-        videoEl.muted = Boolean(mirror);
-        videoEl.playsInline = true;
-        videoEl.autoplay = true;
+  const bindStream = useCallback(() => {
+    const videoEl = videoRef.current;
+    const stream = streamRef.current;
+    if (!videoEl || !stream) return;
 
+    try {
+      if (videoEl.srcObject !== stream) {
+        videoEl.srcObject = stream;
+      }
+      videoEl.playsInline = true;
+      videoEl.autoplay = true;
+      videoEl.muted = Boolean(mirror);
+
+      if (videoEl.paused) {
         const playPromise = videoEl.play();
         if (playPromise !== undefined && typeof playPromise.catch === 'function') {
           playPromise.catch((err: any) => {
-            console.warn('[LiveVideoTrack] Video play catch:', err);
+            if (err?.name === 'AbortError') {
+              return;
+            }
+            if (err?.name === 'NotAllowedError') {
+              videoEl.muted = true;
+              videoEl.play().catch(() => {});
+            }
           });
         }
-      } catch (e) {
-        console.warn('[LiveVideoTrack] bindStream error:', e);
       }
-    },
-    [mediaStream, mirror]
-  );
-
-  const setVideoRef = useCallback(
-    (node: any) => {
-      videoRef.current = node;
-      bindStreamToVideo(node);
-    },
-    [bindStreamToVideo]
-  );
+    } catch (e) {
+      console.warn('[LiveVideoTrack] bindStream error:', e);
+    }
+  }, [mirror]);
 
   useEffect(() => {
-    if (videoRef.current && mediaStream) {
-      bindStreamToVideo(videoRef.current);
+    bindStream();
+    if (mediaStream) {
+      mediaStream.onaddtrack = () => {
+        bindStream();
+      };
+      mediaStream.onremovetrack = () => {
+        bindStream();
+      };
     }
-  }, [mediaStream, mirror, bindStreamToVideo]);
+  }, [mediaStream, bindStream]);
 
   const flattenedStyle = StyleSheet.flatten([styles.container, style]);
 
@@ -79,12 +87,17 @@ export default function LiveVideoTrack({
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: '#000000',
-          borderRadius: flattenedStyle?.borderRadius || 0,
+          borderRadius: (flattenedStyle as any)?.borderRadius || 0,
           ...(flattenedStyle as any),
         }}
       >
         <video
-          ref={setVideoRef}
+          ref={(el) => {
+            videoRef.current = el;
+            if (el) {
+              bindStream();
+            }
+          }}
           autoPlay
           playsInline
           muted={Boolean(mirror)}
@@ -103,6 +116,8 @@ export default function LiveVideoTrack({
   // Native fallback
   return <View style={[styles.container, style]} />;
 }
+
+export default React.memo(LiveVideoTrackComponent);
 
 const styles = StyleSheet.create({
   container: {
