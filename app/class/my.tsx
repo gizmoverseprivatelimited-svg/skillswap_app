@@ -46,51 +46,64 @@ function MyClassCardItem({ item, currentUserId, router }: { item: ClassWithTeach
       />
       <View style={s.cardBody}>
         <View style={s.cardHeader}>
-          <Text style={s.catBadge}>{item.category}</Text>
+          <View style={s.catBadgeWrap}>
+            <Text style={s.catBadge} numberOfLines={1} ellipsizeMode="tail">{item.category}</Text>
+          </View>
           <View style={[s.statusPill, item.status === 'completed' && s.statusCompleted, item.status === 'cancelled' && s.statusCancelled, item.status === 'open' && s.statusOpen]}>
             <Text style={s.statusPillText}>{item.status === 'completed' ? 'Completed' : item.status === 'cancelled' ? 'Cancelled' : 'Upcoming'}</Text>
           </View>
         </View>
         <Text style={s.title} numberOfLines={2}>{item.title}</Text>
         <View style={s.metaRow}>
-          <Calendar size={13} color={Colors.light.textTertiary} />
-          <Text style={s.metaText}>
-            {isRecurring
-              ? `${formatShortDate(item.startISO)} — ${formatShortDate(item.endISO)}`
-              : formatDate(item.startISO)}
-          </Text>
-        </View>
-        <View style={s.metaRow}>
-          <Clock size={13} color={Colors.light.textTertiary} />
-          <Text style={s.metaText}>{formatTime(item.startISO)}</Text>
-          <Repeat size={13} color={Colors.light.primary} />
-          <Text style={[s.metaText, { color: Colors.light.primary }]}>{formatClassSchedule(item.sessionType, item.sessionCount, item.scheduleDays)}</Text>
-        </View>
-        <View style={s.metaRow}>
-          <CreditCard size={13} color={Colors.light.secondary} />
-          <Text style={[s.metaText, { color: Colors.light.secondary }]}>{formatBillingCycle(item.billingCycle)}</Text>
-        </View>
-        {isTeacher ? (
-          <View style={s.seatRow}>
-            <Users size={14} color={Colors.light.primary} />
-            <Text style={s.seatText}>{item.enrolledCount}/{item.maxCapacity} enrolled</Text>
+          <View style={s.metaChunk}>
+            <Calendar size={12} color={Colors.light.textTertiary} />
+            <Text style={s.metaText} numberOfLines={1}>
+              {isRecurring
+                ? `${formatShortDate(item.startISO)} — ${formatShortDate(item.endISO)}`
+                : formatDate(item.startISO)}
+            </Text>
           </View>
-        ) : (
-          <View style={s.seatRow}>
-            {isFree ? <Sparkles size={14} color="#10B981" /> : <Coins size={14} color="#F59E0B" />}
-            <Text style={s.seatText}>{isFree ? 'Free class' : formatCredits(item.seatPriceCredits)}</Text>
-            {Boolean(item.isLive) && item.status !== 'completed' && item.status !== 'cancelled' && (
-              <TouchableOpacity
-                style={s.joinLiveCardBtn}
-                onPress={() => router.push(`/call/${item.id}?mode=video` as any)}
-                activeOpacity={0.8}
-              >
-                <Video size={12} color="#FFFFFF" />
-                <Text style={s.joinLiveCardBtnText}>Join Live</Text>
-              </TouchableOpacity>
-            )}
+          <View style={s.metaChunk}>
+            <Clock size={12} color={Colors.light.textTertiary} />
+            <Text style={s.metaText} numberOfLines={1}>{formatTime(item.startISO)}</Text>
+          </View>
+        </View>
+        {isRecurring && (
+          <View style={s.scheduleRow}>
+            <Repeat size={11} color={Colors.light.primary} />
+            <Text style={s.scheduleText} numberOfLines={1} ellipsizeMode="tail">
+              {formatClassSchedule(item.sessionType, item.sessionCount, item.scheduleDays)}
+            </Text>
           </View>
         )}
+        <View style={s.bottomRow}>
+          {isTeacher ? (
+            <View style={s.seatInfo}>
+              <Users size={13} color={Colors.light.primary} />
+              <Text style={s.seatText} numberOfLines={1}>{item.enrolledCount}/{item.maxCapacity} enrolled</Text>
+            </View>
+          ) : (
+            <View style={s.priceInfo}>
+              {isFree ? <Sparkles size={13} color="#10B981" /> : <Coins size={13} color="#F59E0B" />}
+              <Text style={s.seatText} numberOfLines={1}>{isFree ? 'Free class' : formatCredits(item.seatPriceCredits)}</Text>
+            </View>
+          )}
+          {Boolean(item.billingCycle) && (
+            <View style={s.billingPill}>
+              <Text style={s.billingPillText} numberOfLines={1}>{formatBillingCycle(item.billingCycle)}</Text>
+            </View>
+          )}
+          {Boolean(item.isLive) && item.status !== 'completed' && item.status !== 'cancelled' && (
+            <TouchableOpacity
+              style={s.joinLiveCardBtn}
+              onPress={() => router.push(`/call/${item.id}?mode=video` as any)}
+              activeOpacity={0.8}
+            >
+              <Video size={12} color="#FFFFFF" />
+              <Text style={s.joinLiveCardBtnText}>Join Live</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -204,24 +217,32 @@ const s = StyleSheet.create({
   segmentActive: { backgroundColor: Colors.light.primary, borderColor: Colors.light.primary },
   segmentText: { fontSize: 14, fontWeight: '700' as const, color: Colors.light.textSecondary },
   segmentTextActive: { color: '#FFFFFF' },
-  listContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 },
-  card: { backgroundColor: Colors.light.card, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: Colors.light.borderLight, shadowColor: Colors.light.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
+  listContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40, maxWidth: 800, width: '100%', alignSelf: 'center' },
+  card: { backgroundColor: Colors.light.card, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: Colors.light.borderLight, shadowColor: Colors.light.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4, width: '100%' },
   cover: { width: '100%', height: 160, backgroundColor: Colors.light.backgroundTertiary },
-  cardBody: { padding: 16 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  catBadge: { fontSize: 11, fontWeight: '700' as const, color: Colors.light.secondary, textTransform: 'uppercase' as const, letterSpacing: 1 },
-  statusPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  cardBody: { padding: 14 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 },
+  catBadgeWrap: { flex: 1, minWidth: 0 },
+  catBadge: { fontSize: 11, fontWeight: '700' as const, color: Colors.light.secondary, textTransform: 'uppercase' as const, letterSpacing: 0.8 },
+  statusPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, flexShrink: 0 },
   statusOpen: { backgroundColor: 'rgba(99,102,241,0.15)' },
   statusCompleted: { backgroundColor: 'rgba(139,92,246,0.15)' },
   statusCancelled: { backgroundColor: 'rgba(239,68,68,0.15)' },
-  statusPillText: { fontSize: 11, fontWeight: '700' as const, color: Colors.light.textSecondary },
-  title: { fontSize: 17, fontWeight: '700' as const, color: Colors.light.text, marginBottom: 10, lineHeight: 23 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  metaText: { fontSize: 13, color: Colors.light.textTertiary, fontWeight: '500' as const, marginRight: 8 },
-  seatRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  seatText: { fontSize: 13, fontWeight: '600' as const, color: Colors.light.primary },
-  joinLiveCardBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#10B981', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-  joinLiveCardBtnText: { fontSize: 12, fontWeight: '700' as const, color: '#FFFFFF' },
+  statusPillText: { fontSize: 10, fontWeight: '700' as const, color: Colors.light.textSecondary },
+  title: { fontSize: 15, fontWeight: '700' as const, color: Colors.light.text, marginBottom: 8, lineHeight: 21 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' },
+  metaChunk: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1, minWidth: 0 },
+  metaText: { fontSize: 11, color: Colors.light.textTertiary, fontWeight: '500' as const },
+  scheduleRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8, backgroundColor: 'rgba(99,102,241,0.06)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start', maxWidth: '100%' },
+  scheduleText: { fontSize: 11, color: Colors.light.primary, fontWeight: '600' as const, flexShrink: 1 },
+  bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 4, flexWrap: 'wrap' },
+  seatInfo: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1, minWidth: 0 },
+  priceInfo: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1, minWidth: 0 },
+  seatText: { fontSize: 12, fontWeight: '600' as const, color: Colors.light.primary },
+  billingPill: { backgroundColor: Colors.light.backgroundTertiary, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 },
+  billingPillText: { fontSize: 10, fontWeight: '600' as const, color: Colors.light.secondary },
+  joinLiveCardBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#10B981', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, flexShrink: 0 },
+  joinLiveCardBtnText: { fontSize: 11, fontWeight: '700' as const, color: '#FFFFFF' },
   emptyWrap: { paddingVertical: 60, alignItems: 'center', gap: 16 },
   emptyText: { fontSize: 15, color: Colors.light.textTertiary, fontWeight: '500' as const, textAlign: 'center' },
   emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.light.primary, paddingHorizontal: 18, paddingVertical: 12, borderRadius: 14 },
