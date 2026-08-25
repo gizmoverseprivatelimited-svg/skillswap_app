@@ -38,7 +38,8 @@ function ClassCardItem({ item, router, isEnrolledUser, cardWidth, numColumns }: 
     return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   };
   const formatShortDate = (iso: string) => {
-    return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   };
 
   return (
@@ -64,9 +65,9 @@ function ClassCardItem({ item, router, isEnrolledUser, cardWidth, numColumns }: 
         </View>
         <View style={s.cardBody}>
           <View style={s.cardHeader}>
-            <Text style={s.catBadge}>{item.category}</Text>
+            <Text style={s.catBadge} numberOfLines={1} ellipsizeMode="tail">{item.category}</Text>
             <View style={s.rightBadges}>
-              <View style={s.levelPill}><Text style={s.levelText}>{item.level}</Text></View>
+              <View style={s.levelPill}><Text style={s.levelText} numberOfLines={1}>{item.level}</Text></View>
               {isCancelled ? (
                 <View style={s.statusCancelledPill}><Text style={s.statusCancelledText}>Cancelled</Text></View>
               ) : isCompleted ? (
@@ -78,63 +79,76 @@ function ClassCardItem({ item, router, isEnrolledUser, cardWidth, numColumns }: 
               )}
             </View>
           </View>
+
           <Text style={s.title} numberOfLines={2}>{item.title}</Text>
+
           <View style={s.metaRow}>
-            <Calendar size={13} color={Colors.light.textTertiary} />
-            <Text style={s.metaText}>
-              {isRecurring
-                ? `${formatShortDate(item.startISO)} — ${formatShortDate(item.endISO)}`
-                : formatDate(item.startISO)}
-            </Text>
-            <Clock size={13} color={Colors.light.textTertiary} />
-            <Text style={s.metaText}>{formatTime(item.startISO)}</Text>
+            <View style={s.metaChunk}>
+              <Calendar size={13} color={Colors.light.textTertiary} />
+              <Text style={s.metaText} numberOfLines={1}>
+                {isRecurring
+                  ? `${formatShortDate(item.startISO)} — ${formatShortDate(item.endISO)}`
+                  : formatDate(item.startISO)}
+              </Text>
+            </View>
+            <View style={s.metaChunk}>
+              <Clock size={13} color={Colors.light.textTertiary} />
+              <Text style={s.metaText} numberOfLines={1}>{formatTime(item.startISO)}</Text>
+            </View>
           </View>
+
           {isRecurring && (
-            <View style={s.metaRow}>
-              <Text style={[s.metaText, { color: Colors.light.primary, fontWeight: '600' }]}>
+            <View style={s.scheduleRow}>
+              <RotateCcw size={12} color={Colors.light.primary} />
+              <Text style={s.scheduleText} numberOfLines={1}>
                 {formatClassSchedule(item.sessionType, item.sessionCount, item.scheduleDays)}
               </Text>
             </View>
           )}
+
           <View style={s.teacherRow}>
             <Image
               source={{ uri: avatarUrl }}
               style={s.teacherAvatar}
               onError={() => setAvatarUrl(DEFAULT_AVATAR)}
             />
-            <Text style={s.teacherName} numberOfLines={1}>{item.teacher.name}</Text>
+            <Text style={s.teacherName} numberOfLines={1} ellipsizeMode="tail">{item.teacher.name}</Text>
           </View>
+
           {!isCancelled && (
             <>
               <View style={s.seatRow}>
                 <View style={s.seatInfo}>
-                  <Users size={14} color={Colors.light.primary} />
-                  <Text style={s.seatText}>{item.enrolledCount}/{item.maxCapacity} enrolled</Text>
+                  <Users size={13} color={Colors.light.primary} />
+                  <Text style={s.seatText} numberOfLines={1}>{item.enrolledCount}/{item.maxCapacity} enrolled</Text>
                 </View>
-                <Text style={s.seatsLeft}>{seatsLeft} seat{seatsLeft === 1 ? '' : 's'} left</Text>
+                <Text style={s.seatsLeft} numberOfLines={1}>{seatsLeft} seat{seatsLeft === 1 ? '' : 's'} left</Text>
               </View>
               <View style={s.progressBar}>
                 <View style={[s.progressFill, { width: `${fillPct}%` }]} />
               </View>
             </>
           )}
+
           <View style={s.priceRow}>
-            {isCancelled ? (
-              <View style={s.cancelledPriceTag}>
-                <Text style={s.cancelledPriceText}>Enrollment Closed</Text>
-              </View>
-            ) : isFree ? (
-              <View style={s.freeTag}><Sparkles size={13} color="#10B981" /><Text style={s.freeText}>Free</Text></View>
-            ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <View style={s.priceTag}><Coins size={14} color="#F59E0B" /><Text style={s.priceText}>{formatCredits(item.seatPriceCredits)}</Text></View>
-                {item.billingCycle && (
-                  <View style={s.levelPill}>
-                    <Text style={[s.levelText, { color: Colors.light.secondary }]}>{formatBillingCycle(item.billingCycle)}</Text>
-                  </View>
-                )}
-              </View>
-            )}
+            <View style={s.priceGroup}>
+              {isCancelled ? (
+                <View style={s.cancelledPriceTag}>
+                  <Text style={s.cancelledPriceText}>Closed</Text>
+                </View>
+              ) : isFree ? (
+                <View style={s.freeTag}><Sparkles size={13} color="#10B981" /><Text style={s.freeText}>Free</Text></View>
+              ) : (
+                <>
+                  <View style={s.priceTag}><Coins size={14} color="#F59E0B" /><Text style={s.priceText}>{formatCredits(item.seatPriceCredits)}</Text></View>
+                  {item.billingCycle && (
+                    <View style={s.billingPill}>
+                      <Text style={s.billingPillText}>{formatBillingCycle(item.billingCycle)}</Text>
+                    </View>
+                  )}
+                </>
+              )}
+            </View>
 
             {Boolean(item.isLive) && !isCancelled && !isCompleted && isEnrolledUser && (
               <TouchableOpacity
@@ -143,7 +157,7 @@ function ClassCardItem({ item, router, isEnrolledUser, cardWidth, numColumns }: 
                 activeOpacity={0.8}
               >
                 <Video size={13} color="#FFFFFF" />
-                <Text style={s.joinCardBtnText}>+ Join Class</Text>
+                <Text style={s.joinCardBtnText}>Join Class</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -159,9 +173,9 @@ export default function ClassesScreen() {
   const { width: windowWidth } = useWindowDimensions();
 
   const numColumns = useMemo(() => {
-    if (windowWidth >= 840) return 4;
-    if (windowWidth >= 600) return 3;
-    if (windowWidth >= 400) return 2;
+    if (windowWidth >= 1150) return 4;
+    if (windowWidth >= 820) return 3;
+    if (windowWidth >= 560) return 2;
     return 1;
   }, [windowWidth]);
 
@@ -581,40 +595,46 @@ const s = StyleSheet.create({
   cancelledBadge: { position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(239,68,68,0.95)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   cancelledBadgeText: { fontSize: 11, fontWeight: '800' as const, color: '#FFFFFF', letterSpacing: 0.8 },
   cardBody: { padding: 16 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  catBadge: { fontSize: 11, fontWeight: '700' as const, color: Colors.light.secondary, textTransform: 'uppercase' as const, letterSpacing: 1 },
-  rightBadges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  levelPill: { backgroundColor: Colors.light.backgroundTertiary, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 6 },
+  catBadge: { fontSize: 11, fontWeight: '700' as const, color: Colors.light.secondary, textTransform: 'uppercase' as const, letterSpacing: 1, flexShrink: 1, maxWidth: '60%' },
+  rightBadges: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  levelPill: { backgroundColor: Colors.light.backgroundTertiary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   levelText: { fontSize: 11, fontWeight: '700' as const, color: Colors.light.primary },
-  statusLivePill: { backgroundColor: 'rgba(239,68,68,0.12)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  statusLivePill: { backgroundColor: 'rgba(239,68,68,0.12)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   statusLiveText: { fontSize: 11, fontWeight: '700' as const, color: '#EF4444' },
-  statusCancelledPill: { backgroundColor: 'rgba(239,68,68,0.12)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  statusCancelledPill: { backgroundColor: 'rgba(239,68,68,0.12)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   statusCancelledText: { fontSize: 11, fontWeight: '700' as const, color: Colors.light.error },
-  statusCompletedPill: { backgroundColor: 'rgba(139,92,246,0.12)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  statusCompletedPill: { backgroundColor: 'rgba(139,92,246,0.12)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   statusCompletedText: { fontSize: 11, fontWeight: '700' as const, color: '#8B5CF6' },
-  statusOpenPill: { backgroundColor: 'rgba(16,185,129,0.12)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  statusOpenPill: { backgroundColor: 'rgba(16,185,129,0.12)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   statusOpenText: { fontSize: 11, fontWeight: '700' as const, color: '#10B981' },
-  title: { fontSize: 17, fontWeight: '700' as const, color: Colors.light.text, marginBottom: 10, lineHeight: 23 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  metaText: { fontSize: 13, color: Colors.light.textTertiary, fontWeight: '500' as const, marginRight: 8 },
-  teacherRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  teacherAvatar: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: Colors.light.border },
-  teacherName: { fontSize: 13, fontWeight: '600' as const, color: Colors.light.textSecondary },
-  seatRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  seatInfo: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  seatText: { fontSize: 13, fontWeight: '600' as const, color: Colors.light.primary },
+  title: { fontSize: 16, fontWeight: '700' as const, color: Colors.light.text, marginBottom: 8, lineHeight: 22 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' },
+  metaChunk: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },
+  metaText: { fontSize: 12, color: Colors.light.textTertiary, fontWeight: '500' as const },
+  scheduleRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10, backgroundColor: 'rgba(99,102,241,0.06)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start' },
+  scheduleText: { fontSize: 11, color: Colors.light.primary, fontWeight: '600' as const },
+  teacherRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  teacherAvatar: { width: 26, height: 26, borderRadius: 13, borderWidth: 1.5, borderColor: Colors.light.border },
+  teacherName: { fontSize: 13, fontWeight: '600' as const, color: Colors.light.textSecondary, flex: 1 },
+  seatRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 4 },
+  seatInfo: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1 },
+  seatText: { fontSize: 12, fontWeight: '600' as const, color: Colors.light.primary },
   seatsLeft: { fontSize: 12, color: Colors.light.textTertiary },
   progressBar: { height: 5, backgroundColor: Colors.light.borderLight, borderRadius: 3, marginBottom: 12 },
   progressFill: { height: '100%', backgroundColor: Colors.light.primary, borderRadius: 3 },
-  priceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cancelledPriceTag: { backgroundColor: 'rgba(239,68,68,0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
-  cancelledPriceText: { fontSize: 13, fontWeight: '700' as const, color: Colors.light.error },
-  freeTag: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(16,185,129,0.12)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
-  freeText: { fontSize: 13, fontWeight: '700' as const, color: '#10B981' },
-  priceTag: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(245,158,11,0.12)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
-  priceText: { fontSize: 13, fontWeight: '700' as const, color: '#F59E0B' },
-  joinCardBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#10B981', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
-  joinCardBtnText: { fontSize: 12, fontWeight: '700' as const, color: '#FFFFFF' },
+  priceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 },
+  priceGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flexShrink: 1 },
+  cancelledPriceTag: { backgroundColor: 'rgba(239,68,68,0.1)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  cancelledPriceText: { fontSize: 12, fontWeight: '700' as const, color: Colors.light.error },
+  freeTag: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(16,185,129,0.12)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  freeText: { fontSize: 12, fontWeight: '700' as const, color: '#10B981' },
+  priceTag: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(245,158,11,0.12)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  priceText: { fontSize: 12, fontWeight: '700' as const, color: '#F59E0B' },
+  billingPill: { backgroundColor: Colors.light.backgroundTertiary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  billingPillText: { fontSize: 11, fontWeight: '600' as const, color: Colors.light.secondary },
+  joinCardBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#10B981', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  joinCardBtnText: { fontSize: 11, fontWeight: '700' as const, color: '#FFFFFF' },
   emptyWrap: { paddingVertical: 60, alignItems: 'center' },
   emptyText: { fontSize: 15, color: Colors.light.textTertiary, fontWeight: '500' as const },
 });
