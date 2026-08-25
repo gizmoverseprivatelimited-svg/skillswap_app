@@ -126,12 +126,6 @@ export default function StoreScreen() {
                 earnCredits(freshCredits - initialCredits);
               }
               await loadUser(true);
-              showAlert(
-                'Payment Successful! 🎉',
-                isPremium
-                  ? 'Your membership status has been updated in real-time!'
-                  : `+${freshCredits - initialCredits || expectedAdded} credits added to your account!`,
-              );
               return true;
             }
           }
@@ -232,7 +226,6 @@ export default function StoreScreen() {
         } else {
           await WebBrowser.openBrowserAsync(checkoutUrl);
           await loadUser(true);
-          showAlert('Payment Successful! 🎉', 'Your credit balance has been updated!');
         }
       } catch (error: any) {
         showAlert('Error', error.message);

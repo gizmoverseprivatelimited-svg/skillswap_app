@@ -137,8 +137,10 @@ export default function SwapDetailScreen() {
   const allSkills = useMemo(() => {
     const map = new Map<string, SkillWithUser>();
     allUsers.forEach((u) => {
-      u.skillsOffered?.forEach((s) => {
-        map.set(s.id, { ...s, user: u });
+      u.skillsOffered?.forEach((s: any) => {
+        const item = { ...s, user: u };
+        if (s.id) map.set(String(s.id), item);
+        if (s._id) map.set(String(s._id), item);
       });
     });
     return map;
@@ -205,76 +207,87 @@ export default function SwapDetailScreen() {
   const exchangeSkills = useMemo(() => {
     if (!swap || !currentUser) {
       return {
-        teachingSkill: null,
-        learningSkill: null,
-        teachingOwner: '',
-        learningOwner: '',
+        teachingSkillTitle: 'Skill TBD',
+        teachingCategory: '',
+        learningSkillTitle: 'Skill TBD',
+        learningCategory: '',
+        teacherName: 'Teacher',
+        learnerName: 'Learner',
+        teacherIsYou: false,
+        learnerIsYou: false,
         swapType: 'swap' as const,
-        isRequester: false,
       };
     }
     const isRequester = swap.requesterId === currentUser.id;
     const swapType = swap.swapType || 'swap';
-    const partnerName = partner?.username ? (partner.username.startsWith('@') ? partner.username : `@${partner.username}`) : (partner?.name || 'Partner');
+    const partnerName = partner?.name || partner?.username || 'Partner';
+    const currentUserName = currentUser?.name || currentUser?.username || 'You';
 
-    const requesterSkill = skillsMap.get(swap.requesterSkillId) || {
-      id: swap.requesterSkillId,
-      title: 'Skill',
-      category: 'General',
-      level: 'All levels' as const,
-      user: isRequester ? currentUser : (partner || currentUser),
-    };
-    const recipientSkill = skillsMap.get(swap.recipientSkillId) || {
-      id: swap.recipientSkillId,
-      title: 'Skill',
-      category: 'General',
-      level: 'All levels' as const,
-      user: isRequester ? (partner || currentUser) : currentUser,
-    };
-
-    let teachingSkill: any = null;
-    let learningSkill: any = null;
-    let teachingOwner = '';
-    let learningOwner = '';
+    const reqSkill = skillsMap.get(String(swap.requesterSkillId)) || (currentUser?.skillsOffered?.find((s: any) => String(s.id) === String(swap.requesterSkillId) || String(s._id) === String(swap.requesterSkillId))) || null;
+    const recSkill = skillsMap.get(String(swap.recipientSkillId)) || (partner?.skillsOffered?.find((s: any) => String(s.id) === String(swap.recipientSkillId) || String(s._id) === String(swap.recipientSkillId))) || null;
 
     if (swapType === 'learn') {
-      if (isRequester) {
-        learningSkill = recipientSkill;
-        learningOwner = `${partnerName} teaches`;
-      } else {
-        teachingSkill = recipientSkill;
-        teachingOwner = 'You teach';
-      }
-    } else if (swapType === 'teach') {
-      if (isRequester) {
-        teachingSkill = requesterSkill;
-        teachingOwner = 'You teach';
-      } else {
-        learningSkill = requesterSkill;
-        learningOwner = 'You learn';
-      }
-    } else {
-      if (isRequester) {
-        teachingSkill = requesterSkill;
-        learningSkill = recipientSkill;
-        teachingOwner = 'You teach';
-        learningOwner = `${partnerName} teaches`;
-      } else {
-        teachingSkill = recipientSkill;
-        learningSkill = requesterSkill;
-        teachingOwner = 'You teach';
-        learningOwner = `${partnerName} teaches`;
-      }
+      // Requester is learning, recipient is teaching
+      const skillTaught = recSkill || skillsMap.get(String(swap.recipientSkillId));
+      return {
+        teachingSkillTitle: skillTaught?.title || 'Skill TBD',
+        teachingCategory: skillTaught?.category || '',
+        learningSkillTitle: isRequester ? 'N/A (Learner)' : 'Direct Session',
+        learningCategory: '',
+        teacherName: isRequester ? partnerName : 'You',
+        learnerName: isRequester ? 'You' : partnerName,
+        teacherIsYou: !isRequester,
+        learnerIsYou: isRequester,
+        swapType,
+      };
     }
 
-    return {
-      teachingSkill,
-      learningSkill,
-      teachingOwner,
-      learningOwner,
-      swapType,
-      isRequester,
-    };
+    if (swapType === 'teach') {
+      // Requester is teaching, recipient is learning
+      const skillTaught = reqSkill || skillsMap.get(String(swap.requesterSkillId));
+      return {
+        teachingSkillTitle: skillTaught?.title || 'Skill TBD',
+        teachingCategory: skillTaught?.category || '',
+        learningSkillTitle: isRequester ? 'Direct Session' : 'N/A (Learner)',
+        learningCategory: '',
+        teacherName: isRequester ? 'You' : partnerName,
+        learnerName: isRequester ? partnerName : 'You',
+        teacherIsYou: isRequester,
+        learnerIsYou: !isRequester,
+        swapType,
+      };
+    }
+
+    // Mutual Swap:
+    // Requester offers requesterSkillId to recipient, recipient offers recipientSkillId to requester
+    const requesterOfferedSkill = reqSkill || skillsMap.get(String(swap.requesterSkillId));
+    const recipientOfferedSkill = recSkill || skillsMap.get(String(swap.recipientSkillId));
+
+    if (isRequester) {
+      return {
+        teachingSkillTitle: requesterOfferedSkill?.title || 'Skill TBD',
+        teachingCategory: requesterOfferedSkill?.category || '',
+        learningSkillTitle: recipientOfferedSkill?.title || 'Skill TBD',
+        learningCategory: recipientOfferedSkill?.category || '',
+        teacherName: 'You',
+        learnerName: partnerName,
+        teacherIsYou: true,
+        learnerIsYou: false,
+        swapType,
+      };
+    } else {
+      return {
+        teachingSkillTitle: recipientOfferedSkill?.title || 'Skill TBD',
+        teachingCategory: recipientOfferedSkill?.category || '',
+        learningSkillTitle: requesterOfferedSkill?.title || 'Skill TBD',
+        learningCategory: requesterOfferedSkill?.category || '',
+        teacherName: 'You',
+        learnerName: partnerName,
+        teacherIsYou: true,
+        learnerIsYou: false,
+        swapType,
+      };
+    }
   }, [swap, currentUser, partner, skillsMap]);
 
   const sortedNotes = useMemo(() => {
@@ -726,29 +739,53 @@ export default function SwapDetailScreen() {
           <View style={styles.overviewCard}>
             <View style={styles.overviewRow}>
               {/* Teaching Skill Box */}
-              <View style={styles.overviewColumn}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                  <GraduationCap size={16} color="#10B981" />
-                  <Text style={[styles.overviewLabel, { color: '#10B981', fontWeight: '700' }]}>
-                    {exchangeSkills.teachingOwner || 'Teaching'}
-                  </Text>
+              <View style={[styles.overviewColumn, styles.overviewColumnTeaching]}>
+                <View style={styles.overviewHeader}>
+                  <View style={[styles.roleIconCircle, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                    <GraduationCap size={16} color="#10B981" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.overviewRoleTitle, { color: '#10B981' }]}>TEACHING</Text>
+                    <Text style={styles.overviewPersonName} numberOfLines={1}>
+                      {exchangeSkills.teacherName}
+                    </Text>
+                  </View>
                 </View>
-                <Text style={styles.overviewValue}>
-                  {exchangeSkills.teachingSkill?.title ?? (swap?.swapType === 'learn' ? counterpartSkill?.title ?? 'Skill TBD' : 'None (Learner only)')}
-                </Text>
+                <View style={styles.overviewSkillBox}>
+                  <Text style={styles.overviewSkillLabel}>Skill to Teach</Text>
+                  <Text style={styles.overviewValue} numberOfLines={2}>
+                    {exchangeSkills.teachingSkillTitle}
+                  </Text>
+                  {!!exchangeSkills.teachingCategory && (
+                    <Text style={styles.overviewCategory}>{exchangeSkills.teachingCategory}</Text>
+                  )}
+                </View>
               </View>
 
               {/* Learning Skill Box */}
-              <View style={styles.overviewColumn}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                  <BookOpen size={16} color="#6366F1" />
-                  <Text style={[styles.overviewLabel, { color: '#6366F1', fontWeight: '700' }]}>
-                    {exchangeSkills.learningOwner || 'Learning'}
-                  </Text>
+              <View style={[styles.overviewColumn, styles.overviewColumnLearning]}>
+                <View style={styles.overviewHeader}>
+                  <View style={[styles.roleIconCircle, { backgroundColor: 'rgba(99, 102, 241, 0.15)' }]}>
+                    <BookOpen size={16} color="#6366F1" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.overviewRoleTitle, { color: '#6366F1' }]}>LEARNING</Text>
+                    <Text style={styles.overviewPersonName} numberOfLines={1}>
+                      {exchangeSkills.learnerName}
+                    </Text>
+                  </View>
                 </View>
-                <Text style={styles.overviewValue}>
-                  {exchangeSkills.learningSkill?.title ?? (swap?.swapType === 'teach' ? yourSkill?.title ?? 'Skill TBD' : 'None (Teacher only)')}
-                </Text>
+                <View style={styles.overviewSkillBox}>
+                  <Text style={styles.overviewSkillLabel}>
+                    {exchangeSkills.swapType === 'swap' ? 'Skill to Learn' : 'Session Objective'}
+                  </Text>
+                  <Text style={styles.overviewValue} numberOfLines={2}>
+                    {exchangeSkills.learningSkillTitle}
+                  </Text>
+                  {!!exchangeSkills.learningCategory && (
+                    <Text style={styles.overviewCategory}>{exchangeSkills.learningCategory}</Text>
+                  )}
+                </View>
               </View>
             </View>
           </View>
@@ -777,8 +814,8 @@ export default function SwapDetailScreen() {
                       <Text style={[styles.slotSecondary, { color: statusMeta.color }]}>
                         {slot.status === 'pending'
                           ? isProposer
-                            ? '⏳ Proposed by you • Awaiting partner'
-                            : '📩 Proposed by partner • Awaiting your response'
+                            ? 'Proposed by you • Awaiting partner'
+                            : 'Proposed by partner • Awaiting your response'
                           : statusMeta.label}
                       </Text>
                     </View>
@@ -969,16 +1006,7 @@ export default function SwapDetailScreen() {
                 testID="start-video-call"
               >
                 <Video size={20} color="#FFFFFF" />
-                <Text style={styles.callButtonText}>Video Call</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.callButton, { backgroundColor: '#10B981' }]}
-                onPress={() => handleStartCall('voice')}
-                activeOpacity={0.9}
-                testID="start-voice-call"
-              >
-                <Phone size={20} color="#FFFFFF" />
-                <Text style={styles.callButtonText}>Voice Call</Text>
+                <Text style={styles.callButtonText}>Start Video Call</Text>
               </TouchableOpacity>
             </View>
             {roleInfo?.myRole !== 'Teacher' && (
@@ -1447,29 +1475,80 @@ const styles = StyleSheet.create({
   overviewCard: {
     backgroundColor: Colors.light.background,
     borderRadius: 18,
-    padding: 18,
+    padding: 16,
     gap: 16,
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
   },
   overviewRow: {
     flexDirection: 'row',
-    gap: 18,
+    flexWrap: 'wrap',
+    gap: 12,
   },
   overviewColumn: {
     flex: 1,
-    gap: 6,
+    minWidth: 140,
+    borderRadius: 14,
+    padding: 14,
+    gap: 10,
+    borderWidth: 1,
+  },
+  overviewColumnTeaching: {
+    backgroundColor: 'rgba(16, 185, 129, 0.05)',
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+  },
+  overviewColumnLearning: {
+    backgroundColor: 'rgba(99, 102, 241, 0.05)',
+    borderColor: 'rgba(99, 102, 241, 0.25)',
+  },
+  overviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  roleIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overviewRoleTitle: {
+    fontSize: 11,
+    fontWeight: '800' as const,
+    letterSpacing: 0.5,
+  },
+  overviewPersonName: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  overviewSkillBox: {
+    gap: 4,
+  },
+  overviewSkillLabel: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.3,
+  },
+  overviewValue: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    lineHeight: 20,
+  },
+  overviewCategory: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.light.primary,
+    marginTop: 2,
   },
   overviewLabel: {
     fontSize: 12,
     color: Colors.light.textSecondary,
     fontWeight: '600' as const,
-  },
-  overviewValue: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: Colors.light.text,
-    lineHeight: 22,
   },
   overviewLocation: {
     flexDirection: 'row',
@@ -1489,8 +1568,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 14,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
   },
@@ -1499,8 +1580,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     flex: 1,
+    minWidth: 200,
   },
   slotCopy: {
+    flex: 1,
     gap: 4,
   },
   slotPrimary: {
@@ -1529,7 +1612,9 @@ const styles = StyleSheet.create({
   slotActionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
+    alignSelf: 'flex-start',
   },
   declineSlotButton: {
     flexDirection: 'row',
@@ -1554,6 +1639,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
+    alignSelf: 'flex-start',
   },
   pendingProposerBadgeText: {
     fontSize: 12,
