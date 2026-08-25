@@ -37,6 +37,7 @@ import {
 import type { SkillLevel, SkillWithUser, User } from '@/types';
 import { useCurrentUser } from '@/providers/current-user';
 import { useSafety } from '@/providers/safety';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
@@ -69,12 +70,13 @@ const ROLE_TABS: { key: RoleTab; label: string; icon: typeof GraduationCap }[] =
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
 
   const numColumns = useMemo(() => {
-    if (windowWidth >= 840) return 4;
-    if (windowWidth >= 600) return 3;
-    if (windowWidth >= 400) return 2;
+    if (windowWidth >= 1024) return 4;
+    if (windowWidth >= 768) return 3;
+    if (windowWidth >= 540) return 2;
     return 1;
   }, [windowWidth]);
 
@@ -381,6 +383,8 @@ export default function ExploreScreen() {
     : activeTab === 'learners' ? filteredLearners.length
     : filteredSwappers.length;
 
+  const isMultiCol = numColumns > 1;
+
   const renderSkillCard = useCallback(({ item }: { item: SkillWithUser }) => {
     const rawRating = item.user?.rating;
     const ratingVal = typeof rawRating === 'number' ? rawRating.toFixed(1) : (rawRating ? Number(rawRating).toFixed(1) : '5.0');
@@ -391,7 +395,7 @@ export default function ExploreScreen() {
       <TouchableOpacity
         style={[
           styles.skillCard,
-          numColumns > 1 && { width: cardWidth },
+          isMultiCol && { width: cardWidth },
         ]}
         onPress={() => router.push(`/skill/${item.id}` as any)}
         activeOpacity={0.85}
@@ -400,35 +404,39 @@ export default function ExploreScreen() {
           source={{ uri: resolveImageUrl(item.imageUrl, DEFAULT_SKILL_IMAGE) }}
           style={[
             styles.skillImage,
-            numColumns >= 4 ? { height: 145 } : numColumns >= 3 ? { height: 160 } : numColumns >= 2 ? { height: 180 } : { height: 200 }
+            numColumns >= 4 ? { height: 135 } : numColumns >= 3 ? { height: 150 } : numColumns >= 2 ? { height: 170 } : { height: 200 }
           ]}
         />
-        <View style={styles.skillContent}>
+        <View style={[styles.skillContent, isMultiCol && styles.skillContentCompact]}>
           <View style={styles.skillHeader}>
-            <Text style={styles.categoryLabel}>{item.category}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={[styles.categoryLabel, isMultiCol && styles.categoryLabelCompact]} numberOfLines={1} ellipsizeMode="tail">
+              {item.category}
+            </Text>
+            <View style={styles.skillBadges}>
               {item.certificateStatus === 'approved' && (
-                <View style={styles.certifiedBadge}>
-                  <BadgeCheck size={11} color="#10B981" />
-                  <Text style={styles.certifiedBadgeText}>Certified</Text>
+                <View style={[styles.certifiedBadge, isMultiCol && styles.certifiedBadgeCompact]}>
+                  <BadgeCheck size={isMultiCol ? 10 : 11} color="#10B981" />
+                  <Text style={[styles.certifiedBadgeText, isMultiCol && styles.certifiedBadgeTextCompact]}>Certified</Text>
                 </View>
               )}
-              <View style={styles.levelBadge}>
-                <Text style={styles.levelText}>{item.level}</Text>
+              <View style={[styles.levelBadge, isMultiCol && styles.levelBadgeCompact]}>
+                <Text style={[styles.levelText, isMultiCol && styles.levelTextCompact]}>{item.level}</Text>
               </View>
             </View>
           </View>
-          <Text style={styles.skillTitle} numberOfLines={2}>{item.title}</Text>
-          <Text style={styles.skillDescription} numberOfLines={2}>{item.description}</Text>
+          <Text style={[styles.skillTitle, isMultiCol && styles.skillTitleCompact]} numberOfLines={2}>{item.title}</Text>
+          <Text style={[styles.skillDescription, isMultiCol && styles.skillDescriptionCompact]} numberOfLines={2}>{item.description}</Text>
           <View style={styles.skillFooter}>
-            <View style={styles.userInfo}>
-              <Image source={{ uri: resolveImageUrl(item.user.avatarUrl, DEFAULT_AVATAR) }} style={styles.userAvatar} />
+            <View style={[styles.userInfo, isMultiCol && styles.userInfoCompact]}>
+              <Image source={{ uri: resolveImageUrl(item.user.avatarUrl, DEFAULT_AVATAR) }} style={[styles.userAvatar, isMultiCol && styles.userAvatarCompact]} />
               <View style={styles.userDetails}>
-                <Text style={styles.userName} numberOfLines={1}>{item.user.username ? (item.user.username.startsWith('@') ? item.user.username : `@${item.user.username}`) : `@${item.user.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
+                <Text style={[styles.userName, isMultiCol && styles.userNameCompact]} numberOfLines={1}>
+                  {item.user.username ? (item.user.username.startsWith('@') ? item.user.username : `@${item.user.username}`) : `@${item.user.name.toLowerCase().replace(/\s+/g, '')}`}
+                </Text>
                 <View style={styles.ratingRow}>
-                  <Star size={12} fill={Colors.light.accent} color={Colors.light.accent} />
-                  <Text style={styles.ratingText}>{ratingVal}</Text>
-                  <Text style={styles.swapsText}>• {exchangesText}</Text>
+                  <Star size={isMultiCol ? 11 : 12} fill={Colors.light.accent} color={Colors.light.accent} />
+                  <Text style={[styles.ratingText, isMultiCol && styles.ratingTextCompact]}>{ratingVal}</Text>
+                  <Text style={[styles.swapsText, isMultiCol && styles.swapsTextCompact]} numberOfLines={1}>• {exchangesText}</Text>
                 </View>
               </View>
             </View>
@@ -436,117 +444,225 @@ export default function ExploreScreen() {
         </View>
       </TouchableOpacity>
     );
-  }, [router, numColumns, cardWidth]);
+  }, [router, numColumns, cardWidth, isMultiCol]);
 
   const renderLearnerCard = useCallback(({ item }: { item: User }) => {
     const rawRating = item.rating;
     const ratingVal = typeof rawRating === 'number' ? rawRating.toFixed(1) : (rawRating ? Number(rawRating).toFixed(1) : '5.0');
     const swapsVal = item.totalSwaps ?? 0;
     const exchangesText = `${swapsVal} ${swapsVal === 1 ? 'exchange' : 'exchanges'} completed`;
+    const maxChips = isMultiCol ? 3 : 6;
+    const wants = item.skillsWanted || [];
 
     return (
       <TouchableOpacity
         style={[
           styles.personCard,
-          numColumns > 1 && { width: cardWidth },
+          isMultiCol ? styles.personCardGrid : styles.personCardRow,
+          isMultiCol && { width: cardWidth },
         ]}
         onPress={() => router.push(`/profile/${item.id}` as any)}
         activeOpacity={0.85}
       >
-        <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatar} />
-        <View style={styles.personContent}>
-          <View style={styles.personHeader}>
-            <Text style={styles.personName} numberOfLines={1}>{item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
-            <View style={styles.ratingPill}>
-              <Star size={11} fill={Colors.light.accent} color={Colors.light.accent} />
-              <Text style={styles.ratingPillText}>{ratingVal}</Text>
+        {isMultiCol ? (
+          <View style={styles.personCardGridInner}>
+            <View style={styles.personHeaderGrid}>
+              <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatarCompact} />
+              <View style={styles.personInfoCompact}>
+                <Text style={styles.personNameCompact} numberOfLines={1}>
+                  {item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}
+                </Text>
+                <View style={styles.personLocationRowCompact}>
+                  <MapPin size={10} color={Colors.light.textTertiary} />
+                  <Text style={styles.personLocationCompact} numberOfLines={1}>{item.location}</Text>
+                </View>
+              </View>
+              <View style={styles.ratingPillCompact}>
+                <Star size={10} fill={Colors.light.accent} color={Colors.light.accent} />
+                <Text style={styles.ratingPillTextCompact}>{ratingVal}</Text>
+              </View>
+            </View>
+            <View style={styles.personGridBody}>
+              <Text style={styles.wantsLabelCompact}>Wants to learn</Text>
+              <View style={styles.chipRowCompact}>
+                {wants.slice(0, maxChips).map((s) => (
+                  <View key={s} style={styles.wantChipCompact}>
+                    <Text style={styles.wantChipTextCompact} numberOfLines={1} ellipsizeMode="tail">{s}</Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={styles.personSwapsCompact} numberOfLines={1}>{exchangesText}</Text>
             </View>
           </View>
-          <View style={styles.personLocationRow}>
-            <MapPin size={12} color={Colors.light.textTertiary} />
-            <Text style={styles.personLocation} numberOfLines={1}>{item.location}</Text>
-          </View>
-          <Text style={styles.wantsLabel}>Wants to learn</Text>
-          <View style={styles.chipRow}>
-            {item.skillsWanted.slice(0, 4).map((s) => (
-              <View key={s} style={styles.wantChip}>
-                <Text style={styles.wantChipText}>{s}</Text>
+        ) : (
+          <View style={styles.personCardRowInner}>
+            <View style={styles.personHeaderRow}>
+              <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatar} />
+              <View style={styles.personInfoRow}>
+                <View style={styles.personNameRatingRow}>
+                  <Text style={styles.personName} numberOfLines={1}>
+                    {item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}
+                  </Text>
+                  <View style={styles.ratingPill}>
+                    <Star size={11} fill={Colors.light.accent} color={Colors.light.accent} />
+                    <Text style={styles.ratingPillText}>{ratingVal}</Text>
+                  </View>
+                </View>
+                <View style={styles.personLocationRow}>
+                  <MapPin size={12} color={Colors.light.textTertiary} />
+                  <Text style={styles.personLocation} numberOfLines={1}>{item.location}</Text>
+                </View>
               </View>
-            ))}
+            </View>
+
+            <View style={styles.swapGroupFull}>
+              <Text style={styles.swapLabel}>Wants to learn</Text>
+              <View style={styles.chipRow}>
+                {wants.slice(0, maxChips).map((s) => (
+                  <View key={s} style={styles.wantChip}>
+                    <Text style={styles.wantChipText} numberOfLines={1} ellipsizeMode="tail">{s}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <Text style={styles.personSwaps}>{exchangesText}</Text>
           </View>
-          <Text style={styles.personSwaps}>{exchangesText}</Text>
-        </View>
+        )}
       </TouchableOpacity>
     );
-  }, [router, numColumns, cardWidth]);
+  }, [router, numColumns, cardWidth, isMultiCol]);
 
   const renderSwapperCard = useCallback(({ item }: { item: User }) => {
     const rawRating = item.rating;
     const ratingVal = typeof rawRating === 'number' ? rawRating.toFixed(1) : (rawRating ? Number(rawRating).toFixed(1) : '5.0');
     const swapsVal = item.totalSwaps ?? 0;
     const exchangesText = `${swapsVal} ${swapsVal === 1 ? 'exchange' : 'exchanges'} completed`;
+    const offers = item.skillsOffered || [];
+    const wants = item.skillsWanted || [];
 
     return (
       <TouchableOpacity
         style={[
           styles.personCard,
-          numColumns > 1 && { width: cardWidth },
+          isMultiCol ? styles.personCardGrid : styles.personCardRow,
+          isMultiCol && { width: cardWidth },
         ]}
         onPress={() => router.push(`/profile/${item.id}` as any)}
         activeOpacity={0.85}
       >
-        <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatar} />
-        <View style={styles.personContent}>
-          <View style={styles.personHeader}>
-            <Text style={styles.personName} numberOfLines={1}>{item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
-            <View style={styles.ratingPill}>
-              <Star size={11} fill={Colors.light.accent} color={Colors.light.accent} />
-              <Text style={styles.ratingPillText}>{ratingVal}</Text>
-            </View>
-          </View>
-          <View style={styles.personLocationRow}>
-            <MapPin size={12} color={Colors.light.textTertiary} />
-            <Text style={styles.personLocation} numberOfLines={1}>{item.location}</Text>
-          </View>
-          <View style={styles.swapSection}>
-            <View style={styles.swapHalf}>
-              <Text style={styles.swapHalfLabel}>Teaches</Text>
-              <View style={styles.chipRow}>
-                {item.skillsOffered.slice(0, 2).map((s, idx) => {
-                  const title = typeof s === 'string' ? s : s.title || String(s);
-                  const key = typeof s === 'string' ? s : (s.id || s._id || `teach-${idx}`);
-                  return (
-                    <View key={key} style={styles.teachChip}>
-                      <Text style={styles.teachChipText} numberOfLines={1}>{title}</Text>
-                    </View>
-                  );
-                })}
+        {isMultiCol ? (
+          <View style={styles.personCardGridInner}>
+            <View style={styles.personHeaderGrid}>
+              <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatarCompact} />
+              <View style={styles.personInfoCompact}>
+                <Text style={styles.personNameCompact} numberOfLines={1}>
+                  {item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}
+                </Text>
+                <View style={styles.personLocationRowCompact}>
+                  <MapPin size={10} color={Colors.light.textTertiary} />
+                  <Text style={styles.personLocationCompact} numberOfLines={1}>{item.location}</Text>
+                </View>
+              </View>
+              <View style={styles.ratingPillCompact}>
+                <Star size={10} fill={Colors.light.accent} color={Colors.light.accent} />
+                <Text style={styles.ratingPillTextCompact}>{ratingVal}</Text>
               </View>
             </View>
-            <View style={styles.swapDivider} />
-            <View style={styles.swapHalf}>
-              <Text style={styles.swapHalfLabel}>Learns</Text>
-              <View style={styles.chipRow}>
-                {item.skillsWanted.slice(0, 2).map((s, idx) => {
-                  const text = typeof s === 'string' ? s : String(s);
-                  return (
-                    <View key={`want-${idx}-${text}`} style={styles.wantChip}>
-                      <Text style={styles.wantChipText}>{text}</Text>
-                    </View>
-                  );
-                })}
+
+            <View style={styles.personGridBody}>
+              <View style={styles.swapSectionVertical}>
+                <View style={styles.swapHalfVertical}>
+                  <Text style={styles.swapHalfLabelCompact}>Teaches</Text>
+                  <View style={styles.chipRowCompact}>
+                    {offers.slice(0, 2).map((s, idx) => {
+                      const title = typeof s === 'string' ? s : s.title || String(s);
+                      const key = typeof s === 'string' ? s : (s.id || s._id || `teach-${idx}`);
+                      return (
+                        <View key={key} style={styles.teachChipCompact}>
+                          <Text style={styles.teachChipTextCompact} numberOfLines={1} ellipsizeMode="tail">{title}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+                <View style={styles.swapHalfVertical}>
+                  <Text style={styles.swapHalfLabelCompact}>Learns</Text>
+                  <View style={styles.chipRowCompact}>
+                    {wants.slice(0, 2).map((s, idx) => {
+                      const text = typeof s === 'string' ? s : String(s);
+                      return (
+                        <View key={`want-${idx}-${text}`} style={styles.wantChipCompact}>
+                          <Text style={styles.wantChipTextCompact} numberOfLines={1} ellipsizeMode="tail">{text}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
               </View>
+              <Text style={styles.personSwapsCompact} numberOfLines={1}>{exchangesText}</Text>
             </View>
           </View>
-          <Text style={styles.personSwaps}>{exchangesText}</Text>
-        </View>
+        ) : (
+          <View style={styles.personCardRowInner}>
+            <View style={styles.personHeaderRow}>
+              <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatar} />
+              <View style={styles.personInfoRow}>
+                <View style={styles.personNameRatingRow}>
+                  <Text style={styles.personName} numberOfLines={1}>{item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
+                  <View style={styles.ratingPill}>
+                    <Star size={11} fill={Colors.light.accent} color={Colors.light.accent} />
+                    <Text style={styles.ratingPillText}>{ratingVal}</Text>
+                  </View>
+                </View>
+                <View style={styles.personLocationRow}>
+                  <MapPin size={12} color={Colors.light.textTertiary} />
+                  <Text style={styles.personLocation} numberOfLines={1}>{item.location}</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.swapSectionFull}>
+              <View style={styles.swapGroupFull}>
+                <Text style={styles.swapLabel}>Teaches</Text>
+                <View style={styles.chipRow}>
+                  {offers.slice(0, 3).map((s, idx) => {
+                    const title = typeof s === 'string' ? s : s.title || String(s);
+                    const key = typeof s === 'string' ? s : (s.id || s._id || `teach-${idx}`);
+                    return (
+                      <View key={key} style={styles.teachChip}>
+                        <Text style={styles.teachChipText} numberOfLines={1} ellipsizeMode="tail">{title}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <View style={styles.swapGroupFull}>
+                <Text style={styles.swapLabel}>Learns</Text>
+                <View style={styles.chipRow}>
+                  {wants.slice(0, 3).map((s, idx) => {
+                    const text = typeof s === 'string' ? s : String(s);
+                    return (
+                      <View key={`want-${idx}-${text}`} style={styles.wantChip}>
+                        <Text style={styles.wantChipText} numberOfLines={1} ellipsizeMode="tail">{text}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
+
+            <Text style={styles.personSwaps}>{exchangesText}</Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
-  }, [router, numColumns, cardWidth]);
+  }, [router, numColumns, cardWidth, isMultiCol]);
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchSection}>
+      <View style={[styles.searchSection, { paddingTop: Math.max(insets.top + 16, 20) }]}>
         <View style={styles.searchBar} testID="search-bar">
           <Search size={20} color={Colors.light.textSecondary} />
           <TextInput
@@ -679,103 +795,110 @@ export default function ExploreScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.filterGroup}>
-              <Text style={styles.groupLabel}>Category</Text>
-              <View style={styles.rowChips}>
-                {['All', ...MAIN_CATEGORIES].map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.pill, selectedCategory === cat && styles.pillActive]}
-                    onPress={() => {
-                      setSelectedCategory(cat);
-                      setSelectedSubcategory('All');
-                    }}
-                    testID={`category-${cat}`}
-                  >
-                    <Text style={[styles.pillText, selectedCategory === cat && styles.pillTextActive]}>{cat}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {selectedCategory !== 'All' && getSubcategoriesForCategory(selectedCategory).length > 0 && (
+            <ScrollView
+              style={styles.filtersScroll}
+              contentContainerStyle={styles.filtersScrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               <View style={styles.filterGroup}>
-                <Text style={styles.groupLabel}>Subcategory ({selectedCategory})</Text>
+                <Text style={styles.groupLabel}>Category</Text>
                 <View style={styles.rowChips}>
-                  <TouchableOpacity
-                    style={[styles.pill, selectedSubcategory === 'All' && styles.pillActive]}
-                    onPress={() => setSelectedSubcategory('All')}
-                  >
-                    <Text style={[styles.pillText, selectedSubcategory === 'All' && styles.pillTextActive]}>
-                      All {selectedCategory}
-                    </Text>
-                  </TouchableOpacity>
-                  {getSubcategoriesForCategory(selectedCategory).map((sub) => (
+                  {['All', ...MAIN_CATEGORIES].map((cat) => (
                     <TouchableOpacity
-                      key={sub}
-                      style={[styles.pill, selectedSubcategory === sub && styles.pillActive]}
-                      onPress={() => setSelectedSubcategory(sub)}
+                      key={cat}
+                      style={[styles.pill, selectedCategory === cat && styles.pillActive]}
+                      onPress={() => {
+                        setSelectedCategory(cat);
+                        setSelectedSubcategory('All');
+                      }}
+                      testID={`category-${cat}`}
                     >
-                      <Text style={[styles.pillText, selectedSubcategory === sub && styles.pillTextActive]}>
-                        {sub}
+                      <Text style={[styles.pillText, selectedCategory === cat && styles.pillTextActive]}>{cat}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {selectedCategory !== 'All' && getSubcategoriesForCategory(selectedCategory).length > 0 && (
+                <View style={styles.filterGroup}>
+                  <Text style={styles.groupLabel}>Subcategory ({selectedCategory})</Text>
+                  <View style={styles.rowChips}>
+                    <TouchableOpacity
+                      style={[styles.pill, selectedSubcategory === 'All' && styles.pillActive]}
+                      onPress={() => setSelectedSubcategory('All')}
+                    >
+                      <Text style={[styles.pillText, selectedSubcategory === 'All' && styles.pillTextActive]}>
+                        All {selectedCategory}
+                      </Text>
+                    </TouchableOpacity>
+                    {getSubcategoriesForCategory(selectedCategory).map((sub) => (
+                      <TouchableOpacity
+                        key={sub}
+                        style={[styles.pill, selectedSubcategory === sub && styles.pillActive]}
+                        onPress={() => setSelectedSubcategory(sub)}
+                      >
+                        <Text style={[styles.pillText, selectedSubcategory === sub && styles.pillTextActive]}>
+                          {sub}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {activeTab === 'teachers' && (
+                <View style={styles.filterGroup}>
+                  <Text style={styles.groupLabel}>Level</Text>
+                  <View style={styles.rowChips}>
+                    {LEVEL_OPTIONS.map((lvl) => (
+                      <TouchableOpacity
+                        key={lvl}
+                        style={[styles.pill, filters.level === lvl && styles.pillActive]}
+                        onPress={() => setFilters((f) => ({ ...f, level: lvl }))}
+                        testID={`level-${lvl}`}
+                      >
+                        <Text style={[styles.pillText, filters.level === lvl && styles.pillTextActive]}>{lvl}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.filterGroup}>
+                <Text style={styles.groupLabel}>Minimum rating</Text>
+                <View style={styles.rowChips}>
+                  {RATING_OPTIONS.map((r) => (
+                    <TouchableOpacity
+                      key={String(r.value)}
+                      style={[styles.pill, filters.minRating === r.value && styles.pillActive]}
+                      onPress={() => setFilters((f) => ({ ...f, minRating: r.value }))}
+                      testID={`rating-${r.value}`}
+                    >
+                      <Text style={[styles.pillText, filters.minRating === r.value && styles.pillTextActive]}>
+                        {r.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
-            )}
 
-            {activeTab === 'teachers' && (
               <View style={styles.filterGroup}>
-                <Text style={styles.groupLabel}>Level</Text>
+                <Text style={styles.groupLabel}>Sort by</Text>
                 <View style={styles.rowChips}>
-                  {LEVEL_OPTIONS.map((lvl) => (
+                  {SORT_OPTIONS.map((s) => (
                     <TouchableOpacity
-                      key={lvl}
-                      style={[styles.pill, filters.level === lvl && styles.pillActive]}
-                      onPress={() => setFilters((f) => ({ ...f, level: lvl }))}
-                      testID={`level-${lvl}`}
+                      key={s}
+                      style={[styles.pill, filters.sortBy === s && styles.pillActive]}
+                      onPress={() => setFilters((f) => ({ ...f, sortBy: s }))}
+                      testID={`sort-${s}`}
                     >
-                      <Text style={[styles.pillText, filters.level === lvl && styles.pillTextActive]}>{lvl}</Text>
+                      <Text style={[styles.pillText, filters.sortBy === s && styles.pillTextActive]}>{s}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
-            )}
-
-            <View style={styles.filterGroup}>
-              <Text style={styles.groupLabel}>Minimum rating</Text>
-              <View style={styles.rowChips}>
-                {RATING_OPTIONS.map((r) => (
-                  <TouchableOpacity
-                    key={String(r.value)}
-                    style={[styles.pill, filters.minRating === r.value && styles.pillActive]}
-                    onPress={() => setFilters((f) => ({ ...f, minRating: r.value }))}
-                    testID={`rating-${r.value}`}
-                  >
-                    <Text style={[styles.pillText, filters.minRating === r.value && styles.pillTextActive]}>
-                      {r.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.filterGroup}>
-              <Text style={styles.groupLabel}>Sort by</Text>
-              <View style={styles.rowChips}>
-                {SORT_OPTIONS.map((s) => (
-                  <TouchableOpacity
-                    key={s}
-                    style={[styles.pill, filters.sortBy === s && styles.pillActive]}
-                    onPress={() => setFilters((f) => ({ ...f, sortBy: s }))}
-                    testID={`sort-${s}`}
-                  >
-                    <Text style={[styles.pillText, filters.sortBy === s && styles.pillTextActive]}>{s}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+            </ScrollView>
 
             <View style={styles.actionsRow}>
               <TouchableOpacity style={styles.linkButton} onPress={clearAll} testID="clear-all">
@@ -1005,6 +1128,7 @@ const styles = StyleSheet.create({
   filtersCard: {
     marginTop: 8,
     marginHorizontal: 16,
+    maxHeight: '80%',
     backgroundColor: Colors.light.card,
     borderRadius: 20,
     padding: 20,
@@ -1018,7 +1142,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 14,
+  },
+  filtersScroll: {
+    flexShrink: 1,
+  },
+  filtersScrollContent: {
+    paddingBottom: 8,
   },
   filtersTitle: {
     fontSize: 20,
@@ -1026,13 +1156,13 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   filterGroup: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   groupLabel: {
     fontSize: 14,
     fontWeight: '600' as const,
     color: Colors.light.textSecondary,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   rowChips: {
     flexDirection: 'row',
@@ -1040,8 +1170,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pill: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     backgroundColor: Colors.light.backgroundTertiary,
     borderRadius: 12,
     borderWidth: 1,
@@ -1052,7 +1182,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.primary,
   },
   pillText: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '600' as const,
     color: Colors.light.text,
   },
@@ -1060,7 +1190,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   actionsRow: {
-    marginTop: 8,
+    marginTop: 12,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.borderLight,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -1125,18 +1258,33 @@ const styles = StyleSheet.create({
   skillContent: {
     padding: 16,
   },
+  skillContentCompact: {
+    padding: 12,
+  },
   skillHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
+    gap: 6,
   },
   categoryLabel: {
+    flex: 1,
     fontSize: 11,
     fontWeight: '700' as const,
     color: Colors.light.secondary,
     textTransform: 'uppercase' as const,
-    letterSpacing: 1,
+    letterSpacing: 0.8,
+  },
+  categoryLabelCompact: {
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
+  skillBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 0,
   },
   levelBadge: {
     backgroundColor: Colors.light.backgroundTertiary,
@@ -1144,10 +1292,18 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 8,
   },
+  levelBadgeCompact: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
   levelText: {
     fontSize: 11,
     fontWeight: '700' as const,
     color: Colors.light.primary,
+  },
+  levelTextCompact: {
+    fontSize: 10,
   },
   certifiedBadge: {
     flexDirection: 'row',
@@ -1160,23 +1316,41 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#A7F3D0',
   },
+  certifiedBadgeCompact: {
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    gap: 3,
+  },
   certifiedBadgeText: {
     fontSize: 10,
     fontWeight: '700' as const,
     color: '#059669',
   },
+  certifiedBadgeTextCompact: {
+    fontSize: 9,
+  },
   skillTitle: {
     fontSize: 18,
     fontWeight: '700' as const,
     color: Colors.light.text,
-    marginBottom: 8,
+    marginBottom: 6,
     lineHeight: 24,
+  },
+  skillTitleCompact: {
+    fontSize: 15,
+    lineHeight: 20,
+    marginBottom: 4,
   },
   skillDescription: {
     fontSize: 14,
     lineHeight: 20,
     color: Colors.light.textSecondary,
-    marginBottom: 14,
+    marginBottom: 12,
+  },
+  skillDescriptionCompact: {
+    fontSize: 12.5,
+    lineHeight: 17,
+    marginBottom: 8,
   },
   skillFooter: {
     flexDirection: 'row',
@@ -1189,6 +1363,9 @@ const styles = StyleSheet.create({
     gap: 12,
     flex: 1,
   },
+  userInfoCompact: {
+    gap: 8,
+  },
   userAvatar: {
     width: 44,
     height: 44,
@@ -1196,36 +1373,49 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.light.border,
   },
+  userAvatarCompact: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1.5,
+  },
   userDetails: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   userName: {
     fontSize: 15,
     fontWeight: '600' as const,
     color: Colors.light.text,
   },
+  userNameCompact: {
+    fontSize: 13,
+  },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flexWrap: 'wrap' as const,
   },
   ratingText: {
     fontSize: 13,
     fontWeight: '600' as const,
     color: Colors.light.text,
   },
+  ratingTextCompact: {
+    fontSize: 11.5,
+  },
   swapsText: {
     fontSize: 13,
     color: Colors.light.textSecondary,
   },
-  // Person card (learners + swappers)
+  swapsTextCompact: {
+    fontSize: 11.5,
+  },
+  // Person card base & responsive containers (learners + swappers)
   personCard: {
-    flexDirection: 'row',
     backgroundColor: Colors.light.card,
     borderRadius: 20,
-    padding: 16,
-    gap: 14,
     shadowColor: Colors.light.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
@@ -1234,28 +1424,40 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
   },
+  personCardRow: {
+    padding: 16,
+  },
+  personCardRowInner: {
+    width: '100%',
+    gap: 12,
+  },
+  personHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
   personAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     borderWidth: 2,
     borderColor: Colors.light.border,
   },
-  personContent: {
+  personInfoRow: {
     flex: 1,
+    gap: 4,
   },
-  personHeader: {
+  personNameRatingRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    justifyContent: 'space-between',
+    gap: 8,
   },
   personName: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700' as const,
     color: Colors.light.text,
     flex: 1,
-    marginRight: 8,
   },
   ratingPill: {
     flexDirection: 'row',
@@ -1265,6 +1467,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
+    flexShrink: 0,
   },
   ratingPillText: {
     fontSize: 12,
@@ -1275,26 +1478,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: 10,
   },
   personLocation: {
     fontSize: 13,
     color: Colors.light.textTertiary,
     fontWeight: '500' as const,
+    flex: 1,
   },
-  wantsLabel: {
+  swapSectionFull: {
+    width: '100%',
+    gap: 10,
+  },
+  swapGroupFull: {
+    width: '100%',
+    gap: 6,
+  },
+  swapLabel: {
     fontSize: 11,
     fontWeight: '700' as const,
     color: Colors.light.textSecondary,
     textTransform: 'uppercase' as const,
     letterSpacing: 0.8,
-    marginBottom: 8,
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap' as const,
     gap: 6,
-    marginBottom: 10,
   },
   wantChip: {
     backgroundColor: 'rgba(99, 102, 241, 0.10)',
@@ -1303,11 +1512,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: 'rgba(99, 102, 241, 0.20)',
+    maxWidth: '100%',
   },
   wantChipText: {
     fontSize: 12,
     fontWeight: '600' as const,
     color: '#6366F1',
+    flexShrink: 1,
   },
   teachChip: {
     backgroundColor: 'rgba(16, 185, 129, 0.10)',
@@ -1316,39 +1527,139 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.20)',
-    maxWidth: 140,
+    maxWidth: '100%',
   },
   teachChipText: {
     fontSize: 12,
     fontWeight: '600' as const,
     color: '#10B981',
-  },
-  swapSection: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 8,
-  },
-  swapHalf: {
-    flex: 1,
-  },
-  swapDivider: {
-    width: 1,
-    alignSelf: 'stretch',
-    backgroundColor: Colors.light.borderLight,
-  },
-  swapHalfLabel: {
-    fontSize: 11,
-    fontWeight: '700' as const,
-    color: Colors.light.textSecondary,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.8,
-    marginBottom: 6,
+    flexShrink: 1,
   },
   personSwaps: {
     fontSize: 12,
     color: Colors.light.textTertiary,
     fontWeight: '500' as const,
+  },
+  // Multi-column grid styles
+  personCardGrid: {
+    padding: 12,
+  },
+  personCardGridInner: {
+    width: '100%',
+    gap: 10,
+  },
+  personHeaderGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  personAvatarCompact: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    borderColor: Colors.light.border,
+  },
+  personInfoCompact: {
+    flex: 1,
+    gap: 2,
+  },
+  personNameCompact: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  personLocationRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  personLocationCompact: {
+    fontSize: 11,
+    color: Colors.light.textTertiary,
+    fontWeight: '500' as const,
+    flex: 1,
+  },
+  ratingPillCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+    flexShrink: 0,
+  },
+  ratingPillTextCompact: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: Colors.light.accent,
+  },
+  personGridBody: {
+    width: '100%',
+    gap: 8,
+  },
+  wantsLabelCompact: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: Colors.light.textSecondary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.6,
+  },
+  chipRowCompact: {
+    flexDirection: 'row',
+    flexWrap: 'wrap' as const,
+    gap: 5,
+  },
+  wantChipCompact: {
+    backgroundColor: 'rgba(99, 102, 241, 0.10)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.20)',
+    maxWidth: '100%',
+  },
+  wantChipTextCompact: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: '#6366F1',
+    flexShrink: 1,
+  },
+  teachChipCompact: {
+    backgroundColor: 'rgba(16, 185, 129, 0.10)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.20)',
+    maxWidth: '100%',
+  },
+  teachChipTextCompact: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: '#10B981',
+    flexShrink: 1,
+  },
+  swapSectionVertical: {
+    gap: 8,
+  },
+  swapHalfVertical: {
+    width: '100%',
+    gap: 4,
+  },
+  swapHalfLabelCompact: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: Colors.light.textSecondary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.6,
+  },
+  personSwapsCompact: {
+    fontSize: 11,
+    color: Colors.light.textTertiary,
+    fontWeight: '500' as const,
+    marginTop: 2,
   },
   emptyWrap: {
     paddingVertical: 60,

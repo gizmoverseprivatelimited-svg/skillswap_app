@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { SkillSwapRequest, SkillSwapStatus, SwapMessage, SwapTimeProposal, SwapType } from '../types';
 import { useCurrentUser } from './current-user';
 import { useEarnings } from './earnings';
 import url from '@/constants/backurl';
-import { getSessionCreditCost, getTeacherSessionEarnings, LEARNER_SWAP_COMPLETION_BONUS } from '@/lib/payments';
+import { getSessionCreditCost, getTeacherSessionEarnings, LEARNER_SWAP_COMPLETION_BONUS, getPlatformFee } from '@/lib/payments';
 
 interface CreateSwapRequestInput {
   recipientId: string;
@@ -65,7 +66,7 @@ interface SkillSwapsContextValue {
   completeSwap: (requestId: string) => void;
   getSwapById: (requestId: string) => SkillSwapRequest | undefined;
   setCalendarEventId: (requestId: string, eventId: string) => void;
-  triggerMonthlyDebit: (requestId: string) => Promise<void>;
+  triggerMonthlyDebit: (requestId: string) => Promise<{ success: boolean; error?: string } | void>;
   fetchSwaps: any;
   loading: boolean;
 }
@@ -98,7 +99,7 @@ const mapProposals = (
 import { useSocket } from '@/providers/socket';
 
 export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsContextValue>(() => {
-  const { currentUser, allUsers, loadUser, spendCredits } = useCurrentUser();
+  const { currentUser, allUsers, loadUser, spendCredits, earnCredits } = useCurrentUser();
   const { awardPoints, processClassPayment, refreshUserEarnings } = useEarnings();
   const { socket } = useSocket();
   // const [swaps, setSwaps] = useState<SkillSwapRequest[]>(() => {
@@ -603,6 +604,14 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
 
       const createdSwap = await response.json();
 
+      // Deduct only platform fee (3 credits for free tier) from student upon requesting
+      if (swapType !== 'teach') {
+        const fee = getPlatformFee(currentUser || { premiumTier: 'free' });
+        if (fee > 0) {
+          spendCredits(fee);
+        }
+      }
+
       // Update local state (optimistic UI)
       setSwaps((prev) => [createdSwap, ...prev]);
 
@@ -611,7 +620,7 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
 
       return createdSwap;
     },
-    [currentUser?.id, loadUser],
+    [currentUser, loadUser, spendCredits],
   );
 
 
@@ -1294,6 +1303,72 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
 
   const triggerMonthlyDebit = useCallback(
     async (requestId: string) => {
+      const targetSwap = swaps.find((s) => String(s.id) === String(requestId) || String((s as any)._id) === String(requestId));
+      if (!targetSwap) return { success: false, error: 'Swap not found' };
+
+      const swapType = targetSwap.swapType || 'swap';
+      let teacherId: string | undefined;
+      let learnerId: string | undefined;
+
+      if (swapType === 'teach') {
+        teacherId = targetSwap.requesterId;
+        learnerId = targetSwap.recipientId;
+      } else {
+        teacherId = targetSwap.recipientId;
+        learnerId = targetSwap.requesterId;
+      }
+
+      const teacherUser = allUsers.find((u) => String(u.id) === String(teacherId) || String((u as any)._id) === String(teacherId));
+      const studentUser = allUsers.find((u) => String(u.id) === String(learnerId) || String((u as any)._id) === String(learnerId)) || currentUser;
+      const taughtSkillId = swapType === 'teach' ? targetSwap.requesterSkillId : targetSwap.recipientSkillId;
+      const taughtSkill = teacherUser?.skillsOffered.find((s) => String(s.id) === String(taughtSkillId) || String((s as any)._id) === String(taughtSkillId));
+      const monthlyAmount = taughtSkill?.monthlyPrice || (taughtSkill?.pricingModel === 'monthly' ? taughtSkill.monthlyPrice : 0) || 0;
+      const skillTitle = taughtSkill?.title || 'skill session';
+
+      const isStudent = String(learnerId) === String(currentUser?.id);
+      const studentCredits = isStudent ? (currentUser?.credits ?? 0) : (studentUser?.credits ?? 0);
+
+      if (monthlyAmount > 0) {
+        if (studentCredits < monthlyAmount) {
+          // Insufficient credits! Emit failed event to alert both student and teacher
+          if (socket) {
+            socket.emit('subscription_debit_failed', {
+              studentId: learnerId,
+              teacherId,
+              amount: monthlyAmount,
+              title: skillTitle,
+              studentName: studentUser?.name || 'Student',
+              studentUsername: studentUser?.username,
+              isClass: false,
+            });
+          }
+          return { success: false, error: 'Insufficient credits' };
+        }
+
+        // Student has enough credits: deduct credits
+        if (isStudent && spendCredits) {
+          spendCredits(monthlyAmount);
+        }
+
+        // Give teacher 80% if teacher is current user
+        if (String(teacherId) === String(currentUser?.id) && earnCredits) {
+          earnCredits(Math.floor(monthlyAmount * 0.8));
+        }
+
+        // Emit success socket event
+        if (socket) {
+          socket.emit('subscription_debit_success', {
+            studentId: learnerId,
+            teacherId,
+            amount: monthlyAmount,
+            title: skillTitle,
+            studentName: studentUser?.name || 'Student',
+            studentUsername: studentUser?.username,
+            isClass: false,
+          });
+        }
+      }
+
       try {
         const response = await fetch(`${url}/swaps/${requestId}/trigger-monthly-debit`, {
           method: 'POST',
@@ -1308,9 +1383,52 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
       } catch (err) {
         console.error('[SkillSwaps] Trigger monthly debit error:', err);
       }
+      return { success: true };
     },
-    [fetchSwaps, loadUser],
+    [swaps, allUsers, currentUser, socket, spendCredits, earnCredits, fetchSwaps, loadUser],
   );
+
+  // Automated background monthly subscription check for skills
+  useEffect(() => {
+    if (!currentUser?.id || currentUser?.id === '1') return;
+
+    const checkMonthlySubscriptions = async () => {
+      const now = Date.now();
+      const monthMs = 30 * 24 * 60 * 60 * 1000;
+
+      for (const swap of swaps) {
+        if (swap.status === 'declined') continue;
+        const swapType = swap.swapType || 'swap';
+        const isLearner = swapType === 'teach'
+          ? String(swap.recipientId) === String(currentUser.id)
+          : String(swap.requesterId) === String(currentUser.id);
+
+        if (!isLearner) continue;
+
+        const teacherId = swapType === 'teach' ? swap.requesterId : swap.recipientId;
+        const teacherUser = allUsers.find(u => String(u.id) === String(teacherId) || String((u as any)._id) === String(teacherId));
+        const taughtSkillId = swapType === 'teach' ? swap.requesterSkillId : swap.recipientSkillId;
+        const taughtSkill = teacherUser?.skillsOffered.find(s => String(s.id) === String(taughtSkillId) || String((s as any)._id) === String(taughtSkillId));
+
+        if (taughtSkill?.pricingModel === 'monthly' && (taughtSkill?.monthlyPrice || 0) > 0) {
+          const lastDebited = swap.lastAutoDebitedAt ? new Date(swap.lastAutoDebitedAt).getTime() : new Date(swap.createdAt).getTime();
+          // If 30 days passed since last debit or createdAt
+          if (now - lastDebited >= monthMs) {
+            const checkKey = `@skillswap_monthly_checked_${swap.id}_${Math.floor(now / monthMs)}`;
+            const alreadyChecked = await AsyncStorage.getItem(checkKey);
+            if (!alreadyChecked) {
+              await AsyncStorage.setItem(checkKey, 'true');
+              await triggerMonthlyDebit(swap.id);
+            }
+          }
+        }
+      }
+    };
+
+    checkMonthlySubscriptions();
+    const interval = setInterval(checkMonthlySubscriptions, 60000);
+    return () => clearInterval(interval);
+  }, [swaps, currentUser?.id, allUsers, triggerMonthlyDebit]);
 
   const value: SkillSwapsContextValue = useMemo(() => {
     return {

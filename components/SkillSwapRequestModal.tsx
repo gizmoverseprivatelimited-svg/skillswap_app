@@ -216,9 +216,12 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
 
   const sessionCost = useMemo(() => getSessionCreditCost(targetLearnedSkill), [targetLearnedSkill]);
   const isMonthlySkill = targetLearnedSkill?.pricingModel === 'monthly';
-  const swapCost = platformFee; // paid upfront at request time
-  const totalCost = swapCost;
-  const hasEnoughCredits = (currentUser?.credits ?? 0) >= totalCost;
+  const payNowCost = swapType === 'teach' ? 0 : platformFee; // paid upfront at request time
+  const totalRequiredCredits = useMemo(() => {
+    if (swapType === 'teach') return 0;
+    return platformFee + sessionCost;
+  }, [swapType, platformFee, sessionCost]);
+  const hasEnoughCredits = (currentUser?.credits ?? 0) >= totalRequiredCredits;
   const isPaidSession = sessionCost > 0;
 
   // Step titles — consistent 4 steps across all swap types
@@ -288,10 +291,10 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
       return selectedTimes.length > 0;
     }
     if (isDetailsStep) {
-      return mergedLocation?.trim().length > 0;
+      return (mergedLocation?.trim().length > 0) && (swapType === 'teach' || hasEnoughCredits);
     }
     return false;
-  }, [isTypeStep, isSkillStep, isTimeStep, isDetailsStep, swapType, selectedRequesterSkillId, selectedRecipientSkillId, selectedTimes.length, mergedLocation]);
+  }, [isTypeStep, isSkillStep, isTimeStep, isDetailsStep, swapType, selectedRequesterSkillId, selectedRecipientSkillId, selectedTimes.length, mergedLocation, hasEnoughCredits]);
 
   const handleSelectTime = useCallback(
     (option: TimeOption) => {
@@ -311,7 +314,11 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
   const handleContinue = useCallback(() => {
     if (!canAdvance || isSubmitting) {
       if (!canAdvance) {
-        setError('Complete this step to move forward.');
+        if (isDetailsStep && swapType !== 'teach' && !hasEnoughCredits) {
+          setError(`You need ${totalRequiredCredits - (currentUser?.credits || 0)} more credits (Pay now: ${payNowCost} cr + Session completion: ${sessionCost} cr). Top up in Store.`);
+        } else {
+          setError('Complete this step to move forward.');
+        }
       }
       return;
     }
@@ -340,8 +347,8 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
           return;
         }
       }
-      if (!hasEnoughCredits && swapCost > 0) {
-        setError(`You need ${swapCost - (currentUser?.credits || 0)} more credits to send this request.`);
+      if (swapType !== 'teach' && !hasEnoughCredits && totalRequiredCredits > 0) {
+        setError(`You need ${totalRequiredCredits - (currentUser?.credits || 0)} more credits to send this request (Pay now: ${payNowCost} cr + Session completion: ${sessionCost} cr).`);
         return;
       }
       try {
@@ -364,7 +371,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
       }
     };
     void submit();
-  }, [canAdvance, introMessage, isSubmitting, mergedLocation, onClose, router, selectedRequesterSkillId, selectedRecipientSkillId, selectedTimes, skill.id, skill.user.id, step, totalSteps, swapType, swapCost, hasEnoughCredits, currentUser?.credits, createSwapRequest]);
+  }, [canAdvance, isDetailsStep, introMessage, isSubmitting, mergedLocation, onClose, router, selectedRequesterSkillId, selectedRecipientSkillId, selectedTimes, skill.id, skill.user.id, step, totalSteps, swapType, payNowCost, sessionCost, totalRequiredCredits, hasEnoughCredits, currentUser?.credits, createSwapRequest]);
 
   const partnerName = useMemo(() => {
     const target = latestPartner || skill.user;
@@ -480,9 +487,9 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                       <Text style={styles.typeCostText}>
                         {swapType === 'teach'
                           ? 'Free — you earn 50 points on completion'
-                          : swapCost === 0
+                          : payNowCost === 0
                             ? 'Free with Premium'
-                            : `Costs ${swapCost} credits`}
+                            : `Platform fee: ${payNowCost} credits`}
                       </Text>
                     </View>
                   )}
@@ -639,7 +646,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                       <View style={styles.creditsCostInfo}>
                         <Text style={{ fontSize: 13, fontWeight: '600' as const, color: '#92400E', marginBottom: 2 }}>Payment Summary</Text>
                         <Text style={{ fontSize: 18, fontWeight: '700' as const, color: '#78350F' }}>
-                          {swapType === 'teach' ? 'Free — Earn on completion' : totalCost === 0 ? 'Free Request' : `${totalCost} Credits`}
+                          {swapType === 'teach' ? 'Free — Earn on completion' : totalRequiredCredits === 0 ? 'Free Request' : `${totalRequiredCredits} Credits Required`}
                         </Text>
                       </View>
                     </View>
@@ -647,7 +654,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                     {swapType !== 'teach' && (
                       <View style={{ gap: 8, paddingTop: 4 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ fontSize: 13, color: '#92400E' }}>Platform fee (request):</Text>
+                          <Text style={{ fontSize: 13, color: '#92400E' }}>Platform fee (pay now):</Text>
                           <Text style={{ fontSize: 14, fontWeight: '600' as const, color: '#78350F' }}>
                             {platformFee === 0 ? 'Free (Premium)' : `${platformFee} cr`}
                           </Text>
@@ -669,19 +676,19 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                           </View>
                         )}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTopWidth: 1, borderTopColor: '#FDE68A' }}>
-                          <Text style={{ fontSize: 13, fontWeight: '600' as const, color: '#92400E' }}>Pay now:</Text>
+                          <Text style={{ fontSize: 13, fontWeight: '600' as const, color: '#92400E' }}>Total required balance:</Text>
                           <Text style={{ fontSize: 16, fontWeight: '800' as const, color: '#78350F' }}>
-                            {totalCost === 0 ? 'Free' : `${totalCost} cr`}
+                            {totalRequiredCredits === 0 ? 'Free' : `${totalRequiredCredits} cr`}
                           </Text>
                         </View>
                       </View>
                     )}
 
-                    {swapType !== 'teach' && !hasEnoughCredits && totalCost > 0 && (
+                    {swapType !== 'teach' && !hasEnoughCredits && totalRequiredCredits > 0 && (
                       <View style={styles.creditsWarning}>
                         <AlertTriangle size={16} color="#F59E0B" />
                         <Text style={styles.creditsWarningText}>
-                          You need {totalCost - (currentUser?.credits || 0)} more credits
+                          You need {totalRequiredCredits - (currentUser?.credits || 0)} more credits (Pay now: {payNowCost} cr + Session: {sessionCost} cr)
                         </Text>
                       </View>
                     )}
@@ -689,16 +696,6 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#FDE68A' }}>
                         <Text style={{ fontSize: 13, color: '#92400E' }}>Your Balance:</Text>
                         <Text style={{ fontSize: 14, fontWeight: '700' as const, color: '#78350F' }}>{formatCredits(currentUser?.credits ?? 0)}</Text>
-                      </View>
-                    )}
-                    {isPaidSession && swapType !== 'teach' && (
-                      <View style={{ backgroundColor: '#F0FDF4', borderRadius: 10, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <IndianRupee size={14} color="#15803D" />
-                        <Text style={{ fontSize: 12, color: '#15803D', fontWeight: '500' as const, flex: 1 }}>
-                          {isMonthlySkill
-                            ? 'Monthly subscription fee is auto-debited each month while active. Teacher earns 80%.'
-                            : 'Session cost charged when swap completes. Teacher earns 80%.'}
-                        </Text>
                       </View>
                     )}
                   </View>
@@ -779,106 +776,113 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
               <X size={18} color={Colors.light.textSecondary} />
             </TouchableOpacity>
 
-            <View style={styles.calModalIconBox}>
-              <LinearGradient
-                colors={['#F0F9FF', '#E0F2FE']}
-                style={styles.calModalIconCircle}
-              >
-                <CalendarClock size={32} color="#0284C7" />
-              </LinearGradient>
-            </View>
-
-            <Text style={styles.calModalTitle}>Choose Date & Time 📅</Text>
-            <Text style={styles.calModalDesc}>Select your preferred day and time slot to suggest for this swap.</Text>
-
-            {/* HTML Calendar Date & Time Input */}
-            <View style={styles.pickerSection}>
-              <Text style={styles.pickerSectionTitle}>Select Date & Time (Calendar)</Text>
-              {Platform.OS === 'web' ? (
-                // @ts-ignore - native HTML datetime-local input popover
-                <input
-                  type="datetime-local"
-                  value={customDateTimeStr}
-                  onChange={(e: any) => setCustomDateTimeStr(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '14px 16px',
-                    borderRadius: '14px',
-                    border: '1px solid rgba(56, 189, 248, 0.4)',
-                    backgroundColor: '#0F172A',
-                    color: '#F8FAFC',
-                    colorScheme: 'dark',
-                    fontSize: '15px',
-                    fontFamily: 'inherit',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    cursor: 'pointer',
-                  }}
-                />
-              ) : (
-                <TextInput
-                  style={styles.customDateTimeInput}
-                  placeholder="YYYY-MM-DD HH:MM"
-                  placeholderTextColor="rgba(148, 163, 184, 0.65)"
-                  value={customDateTimeStr}
-                  onChangeText={setCustomDateTimeStr}
-                />
-              )}
-            </View>
-
-            {/* Quick Day Chips */}
-            <View style={styles.pickerSection}>
-              <Text style={styles.pickerSectionTitle}>Or Quick Select Day</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daysScroll}>
-                {next14Days.map((d) => {
-                  const isSelected = pickerSelectedDate === d.dateStr;
-                  return (
-                    <TouchableOpacity
-                      key={d.dateStr}
-                      style={[styles.dayCard, isSelected && styles.dayCardSelected]}
-                      onPress={() => {
-                        setPickerSelectedDate(d.dateStr);
-                        setCustomDateTimeStr(`${d.dateStr}T${pickerSelectedTime}`);
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.dayCardLabel, isSelected && styles.dayCardLabelSelected]}>{d.label}</Text>
-                      <Text style={[styles.dayCardSublabel, isSelected && styles.dayCardSublabelSelected]}>{d.sublabel}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            {/* Quick Time Slot Grid */}
-            <View style={styles.pickerSection}>
-              <Text style={styles.pickerSectionTitle}>Or Quick Select Time</Text>
-              <View style={styles.timeGrid}>
-                {timeSlotOptions.map((time) => {
-                  const isSelected = pickerSelectedTime === time;
-                  const [h, m] = time.split(':').map(Number);
-                  const displayTime = new Date(2026, 0, 1, h, m).toLocaleTimeString(undefined, {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                  });
-                  return (
-                    <TouchableOpacity
-                      key={time}
-                      style={[styles.timeSlotPill, isSelected && styles.timeSlotPillSelected]}
-                      onPress={() => {
-                        setPickerSelectedTime(time);
-                        setCustomDateTimeStr(`${pickerSelectedDate}T${time}`);
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.timeSlotPillText, isSelected && styles.timeSlotPillTextSelected]}>
-                        {displayTime}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+            <ScrollView
+              style={styles.calModalScroll}
+              contentContainerStyle={styles.calModalScrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.calModalIconBox}>
+                <LinearGradient
+                  colors={['#F0F9FF', '#E0F2FE']}
+                  style={styles.calModalIconCircle}
+                >
+                  <CalendarClock size={32} color="#0284C7" />
+                </LinearGradient>
               </View>
-            </View>
+
+              <Text style={styles.calModalTitle}>Choose Date & Time 📅</Text>
+              <Text style={styles.calModalDesc}>Select your preferred day and time slot to suggest for this swap.</Text>
+
+              {/* HTML Calendar Date & Time Input */}
+              <View style={styles.pickerSection}>
+                <Text style={styles.pickerSectionTitle}>Select Date & Time (Calendar)</Text>
+                {Platform.OS === 'web' ? (
+                  // @ts-ignore - native HTML datetime-local input popover
+                  <input
+                    type="datetime-local"
+                    value={customDateTimeStr}
+                    onChange={(e: any) => setCustomDateTimeStr(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      borderRadius: '14px',
+                      border: '1px solid rgba(56, 189, 248, 0.4)',
+                      backgroundColor: '#0F172A',
+                      color: '#F8FAFC',
+                      colorScheme: 'dark',
+                      fontSize: '15px',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      cursor: 'pointer',
+                    }}
+                  />
+                ) : (
+                  <TextInput
+                    style={styles.customDateTimeInput}
+                    placeholder="YYYY-MM-DD HH:MM"
+                    placeholderTextColor="rgba(148, 163, 184, 0.65)"
+                    value={customDateTimeStr}
+                    onChangeText={setCustomDateTimeStr}
+                  />
+                )}
+              </View>
+
+              {/* Quick Day Chips */}
+              <View style={styles.pickerSection}>
+                <Text style={styles.pickerSectionTitle}>Or Quick Select Day</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daysScroll}>
+                  {next14Days.map((d) => {
+                    const isSelected = pickerSelectedDate === d.dateStr;
+                    return (
+                      <TouchableOpacity
+                        key={d.dateStr}
+                        style={[styles.dayCard, isSelected && styles.dayCardSelected]}
+                        onPress={() => {
+                          setPickerSelectedDate(d.dateStr);
+                          setCustomDateTimeStr(`${d.dateStr}T${pickerSelectedTime}`);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.dayCardLabel, isSelected && styles.dayCardLabelSelected]}>{d.label}</Text>
+                        <Text style={[styles.dayCardSublabel, isSelected && styles.dayCardSublabelSelected]}>{d.sublabel}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              {/* Quick Time Slot Grid */}
+              <View style={styles.pickerSection}>
+                <Text style={styles.pickerSectionTitle}>Or Quick Select Time</Text>
+                <View style={styles.timeGrid}>
+                  {timeSlotOptions.map((time) => {
+                    const isSelected = pickerSelectedTime === time;
+                    const [h, m] = time.split(':').map(Number);
+                    const displayTime = new Date(2026, 0, 1, h, m).toLocaleTimeString(undefined, {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    });
+                    return (
+                      <TouchableOpacity
+                        key={time}
+                        style={[styles.timeSlotPill, isSelected && styles.timeSlotPillSelected]}
+                        onPress={() => {
+                          setPickerSelectedTime(time);
+                          setCustomDateTimeStr(`${pickerSelectedDate}T${time}`);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.timeSlotPillText, isSelected && styles.timeSlotPillTextSelected]}>
+                          {displayTime}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </ScrollView>
 
             {/* Actions */}
             <View style={styles.calModalActions}>
@@ -925,9 +929,12 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 420,
+    maxHeight: '90%',
     borderRadius: 28,
     backgroundColor: Colors.light.background,
     overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
   },
   header: {
     padding: 24,
@@ -970,7 +977,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.primary,
   },
   contentScroll: {
-    maxHeight: 420,
+    flexShrink: 1,
   },
   contentInner: {
     paddingBottom: 12,
@@ -1358,6 +1365,7 @@ const styles = StyleSheet.create({
   calModalCard: {
     width: '100%',
     maxWidth: 420,
+    maxHeight: '90%',
     backgroundColor: Colors.light.card,
     borderRadius: 24,
     overflow: 'hidden',
@@ -1368,6 +1376,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 8,
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  calModalScroll: {
+    flexShrink: 1,
+  },
+  calModalScrollContent: {
+    paddingBottom: 8,
   },
   calModalTopBar: {
     height: 6,

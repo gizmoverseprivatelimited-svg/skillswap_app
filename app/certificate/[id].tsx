@@ -332,6 +332,9 @@ const styles = StyleSheet.create({
   certWrap: {
     paddingHorizontal: 20,
     marginTop: -16,
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
   },
   certCard: {
     borderRadius: 20,
@@ -424,6 +427,7 @@ const styles = StyleSheet.create({
   },
   nameUnderline: {
     width: 200,
+    maxWidth: '60%',
     height: 2,
     backgroundColor: '#E2E8F0',
     marginBottom: 24,
@@ -434,7 +438,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: 'center',
     marginBottom: 8,
-    maxWidth: 280,
+    maxWidth: 520,
+    width: '100%',
   },
   certBold: {
     fontWeight: '700' as const,

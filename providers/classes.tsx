@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { mockUsers, mockClasses, mockEnrollments } from '../mocks/data';
 import type { GroupClass, ClassEnrollment, ClassWithTeacher, ClassStatus, ClassSessionType, ClassBillingCycle, SkillCategory, SkillLevel } from '../types';
@@ -135,6 +136,64 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
     }, 4000);
     return () => clearInterval(interval);
   }, [fetchClassesFromBackend]);
+
+  // Automated background monthly subscription check for monthly classes
+  useEffect(() => {
+    if (!currentUser?.id || currentUser?.id === '1') return;
+
+    const checkMonthlyClasses = async () => {
+      const now = Date.now();
+      const monthMs = 30 * 24 * 60 * 60 * 1000;
+
+      for (const enr of enrollments) {
+        if (String(enr.studentId) !== String(currentUser.id) || enr.status !== 'enrolled') continue;
+
+        const cls = classes.find(c => String(c.id) === String(enr.classId) || String((c as any)._id) === String(enr.classId));
+        if (!cls || cls.billingCycle !== 'monthly' || cls.seatPriceCredits <= 0) continue;
+
+        const enrolledTime = new Date(enr.enrolledAt).getTime();
+        if (now - enrolledTime >= monthMs) {
+          const checkKey = `@skillswap_class_monthly_${enr.id}_${Math.floor(now / monthMs)}`;
+          const alreadyChecked = await AsyncStorage.getItem(checkKey);
+          if (!alreadyChecked) {
+            await AsyncStorage.setItem(checkKey, 'true');
+            const monthlyCost = cls.seatPriceCredits;
+            if ((currentUser.credits || 0) < monthlyCost) {
+              // Insufficient credits! Emit failed event to alert both student and teacher
+              if (socket) {
+                socket.emit('subscription_debit_failed', {
+                  studentId: currentUser.id,
+                  teacherId: cls.teacherId,
+                  amount: monthlyCost,
+                  title: cls.title,
+                  studentName: currentUser.name,
+                  studentUsername: currentUser.username,
+                  isClass: true,
+                });
+              }
+            } else {
+              spendCredits(monthlyCost);
+              if (socket) {
+                socket.emit('subscription_debit_success', {
+                  studentId: currentUser.id,
+                  teacherId: cls.teacherId,
+                  amount: monthlyCost,
+                  title: cls.title,
+                  studentName: currentUser.name,
+                  studentUsername: currentUser.username,
+                  isClass: true,
+                });
+              }
+            }
+          }
+        }
+      }
+    };
+
+    checkMonthlyClasses();
+    const interval = setInterval(checkMonthlyClasses, 60000);
+    return () => clearInterval(interval);
+  }, [enrollments, classes, currentUser, socket, spendCredits]);
 
   const activeEnrollments = useCallback(
     (classId: string) => enrollments.filter(e => e.classId === classId && e.status === 'enrolled'),

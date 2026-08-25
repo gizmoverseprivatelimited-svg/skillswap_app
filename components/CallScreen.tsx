@@ -1475,7 +1475,7 @@ const styles = StyleSheet.create({
   spotlightVideo: { flex: 1, borderRadius: 20, overflow: 'hidden', backgroundColor: '#1E293B' },
   selfPip: {
     position: 'absolute',
-    bottom: 36,
+    bottom: 40,
     right: 16,
     width: 105,
     height: 145,

@@ -947,14 +947,121 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       }
     };
 
+    const handleSubscriptionDebitFailed = (data: {
+      studentId: string;
+      teacherId: string;
+      amount: number;
+      title: string;
+      studentName?: string;
+      studentUsername?: string;
+      isClass?: boolean;
+    }) => {
+      console.log('[Socket.IO] Received subscription_debit_failed:', data);
+      if (!data) return;
+      const teacherIdStr = String(data.teacherId);
+      const studentIdStr = String(data.studentId);
+      const isTeacher = teacherIdStr === currentUserId || (currentMongoId && teacherIdStr === currentMongoId);
+      const isStudent = studentIdStr === currentUserId || (currentMongoId && studentIdStr === currentMongoId);
+
+      const typeLabel = data.isClass ? 'class' : 'subscription';
+      const eventKey = `sub-fail:${data.title}:${Date.now()}`;
+
+      if (isStudent) {
+        showAlert(
+          '⚠️ Monthly Subscription Failed',
+          `You do not have enough credits for your monthly ${typeLabel} "${data.title}" (${data.amount} credits required). Please top up in the Store to continue without interruption.`,
+          [
+            { text: 'Later', style: 'cancel' },
+            {
+              text: 'Top Up Store',
+              onPress: () => {
+                router.push('/store' as any);
+              },
+            },
+          ]
+        );
+
+        addNotification({
+          category: 'system',
+          title: '⚠️ Monthly Subscription Failed',
+          body: `Insufficient credits for your monthly ${typeLabel} "${data.title}" (${data.amount} credits required). Please top up in Store.`,
+          metadata: {
+            action: 'store_topup',
+            link: '/store',
+          },
+          eventKey,
+          skipPopup: false,
+        });
+      } else if (isTeacher) {
+        const studentLabel = data.studentUsername ? `@${data.studentUsername}` : (data.studentName || 'A student');
+        showAlert(
+          '⚠️ Student Payment Failed',
+          `${studentLabel} was unable to pay the monthly ${typeLabel} fee for "${data.title}" due to insufficient credits.`,
+          [{ text: 'OK' }]
+        );
+
+        addNotification({
+          category: 'system',
+          title: '⚠️ Student Payment Failed',
+          body: `${studentLabel} has insufficient credits for their monthly ${typeLabel} "${data.title}".`,
+          eventKey,
+          skipPopup: false,
+        });
+      }
+    };
+
+    const handleSubscriptionDebitSuccess = (data: {
+      studentId: string;
+      teacherId: string;
+      amount: number;
+      title: string;
+      studentName?: string;
+      studentUsername?: string;
+      isClass?: boolean;
+    }) => {
+      console.log('[Socket.IO] Received subscription_debit_success:', data);
+      if (!data) return;
+      const teacherIdStr = String(data.teacherId);
+      const studentIdStr = String(data.studentId);
+      const isTeacher = teacherIdStr === currentUserId || (currentMongoId && teacherIdStr === currentMongoId);
+      const isStudent = studentIdStr === currentUserId || (currentMongoId && studentIdStr === currentMongoId);
+
+      const typeLabel = data.isClass ? 'class' : 'subscription';
+      const eventKey = `sub-success:${data.title}:${Date.now()}`;
+
+      if (isStudent) {
+        addNotification({
+          category: 'system',
+          title: '💳 Monthly Subscription Renewed',
+          body: `${data.amount} credits were debited for your monthly ${typeLabel} "${data.title}".`,
+          eventKey,
+          skipPopup: false,
+        });
+      } else if (isTeacher) {
+        const earned = Math.floor(data.amount * 0.8);
+        const studentLabel = data.studentUsername ? `@${data.studentUsername}` : (data.studentName || 'A student');
+        addNotification({
+          category: 'system',
+          title: '💰 Monthly Subscription Received',
+          body: `Received ${earned} credits from ${studentLabel} for monthly ${typeLabel} "${data.title}".`,
+          eventKey,
+          skipPopup: false,
+        });
+      }
+    };
+
     socket.on('incoming_call', handleIncomingCall);
     socket.on('new_notification', handleNewNotification);
+    socket.on('subscription_debit_failed', handleSubscriptionDebitFailed);
+    socket.on('subscription_debit_success', handleSubscriptionDebitSuccess);
 
     return () => {
       socket.off('incoming_call', handleIncomingCall);
       socket.off('new_notification', handleNewNotification);
+      socket.off('subscription_debit_failed', handleSubscriptionDebitFailed);
+      socket.off('subscription_debit_success', handleSubscriptionDebitSuccess);
     };
-  }, [hasCompletedOnboarding, isAuthUser, currentUserId, socket, addNotification, isStorageLoaded]);
+  }, [hasCompletedOnboarding, isAuthUser, currentUserId, currentMongoId, socket, addNotification, isStorageLoaded, showAlert, router]);
 
   const unreadCount = useMemo(() => {
     return notifications.filter((notification) => !notification.read).length;

@@ -1,12 +1,13 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Coins, Crown, Zap, Check, Sparkles } from 'lucide-react-native';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Colors from '@/constants/colors';
 import { formatPrice } from '@/constants/locale';
 import { useAlert } from '@/providers/alert';
 import url from '@/constants/backurl';
 import { useCurrentUser } from '@/providers/current-user';
+import { useSocket } from '@/providers/socket';
 import * as WebBrowser from 'expo-web-browser';
 import { CREDIT_PACKAGES } from '@/lib/payments';
 
@@ -48,6 +49,7 @@ export default function StoreScreen() {
   const [selectedTab, setSelectedTab] = useState<'credits' | 'premium'>('credits');
   const [selectedDuration, setSelectedDuration] = useState<'monthly' | 'yearly'>('monthly');
   const { currentUser, loadUser, earnCredits } = useCurrentUser();
+  const { socket } = useSocket();
   const { showAlert } = useAlert();
   const [isProcessing, setIsProcessing] = useState(false);
   const [checkoutModalVisible, setCheckoutModalVisible] = useState(false);
@@ -58,6 +60,109 @@ export default function StoreScreen() {
     price: number;
     duration?: 'monthly' | 'yearly';
   } | null>(null);
+
+  const pollingTimerRef = useRef<any>(null);
+  const popupRef = useRef<any>(null);
+
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingTimerRef.current) {
+        clearInterval(pollingTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Listen to socket events for realtime balance updates
+  useEffect(() => {
+    if (!socket) return;
+    const handleRealtimeUpdate = (data?: any) => {
+      console.log('[Store] Realtime update from socket:', data);
+      loadUser(true);
+    };
+    socket.on('payment_success', handleRealtimeUpdate);
+    socket.on('credits_updated', handleRealtimeUpdate);
+    socket.on('user_updated', handleRealtimeUpdate);
+    return () => {
+      socket.off('payment_success', handleRealtimeUpdate);
+      socket.off('credits_updated', handleRealtimeUpdate);
+      socket.off('user_updated', handleRealtimeUpdate);
+    };
+  }, [socket, loadUser]);
+
+  const startPaymentMonitoring = useCallback(
+    (initialCredits: number, expectedAdded: number, popupWindow?: any, isPremium = false) => {
+      if (pollingTimerRef.current) {
+        clearInterval(pollingTimerRef.current);
+      }
+      popupRef.current = popupWindow;
+      const uId = currentUser?.id;
+      if (!uId) return;
+
+      let elapsedSeconds = 0;
+      const maxSeconds = 150;
+
+      const checkBalance = async () => {
+        try {
+          const res = await fetch(`${url}/users/${uId}`);
+          if (res.ok) {
+            const freshUser = await res.json();
+            const freshCredits = freshUser?.credits ?? 0;
+            const updated = isPremium
+              ? freshUser?.premiumTier && freshUser.premiumTier !== 'free'
+              : freshCredits > initialCredits;
+
+            if (updated) {
+              if (pollingTimerRef.current) {
+                clearInterval(pollingTimerRef.current);
+                pollingTimerRef.current = null;
+              }
+              if (popupRef.current && !popupRef.current.closed) {
+                try {
+                  popupRef.current.close();
+                } catch (e) {}
+              }
+              if (earnCredits && freshCredits > initialCredits) {
+                earnCredits(freshCredits - initialCredits);
+              }
+              await loadUser(true);
+              showAlert(
+                'Payment Successful! 🎉',
+                isPremium
+                  ? 'Your membership status has been updated in real-time!'
+                  : `+${freshCredits - initialCredits || expectedAdded} credits added to your account!`,
+              );
+              return true;
+            }
+          }
+        } catch (e) {
+          console.warn('[Store] Polling balance check error:', e);
+        }
+        return false;
+      };
+
+      pollingTimerRef.current = setInterval(async () => {
+        elapsedSeconds += 2;
+        if (elapsedSeconds >= maxSeconds) {
+          if (pollingTimerRef.current) {
+            clearInterval(pollingTimerRef.current);
+            pollingTimerRef.current = null;
+          }
+          return;
+        }
+        await checkBalance();
+      }, 2000);
+
+      // Check on window focus
+      const onWindowFocus = () => {
+        void checkBalance();
+      };
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.addEventListener('focus', onWindowFocus, { once: false });
+      }
+    },
+    [currentUser?.id, earnCredits, loadUser, showAlert],
+  );
 
   const executePurchaseCredits = async (packageId: typeof creditPackages[number]['id'], mode: 'trial' | 'gateway') => {
     if (mode === 'trial') {
@@ -104,11 +209,30 @@ export default function StoreScreen() {
         const checkoutUrl = `${url}/payments/checkout?orderId=${data.orderId}${sessionParam}&amount=${data.amount}&userId=${currentUser?.id}&purchaseType=credits&packageId=${packageId}${originParam}`;
 
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          (window as any).location.href = checkoutUrl;
+          const width = 560;
+          const height = 740;
+          const left = Math.max(0, Math.round((window.innerWidth - width) / 2 + (window.screenX || 0)));
+          const top = Math.max(0, Math.round((window.innerHeight - height) / 2 + (window.screenY || 0)));
+          const popup = window.open(
+            checkoutUrl,
+            'cashfree_payment_window',
+            `width=${width},height=${height},top=${top},left=${left},status=no,resizable=yes,scrollbars=yes`,
+          );
+
+          if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+            window.open(checkoutUrl, '_blank');
+          }
+
+          const pkg = creditPackages.find((p) => p.id === packageId);
+          startPaymentMonitoring(
+            currentUser?.credits || 0,
+            (pkg?.credits || 0) + (pkg?.bonusCredits || 0),
+            popup,
+          );
         } else {
           await WebBrowser.openBrowserAsync(checkoutUrl);
-          await loadUser();
-          showAlert('Refreshed', 'Your credit balance has been updated!');
+          await loadUser(true);
+          showAlert('Payment Successful! 🎉', 'Your credit balance has been updated!');
         }
       } catch (error: any) {
         showAlert('Error', error.message);
@@ -158,7 +282,7 @@ export default function StoreScreen() {
           earnCredits(added);
         }
         showAlert('Success!', `Welcome to ${data.tier} tier! ${added} bonus credits added!`);
-        await loadUser();
+        await loadUser(true);
       } catch (error: any) {
         showAlert('Error', error.message);
       } finally {
@@ -187,11 +311,25 @@ export default function StoreScreen() {
         const checkoutUrl = `${url}/payments/checkout?orderId=${data.orderId}${sessionParam}&amount=${data.amount}&userId=${currentUser?.id}&purchaseType=premium&tier=${tier}&duration=${duration}${originParam}`;
 
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          (window as any).location.href = checkoutUrl;
+          const width = 560;
+          const height = 740;
+          const left = Math.max(0, Math.round((window.innerWidth - width) / 2 + (window.screenX || 0)));
+          const top = Math.max(0, Math.round((window.innerHeight - height) / 2 + (window.screenY || 0)));
+          const popup = window.open(
+            checkoutUrl,
+            'cashfree_payment_window',
+            `width=${width},height=${height},top=${top},left=${left},status=no,resizable=yes,scrollbars=yes`,
+          );
+
+          if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+            window.open(checkoutUrl, '_blank');
+          }
+
+          startPaymentMonitoring(currentUser?.credits || 0, 0, popup, true);
         } else {
           await WebBrowser.openBrowserAsync(checkoutUrl);
-          await loadUser();
-          showAlert('Refreshed', 'Your membership status has been updated!');
+          await loadUser(true);
+          showAlert('Payment Successful! 🎉', 'Your membership status has been updated!');
         }
       } catch (error: any) {
         showAlert('Error', error.message);
@@ -596,6 +734,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
+    paddingTop: 20,
     alignItems: 'center',
     shadowColor: Colors.light.shadow,
     shadowOffset: { width: 0, height: 2 },
@@ -606,8 +745,10 @@ const styles = StyleSheet.create({
   },
   popularBadge: {
     position: 'absolute',
-    top: 12,
-    right: 12,
+    top: 10,
+    right: 10,
+    zIndex: 10,
+    elevation: 5,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -615,6 +756,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
   },
   popularText: {
     fontSize: 10,
