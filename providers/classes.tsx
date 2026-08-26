@@ -486,6 +486,7 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
     fetch(`${url}/classes/${cls.id}/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teacherId: currentUser.id }),
     })
       .then(() => {
         if (loadUser) loadUser();

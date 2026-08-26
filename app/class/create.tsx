@@ -56,6 +56,14 @@ const COMMON_TIME_SLOTS = [
 
 const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+const getTodayDateStr = (): string => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const getTomorrowDateStr = (): string => {
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const year = tomorrow.getFullYear();
@@ -109,11 +117,11 @@ export default function CreateClassScreen() {
 
   const [sessionType, setSessionType] = useState<ClassSessionType>('single');
   const [billingCycle, setBillingCycle] = useState<ClassBillingCycle>('one_time');
-  const [startDate, setStartDate] = useState<string>(getTomorrowDateStr());
+  const [startDate, setStartDate] = useState<string>(getTodayDateStr());
   const [endDate, setEndDate] = useState<string>('');
   const [scheduleDays, setScheduleDays] = useState<string[]>([]);
 
-  const [dateStr, setDateStr] = useState<string>(getTomorrowDateStr());
+  const [dateStr, setDateStr] = useState<string>(getTodayDateStr());
   const [startTime, setStartTime] = useState<string>('14:00');
   const [endTime, setEndTime] = useState<string>('15:30');
   const [capacity, setCapacity] = useState('10');
@@ -364,10 +372,12 @@ export default function CreateClassScreen() {
   const handleSelectDate = useCallback((selectedDate: string) => {
     if (activeDateTarget === 'start') {
       setStartDate(selectedDate);
+      setDateStr(selectedDate);
     } else if (activeDateTarget === 'end') {
       setEndDate(selectedDate);
     } else {
       setDateStr(selectedDate);
+      setStartDate(selectedDate);
     }
   }, [activeDateTarget]);
 
@@ -431,7 +441,7 @@ export default function CreateClassScreen() {
       return;
     }
 
-    const startD = startDate || dateStr || getTomorrowDateStr();
+    const startD = isRecurring ? (startDate || dateStr || getTodayDateStr()) : (dateStr || startDate || getTodayDateStr());
     const endD = isRecurring ? (endDate || startD) : startD;
 
     const sTime = startTime || '14:00';

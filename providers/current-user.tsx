@@ -7,6 +7,7 @@ import type { OnboardingData } from './onboarding';
 import { useAuth } from './auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafety } from './safety';
+import { useSocket } from './socket';
 import url from '@/constants/backurl';
 
 import { findCategoryForSubcategory, getCategoryImageUrl } from '@/constants/categories';
@@ -37,20 +38,20 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
   const [users, setUsers] = useState<User[]>(mockUsers)
   const [isLoading, setIsLoading] = useState<boolean>(true);
   let { user } = useAuth()
+  const { socket } = useSocket();
 
   const applyOnboardingData = useCallback((data: Partial<OnboardingData>) => {
     setCurrentUser(prev => {
       if (!prev) return prev;
-      const updated = { ...prev };
-      if (data.role) {
-        updated.role = data.role;
-      }
+      const updated: User = { ...prev };
       if (data.skillsToTeach && data.skillsToTeach.length > 0) {
-        const existingTitles = new Set(prev.skillsOffered.map(s => s.title.toLowerCase()));
+        const existingTitles = new Set((prev.skillsOffered || []).map(s => s.title.toLowerCase()));
+        const matchingCert = data.teacherProfile?.certifications?.find(c => c.documentUri);
         const newSkills: Skill[] = data.skillsToTeach
           .filter(title => !existingTitles.has(title.toLowerCase()))
           .map((title, idx) => {
-            const mainCategory = (findCategoryForSubcategory(title) || 'Other / Miscellaneous') as SkillCategory;
+            const detail = data.teachSkillDetails?.[title];
+            const mainCategory = (detail?.category || findCategoryForSubcategory(title) || 'Other / Miscellaneous') as SkillCategory;
             const catImage = getCategoryImageUrl(mainCategory);
             const generatedId = `onboard-${prev.id}-${idx}-${Date.now()}`;
             return {
@@ -58,9 +59,16 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
               _id: generatedId,
               title,
               category: mainCategory,
-              subCategory: title,
-              description: `I can teach and share knowledge in ${title}.`,
-              level: (data.experienceLevels?.[title] as SkillLevel) || 'Intermediate',
+              subCategory: detail?.subCategory || title,
+              description: detail?.description?.trim() || `I can teach and share knowledge in ${title}.`,
+              level: (detail?.level || (data.experienceLevels?.[title] as SkillLevel)) || 'Intermediate',
+              pricingModel: detail?.pricingModel || 'free',
+              pricePerSession: detail?.pricingModel === 'per_session' ? (detail.pricePerSession || 50) : undefined,
+              monthlyPrice: detail?.pricingModel === 'monthly' ? (detail.monthlyPrice || 200) : undefined,
+              promoted: Boolean(detail?.promoted),
+              promoTagline: detail?.promoTagline || undefined,
+              certificateUri: matchingCert?.documentUri || detail?.certificateUri || undefined,
+              certificateStatus: (matchingCert?.documentUri || detail?.certificateUri) ? (matchingCert?.status || 'pending') : undefined,
               userId: prev.id,
               imageUrl: catImage,
             };
@@ -77,11 +85,57 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
         }
       }
       if (data.teacherProfile) {
-        updated.teacherProfile = data.teacherProfile;
+        updated.teacherProfile = {
+          ...data.teacherProfile,
+          certifications: (data.teacherProfile.certifications || []).map(c => ({
+            ...c,
+            status: c.status || 'pending',
+          })),
+        };
       }
       return updated;
     });
   }, []);
+
+  // Listen for real-time certificate approval/rejection from Admin
+  useEffect(() => {
+    if (!socket) return;
+    const handleCertUpdated = (event: any) => {
+      if (currentUser && String(event.userId) === String(currentUser.id || (currentUser as any)._id)) {
+        setCurrentUser(prev => {
+          if (!prev) return prev;
+          const updatedTeacherProfile = prev.teacherProfile ? {
+            ...prev.teacherProfile,
+            certifications: (prev.teacherProfile.certifications || []).map((c: any) =>
+              (String(c.id) === String(event.certId) || String(c._id) === String(event.certId))
+                ? { ...c, status: event.status, reviewNote: event.reviewNote, reviewedAt: event.reviewedAt }
+                : c
+            ),
+          } : undefined;
+
+          const updatedSkills = (prev.skillsOffered || []).map(s => {
+            return {
+              ...s,
+              certificateStatus: event.status,
+              certificateReviewNote: event.reviewNote,
+              certificateReviewedAt: event.reviewedAt,
+            };
+          });
+
+          return {
+            ...prev,
+            teacherProfile: updatedTeacherProfile,
+            skillsOffered: updatedSkills,
+          };
+        });
+      }
+    };
+
+    socket.on('certification_updated', handleCertUpdated);
+    return () => {
+      socket.off('certification_updated', handleCertUpdated);
+    };
+  }, [socket, currentUser]);
 
   // Keep a ref to the latest user object to prevent loadUser from recreating and causing re-render loops
   const userRef = useRef(user);

@@ -242,7 +242,12 @@ export const [EarningsProvider, useEarnings] = createContextHook<EarningsContext
       const userPo = payouts.filter((p) => p.userId === userId);
 
       const totalEarnedPoints = userTx
-        .filter((t) => t.type === 'earned' && (t.source === 'class_taught' || t.source === 'learner_bonus'))
+        .filter(
+          (t) =>
+            t.type === 'earned' &&
+            (t.source === 'class_taught' || t.source === 'learner_bonus' || t.source === 'monthly_subscription') &&
+            !t.description?.toLowerCase().includes('refund')
+        )
         .reduce((sum, t) => sum + t.amount, 0);
 
       const redeemedPoints = userPo
@@ -261,12 +266,13 @@ export const [EarningsProvider, useEarnings] = createContextHook<EarningsContext
           d.getMonth() === currentMonth &&
           d.getFullYear() === currentYear &&
           t.type === 'earned' &&
-          (t.source === 'class_taught' || t.source === 'learner_bonus')
+          (t.source === 'class_taught' || t.source === 'learner_bonus' || t.source === 'monthly_subscription') &&
+          !t.description?.toLowerCase().includes('refund')
         );
       });
 
       const currentMonthPoints = currentMonthTx.reduce((sum, t) => sum + t.amount, 0);
-      const currentMonthClasses = currentMonthTx.filter((t) => t.source === 'class_taught').length;
+      const currentMonthClasses = currentMonthTx.filter((t) => t.source === 'class_taught' && !t.description?.toLowerCase().includes('refund')).length;
 
       return {
         userId,

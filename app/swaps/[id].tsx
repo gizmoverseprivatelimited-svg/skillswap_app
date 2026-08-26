@@ -489,13 +489,19 @@ export default function SwapDetailScreen() {
     setLocationDraft('');
   }, [locationDraft, swap, updateLocation]);
 
-  const handleCompleteSwap = useCallback(() => {
+  const handleCompleteSwap = useCallback(async () => {
     if (!swap) {
       return;
     }
     console.log('[SwapDetail] Completing swap', { swapId: swap.id });
-    completeSwap(swap.id);
-  }, [completeSwap, swap]);
+    try {
+      await completeSwap(swap.id || (swap as any)._id);
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to complete swap';
+      setErrorBanner(msg);
+      showAlert('Swap Completion Failed', msg);
+    }
+  }, [completeSwap, swap, showAlert]);
 
   const handleAddToCalendar = useCallback(async () => {
     if (!swap || !swap.acceptedTimeId) {

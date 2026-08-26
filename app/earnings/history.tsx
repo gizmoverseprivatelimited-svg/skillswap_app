@@ -30,6 +30,7 @@ const sourceLabels: Record<string, string> = {
   bonus: 'Bonus Credits',
   referral: 'Referral Reward',
   admin_adjustment: 'Admin Adjustment',
+  refund: 'Enrollment Refund',
   payout: 'Payout',
 };
 
@@ -92,6 +93,9 @@ export default function EarningsHistoryScreen() {
         } else if (t.source === 'bonus' || t.source === 'referral' || t.source === 'learner_bonus') {
           category = 'bonus';
           iconType = 'bonus';
+        } else if (t.source === 'refund' || t.description?.toLowerCase().includes('refund')) {
+          category = 'top_up';
+          iconType = 'top_up';
         } else if (t.source === 'admin_adjustment') {
           category = 'earning';
           iconType = 'adjustment';

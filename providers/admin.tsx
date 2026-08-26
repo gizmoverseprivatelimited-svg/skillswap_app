@@ -426,7 +426,7 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
               if (sk.certificateUri) {
                 const userId = String(sk.userId?._id || sk.userId?.id || sk.userId || '');
                 const skillId = String(sk._id || sk.id || '');
-                const existingIdx = requests.findIndex(r => String(r.userId) === userId && String(r.skillId) === skillId);
+                const existingIdx = requests.findIndex(r => String(r.userId) === userId && (String(r.skillId) === skillId || String(r.id) === `cr-db-${skillId}`));
                 const reviewNote = sk.certificateReviewNote || sk.reviewNote;
                 const reviewedAt = sk.certificateReviewedAt || sk.reviewedAt;
 
@@ -462,6 +462,56 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
         }
       } catch (dbErr) {
         console.warn('[Admin] Scan backend skills for certificates error:', dbErr);
+      }
+
+      // Also scan users teacherProfile.certifications from onboarding
+      try {
+        const userRes = await fetch(`${url}/users`);
+        if (userRes.ok) {
+          const userList = await userRes.json();
+          if (Array.isArray(userList)) {
+            userList.forEach((u: any) => {
+              const uId = String(u._id || u.id || '');
+              const certs = u.teacherProfile?.certifications || [];
+              certs.forEach((cert: any) => {
+                if (cert.documentUri) {
+                  const certId = String(cert.id || cert._id || 'c1');
+                  const reqId = `cr-usr-${uId}-${certId}`;
+                  const existingIdx = requests.findIndex(r => r.id === reqId || (String(r.userId) === uId && String(r.skillId) === certId));
+
+                  if (existingIdx === -1) {
+                    requests.unshift({
+                      id: reqId,
+                      userId: uId,
+                      userName: u.name || 'Teacher',
+                      userAvatar: u.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                      skillId: certId,
+                      skillTitle: cert.title || 'Teaching Certification',
+                      documentUri: cert.documentUri,
+                      status: (cert.status as CertificationStatus) || 'pending',
+                      submittedAt: cert.submittedAt || new Date().toISOString(),
+                      reviewedAt: cert.reviewedAt,
+                      reviewNote: cert.reviewNote,
+                    });
+                  } else {
+                    requests[existingIdx].documentUri = cert.documentUri;
+                    if (cert.status) {
+                      requests[existingIdx].status = cert.status;
+                    }
+                    if (cert.reviewNote !== undefined) {
+                      requests[existingIdx].reviewNote = cert.reviewNote;
+                    }
+                    if (cert.reviewedAt !== undefined) {
+                      requests[existingIdx].reviewedAt = cert.reviewedAt;
+                    }
+                  }
+                }
+              });
+            });
+          }
+        }
+      } catch (userErr) {
+        console.warn('[Admin] Scan users for certifications error:', userErr);
       }
 
       setCertificationRequests(requests);
@@ -915,10 +965,12 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
   const approveCertification = useCallback(async (requestId: string) => {
     console.log('[Admin] Approving certification', { requestId });
     let targetSkillId = '';
+    let targetUserId = '';
 
     setCertificationRequests(prev => {
       const target = prev.find(c => String(c.id) === String(requestId) || String(c.skillId) === String(requestId));
-      targetSkillId = target?.skillId || String(requestId).replace('cr-db-', '');
+      targetSkillId = target?.skillId || String(requestId).replace('cr-db-', '').replace('cr-usr-', '');
+      targetUserId = target?.userId || '';
       const next = prev.map(c =>
         (String(c.id) === String(requestId) || String(c.skillId) === String(requestId))
           ? {
@@ -933,27 +985,43 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
       return next;
     });
 
-    if (targetSkillId && !targetSkillId.startsWith('onboard-')) {
-      const cleanSkillId = targetSkillId.replace('cr-db-', '');
+    // Sync to user profile certifications if applicable
+    if (targetUserId) {
       try {
-        const res = await fetch(`${url}/skills/${cleanSkillId}/certificate/approve`, {
+        await fetch(`${url}/users/${targetUserId}/certifications/${targetSkillId}/approve`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ note: 'Certificate approved by Admin' }),
         });
-        if (!res.ok) {
-          await fetch(`${url}/skills/${cleanSkillId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              certificateStatus: 'approved',
-              certificateReviewNote: 'Certificate approved by Admin',
-              certificateReviewedAt: new Date().toISOString(),
-            }),
-          });
-        }
       } catch (e) {
-        console.warn('[Admin] Sync approve error:', e);
+        console.warn('[Admin] Sync user cert approve error:', e);
+      }
+    }
+
+    if (targetSkillId && !targetSkillId.startsWith('onboard-')) {
+      const cleanSkillId = targetSkillId.replace('cr-db-', '').replace('cr-usr-', '');
+      const isMongoId = /^[0-9a-fA-F]{24}$/.test(cleanSkillId);
+      if (isMongoId) {
+        try {
+          const res = await fetch(`${url}/skills/${cleanSkillId}/certificate/approve`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ note: 'Certificate approved by Admin' }),
+          });
+          if (!res.ok) {
+            await fetch(`${url}/skills/${cleanSkillId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                certificateStatus: 'approved',
+                certificateReviewNote: 'Certificate approved by Admin',
+                certificateReviewedAt: new Date().toISOString(),
+              }),
+            });
+          }
+        } catch (e) {
+          console.warn('[Admin] Sync approve error:', e);
+        }
       }
     }
   }, []);
@@ -961,10 +1029,12 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
   const rejectCertification = useCallback(async (requestId: string, reason: string) => {
     console.log('[Admin] Rejecting certification', { requestId, reason });
     let targetSkillId = '';
+    let targetUserId = '';
 
     setCertificationRequests(prev => {
       const target = prev.find(c => String(c.id) === String(requestId) || String(c.skillId) === String(requestId));
-      targetSkillId = target?.skillId || String(requestId).replace('cr-db-', '');
+      targetSkillId = target?.skillId || String(requestId).replace('cr-db-', '').replace('cr-usr-', '');
+      targetUserId = target?.userId || '';
       const next = prev.map(c =>
         (String(c.id) === String(requestId) || String(c.skillId) === String(requestId))
           ? {
@@ -979,27 +1049,43 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
       return next;
     });
 
-    if (targetSkillId && !targetSkillId.startsWith('onboard-')) {
-      const cleanSkillId = targetSkillId.replace('cr-db-', '');
+    // Sync to user profile certifications if applicable
+    if (targetUserId) {
       try {
-        const res = await fetch(`${url}/skills/${cleanSkillId}/certificate/reject`, {
+        await fetch(`${url}/users/${targetUserId}/certifications/${targetSkillId}/reject`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ reason }),
         });
-        if (!res.ok) {
-          await fetch(`${url}/skills/${cleanSkillId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              certificateStatus: 'rejected',
-              certificateReviewNote: reason,
-              certificateReviewedAt: new Date().toISOString(),
-            }),
-          });
-        }
       } catch (e) {
-        console.warn('[Admin] Sync reject error:', e);
+        console.warn('[Admin] Sync user cert reject error:', e);
+      }
+    }
+
+    if (targetSkillId && !targetSkillId.startsWith('onboard-')) {
+      const cleanSkillId = targetSkillId.replace('cr-db-', '').replace('cr-usr-', '');
+      const isMongoId = /^[0-9a-fA-F]{24}$/.test(cleanSkillId);
+      if (isMongoId) {
+        try {
+          const res = await fetch(`${url}/skills/${cleanSkillId}/certificate/reject`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason }),
+          });
+          if (!res.ok) {
+            await fetch(`${url}/skills/${cleanSkillId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                certificateStatus: 'rejected',
+                certificateReviewNote: reason,
+                certificateReviewedAt: new Date().toISOString(),
+              }),
+            });
+          }
+        } catch (e) {
+          console.warn('[Admin] Sync reject error:', e);
+        }
       }
     }
   }, []);

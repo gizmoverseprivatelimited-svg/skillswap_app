@@ -304,8 +304,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       seenKeysRef.current.delete(eventKey);
     }
 
+    const isExplicitRuntime = input.skipPopup === false;
     const isStartup = Date.now() - mountTimestampRef.current < 4000;
-    const shouldSkip = isLiveCall ? false : (input.skipPopup === true || isStartup || !isAuthUser);
+    const shouldSkip = isLiveCall || isExplicitRuntime ? false : (input.skipPopup === true || isStartup || !isAuthUser);
 
     const payload: NotificationItem = {
       id: generateNotificationId(),
@@ -356,10 +357,8 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
     console.log('[Notifications] Added notification', payload);
 
-    if (!shouldSkip && bannerReadyRef.current) {
-      // Push to the dedicated banner queue — this is the ONLY path that shows the banner.
-      // Notifications loaded from storage, or generated during initial data processing, never reach here
-      // because bannerReadyRef is false until all initial effects have completed their first pass.
+    if (!shouldSkip && (bannerReadyRef.current || isExplicitRuntime)) {
+      // Push to the dedicated banner queue to display in-app banner immediately
       setBannerNotification(payload);
 
       schedulePushNotification(input.title, input.body, input.metadata ?? {});
@@ -793,11 +792,11 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
     const handleClassUpdated = (data: { classId: string; action: string; studentId: string; teacherId?: string; classTitle?: string }) => {
       if (data && data.action === 'enrolled') {
-        const isTeacher = String(data.teacherId) === currentUserId;
-        const isSelf = String(data.studentId) === currentUserId;
+        const isTeacher = String(data.teacherId) === currentUserId || (currentMongoId && String(data.teacherId) === currentMongoId);
+        const isSelf = String(data.studentId) === currentUserId || (currentMongoId && String(data.studentId) === currentMongoId);
 
         if (isTeacher && !isSelf) {
-          const eventKey = `class-enroll:${data.classId}:${data.studentId}`;
+          const eventKey = `class-enroll:${data.classId}:${data.studentId}:${Date.now()}`;
           if (dismissedKeysRef.current.has(eventKey) || seenKeysRef.current.has(eventKey)) {
             return;
           }
@@ -807,7 +806,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           const titleName = data.classTitle || 'your class';
           addNotification({
             category: 'class',
-            title: 'New enrollment',
+            title: 'New Student Enrolled! 🎓',
             body: `${studentName} enrolled in your class "${titleName}"`,
             skipPopup: false,
             eventKey,
@@ -820,7 +819,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     return () => {
       socket.off('class_updated', handleClassUpdated);
     };
-  }, [hasCompletedOnboarding, isAuthUser, currentUserId, socket, allUsers, addNotification, isStorageLoaded]);
+  }, [hasCompletedOnboarding, isAuthUser, currentUserId, currentMongoId, socket, allUsers, addNotification, isStorageLoaded]);
 
   // Real-time socket notification for when teacher starts a live class
   useEffect(() => {

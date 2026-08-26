@@ -621,24 +621,49 @@ export default function ProfileScreen() {
                 </View>
               )}
 
-              {(currentUser.teacherProfile.certifications || []).map((cert: any) => (
-                <View key={cert.id} style={styles.certRow}>
-                  <View style={styles.certIconWrap}>
-                    <Award size={14} color="#10B981" />
+              {(currentUser.teacherProfile.certifications || []).map((cert: any) => {
+                const adminStatus = getSkillCertificationStatus(currentUser.id, cert.id) || cert.status || 'pending';
+                const isApproved = adminStatus === 'approved';
+                const isRejected = adminStatus === 'rejected';
+
+                return (
+                  <View key={cert.id} style={styles.certRow}>
+                    <View style={[styles.certIconWrap, isApproved && { backgroundColor: '#ECFDF5' }, isRejected && { backgroundColor: '#FEF2F2' }]}>
+                      <Award size={14} color={isApproved ? '#10B981' : isRejected ? '#EF4444' : '#F59E0B'} />
+                    </View>
+                    <View style={styles.certContent}>
+                      <Text style={styles.certTitle}>{cert.title}</Text>
+                      {cert.documentUri ? (
+                        <View style={[
+                          styles.docBadge,
+                          isApproved && { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
+                          isRejected && { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
+                          !isApproved && !isRejected && { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }
+                        ]}>
+                          {isApproved ? (
+                            <>
+                              <BadgeCheck size={11} color="#059669" />
+                              <Text style={[styles.docBadgeText, { color: '#059669', fontWeight: '700' as const }]}>Verified by Admin ✓</Text>
+                            </>
+                          ) : isRejected ? (
+                            <>
+                              <XCircle size={11} color="#DC2626" />
+                              <Text style={[styles.docBadgeText, { color: '#DC2626' }]}>Certificate rejected</Text>
+                            </>
+                          ) : (
+                            <>
+                              <Clock size={11} color="#D97706" />
+                              <Text style={[styles.docBadgeText, { color: '#D97706' }]}>Under admin review ⏳</Text>
+                            </>
+                          )}
+                        </View>
+                      ) : (
+                        <Text style={styles.certMeta}>Certificate</Text>
+                      )}
+                    </View>
                   </View>
-                  <View style={styles.certContent}>
-                    <Text style={styles.certTitle}>{cert.title}</Text>
-                    {cert.documentUri ? (
-                      <View style={styles.docBadge}>
-                        <FileCheck2 size={11} color="#10B981" />
-                        <Text style={styles.docBadgeText}>Document on file</Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.certMeta}>Certificate</Text>
-                    )}
-                  </View>
-                </View>
-              ))}
+                );
+              })}
 
               {currentUser.teacherProfile.careerHistory && currentUser.teacherProfile.careerHistory.length > 0 && (
                 <View style={styles.careerBlock}>

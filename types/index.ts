@@ -53,6 +53,9 @@ export interface TeacherCertification {
   id: string;
   title: string;
   documentUri?: string;
+  status?: 'pending' | 'approved' | 'rejected';
+  reviewNote?: string;
+  reviewedAt?: string;
 }
 
 export interface CareerEntry {
@@ -297,7 +300,8 @@ export type EarningSourceType =
   | 'admin_adjustment'
   | 'learner_bonus'
   | 'top_up'
-  | 'purchase';
+  | 'purchase'
+  | 'refund';
 
 export type PayoutMethod = 'store_credit' | 'bank_transfer' | 'upi' | 'paypal';
 

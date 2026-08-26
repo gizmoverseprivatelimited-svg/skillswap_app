@@ -10,10 +10,26 @@ export type { OnboardingRole, TeacherCertification, CareerEntry, TeacherProfileD
 
 const ONBOARDING_KEY = '@skillswap/onboarding_complete';
 
+export interface OnboardingSkillOfferDetail {
+  title: string;
+  category?: string;
+  subCategory?: string;
+  level: SkillLevel;
+  pricingModel: 'free' | 'per_session' | 'monthly';
+  pricePerSession?: number;
+  monthlyPrice?: number;
+  description: string;
+  promoted?: boolean;
+  promoTagline?: string;
+  certificateUri?: string;
+  certificateStatus?: 'pending' | 'approved' | 'rejected';
+}
+
 export interface OnboardingData {
   skillsToTeach: string[];
   skillsToLearn: string[];
   experienceLevels: Record<string, string>;
+  teachSkillDetails?: Record<string, OnboardingSkillOfferDetail>;
   learningGoals: string[];
   availability: string[];
   communicationPreference: string;
@@ -118,6 +134,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
 
         if (Array.isArray(finalData.skillsToTeach)) {
           const guestSkills: Skill[] = finalData.skillsToTeach.map((skill, index) => {
+            const detail = finalData.teachSkillDetails?.[skill];
             const mainCat = (findCategoryForSubcategory(skill) || 'Other / Miscellaneous') as SkillCategory;
             const catImage = getCategoryImageUrl(mainCat);
             const generatedId = `guest_skill_${index}_${Date.now()}`;
@@ -127,8 +144,13 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
               title: skill,
               category: mainCat,
               subCategory: skill,
-              description: `I can teach and share knowledge in ${skill}.`,
-              level: ((finalData.experienceLevels && finalData.experienceLevels[skill]) as SkillLevel) || 'Intermediate',
+              description: detail?.description?.trim() || `I can teach and share knowledge in ${skill}.`,
+              level: (detail?.level || (finalData.experienceLevels && finalData.experienceLevels[skill]) || 'Intermediate') as SkillLevel,
+              pricingModel: detail?.pricingModel || 'free',
+              pricePerSession: detail?.pricingModel === 'per_session' ? (detail.pricePerSession || 50) : undefined,
+              monthlyPrice: detail?.pricingModel === 'monthly' ? (detail.monthlyPrice || 200) : undefined,
+              promoted: Boolean(detail?.promoted),
+              promoTagline: detail?.promoTagline || undefined,
               userId: userId,
               imageUrl: catImage,
             };
@@ -153,6 +175,7 @@ export const [OnboardingProvider, useOnboarding] = createContextHook<OnboardingC
           skillsToTeach: finalData.skillsToTeach || [],
           skillsToLearn: finalData.skillsToLearn || [],
           experienceLevels: finalData.experienceLevels || {},
+          teachSkillDetails: finalData.teachSkillDetails || {},
           learningGoals: finalData.learningGoals || [],
           availability: finalData.availability || [],
           communicationPreference: finalData.communicationPreference || '',

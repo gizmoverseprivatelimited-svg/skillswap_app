@@ -8,6 +8,7 @@ import {
   TextInput,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
@@ -50,6 +51,10 @@ import {
   Plus,
   FileCheck2,
   BadgeCheck,
+  IndianRupee,
+  Bot,
+  Check,
+  Tag,
 } from 'lucide-react-native';
 import {
   useOnboarding,
@@ -57,13 +62,18 @@ import {
   TeacherCertification,
   CareerEntry,
   TeacherProfileData,
+  OnboardingSkillOfferDetail,
 } from '@/providers/onboarding';
 import { useCurrentUser } from '@/providers/current-user';
 import {
   CATEGORY_STRUCTURE,
   MAIN_CATEGORIES,
   getSubcategoriesForCategory,
+  findCategoryForSubcategory,
 } from '@/constants/categories';
+import { generateSkillDescription } from '@/lib/ai';
+import { formatPrice } from '@/constants/locale';
+import url from '@/constants/backurl';
 
 const ONBOARDING_CATEGORY_ICONS: Record<string, typeof Sparkles> = {
   'Arts & Crafts': Palette,
@@ -91,6 +101,12 @@ const ONBOARDING_CATEGORY_ICONS: Record<string, typeof Sparkles> = {
 type SkillLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
 
 const skillLevels: SkillLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
+
+const ONBOARDING_PRICING_MODELS = [
+  { key: 'free' as const, label: 'Free', desc: 'No charge — pure skill exchange' },
+  { key: 'per_session' as const, label: 'Per Session', desc: 'Charge for each class' },
+  { key: 'monthly' as const, label: 'Monthly', desc: 'Recurring monthly subscription' },
+];
 const availabilityOptions = ['Weekday Mornings', 'Weekday Afternoons', 'Weekday Evenings', 'Weekends', 'Flexible'];
 const communicationOptions = ['Video Call', 'In Person', 'Chat', 'Mix of All'];
 
@@ -128,10 +144,10 @@ const ROLE_OPTIONS: {
   color: string;
   bg: string;
 }[] = [
-  { key: 'teacher', label: 'I want to Teach', desc: 'Share my skills with others', icon: GraduationCap, color: '#10B981', bg: '#ECFDF5' },
-  { key: 'learner', label: 'I want to Learn', desc: 'Find someone to teach me', icon: BookOpen, color: '#6366F1', bg: '#EEF2FF' },
-  { key: 'swap', label: 'Skill Swap', desc: 'Teach & learn together', icon: ArrowLeftRight, color: '#F59E0B', bg: '#FFFBEB' },
-];
+    { key: 'teacher', label: 'I want to Teach', desc: 'Share my skills with others', icon: GraduationCap, color: '#10B981', bg: '#ECFDF5' },
+    { key: 'learner', label: 'I want to Learn', desc: 'Find someone to teach me', icon: BookOpen, color: '#6366F1', bg: '#EEF2FF' },
+    { key: 'swap', label: 'Skill Swap', desc: 'Teach & learn together', icon: ArrowLeftRight, color: '#F59E0B', bg: '#FFFBEB' },
+  ];
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -147,6 +163,21 @@ export default function OnboardingScreen() {
   const [customLearnCategory, setCustomLearnCategory] = useState<string>('');
   const [isCompleting, setIsCompleting] = useState<boolean>(false);
   const [experienceLevels, setExperienceLevels] = useState<Record<string, SkillLevel>>({});
+  const [teachSkillDetails, setTeachSkillDetails] = useState<
+    Record<
+      string,
+      {
+        level: SkillLevel;
+        pricingModel: 'free' | 'per_session' | 'monthly';
+        pricePerSession: string;
+        monthlyPrice: string;
+        description: string;
+        promoted: boolean;
+        promoTagline: string;
+      }
+    >
+  >({});
+  const [generatingDescSkill, setGeneratingDescSkill] = useState<string | null>(null);
   const [learningGoals, setLearningGoals] = useState<string[]>([]);
   const [availability, setAvailability] = useState<string[]>([]);
   const [communication, setCommunication] = useState<string>('');
@@ -201,14 +232,90 @@ export default function OnboardingScreen() {
     return finalExperienceLevels;
   };
 
+  const getFinalTeachSkillDetails = () => {
+    const map: Record<string, OnboardingSkillOfferDetail> = {};
+    selectedTeachSkills.forEach(skill => {
+      const finalName = skill === 'Other' && customTeachCategory.trim() ? customTeachCategory.trim() : skill;
+      const detail = teachSkillDetails[skill] || teachSkillDetails[finalName];
+      const category = findCategoryForSubcategory(finalName) || 'Other / Miscellaneous';
+      const lvl = detail?.level || experienceLevels[skill] || experienceLevels[finalName] || 'Intermediate';
+      const pm = detail?.pricingModel || 'free';
+      map[finalName] = {
+        title: finalName,
+        category,
+        subCategory: finalName,
+        level: lvl,
+        pricingModel: pm,
+        pricePerSession: pm === 'per_session' ? (Number(detail?.pricePerSession) || 500) : undefined,
+        monthlyPrice: pm === 'monthly' ? (Number(detail?.monthlyPrice) || 2000) : undefined,
+        description: detail?.description?.trim() || `I can teach and share knowledge in ${finalName}.`,
+        promoted: Boolean(detail?.promoted),
+        promoTagline: detail?.promoTagline?.trim() || undefined,
+      };
+    });
+    return map;
+  };
+
+  const updateSkillDetail = (
+    skill: string,
+    field: 'level' | 'pricingModel' | 'pricePerSession' | 'monthlyPrice' | 'description' | 'promoted' | 'promoTagline',
+    value: any
+  ) => {
+    setTeachSkillDetails(prev => {
+      const existing = prev[skill] || {
+        level: experienceLevels[skill] || 'Intermediate',
+        pricingModel: 'free' as const,
+        pricePerSession: '500',
+        monthlyPrice: '2000',
+        description: '',
+        promoted: false,
+        promoTagline: '',
+      };
+      return {
+        ...prev,
+        [skill]: {
+          ...existing,
+          [field]: value,
+        },
+      };
+    });
+    if (field === 'level') {
+      setSkillLevel(skill, value as SkillLevel);
+    }
+  };
+
+  const handleAiGenerateSkillDesc = async (skill: string) => {
+    setGeneratingDescSkill(skill);
+    try {
+      const category = findCategoryForSubcategory(skill) || 'General';
+      const detail = teachSkillDetails[skill];
+      const level = detail?.level || experienceLevels[skill] || 'Intermediate';
+      const desc = await generateSkillDescription(skill, category, level);
+      if (desc) {
+        updateSkillDetail(skill, 'description', desc.slice(0, 300));
+      }
+    } catch (err) {
+      console.error('[Onboarding] AI Generate error:', err);
+    } finally {
+      setGeneratingDescSkill(null);
+    }
+  };
+
   const goToNextStep = () => {
     // Persist data when leaving relevant steps
     if (currentStep === 'role' && role) {
       updateOnboardingData({ role });
     } else if (currentStep === 'teach') {
-      updateOnboardingData({ skillsToTeach: getFinalTeachSkills() });
+      updateOnboardingData({
+        skillsToTeach: getFinalTeachSkills(),
+        teachSkillDetails: getFinalTeachSkillDetails(),
+      });
     } else if (currentStep === 'experience') {
-      updateOnboardingData({ skillsToTeach: getFinalTeachSkills(), experienceLevels: getFinalExperienceLevels() });
+      updateOnboardingData({
+        skillsToTeach: getFinalTeachSkills(),
+        experienceLevels: getFinalExperienceLevels(),
+        teachSkillDetails: getFinalTeachSkillDetails(),
+      });
     } else if (currentStep === 'career') {
       updateOnboardingData({
         teacherProfile: {
@@ -246,6 +353,7 @@ export default function OnboardingScreen() {
       skillsToTeach: getFinalTeachSkills(),
       skillsToLearn: getFinalLearnSkills(),
       experienceLevels: getFinalExperienceLevels(),
+      teachSkillDetails: getFinalTeachSkillDetails(),
       learningGoals,
       availability,
       communicationPreference: communication,
@@ -271,7 +379,7 @@ export default function OnboardingScreen() {
     } catch (error) {
       console.warn('[Onboarding] completeOnboarding threw, navigating anyway:', error);
     }
-    
+
     setIsCompleting(false);
     router.replace('/(tabs)/home' as any);
   };
@@ -285,7 +393,7 @@ export default function OnboardingScreen() {
       case 'teach':
         return selectedTeachSkills.length > 0 && (!selectedTeachSkills.includes('Other') || customTeachCategory.trim().length > 0);
       case 'experience':
-        return selectedTeachSkills.every(skill => experienceLevels[skill]);
+        return selectedTeachSkills.length > 0;
       case 'languages':
         return languages.length > 0;
       case 'credentials':
@@ -359,10 +467,37 @@ export default function OnboardingScreen() {
       const asset = result.assets?.[0];
       if (!result.canceled && asset) {
         let uri = asset.uri;
-        if (asset.base64) {
+        try {
+          const formData = new FormData();
+          if (Platform.OS === 'web') {
+            const resp = await fetch(asset.uri);
+            const blob = await resp.blob();
+            formData.append('certificate', blob, 'certificate.jpg');
+          } else {
+            const filename = asset.uri.split('/').pop() || 'certificate.jpg';
+            const match = /\.(\w+)$/.exec(filename);
+            const type = match ? `image/${match[1]}` : `image/jpeg`;
+            // @ts-ignore
+            formData.append('certificate', { uri: asset.uri, name: filename, type });
+          }
+          const uploadRes = await fetch(`${url}/skills/upload-certificate`, {
+            method: 'POST',
+            body: formData,
+          });
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            if (uploadData.certificateUri) {
+              uri = uploadData.certificateUri.startsWith('http') ? uploadData.certificateUri : `${url}${uploadData.certificateUri}`;
+            }
+          }
+        } catch (upErr) {
+          console.warn('[Onboarding] Certificate server upload fallback:', upErr);
+        }
+
+        if (asset.base64 && !uri.startsWith('http')) {
           const mime = asset.mimeType || (asset.uri?.endsWith('.png') ? 'image/png' : 'image/jpeg');
           uri = `data:${mime};base64,${asset.base64}`;
-        } else if (Platform.OS === 'web' && asset.uri && asset.uri.startsWith('blob:')) {
+        } else if (Platform.OS === 'web' && asset.uri && asset.uri.startsWith('blob:') && !uri.startsWith('http')) {
           try {
             const resp = await fetch(asset.uri);
             const blob = await resp.blob();
@@ -376,7 +511,7 @@ export default function OnboardingScreen() {
             console.warn('[Onboarding] Failed to convert blob to data URI:', e);
           }
         }
-        setCertifications(prev => prev.map(c => (c.id === certId ? { ...c, documentUri: uri } : c)));
+        setCertifications(prev => prev.map(c => (c.id === certId ? { ...c, documentUri: uri, status: 'pending' as const } : c)));
       }
     } catch (error) {
       console.warn('[Onboarding] Document pick failed:', error);
@@ -410,14 +545,49 @@ export default function OnboardingScreen() {
         const next = { ...experienceLevels };
         delete next[skill];
         setExperienceLevels(next);
+
+        const nextDetails = { ...teachSkillDetails };
+        delete nextDetails[skill];
+        setTeachSkillDetails(nextDetails);
       }
     } else {
       setter([...selected, skill]);
+      if (isTeach) {
+        if (!experienceLevels[skill]) {
+          setExperienceLevels(prev => ({ ...prev, [skill]: 'Intermediate' }));
+        }
+        if (!teachSkillDetails[skill]) {
+          setTeachSkillDetails(prev => ({
+            ...prev,
+            [skill]: {
+              level: 'Intermediate',
+              pricingModel: 'free',
+              pricePerSession: '500',
+              monthlyPrice: '2000',
+              description: '',
+              promoted: false,
+              promoTagline: '',
+            },
+          }));
+        }
+      }
     }
   };
 
   const setSkillLevel = (skill: string, level: SkillLevel) => {
     setExperienceLevels(prev => ({ ...prev, [skill]: level }));
+    setTeachSkillDetails(prev => {
+      const existing = prev[skill] || {
+        level,
+        pricingModel: 'free' as const,
+        pricePerSession: '500',
+        monthlyPrice: '2000',
+        description: '',
+        promoted: false,
+        promoTagline: '',
+      };
+      return { ...prev, [skill]: { ...existing, level } };
+    });
   };
 
   const toggleGoal = (goal: string) => {
@@ -445,7 +615,7 @@ export default function OnboardingScreen() {
         return;
       }
       let loc = await Location.getCurrentPositionAsync({});
-      
+
       if (Platform.OS === 'web') {
         const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.coords.latitude}&lon=${loc.coords.longitude}&zoom=10&addressdetails=1`);
         const data = await response.json();
@@ -489,7 +659,7 @@ export default function OnboardingScreen() {
       <View style={styles.iconContainer}>
         <Sparkles size={64} color="#FF6B9D" strokeWidth={1.5} />
       </View>
-      <Text style={styles.title}>Welcome to LearnSwap!</Text>
+      <Text style={styles.title}>Welcome to Leteski!</Text>
       <Text style={styles.subtitle}>
         Let&apos;s set up your profile so we can match you with the perfect skill exchange partners.
       </Text>
@@ -516,7 +686,7 @@ export default function OnboardingScreen() {
       <View style={styles.iconContainer}>
         <ArrowLeftRight size={48} color="#FF6B9D" strokeWidth={1.5} />
       </View>
-      <Text style={styles.title}>How will you use LearnSwap?</Text>
+      <Text style={styles.title}>How will you use Leteski?</Text>
       <Text style={styles.subtitle}>
         Choose the option that best fits you. You can do both later!
       </Text>
@@ -738,31 +908,197 @@ export default function OnboardingScreen() {
 
   const renderExperienceLevelStep = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.title}>Rate your expertise</Text>
-      <Text style={styles.subtitle}>How would you rate your proficiency in each skill?</Text>
-      <ScrollView style={styles.optionsList} showsVerticalScrollIndicator={false}>
+      <View style={styles.iconContainer}>
+        <GraduationCap size={48} color="#10B981" strokeWidth={1.5} />
+      </View>
+      <Text style={styles.title}>Set up your skills</Text>
+      <Text style={styles.subtitle}>
+        Customize your pricing, level, and description for what you will teach
+      </Text>
+
+      <View style={{ gap: 20 }}>
         {selectedTeachSkills.map((skill) => {
-          const currentLevel = experienceLevels[skill] || 'Intermediate';
+          const detail = teachSkillDetails[skill] || {
+            level: experienceLevels[skill] || 'Intermediate',
+            pricingModel: 'free' as const,
+            pricePerSession: '500',
+            monthlyPrice: '2000',
+            description: '',
+            promoted: false,
+            promoTagline: '',
+          };
+          const currentLevel = detail.level || experienceLevels[skill] || 'Intermediate';
+          const category = findCategoryForSubcategory(skill) || 'General';
+          const isAiGenerating = generatingDescSkill === skill;
+
           return (
-            <View key={skill} style={styles.skillLevelContainer}>
-              <Text style={styles.skillLevelTitle}>{skill}</Text>
-              <View style={styles.levelButtons}>
-                {skillLevels.map((level) => (
+            <View key={skill} style={styles.skillConfigCard}>
+              {/* Skill Card Header */}
+              <View style={styles.skillConfigHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.skillConfigTitle}>{skill}</Text>
+                  <Text style={styles.skillConfigCategory}>in {category}</Text>
+                </View>
+                <View style={styles.skillConfigBadge}>
+                  <Text style={styles.skillConfigBadgeText}>
+                    {detail.pricingModel === 'free'
+                      ? 'Free'
+                      : detail.pricingModel === 'per_session'
+                        ? `${formatPrice(Number(detail.pricePerSession || 0))}/session`
+                        : `${formatPrice(Number(detail.monthlyPrice || 0))}/mo`}
+                  </Text>
+                </View>
+              </View>
+
+              {/* 1. Proficiency Level */}
+              <View style={styles.configFieldSection}>
+                <Text style={styles.configFieldLabel}>Proficiency Level *</Text>
+                <View style={styles.levelButtons}>
+                  {skillLevels.map((level) => (
+                    <TouchableOpacity
+                      key={level}
+                      style={[styles.levelButton, currentLevel === level && styles.levelButtonSelected]}
+                      onPress={() => updateSkillDetail(skill, 'level', level)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.levelButtonText, currentLevel === level && styles.levelButtonTextSelected]}>
+                        {level}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* 2. Pricing Model */}
+              <View style={styles.configFieldSection}>
+                <View style={styles.configPricingHeader}>
+                  <IndianRupee size={15} color="#10B981" />
+                  <Text style={styles.configFieldLabel}>Class Pricing</Text>
+                </View>
+                <View style={styles.pricingModelGrid}>
+                  {ONBOARDING_PRICING_MODELS.map((pm) => {
+                    const isSelected = detail.pricingModel === pm.key;
+                    return (
+                      <TouchableOpacity
+                        key={pm.key}
+                        style={[styles.pricingChip, isSelected && styles.pricingChipSelected]}
+                        onPress={() => updateSkillDetail(skill, 'pricingModel', pm.key)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.pricingChipLabel, isSelected && styles.pricingChipLabelSelected]}>
+                          {pm.label}
+                        </Text>
+                        <Text style={[styles.pricingChipDesc, isSelected && styles.pricingChipDescSelected]}>
+                          {pm.desc}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {detail.pricingModel === 'per_session' && (
+                  <View style={styles.priceInputWrap}>
+                    <Text style={styles.pricePrefix}>{formatPrice(0).replace('0', '')}</Text>
+                    <TextInput
+                      style={styles.priceInput}
+                      value={detail.pricePerSession}
+                      onChangeText={(val) => updateSkillDetail(skill, 'pricePerSession', val)}
+                      placeholder="500"
+                      placeholderTextColor="#999"
+                      keyboardType="numeric"
+                      maxLength={6}
+                    />
+                    <Text style={styles.priceSuffix}>per session</Text>
+                  </View>
+                )}
+
+                {detail.pricingModel === 'monthly' && (
+                  <View style={styles.priceInputWrap}>
+                    <Text style={styles.pricePrefix}>{formatPrice(0).replace('0', '')}</Text>
+                    <TextInput
+                      style={styles.priceInput}
+                      value={detail.monthlyPrice}
+                      onChangeText={(val) => updateSkillDetail(skill, 'monthlyPrice', val)}
+                      placeholder="2000"
+                      placeholderTextColor="#999"
+                      keyboardType="numeric"
+                      maxLength={6}
+                    />
+                    <Text style={styles.priceSuffix}>per month</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* 3. Description with AI Generate */}
+              <View style={styles.configFieldSection}>
+                <View style={styles.labelWithAiRow}>
+                  <Text style={styles.configFieldLabel}>Description (Optional)</Text>
                   <TouchableOpacity
-                    key={level}
-                    style={[styles.levelButton, currentLevel === level && styles.levelButtonSelected]}
-                    onPress={() => setSkillLevel(skill, level)}
+                    style={styles.aiGenBtn}
+                    onPress={() => handleAiGenerateSkillDesc(skill)}
+                    disabled={isAiGenerating}
+                    activeOpacity={0.7}
                   >
-                    <Text style={[styles.levelButtonText, currentLevel === level && styles.levelButtonTextSelected]}>
-                      {level}
+                    {isAiGenerating ? (
+                      <ActivityIndicator size={12} color="#6366F1" />
+                    ) : (
+                      <Bot size={13} color="#6366F1" />
+                    )}
+                    <Text style={styles.aiGenBtnText}>
+                      {isAiGenerating ? 'Generating...' : 'AI Generate'}
                     </Text>
                   </TouchableOpacity>
-                ))}
+                </View>
+                <TextInput
+                  style={styles.configTextArea}
+                  value={detail.description}
+                  onChangeText={(val) => updateSkillDetail(skill, 'description', val)}
+                  placeholder={`Describe what you can teach in ${skill}, hands-on exercises, or what students will achieve...`}
+                  placeholderTextColor="#999"
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  maxLength={300}
+                />
+                <Text style={styles.configCharCount}>{(detail.description || '').length}/300</Text>
+              </View>
+
+              {/* 4. Promotion (Optional) */}
+              <View style={styles.configFieldSection}>
+                <TouchableOpacity
+                  style={styles.promoteToggleRow}
+                  onPress={() => updateSkillDetail(skill, 'promoted', !detail.promoted)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.promoteToggleLeft}>
+                    <Sparkles size={16} color="#F59E0B" />
+                    <View>
+                      <Text style={styles.promoteToggleTitle}>Promote this skill</Text>
+                      <Text style={styles.promoteToggleSubtitle}>Get featured & boost discoverability</Text>
+                    </View>
+                  </View>
+                  <View style={[styles.toggleSwitch, detail.promoted && styles.toggleSwitchOn]}>
+                    <View style={[styles.toggleKnob, detail.promoted && styles.toggleKnobOn]} />
+                  </View>
+                </TouchableOpacity>
+
+                {detail.promoted && (
+                  <View style={styles.promoTaglineWrap}>
+                    <TextInput
+                      style={styles.promoInput}
+                      value={detail.promoTagline}
+                      onChangeText={(val) => updateSkillDetail(skill, 'promoTagline', val)}
+                      placeholder="e.g. Free trial session / First 5 classes 20% off!"
+                      placeholderTextColor="#999"
+                      maxLength={80}
+                    />
+                  </View>
+                )}
               </View>
             </View>
           );
         })}
-      </ScrollView>
+      </View>
     </View>
   );
 
@@ -1759,4 +2095,222 @@ const styles = StyleSheet.create({
   careerInput: { backgroundColor: '#fff', borderRadius: 10, padding: 12, fontSize: 14, color: '#333', borderWidth: 1, borderColor: '#E5E7EB' },
   addCareerButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 10, backgroundColor: '#10B981' },
   addCareerButtonText: { fontSize: 14, color: '#fff', fontWeight: '600' as const },
+
+  // Skill Offer Config Cards
+  skillConfigCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#E8ECF2',
+    padding: 18,
+    gap: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  skillConfigHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F2F5',
+  },
+  skillConfigTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#1A1A1A',
+  },
+  skillConfigCategory: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  skillConfigBadge: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  skillConfigBadgeText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#059669',
+  },
+  configFieldSection: {
+    gap: 8,
+  },
+  configFieldLabel: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#374151',
+  },
+  configPricingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pricingModelGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  pricingChip: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    borderRadius: 14,
+    padding: 12,
+    alignItems: 'center',
+  },
+  pricingChipSelected: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#10B981',
+  },
+  pricingChipLabel: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#4B5563',
+    marginBottom: 3,
+  },
+  pricingChipLabelSelected: {
+    color: '#065F46',
+  },
+  pricingChipDesc: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 13,
+  },
+  pricingChipDescSelected: {
+    color: '#047857',
+  },
+  priceInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    marginTop: 4,
+  },
+  pricePrefix: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#10B981',
+    marginRight: 6,
+  },
+  priceInput: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#1A1A1A',
+    paddingVertical: 8,
+  },
+  priceSuffix: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500' as const,
+    marginLeft: 6,
+  },
+  labelWithAiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  aiGenBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  aiGenBtnText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#6366F1',
+  },
+  configTextArea: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: '#1A1A1A',
+    minHeight: 70,
+  },
+  configCharCount: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    textAlign: 'right',
+  },
+  promoteToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1.5,
+    borderColor: '#FDE68A',
+    borderRadius: 14,
+    padding: 12,
+  },
+  promoteToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  promoteToggleTitle: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#92400E',
+  },
+  promoteToggleSubtitle: {
+    fontSize: 11,
+    color: '#B45309',
+    marginTop: 1,
+  },
+  toggleSwitch: {
+    width: 42,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#D1D5DB',
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleSwitchOn: {
+    backgroundColor: '#F59E0B',
+  },
+  toggleKnob: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  toggleKnobOn: {
+    alignSelf: 'flex-end',
+  },
+  promoTaglineWrap: {
+    marginTop: 6,
+  },
+  promoInput: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.5,
+    borderColor: '#FDE68A',
+    borderRadius: 12,
+    padding: 10,
+    fontSize: 13,
+    color: '#1A1A1A',
+  },
 });

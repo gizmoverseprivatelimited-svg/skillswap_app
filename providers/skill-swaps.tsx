@@ -1112,10 +1112,11 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
       }
       console.log('[SkillSwaps] Completing swap', requestId);
 
-      // 🔹 Optimistic UI
+      // 🔹 Optimistic UI backup for rollback
+      const previousSwaps = [...swaps];
       setSwaps((previous) =>
         previous.map((swap) =>
-          swap.id === requestId
+          swap.id === requestId || (swap as any)._id === requestId
             ? {
               ...swap,
               status: 'completed',
@@ -1140,7 +1141,15 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
         );
 
         if (!response.ok) {
-          throw new Error('Failed to complete swap');
+          let errorMsg = `Failed to complete swap (status ${response.status})`;
+          try {
+            const errData = await response.json();
+            errorMsg = errData?.message || errData?.error || errorMsg;
+          } catch {
+            const errText = await response.text().catch(() => '');
+            if (errText) errorMsg = errText;
+          }
+          throw new Error(errorMsg);
         }
 
         let updatedSwap = await response.json();
@@ -1148,13 +1157,13 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
         const normalizeSwap = (swap: any) => ({
           ...swap,
           id: swap._id,
-          negotiationNotes: swap.negotiationNotes.map((msg: any) => ({
+          negotiationNotes: (swap.negotiationNotes || []).map((msg: any) => ({
             ...msg,
             id: msg._id,
           })),
         });
 
-        updatedSwap = normalizeSwap(updatedSwap)
+        updatedSwap = normalizeSwap(updatedSwap);
 
         // 🔹 Replace optimistic state with DB truth
         setSwaps((previous) =>
@@ -1165,7 +1174,7 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
           )
         );
         // Award credits based on the new credit system
-        const targetSwap = updatedSwap || swaps.find((s) => s.id === requestId || s._id === requestId);
+        const targetSwap = updatedSwap || swaps.find((s) => s.id === requestId || (s as any)._id === requestId);
         if (targetSwap) {
           const swapType = targetSwap.swapType || 'swap';
 
@@ -1208,12 +1217,14 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
 
           console.log('[Earnings] Swap completion processed by backend', { teacherId, learnerId, sessionCredits, swapId: requestId });
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('[SkillSwaps] Complete swap failed', error);
-        // optional: rollback or toast
+        // Rollback optimistic update
+        setSwaps(previousSwaps);
+        throw error;
       }
     },
-    [currentUser?.id]
+    [currentUser?.id, swaps, allUsers, spendCredits, loadUser, refreshUserEarnings]
   );
 
 
