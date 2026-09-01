@@ -8,11 +8,30 @@ import {
   Image,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
-import { X, Plus, Camera, MapPin, IndianRupee, Sparkles, TrendingUp } from 'lucide-react-native';
-import * as ImagePicker from 'expo-image-picker'
+import {
+  X,
+  Plus,
+  Camera,
+  MapPin,
+  IndianRupee,
+  Sparkles,
+  TrendingUp,
+  GraduationCap,
+  Award,
+  Languages,
+  BadgeCheck,
+  Briefcase,
+  Upload,
+  FileCheck2,
+  Clock,
+  XCircle,
+  Users,
+} from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import Colors from '@/constants/colors';
 import { useCurrentUser } from '@/providers/current-user';
 import { useAlert } from '@/providers/alert';
@@ -21,7 +40,21 @@ import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatPrice } from '@/constants/locale';
-import type { PricingModel } from '@/types';
+import type { PricingModel, TeacherProfileData, TeacherCertification, CareerEntry } from '@/types';
+
+const languageOptions = [
+  'English', 'Hindi', 'Bengali', 'Tamil', 'Telugu', 'Marathi',
+  'Kannada', 'Malayalam', 'Gujarati', 'Punjabi', 'Urdu', 'Odia',
+];
+const qualificationOptions = [
+  "High School", "Bachelor's Degree", "Master's Degree", 'PhD / Doctorate',
+  'B.Ed / D.El.Ed', 'Diploma', 'Professional Certification',
+  'Industry Expert', 'Self-taught Expert',
+];
+const experienceOptions = ['None yet', '1–3 years', '3–5 years', '5–10 years', '10+ years'];
+
+const genId = (prefix: string): string =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -38,6 +71,20 @@ export default function EditProfileScreen() {
   );
   const [newSkillWanted, setNewSkillWanted] = useState<string>('');
 
+  // Teacher credentials and details
+  const [languages, setLanguages] = useState<string[]>(currentUser?.teacherProfile?.languages || []);
+  const [customLanguage, setCustomLanguage] = useState<string>('');
+  const [qualifications, setQualifications] = useState<string[]>(currentUser?.teacherProfile?.qualifications || []);
+  const [isCertified, setIsCertified] = useState<boolean>(currentUser?.teacherProfile?.isCertified || false);
+  const [certifications, setCertifications] = useState<TeacherCertification[]>(currentUser?.teacherProfile?.certifications || []);
+  const [certTitle, setCertTitle] = useState<string>('');
+  const [yearsTeaching, setYearsTeaching] = useState<string>(currentUser?.teacherProfile?.yearsTeaching || '');
+  const [privateTuition, setPrivateTuition] = useState<boolean>(currentUser?.teacherProfile?.privateTuition || false);
+  const [careerRole, setCareerRole] = useState<string>('');
+  const [careerOrg, setCareerOrg] = useState<string>('');
+  const [careerYears, setCareerYears] = useState<string>('');
+  const [careerHistory, setCareerHistory] = useState<CareerEntry[]>(currentUser?.teacherProfile?.careerHistory || []);
+
   const isInitialized = useRef(false);
 
   useEffect(() => {
@@ -48,8 +95,141 @@ export default function EditProfileScreen() {
       setLocation(currentUser.location || '');
       setAvatarUrl(currentUser.avatarUrl || '');
       setSkillsWanted((currentUser.skillsWanted || []).filter((s) => s.trim() !== ''));
+      if (currentUser.teacherProfile) {
+        setLanguages(currentUser.teacherProfile.languages || []);
+        setQualifications(currentUser.teacherProfile.qualifications || []);
+        setIsCertified(currentUser.teacherProfile.isCertified || false);
+        setCertifications(currentUser.teacherProfile.certifications || []);
+        setYearsTeaching(currentUser.teacherProfile.yearsTeaching || '');
+        setPrivateTuition(currentUser.teacherProfile.privateTuition || false);
+        setCareerHistory(currentUser.teacherProfile.careerHistory || []);
+      }
     }
   }, [currentUser]);
+
+  const toggleLanguage = (lang: string) => {
+    if (languages.includes(lang)) {
+      setLanguages(languages.filter(l => l !== lang));
+    } else {
+      setLanguages([...languages, lang]);
+    }
+  };
+
+  const addCustomLanguage = () => {
+    const trimmed = customLanguage.trim();
+    if (trimmed.length === 0) return;
+    if (!languages.some(l => l.toLowerCase() === trimmed.toLowerCase())) {
+      setLanguages([...languages, trimmed]);
+    }
+    setCustomLanguage('');
+  };
+
+  const toggleQualification = (q: string) => {
+    if (qualifications.includes(q)) {
+      setQualifications(qualifications.filter(item => item !== q));
+    } else {
+      setQualifications([...qualifications, q]);
+    }
+  };
+
+  const addCertification = () => {
+    const trimmed = certTitle.trim();
+    if (trimmed.length === 0) return;
+    setCertifications(prev => [...prev, { id: genId('cert'), title: trimmed, status: 'pending' }]);
+    setCertTitle('');
+  };
+
+  const removeCertification = (id: string) => {
+    setCertifications(prev => prev.filter(c => c.id !== id));
+  };
+
+  const pickCertificate = async (certId: string) => {
+    try {
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          showAlert('Permission needed', 'Please allow access to your photos to upload a certificate document.');
+          return;
+        }
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.7,
+        base64: true,
+      });
+      const asset = result.assets?.[0];
+      if (!result.canceled && asset) {
+        let uri = asset.uri;
+        try {
+          const formData = new FormData();
+          if (Platform.OS === 'web') {
+            const resp = await fetch(asset.uri);
+            const blob = await resp.blob();
+            formData.append('certificate', blob, 'certificate.jpg');
+          } else {
+            const filename = asset.uri.split('/').pop() || 'certificate.jpg';
+            const match = /\.(\w+)$/.exec(filename);
+            const type = match ? `image/${match[1]}` : `image/jpeg`;
+            // @ts-ignore
+            formData.append('certificate', { uri: asset.uri, name: filename, type });
+          }
+          const uploadRes = await fetch(`${url}/skills/upload-certificate`, {
+            method: 'POST',
+            body: formData,
+          });
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            if (uploadData.certificateUri) {
+              uri = uploadData.certificateUri.startsWith('http') ? uploadData.certificateUri : `${url}${uploadData.certificateUri}`;
+            }
+          }
+        } catch (upErr) {
+          console.warn('[EditProfile] Certificate server upload fallback:', upErr);
+        }
+
+        if (asset.base64 && !uri.startsWith('http')) {
+          const mime = asset.mimeType || (asset.uri?.endsWith('.png') ? 'image/png' : 'image/jpeg');
+          uri = `data:${mime};base64,${asset.base64}`;
+        } else if (Platform.OS === 'web' && asset.uri && asset.uri.startsWith('blob:') && !uri.startsWith('http')) {
+          try {
+            const resp = await fetch(asset.uri);
+            const blob = await resp.blob();
+            uri = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          } catch (e) {
+            console.warn('[EditProfile] Failed to convert blob to data URI:', e);
+          }
+        }
+        setCertifications(prev => prev.map(c => (c.id === certId ? { ...c, documentUri: uri, status: 'pending' as const } : c)));
+      }
+    } catch (error) {
+      console.warn('[EditProfile] Document pick failed:', error);
+    }
+  };
+
+  const addCareerEntry = () => {
+    const roleName = careerRole.trim();
+    if (roleName.length === 0) return;
+    setCareerHistory(prev => [...prev, {
+      id: genId('career'),
+      role: roleName,
+      organization: careerOrg.trim(),
+      years: careerYears.trim(),
+    }]);
+    setCareerRole('');
+    setCareerOrg('');
+    setCareerYears('');
+  };
+
+  const removeCareerEntry = (id: string) => {
+    setCareerHistory(prev => prev.filter(e => e.id !== id));
+  };
 
   const teachSkills = currentUser?.skillsOffered || [];
   const [skillPricing, setSkillPricing] = useState<Record<string, { model: PricingModel; price: string; promoted: boolean; tagline: string }>>({});
@@ -227,6 +407,16 @@ export default function EditProfileScreen() {
 
     const cleanedSkillsWanted = skillsWanted.map((s) => s.trim()).filter(Boolean);
 
+    const teacherProfileData: TeacherProfileData = {
+      languages,
+      qualifications,
+      isCertified,
+      certifications,
+      yearsTeaching,
+      careerHistory,
+      privateTuition,
+    };
+
     if (currentUser?.id === '1') {
       try {
         const guestData = {
@@ -235,8 +425,12 @@ export default function EditProfileScreen() {
           location: location.trim(),
           avatarUrl: avatarUrl,
           skillsWanted: cleanedSkillsWanted,
+          teacherProfile: teacherProfileData,
         };
         await AsyncStorage.setItem('@leteski/guest_user_profile', JSON.stringify(guestData));
+        await AsyncStorage.setItem('@skillswap/onboarding_complete_guest_data', JSON.stringify({
+          teacherProfile: teacherProfileData,
+        }));
         await loadUser();
         
         showAlert('Success', 'Profile updated successfully', [
@@ -260,6 +454,7 @@ export default function EditProfileScreen() {
       formData.append('location', location.trim());
       formData.append('skillsWanted', JSON.stringify(cleanedSkillsWanted));
       formData.append('skillsOffered', JSON.stringify(teachSkills));
+      formData.append('teacherProfile', JSON.stringify(teacherProfileData));
 
       if (avatarUrl && avatarUrl !== currentUser?.avatarUrl) {
         if (Platform.OS === 'web') {
@@ -325,8 +520,18 @@ export default function EditProfileScreen() {
       }
 
       console.log('[EditProfile] Updated:', result);
+      if (currentUser?.id) {
+        try {
+          const storedKey = `@skillswap/onboarding_complete_${currentUser.id}_data`;
+          const existingStored = await AsyncStorage.getItem(storedKey);
+          const parsed = existingStored ? JSON.parse(existingStored) : {};
+          parsed.teacherProfile = teacherProfileData;
+          await AsyncStorage.setItem(storedKey, JSON.stringify(parsed));
+        } catch (e) {
+          console.warn('[EditProfile] Failed to update local onboarding cache:', e);
+        }
+      }
       await loadUser(true);
-
 
       showAlert('Success', 'Profile updated successfully', [
         { text: 'OK', onPress: () => router.back() },
@@ -545,6 +750,256 @@ export default function EditProfileScreen() {
               >
                 <Plus size={20} color={Colors.light.primary} />
               </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* TEACHER CREDENTIALS & DETAILS SECTION */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderWrap}>
+              <GraduationCap size={20} color="#10B981" />
+              <Text style={styles.sectionHeaderTitle}>Teacher Credentials & Details</Text>
+            </View>
+            <Text style={styles.sectionHeaderSubtitle}>
+              Add and update your teaching qualifications, languages, certifications, and experience.
+            </Text>
+
+            {/* LANGUAGES */}
+            <View style={styles.subSection}>
+              <View style={styles.subSectionTitleRow}>
+                <Languages size={16} color="#10B981" />
+                <Text style={styles.subSectionLabel}>Languages you speak / teach in</Text>
+              </View>
+              <Text style={styles.subSectionHint}>Select all languages that apply.</Text>
+              <View style={styles.chipWrap}>
+                {languageOptions.map((lang) => {
+                  const selected = languages.includes(lang);
+                  return (
+                    <TouchableOpacity
+                      key={lang}
+                      style={[styles.chip, selected && styles.chipSelected]}
+                      onPress={() => toggleLanguage(lang)}
+                    >
+                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{lang}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                {languages
+                  .filter((l) => !languageOptions.includes(l))
+                  .map((lang) => (
+                    <TouchableOpacity
+                      key={lang}
+                      style={[styles.chip, styles.chipSelected]}
+                      onPress={() => toggleLanguage(lang)}
+                    >
+                      <Text style={[styles.chipText, styles.chipTextSelected]}>{lang}</Text>
+                      <X size={14} color="#fff" style={{ marginLeft: 4 }} />
+                    </TouchableOpacity>
+                  ))}
+              </View>
+              <View style={styles.addRow}>
+                <TextInput
+                  style={styles.addRowInput}
+                  placeholder="Add another language"
+                  placeholderTextColor={Colors.light.textTertiary}
+                  value={customLanguage}
+                  onChangeText={setCustomLanguage}
+                  onSubmitEditing={addCustomLanguage}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity style={styles.addRowButton} onPress={addCustomLanguage}>
+                  <Plus size={18} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* QUALIFICATIONS */}
+            <View style={styles.subSection}>
+              <View style={styles.subSectionTitleRow}>
+                <Award size={16} color="#10B981" />
+                <Text style={styles.subSectionLabel}>Qualifications</Text>
+              </View>
+              <Text style={styles.subSectionHint}>Select all formal qualifications that apply.</Text>
+              <View style={styles.chipWrap}>
+                {qualificationOptions.map((q) => {
+                  const selected = qualifications.includes(q);
+                  return (
+                    <TouchableOpacity
+                      key={q}
+                      style={[styles.chip, selected && styles.chipSelected]}
+                      onPress={() => toggleQualification(q)}
+                    >
+                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{q}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* CERTIFIED TOGGLE & CERTIFICATES */}
+            <View style={styles.subSection}>
+              <TouchableOpacity
+                style={[styles.certifiedToggle, isCertified && styles.certifiedToggleActive]}
+                onPress={() => setIsCertified(!isCertified)}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.certifiedToggleIcon, isCertified && styles.certifiedToggleIconActive]}>
+                  <BadgeCheck size={22} color={isCertified ? '#fff' : '#10B981'} />
+                </View>
+                <View style={styles.certifiedToggleContent}>
+                  <Text style={[styles.certifiedToggleTitle, isCertified && styles.certifiedToggleTitleActive]}>
+                    I am certified or professionally qualified
+                  </Text>
+                  <Text style={styles.certifiedToggleSubtitle}>
+                    Add your certificates and upload proof documents for verification
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {isCertified && (
+                <View style={styles.certSection}>
+                  {certifications.map((cert) => (
+                    <View key={cert.id} style={styles.certCard}>
+                      <View style={styles.certCardHeader}>
+                        <View style={styles.certCardTitleWrap}>
+                          <Award size={16} color="#10B981" />
+                          <Text style={styles.certCardTitle} numberOfLines={1}>{cert.title}</Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => removeCertification(cert.id)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <X size={16} color={Colors.light.textSecondary} />
+                        </TouchableOpacity>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.uploadButton, cert.documentUri && styles.uploadButtonDone]}
+                        onPress={() => pickCertificate(cert.id)}
+                      >
+                        {cert.documentUri
+                          ? <FileCheck2 size={16} color="#065F46" />
+                          : <Upload size={16} color="#059669" />}
+                        <Text style={[styles.uploadButtonText, cert.documentUri && styles.uploadButtonTextDone]}>
+                          {cert.documentUri ? 'Document uploaded ✓' : 'Upload certificate document'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  <View style={styles.addRow}>
+                    <TextInput
+                      style={styles.addRowInput}
+                      placeholder="e.g. CTET, AWS Certified, Grade 8 Piano"
+                      placeholderTextColor={Colors.light.textTertiary}
+                      value={certTitle}
+                      onChangeText={setCertTitle}
+                      onSubmitEditing={addCertification}
+                      returnKeyType="done"
+                    />
+                    <TouchableOpacity style={styles.addRowButton} onPress={addCertification}>
+                      <Plus size={18} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* YEARS OF TEACHING EXPERIENCE */}
+            <View style={styles.subSection}>
+              <View style={styles.subSectionTitleRow}>
+                <Clock size={16} color="#10B981" />
+                <Text style={styles.subSectionLabel}>Years of teaching experience</Text>
+              </View>
+              <View style={styles.chipWrap}>
+                {experienceOptions.map((opt) => {
+                  const selected = yearsTeaching === opt;
+                  return (
+                    <TouchableOpacity
+                      key={opt}
+                      style={[styles.chip, selected && styles.chipSelected]}
+                      onPress={() => setYearsTeaching(opt)}
+                    >
+                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{opt}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* PRIVATE TUITION TOGGLE */}
+            <View style={styles.subSection}>
+              <TouchableOpacity
+                style={[styles.certifiedToggle, privateTuition && styles.certifiedToggleActive]}
+                onPress={() => setPrivateTuition(!privateTuition)}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.certifiedToggleIcon, privateTuition && styles.certifiedToggleIconActive]}>
+                  <GraduationCap size={22} color={privateTuition ? '#fff' : '#10B981'} />
+                </View>
+                <View style={styles.certifiedToggleContent}>
+                  <Text style={[styles.certifiedToggleTitle, privateTuition && styles.certifiedToggleTitleActive]}>
+                    I have given private tuitions or coaching
+                  </Text>
+                  <Text style={styles.certifiedToggleSubtitle}>
+                    Home tuitions, coaching centres, or online 1-on-1 teaching
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* CAREER HISTORY */}
+            <View style={styles.subSection}>
+              <View style={styles.subSectionTitleRow}>
+                <Briefcase size={16} color="#10B981" />
+                <Text style={styles.subSectionLabel}>Past Career & Jobs Experience</Text>
+              </View>
+              <Text style={styles.subSectionHint}>Past roles and positions that make you a great teacher.</Text>
+              
+              {careerHistory.map((entry) => (
+                <View key={entry.id} style={styles.careerCard}>
+                  <View style={styles.careerIconWrap}>
+                    <Briefcase size={16} color="#10B981" />
+                  </View>
+                  <View style={styles.careerContent}>
+                    <Text style={styles.careerRole}>{entry.role}</Text>
+                    <Text style={styles.careerMeta}>
+                      {[entry.organization, entry.years].filter(Boolean).join(' · ') || '—'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => removeCareerEntry(entry.id)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <X size={16} color={Colors.light.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              <View style={styles.careerForm}>
+                <TextInput
+                  style={styles.careerInput}
+                  placeholder="Role (e.g. Software Engineer, School Teacher)"
+                  placeholderTextColor={Colors.light.textTertiary}
+                  value={careerRole}
+                  onChangeText={setCareerRole}
+                />
+                <TextInput
+                  style={styles.careerInput}
+                  placeholder="Organization (e.g. TCS, Kendriya Vidyalaya)"
+                  placeholderTextColor={Colors.light.textTertiary}
+                  value={careerOrg}
+                  onChangeText={setCareerOrg}
+                />
+                <TextInput
+                  style={styles.careerInput}
+                  placeholder="Years (e.g. 2018–2022 or 3 years)"
+                  placeholderTextColor={Colors.light.textTertiary}
+                  value={careerYears}
+                  onChangeText={setCareerYears}
+                />
+                <TouchableOpacity style={styles.addCareerButton} onPress={addCareerEntry}>
+                  <Plus size={18} color="#fff" />
+                  <Text style={styles.addCareerButtonText}>Add experience</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 
@@ -935,6 +1390,259 @@ const styles = StyleSheet.create({
   },
   toggleKnobOn: {
     transform: [{ translateX: 18 }],
+  },
+  sectionHeaderWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  sectionHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '800' as const,
+    color: Colors.light.text,
+  },
+  sectionHeaderSubtitle: {
+    fontSize: 13,
+    color: Colors.light.textSecondary,
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  subSection: {
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.borderLight,
+  },
+  subSectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  subSectionLabel: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  subSectionHint: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    marginBottom: 10,
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: Colors.light.backgroundTertiary,
+    borderWidth: 1.5,
+    borderColor: Colors.light.borderLight,
+  },
+  chipSelected: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.light.text,
+  },
+  chipTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700' as const,
+  },
+  addRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  addRowInput: {
+    flex: 1,
+    backgroundColor: Colors.light.card,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: Colors.light.text,
+  },
+  addRowButton: {
+    backgroundColor: '#10B981',
+    padding: 11,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  certifiedToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.light.card,
+    borderWidth: 1.5,
+    borderColor: Colors.light.borderLight,
+    borderRadius: 12,
+    padding: 14,
+    gap: 12,
+  },
+  certifiedToggleActive: {
+    borderColor: '#10B981',
+    backgroundColor: '#ECFDF5',
+  },
+  certifiedToggleIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F0FDF4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  certifiedToggleIconActive: {
+    backgroundColor: '#10B981',
+  },
+  certifiedToggleContent: {
+    flex: 1,
+  },
+  certifiedToggleTitle: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    marginBottom: 2,
+  },
+  certifiedToggleTitleActive: {
+    color: '#065F46',
+  },
+  certifiedToggleSubtitle: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    lineHeight: 16,
+  },
+  certSection: {
+    marginTop: 12,
+    gap: 10,
+  },
+  certCard: {
+    backgroundColor: Colors.light.card,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+  },
+  certCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  certCardTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  certCardTitle: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    flex: 1,
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+  },
+  uploadButtonDone: {
+    backgroundColor: '#D1FAE5',
+    borderColor: '#6EE7B7',
+  },
+  uploadButtonText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#059669',
+  },
+  uploadButtonTextDone: {
+    color: '#065F46',
+    fontWeight: '700' as const,
+  },
+  careerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.light.card,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    gap: 10,
+  },
+  careerIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  careerContent: {
+    flex: 1,
+  },
+  careerRole: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  careerMeta: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    marginTop: 2,
+  },
+  careerForm: {
+    backgroundColor: Colors.light.card,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+    marginTop: 4,
+  },
+  careerInput: {
+    backgroundColor: Colors.light.backgroundTertiary,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 13,
+    color: Colors.light.text,
+  },
+  addCareerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  addCareerButtonText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
   },
   promoInput: {
     marginTop: 12,

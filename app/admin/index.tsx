@@ -25,6 +25,7 @@ import {
   Wallet,
   ShieldX,
   Award,
+  Coins,
 } from 'lucide-react-native';
 import { useAdmin } from '../../providers/admin';
 import { useEarnings } from '@/providers/earnings';
@@ -35,7 +36,7 @@ import { useAlert } from '@/providers/alert';
 export default function AdminDashboard() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { stats, isLoading, isAdminAuthenticated, adminLogout } = useAdmin();
+  const { stats, transactions, isLoading, isAdminAuthenticated, adminLogout } = useAdmin();
   const { pendingPayoutsCount } = useEarnings();
   const { pendingReportsCount } = useSafety();
   const { showAlert } = useAlert();
@@ -132,6 +133,14 @@ export default function AdminDashboard() {
       bg: '#EEF2FF',
       route: '/admin/payouts',
       badge: pendingPayoutsCount > 0 ? pendingPayoutsCount : undefined,
+    },
+    {
+      title: 'User Transactions',
+      subtitle: `${transactions?.length || 0} credit & payment movements`,
+      icon: Coins,
+      color: '#10B981',
+      bg: '#ECFDF5',
+      route: '/admin/transactions',
     },
     {
       title: 'Class Management',

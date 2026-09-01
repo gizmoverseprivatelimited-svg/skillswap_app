@@ -95,6 +95,11 @@ export interface User {
   premiumTier: PremiumTier;
   premiumExpiresAt?: string;
   banStatus?: string;
+  banReason?: string;
+  bannedAt?: string;
+  suspendedUntil?: string;
+  daysSuspended?: number;
+  isVerified?: boolean;
   reportCount?: number;
   email?:string;
   role?: OnboardingRole;

@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { Coins, Crown, Zap, Check, Sparkles } from 'lucide-react-native';
+import { Coins, Crown, Zap, Check, Sparkles, Circle, Star, Flame, Gem } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Colors from '@/constants/colors';
 import { formatPrice } from '@/constants/locale';
@@ -13,34 +13,69 @@ import { CREDIT_PACKAGES } from '@/lib/payments';
 
 const creditPackages = CREDIT_PACKAGES;
 
-const premiumTiers = [
+export interface PremiumPlan {
+  id: 'monthly' | 'quarterly' | 'yearly';
+  name: string;
+  price: number;
+  periodLabel: string;
+  badge?: string;
+  bonusCredits: number;
+  popular?: boolean;
+  color: string;
+  features: string[];
+}
+
+const premiumPlans: PremiumPlan[] = [
   {
-    id: 'basic' as const,
-    name: 'Basic',
-    monthlyPrice: 199,
-    yearlyPrice: 1999,
-    monthlyCredits: 30,
-    features: ['Priority matching', 'Ad-free experience', 'Basic analytics'],
+    id: 'monthly',
+    name: 'Monthly Plan',
+    price: 199,
+    periodLabel: '/mo',
+    bonusCredits: 50,
     color: '#6366F1',
+    features: [
+      '🎓 Premium classes par 10% fewer credits',
+      '👨‍🏫 Selected expert teachers ki classes par priority',
+      '📚 Premium learning content access',
+      '🎯 Monthly learning challenges',
+      '🏆 Premium badge/profile highlight',
+      '🎁 50 bonus credits every month',
+    ],
   },
   {
-    id: 'premium' as const,
-    name: 'Premium',
-    monthlyPrice: 399,
-    yearlyPrice: 3999,
-    monthlyCredits: 80,
-    features: ['All Basic features', 'Unlimited swaps', 'Advanced matching', 'Video calls'],
-    color: '#8B5CF6',
+    id: 'quarterly',
+    name: 'Quarterly Plan',
+    price: 499,
+    periodLabel: '/3 mos',
+    bonusCredits: 200,
     popular: true,
+    color: '#8B5CF6',
+    features: [
+      '✨ Monthly benefits included',
+      '🎁 200 bonus credits',
+      '💰 Premium classes par 15% credit discount',
+      '📜 Selected courses/classes par certificates',
+      '⭐ Early access to new classes',
+      '👑 Premium profile badge',
+    ],
   },
   {
-    id: 'elite' as const,
-    name: 'Elite',
-    monthlyPrice: 999,
-    yearlyPrice: 9999,
-    monthlyCredits: 200,
-    features: ['All Premium features', 'Concierge support', 'Exclusive events', 'Expert badge'],
+    id: 'yearly',
+    name: 'Yearly Plan',
+    price: 1499,
+    periodLabel: '/yr',
+    badge: 'BEST VALUE',
+    bonusCredits: 750,
     color: '#F59E0B',
+    features: [
+      '🎁 750 bonus credits',
+      '💰 Premium classes par 20% credit discount',
+      '📜 Eligible courses ke certificates',
+      '🚀 Early access to new features/classes',
+      '⭐ Priority support',
+      '👑 Exclusive Premium badge',
+      '🎁 Members-only workshops',
+    ],
   },
 ];
 
@@ -258,7 +293,7 @@ export default function StoreScreen() {
     setCheckoutModalVisible(true);
   };
 
-  const executePurchasePremium = async (tier: typeof premiumTiers[number]['id'], duration: 'monthly' | 'yearly', mode: 'trial' | 'gateway') => {
+  const executePurchasePremium = async (tier: PremiumPlan['id'] | string, duration: string, mode: 'trial' | 'gateway') => {
     if (mode === 'trial') {
       try {
         setIsProcessing(true);
@@ -332,7 +367,7 @@ export default function StoreScreen() {
     }
   };
 
-  const handlePurchasePremium = (tier: typeof premiumTiers[number]['id']) => {
+  const handlePurchasePremium = (planId: PremiumPlan['id']) => {
     if (!currentUser || currentUser?.id === '1' || (currentUser as any)?.isDemo) {
       showAlert(
         'Login Required 🔒',
@@ -344,15 +379,14 @@ export default function StoreScreen() {
       );
       return;
     }
-    const tierInfo = premiumTiers.find((t) => t.id === tier);
-    if (!tierInfo) return;
-    const price = selectedDuration === 'monthly' ? tierInfo.monthlyPrice : tierInfo.yearlyPrice;
+    const plan = premiumPlans.find((p) => p.id === planId);
+    if (!plan) return;
     setCheckoutItem({
       type: 'premium',
-      id: tier,
-      name: `${tierInfo.name} Subscription`,
-      price,
-      duration: selectedDuration,
+      id: planId,
+      name: plan.name,
+      price: plan.price,
+      duration: planId === 'yearly' ? 'yearly' : 'monthly',
     });
     setCheckoutModalVisible(true);
   };
@@ -414,30 +448,69 @@ export default function StoreScreen() {
             <View style={styles.packagesGrid}>
               {creditPackages.map((pkg) => {
                 const totalCredits = pkg.credits + pkg.bonusCredits;
+                
+                const renderTopRightIcon = () => {
+                  switch (pkg.id) {
+                    case 'starter':
+                      return <Circle size={18} color="#22C55E" fill="#22C55E" />;
+                    case 'basic':
+                      return <Circle size={18} color="#3B82F6" fill="#3B82F6" />;
+                    case 'popular':
+                      return <Star size={18} color="#F59E0B" fill="#F59E0B" />;
+                    case 'pro':
+                      return <Circle size={18} color="#A855F7" fill="#A855F7" />;
+                    case 'premium':
+                      return <Flame size={20} color="#EF4444" fill="#EF4444" />;
+                    case 'ultimate':
+                      return <Crown size={20} color="#EAB308" fill="#EAB308" />;
+                    default:
+                      return <Coins size={18} color={pkg.color || Colors.light.primary} />;
+                  }
+                };
+
                 return (
-                  <View key={pkg.id} style={styles.packageCard}>
+                  <View key={pkg.id} style={[styles.packageCard, pkg.popular && styles.packageCardPopular]}>
+                    {/* Top Right Corner React Native Icon */}
+                    <View style={[styles.topRightIconWrap, { backgroundColor: `${pkg.color || '#6366F1'}15` }]}>
+                      {renderTopRightIcon()}
+                    </View>
+
                     {pkg.popular && (
                       <View style={styles.popularBadge}>
-                        <Zap size={12} color="#FFFFFF" fill="#FFFFFF" />
+                        <Zap size={10} color="#FFFFFF" fill="#FFFFFF" />
                         <Text style={styles.popularText}>POPULAR</Text>
                       </View>
                     )}
-                    <View style={styles.packageIcon}>
-                      <Coins size={32} color={Colors.light.primary} />
+
+                    <Text style={styles.packageNameTitle}>{pkg.label}</Text>
+                    
+                    <View style={styles.packageCreditsWrap}>
+                      <Text style={styles.packageCredits}>{totalCredits}</Text>
+                      <Text style={styles.packageLabel}>Credits</Text>
                     </View>
-                    <Text style={styles.packageCredits}>{totalCredits}</Text>
-                    <Text style={styles.packageLabel}>Credits</Text>
-                    {pkg.bonusCredits > 0 && (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                        <Sparkles size={12} color="#F59E0B" />
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#F59E0B' }}>+{pkg.bonusCredits} bonus</Text>
+
+                    {pkg.bonusCredits > 0 ? (
+                      <View style={styles.bonusBadgePill}>
+                        <Sparkles size={11} color="#16A34A" />
+                        <Text style={styles.bonusBadgeText}>+{pkg.bonusCredits} Bonus</Text>
+                      </View>
+                    ) : (
+                      <View style={[styles.bonusBadgePill, { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}>
+                        <Text style={[styles.bonusBadgeText, { color: '#94A3B8' }]}>Standard</Text>
                       </View>
                     )}
+
                     <View style={styles.packageDivider} />
-                    <Text style={styles.packagePrice}>{formatPrice(pkg.priceRupees)}</Text>
+                    
+                    <View style={styles.priceRow}>
+                      <Text style={styles.payLabel}>Pay</Text>
+                      <Text style={styles.packagePrice}>{formatPrice(pkg.priceRupees)}</Text>
+                    </View>
+
                     <TouchableOpacity
                       style={[
                         styles.packageButton,
+                        pkg.popular && { backgroundColor: '#F59E0B' },
                         isProcessing && styles.packageButtonDisabled,
                       ]}
                       onPress={() => handlePurchaseCredits(pkg.id as any)}
@@ -459,92 +532,68 @@ export default function StoreScreen() {
               Unlock unlimited swaps, priority matching, and exclusive features
             </Text>
 
-            <View style={styles.durationSelector}>
-              <TouchableOpacity
-                style={[
-                  styles.durationOption,
-                  selectedDuration === 'monthly' && styles.durationOptionActive,
-                ]}
-                onPress={() => setSelectedDuration('monthly')}
-              >
-                <Text
-                  style={[
-                    styles.durationText,
-                    selectedDuration === 'monthly' && styles.durationTextActive,
-                  ]}
-                >
-                  Monthly
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.durationOption,
-                  selectedDuration === 'yearly' && styles.durationOptionActive,
-                ]}
-                onPress={() => setSelectedDuration('yearly')}
-              >
-                <Text
-                  style={[
-                    styles.durationText,
-                    selectedDuration === 'yearly' && styles.durationTextActive,
-                  ]}
-                >
-                  Yearly
-                </Text>
-                <View style={styles.saveBadge}>
-                  <Text style={styles.saveText}>Save 17%</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
             <View style={styles.tiersContainer}>
-              {premiumTiers.map((tier) => (
+              {premiumPlans.map((plan) => (
                 <View
-                  key={tier.id}
+                  key={plan.id}
                   style={[
                     styles.tierCard,
-                    tier.popular && styles.tierCardPopular,
+                    plan.popular && styles.tierCardPopular,
+                    plan.badge && { borderColor: '#F59E0B', borderWidth: 2 },
                   ]}
                 >
-                  {tier.popular && (
+                  {plan.badge ? (
+                    <View style={[styles.tierPopularBadge, { backgroundColor: '#F59E0B' }]}>
+                      <Sparkles size={13} color="#FFFFFF" />
+                      <Text style={styles.tierPopularText}>{plan.badge}</Text>
+                    </View>
+                  ) : plan.popular ? (
                     <View style={styles.tierPopularBadge}>
-                      <Crown size={14} color="#FFFFFF" fill="#FFFFFF" />
+                      <Crown size={13} color="#FFFFFF" fill="#FFFFFF" />
                       <Text style={styles.tierPopularText}>MOST POPULAR</Text>
                     </View>
-                  )}
-                  <View style={[styles.tierIcon, { backgroundColor: tier.color }]}>
-                    <Crown size={28} color="#FFFFFF" />
+                  ) : null}
+
+                  <View style={styles.tierHeaderRow}>
+                    <View style={[styles.tierIcon, { backgroundColor: plan.color }]}>
+                      <Crown size={24} color="#FFFFFF" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.tierName}>{plan.name}</Text>
+                      <View style={styles.tierPriceContainer}>
+                        <Text style={styles.tierPrice}>{formatPrice(plan.price)}</Text>
+                        <Text style={styles.tierPricePeriod}>{plan.periodLabel}</Text>
+                      </View>
+                    </View>
                   </View>
-                  <Text style={styles.tierName}>{tier.name}</Text>
-                  <View style={styles.tierPriceContainer}>
-                    <Text style={styles.tierPrice}>
-                      {formatPrice(selectedDuration === 'monthly' ? tier.monthlyPrice : tier.yearlyPrice)}
-                    </Text>
-                    <Text style={styles.tierPricePeriod}>/{selectedDuration === 'monthly' ? 'mo' : 'yr'}</Text>
-                  </View>
+
                   <View style={styles.tierCreditsInfo}>
-                    <Coins size={16} color={tier.color} />
-                    <Text style={styles.tierCreditsText}>{tier.monthlyCredits} credits/month</Text>
+                    <Coins size={16} color={plan.color} />
+                    <Text style={styles.tierCreditsText}>
+                      +{plan.bonusCredits} Bonus Credits {plan.id === 'monthly' ? 'every month' : 'included'}
+                    </Text>
                   </View>
+
                   <View style={styles.tierFeatures}>
-                    {tier.features.map((feature, index) => (
+                    {plan.features.map((feature, index) => (
                       <View key={index} style={styles.tierFeature}>
-                        <Check size={18} color={tier.color} strokeWidth={2.5} />
+                        <Check size={16} color={plan.color} strokeWidth={2.5} style={{ marginTop: 2 }} />
                         <Text style={styles.tierFeatureText}>{feature}</Text>
                       </View>
                     ))}
                   </View>
+
                   <TouchableOpacity
                     style={[
                       styles.tierButton,
-                      { backgroundColor: tier.color },
+                      { backgroundColor: plan.color },
                       isProcessing && styles.tierButtonDisabled,
                     ]}
-                    onPress={() => handlePurchasePremium(tier.id)}
+                    onPress={() => handlePurchasePremium(plan.id)}
                     disabled={isProcessing}
                   >
                     <Text style={styles.tierButtonText}>
-                      {isProcessing ? 'Processing...' : 'Subscribe'}
+                      {isProcessing ? 'Processing...' : `Subscribe for ${formatPrice(plan.price)}`}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -725,29 +774,46 @@ const styles = StyleSheet.create({
   packageCard: {
     width: '48%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
     paddingTop: 20,
     alignItems: 'center',
     shadowColor: Colors.light.shadow,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowRadius: 10,
+    elevation: 3,
     position: 'relative',
+    borderWidth: 1.5,
+    borderColor: '#F1F5F9',
+  },
+  packageCardPopular: {
+    borderColor: '#F59E0B',
+    backgroundColor: '#FFFDF7',
+  },
+  topRightIconWrap: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 5,
   },
   popularBadge: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: 12,
+    left: 12,
     zIndex: 10,
     elevation: 5,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: Colors.light.accent,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: 6,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
@@ -761,35 +827,74 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   packageIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.light.primaryLight,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
+  },
+  packageNameTitle: {
+    fontSize: 16,
+    fontWeight: '800' as const,
+    color: Colors.light.text,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  packageCreditsWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   packageCredits: {
-    fontSize: 28,
-    fontWeight: '700' as const,
+    fontSize: 26,
+    fontWeight: '800' as const,
     color: Colors.light.text,
   },
   packageLabel: {
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: '600' as const,
     color: Colors.light.textSecondary,
-    marginBottom: 12,
+    marginBottom: 4,
+  },
+  bonusBadgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  bonusBadgeText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: '#15803D',
   },
   packageDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: Colors.light.borderLight,
-    marginVertical: 12,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 10,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  payLabel: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
   },
   packagePrice: {
-    fontSize: 20,
-    fontWeight: '700' as const,
+    fontSize: 18,
+    fontWeight: '800' as const,
     color: Colors.light.primary,
-    marginBottom: 12,
   },
   packageButton: {
     width: '100%',
@@ -890,32 +995,38 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },
+  tierHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 14,
+    marginTop: 4,
+  },
   tierIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
   },
   tierName: {
-    fontSize: 24,
-    fontWeight: '700' as const,
+    fontSize: 18,
+    fontWeight: '800' as const,
     color: Colors.light.text,
-    marginBottom: 8,
+    marginBottom: 2,
   },
   tierPriceContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: 12,
   },
   tierPrice: {
-    fontSize: 36,
-    fontWeight: '700' as const,
+    fontSize: 28,
+    fontWeight: '800' as const,
     color: Colors.light.text,
   },
   tierPricePeriod: {
-    fontSize: 16,
+    fontSize: 14,
+    fontWeight: '600' as const,
     color: Colors.light.textSecondary,
     marginLeft: 4,
   },
@@ -923,12 +1034,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignSelf: 'flex-start',
+    borderRadius: 10,
+    marginBottom: 14,
   },
   tierCreditsText: {
     fontSize: 14,

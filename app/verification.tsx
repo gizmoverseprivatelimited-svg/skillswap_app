@@ -28,6 +28,7 @@ import { SkillBadge } from '@/components/SkillBadge';
 import url from '@/constants/backurl';
 import { useCurrentUser } from '@/providers/current-user';
 import { useAlert } from '@/providers/alert';
+import { useSocket } from '@/providers/socket';
 
 type VerificationType =
   | 'identity'
@@ -51,6 +52,7 @@ type StructuredVerifications = {
 
 export default function VerificationScreen() {
   const { showAlert } = useAlert();
+  const { socket } = useSocket();
 
   const [showIdentityForm, setShowIdentityForm] = useState<boolean>(false);
   const [showPhoneForm, setShowPhoneForm] = useState<boolean>(false);
@@ -169,6 +171,28 @@ export default function VerificationScreen() {
   useEffect(() => {
     fetchVerifications();
   }, [currentUser?.id]);
+
+  // Real-time socket listener for verification status changes by admin
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleVerificationEvent = (data: any) => {
+      console.log('[Socket.IO VerificationScreen] Verification event received:', data);
+      fetchVerifications();
+    };
+
+    socket.on('verification_approved', handleVerificationEvent);
+    socket.on('verification_rejected', handleVerificationEvent);
+    socket.on('verification_updated', handleVerificationEvent);
+    socket.on('user_verified', handleVerificationEvent);
+
+    return () => {
+      socket.off('verification_approved', handleVerificationEvent);
+      socket.off('verification_rejected', handleVerificationEvent);
+      socket.off('verification_updated', handleVerificationEvent);
+      socket.off('user_verified', handleVerificationEvent);
+    };
+  }, [socket]);
 
   // const handleVerifyEmail = async () => {
   //   try {
@@ -354,12 +378,32 @@ export default function VerificationScreen() {
     }
   };
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/profile' as any);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
         <Stack.Screen
           options={{
-            headerShown: false,
+            headerShown: true,
+            title: 'Verification',
+            headerStyle: { backgroundColor: Colors.light.card },
+            headerTintColor: Colors.light.text,
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={handleBack}
+                style={styles.backButton}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <ArrowLeft size={24} color={Colors.light.text} />
+              </TouchableOpacity>
+            ),
           }}
         />
         <View style={styles.loadingContainer}>
@@ -653,6 +697,15 @@ export default function VerificationScreen() {
           title: 'Verification',
           headerStyle: { backgroundColor: Colors.light.card },
           headerTintColor: Colors.light.text,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={handleBack}
+              style={styles.backButton}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <ArrowLeft size={24} color={Colors.light.text} />
+            </TouchableOpacity>
+          ),
         }}
       />
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>

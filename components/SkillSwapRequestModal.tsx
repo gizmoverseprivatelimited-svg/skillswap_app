@@ -331,6 +331,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
       return { startISO: slot.startISO, endISO: slot.endISO };
     });
     const submit = async () => {
+      if (isSubmitting) return;
       if (!currentUser || currentUser.id === '1' || (currentUser as any).isDemo) {
         setError('Please log in with a real account to send skill swap requests.');
         return;
@@ -341,16 +342,12 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
           setError('You cannot send swap requests to a blocked user.');
           return;
         }
-        const blockStatus = await checkBlockStatus(targetUid);
-        if (blockStatus.isBlocked) {
-          setError('You cannot send swap requests to this user due to block settings.');
-          return;
-        }
       }
       if (swapType !== 'teach' && !hasEnoughCredits && totalRequiredCredits > 0) {
         setError(`You need ${totalRequiredCredits - (currentUser?.credits || 0)} more credits to send this request (Pay now: ${payNowCost} cr + Session completion: ${sessionCost} cr).`);
         return;
       }
+      setError(null);
       try {
         const payload = {
           recipientId: skill.user.id,
@@ -362,16 +359,16 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
           message: introMessage?.trim().length > 0 ? introMessage : undefined,
         };
 
-        const createdSwap = await createSwapRequest(payload);
+        const createdSwap = await submitSwapRequest(payload);
         onClose();
         router.push(`/swaps/${createdSwap.id}` as never);
-      } catch (swapError) {
+      } catch (swapError: any) {
         console.log('[SkillSwap] Failed to create request', swapError);
-        setError('Unable to create the request. Try again.');
+        setError(swapError?.message || 'Unable to create the request. Try again.');
       }
     };
     void submit();
-  }, [canAdvance, isDetailsStep, introMessage, isSubmitting, mergedLocation, onClose, router, selectedRequesterSkillId, selectedRecipientSkillId, selectedTimes, skill.id, skill.user.id, step, totalSteps, swapType, payNowCost, sessionCost, totalRequiredCredits, hasEnoughCredits, currentUser?.credits, createSwapRequest]);
+  }, [canAdvance, isDetailsStep, introMessage, isSubmitting, mergedLocation, onClose, router, selectedRequesterSkillId, selectedRecipientSkillId, selectedTimes, skill.id, skill.user.id, step, totalSteps, swapType, payNowCost, sessionCost, totalRequiredCredits, hasEnoughCredits, currentUser?.credits, submitSwapRequest]);
 
   const partnerName = useMemo(() => {
     const target = latestPartner || skill.user;

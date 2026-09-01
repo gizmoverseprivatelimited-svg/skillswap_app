@@ -42,37 +42,60 @@ export function buildSwapCertificates(
   skills?: Skill[],
 ): CertificateData[] {
   if (!currentUser) return [];
-  return swaps
-    .filter(s => s.status === 'completed')
-    .map(swap => {
-      const isRequester = String(swap.requesterId) === String(currentUser.id);
-      const partnerId = isRequester ? swap.recipientId : swap.requesterId;
-      const partner = allUsers.find(u => String(u.id) === String(partnerId) || String((u as any)._id) === String(partnerId));
-      const recipientSkillId = isRequester ? swap.recipientSkillId : swap.requesterSkillId;
-      const taughtSkill = skills?.find(sk => String(sk.id) === String(recipientSkillId) || String((sk as any)._id) === String(recipientSkillId));
+  const certs: CertificateData[] = [];
 
-      const fallbackTitle = swap.id === 'swap-completed-1'
-        ? 'Hindi Conversation'
-        : swap.id === 'swap-completed-2'
-        ? 'Portrait Photography'
-        : 'Skill Session';
+  for (const swap of swaps) {
+    if (swap.status !== 'completed') continue;
 
-      const certId = `cert-swap-${swap.id}`;
+    const isRequester = String(swap.requesterId) === String(currentUser.id);
+    const swapType = swap.swapType || 'swap';
 
-      return {
-        id: certId,
-        type: 'swap_completion' as CertificateType,
-        recipientName: currentUser.name || 'Student',
-        skillTitle: taughtSkill?.title ?? (swap as any).skillTitle ?? fallbackTitle,
-        skillCategory: taughtSkill?.category ?? (swap as any).skillCategory ?? 'General',
-        skillLevel: taughtSkill?.level ?? (swap as any).skillLevel ?? 'Intermediate',
-        partnerName: partner?.name ?? (swap as any).partnerName ?? 'leteski Member',
-        completedAt: swap.updatedAt || swap.createdAt || new Date().toISOString(),
-        certificateNumber: generateCertificateNumber(`swap-${swap.id}-${currentUser.id}`),
-        role: (isRequester ? 'learner' : 'teacher') as 'teacher' | 'learner',
-        sessionId: swap.id,
-      };
+    // If swapType is 'teach', requester is the teacher and recipient is the learner:
+    // Teacher (requester) does NOT receive a certificate.
+    if (swapType === 'teach' && isRequester) {
+      continue;
+    }
+
+    // If swapType is 'learn', requester is the learner and recipient is the teacher:
+    // Teacher (recipient) does NOT receive a certificate.
+    if (swapType === 'learn' && !isRequester) {
+      continue;
+    }
+
+    const partnerId = isRequester ? swap.recipientId : swap.requesterId;
+    const partner = allUsers.find(u => String(u.id) === String(partnerId) || String((u as any)._id) === String(partnerId));
+
+    // Determine the skill learned by the user:
+    // In 'learn' or 'swap' where currentUser is requester -> recipientSkillId
+    // In 'teach' where currentUser is recipient -> requesterSkillId
+    // In 'swap' where currentUser is recipient -> requesterSkillId
+    const learnedSkillId = isRequester ? swap.recipientSkillId : (swap.requesterSkillId || swap.recipientSkillId);
+    const taughtSkill = skills?.find(sk => String(sk.id) === String(learnedSkillId) || String((sk as any)._id) === String(learnedSkillId));
+
+    const fallbackTitle = swap.id === 'swap-completed-1'
+      ? 'Hindi Conversation'
+      : swap.id === 'swap-completed-2'
+      ? 'Portrait Photography'
+      : 'Skill Session';
+
+    const certId = `cert-swap-${swap.id}`;
+
+    certs.push({
+      id: certId,
+      type: 'swap_completion' as CertificateType,
+      recipientName: currentUser.name || 'Student',
+      skillTitle: taughtSkill?.title ?? (swap as any).skillTitle ?? fallbackTitle,
+      skillCategory: taughtSkill?.category ?? (swap as any).skillCategory ?? 'General',
+      skillLevel: taughtSkill?.level ?? (swap as any).skillLevel ?? 'Intermediate',
+      partnerName: partner?.name ?? (swap as any).partnerName ?? 'leteski Member',
+      completedAt: swap.updatedAt || swap.createdAt || new Date().toISOString(),
+      certificateNumber: generateCertificateNumber(`swap-${swap.id}-${currentUser.id}`),
+      role: 'learner' as const,
+      sessionId: swap.id,
     });
+  }
+
+  return certs;
 }
 
 export function buildClassCertificates(
@@ -87,27 +110,7 @@ export function buildClassCertificates(
   for (const cls of classes) {
     if (cls.status !== 'completed') continue;
 
-    // Teacher certificate
-    if (String(cls.teacherId) === String(currentUser.id)) {
-      const attendedCount = Array.isArray(enrollments) ? enrollments.filter(
-        e => String(e.classId) === String(cls.id) && e.status === 'attended',
-      ).length : 0;
-      certs.push({
-        id: `cert-class-teach-${cls.id}`,
-        type: 'class_teaching' as CertificateType,
-        recipientName: currentUser.name,
-        skillTitle: cls.title,
-        skillCategory: cls.category,
-        skillLevel: cls.level,
-        partnerName: `${attendedCount} student${attendedCount === 1 ? '' : 's'}`,
-        completedAt: cls.endISO,
-        certificateNumber: generateCertificateNumber(`class-teach-${cls.id}-${currentUser.id}`),
-        role: 'teacher' as const,
-        sessionId: cls.id,
-      });
-    }
-
-    // Student certificate (if attended)
+    // Student certificate only (if attended) — teachers do not receive certificates for teaching classes
     const myEnrollment = Array.isArray(enrollments) ? enrollments.find(
       e => String(e.classId) === String(cls.id) && String(e.studentId) === String(currentUser.id) && e.status === 'attended',
     ) : null;

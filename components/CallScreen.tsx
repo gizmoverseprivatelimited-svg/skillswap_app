@@ -666,9 +666,10 @@ interface SpotlightViewProps {
 function SpotlightView({
   participant, localParticipant, mode, isGroupCall, isTeacher, remoteParticipants, onSpotlight,
 }: SpotlightViewProps) {
-  // If user is a student in a group class, always spotlight the teacher
+  // If user is a student in a group class, always spotlight the teacher exclusively
+  const teacherParticipant = remoteParticipants.find(p => p.role === 'teacher' || p.role === 'host');
   const targetRemote = (!isTeacher && isGroupCall)
-    ? (remoteParticipants.find(p => p.role === 'teacher' || p.role === 'host') ?? (!participant.isLocal ? participant : (remoteParticipants[0] ?? participant)))
+    ? (teacherParticipant ?? (remoteParticipants.find(p => !p.isLocal) ?? participant))
     : (!participant.isLocal ? participant : (remoteParticipants[0] ?? participant));
 
   const isTeacherTarget = targetRemote.role === 'teacher' || targetRemote.role === 'host';
@@ -850,16 +851,15 @@ interface ParticipantTileProps {
 }
 
 function ParticipantTile({ participant, mode, isLarge, isSmall }: ParticipantTileProps) {
-  const showVideo = mode === 'video' && !participant.isVideoOff;
-  const hasLiveVideo = Boolean(
-    participant.videoTrackId ||
-    (participant.mediaStream &&
-      typeof (participant.mediaStream as any).getVideoTracks === 'function' &&
-      (participant.mediaStream as any).getVideoTracks().length > 0)
-  );
-  const isVideoActive = showVideo && hasLiveVideo;
-  const showAvatar = !isVideoActive;
-  const avatarSize = isLarge ? 80 : isSmall ? 28 : 48;
+  const isCameraDisabled = mode !== 'video' || Boolean(participant.isVideoOff);
+  const hasLiveNativeTrack = Boolean(participant.videoTrackId && !isCameraDisabled);
+  const mediaStreamTracks = (participant.mediaStream && typeof (participant.mediaStream as any).getVideoTracks === 'function')
+    ? (participant.mediaStream as any).getVideoTracks()
+    : [];
+  const hasLiveWebStream = mediaStreamTracks.length > 0 && mediaStreamTracks.some((t: any) => t.readyState !== 'ended');
+  const isVideoActive = !isCameraDisabled && (hasLiveNativeTrack || hasLiveWebStream || Boolean(participant.mediaStream));
+  const avatarSize = isLarge ? 84 : isSmall ? 32 : 52;
+  const isConnected = participant.status === 'connected' || Boolean(participant.mediaStream) || Boolean(participant.videoTrackId);
 
   return (
     <View style={styles.tileContainer}>
@@ -873,22 +873,33 @@ function ParticipantTile({ participant, mode, isLarge, isSmall }: ParticipantTil
           />
         </View>
       ) : (
-        <View style={[styles.tileAvatarWrap, showAvatar && styles.tileAvatarWrapVisible]}>
+        <View style={styles.tileAvatarWrapVisible}>
           <LinearGradient
             colors={getAvatarGradientColors(participant.id)}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={styles.tileAvatarGradient}
           >
             {participant.avatarUrl && !isSmall ? (
               <Image source={{ uri: participant.avatarUrl }} style={[styles.tileAvatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]} />
             ) : (
-              <Text style={[styles.tileAvatarText, { fontSize: isSmall ? 12 : 28 }]}>
-                {participant.name.charAt(0).toUpperCase()}
-              </Text>
+              <View style={[styles.avatarLetterCircle, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}>
+                <Text style={[styles.tileAvatarText, { fontSize: isSmall ? 14 : isLarge ? 32 : 22 }]}>
+                  {participant.name ? participant.name.charAt(0).toUpperCase() : 'U'}
+                </Text>
+              </View>
             )}
-            {isLarge && !participant.isLocal && (
-              <Text style={styles.waitingNotice}>
-                {participant.status === 'connecting' ? 'Connecting to partner...' : 'Camera is turned off'}
-              </Text>
+
+            {!isSmall && (
+              <View style={styles.cameraOffNoticeBox}>
+                <Text style={styles.cameraOffNoticeName} numberOfLines={1}>{participant.isLocal ? 'You' : participant.name}</Text>
+                <View style={styles.cameraOffBadge}>
+                  <VideoOff size={11} color="#CBD5E1" />
+                  <Text style={styles.cameraOffNoticeText}>
+                    {!isConnected && !participant.isLocal ? 'Connecting...' : 'Camera Off'}
+                  </Text>
+                </View>
+              </View>
             )}
           </LinearGradient>
         </View>
@@ -1529,10 +1540,49 @@ const styles = StyleSheet.create({
   tileVideoGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   tileVideoInitial: { fontSize: 48, fontWeight: '800', color: 'rgba(255,255,255,0.15)' },
   tileAvatarWrap: { flex: 1, display: 'none' },
-  tileAvatarWrapVisible: { display: 'flex' },
-  tileAvatarGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tileAvatar: { borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' },
-  tileAvatarText: { fontWeight: '700', color: '#FFFFFF' },
+  tileAvatarWrapVisible: { flex: 1, width: '100%', height: '100%' },
+  tileAvatarGradient: { flex: 1, width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', padding: 12 },
+  avatarLetterCircle: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  tileAvatar: { borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)' },
+  tileAvatarText: { fontWeight: '800', color: '#FFFFFF' },
+  cameraOffNoticeBox: {
+    alignItems: 'center',
+    marginTop: 10,
+    gap: 4,
+  },
+  cameraOffNoticeName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  cameraOffBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  cameraOffNoticeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#E2E8F0',
+  },
   waitingNotice: { fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 12, textAlign: 'center', paddingHorizontal: 16 },
   tileNameWrap: {
     position: 'absolute', bottom: 8, left: 8, right: 8,

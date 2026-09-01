@@ -97,46 +97,6 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
     });
   }, []);
 
-  // Listen for real-time certificate approval/rejection from Admin
-  useEffect(() => {
-    if (!socket) return;
-    const handleCertUpdated = (event: any) => {
-      if (currentUser && String(event.userId) === String(currentUser.id || (currentUser as any)._id)) {
-        setCurrentUser(prev => {
-          if (!prev) return prev;
-          const updatedTeacherProfile = prev.teacherProfile ? {
-            ...prev.teacherProfile,
-            certifications: (prev.teacherProfile.certifications || []).map((c: any) =>
-              (String(c.id) === String(event.certId) || String(c._id) === String(event.certId))
-                ? { ...c, status: event.status, reviewNote: event.reviewNote, reviewedAt: event.reviewedAt }
-                : c
-            ),
-          } : undefined;
-
-          const updatedSkills = (prev.skillsOffered || []).map(s => {
-            return {
-              ...s,
-              certificateStatus: event.status,
-              certificateReviewNote: event.reviewNote,
-              certificateReviewedAt: event.reviewedAt,
-            };
-          });
-
-          return {
-            ...prev,
-            teacherProfile: updatedTeacherProfile,
-            skillsOffered: updatedSkills,
-          };
-        });
-      }
-    };
-
-    socket.on('certification_updated', handleCertUpdated);
-    return () => {
-      socket.off('certification_updated', handleCertUpdated);
-    };
-  }, [socket, currentUser]);
-
   // Keep a ref to the latest user object to prevent loadUser from recreating and causing re-render loops
   const userRef = useRef(user);
   useEffect(() => {
@@ -218,40 +178,173 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
                 const parsed = JSON.parse(storedOnboarding);
                 if (parsed?.teacherProfile) {
                   loadedUser = { ...loadedUser, teacherProfile: parsed.teacherProfile };
-                  // Persist to backend so it's in MongoDB permanently
-                  fetch(`${url}/users/onboarding`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      userId: currentId,
-                      skillsToTeach: parsed.skillsToTeach || [],
-                      skillsToLearn: parsed.skillsToLearn || [],
-                      experienceLevels: parsed.experienceLevels || {},
-                      learningGoals: parsed.learningGoals || [],
-                      availability: parsed.availability || [],
-                      communicationPreference: parsed.communicationPreference || '',
-                      matchingPreferences: parsed.matchingPreferences || { location: '', virtual: true, inPerson: false },
-                      teacherProfile: parsed.teacherProfile,
-                    }),
-                  }).catch(() => {});
                 }
               }
-            } catch (e) {
-              console.warn('[CurrentUser] Onboarding local check error:', e);
+            } catch (storageErr) {
+              console.warn('[CurrentUser] Failed reading stored onboarding data:', storageErr);
             }
           }
+
           setCurrentUser(loadedUser);
-          return;
         }
       }
-    } catch (err) {
-      console.error('[CurrentUser] Failed to load users:', err);
+    } catch (error) {
+      console.error('Failed to load user:', error);
     } finally {
       if (!silent) {
         setIsLoading(false);
       }
     }
   }, []);
+
+  // Listen for real-time admin actions and user updates from Admin panel
+  useEffect(() => {
+    if (!socket) return;
+
+    const myId = currentUser ? String(currentUser.id || (currentUser as any)._id) : '';
+
+    if (myId) {
+      socket.emit('join_room', myId);
+    }
+
+    const handleCertUpdated = (event: any) => {
+      if (myId && String(event.userId) === myId) {
+        setCurrentUser(prev => {
+          if (!prev) return prev;
+          const updatedTeacherProfile = prev.teacherProfile ? {
+            ...prev.teacherProfile,
+            certifications: (prev.teacherProfile.certifications || []).map((c: any) =>
+              (String(c.id) === String(event.certId) || String(c._id) === String(event.certId))
+                ? { ...c, status: event.status, reviewNote: event.reviewNote, reviewedAt: event.reviewedAt }
+                : c
+            ),
+          } : undefined;
+
+          const updatedSkills = (prev.skillsOffered || []).map(s => {
+            return {
+              ...s,
+              certificateStatus: event.status,
+              certificateReviewNote: event.reviewNote,
+              certificateReviewedAt: event.reviewedAt,
+            };
+          });
+
+          return {
+            ...prev,
+            teacherProfile: updatedTeacherProfile,
+            skillsOffered: updatedSkills,
+          };
+        });
+      }
+    };
+
+    const handleUserUpdated = (updatedUser: any) => {
+      if (!updatedUser) return;
+      const targetId = String(updatedUser._id || updatedUser.id || '');
+      if (myId && targetId === myId) {
+        console.log('[Socket.IO CurrentUser] Received real-time user_updated:', updatedUser);
+        setCurrentUser(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            ...updatedUser,
+            id: targetId,
+            credits: typeof updatedUser.credits === 'number' ? updatedUser.credits : prev.credits,
+            isVerified: updatedUser.isVerified !== undefined ? updatedUser.isVerified : prev.isVerified,
+            banStatus: updatedUser.banStatus || prev.banStatus,
+            teacherProfile: updatedUser.teacherProfile || prev.teacherProfile,
+          };
+        });
+      }
+    };
+
+    const handleCreditsUpdated = (data: any) => {
+      if (!data) return;
+      const targetId = String(data.userId || data._id || data.id || '');
+      if (myId && (targetId === myId || !targetId)) {
+        console.log('[Socket.IO CurrentUser] Received real-time credits_updated:', data);
+        if (typeof data.credits === 'number' || typeof data.newBalance === 'number') {
+          const newCredits = typeof data.credits === 'number' ? data.credits : data.newBalance;
+          setCurrentUser(prev => prev ? { ...prev, credits: newCredits } : prev);
+        } else {
+          loadUser(true);
+        }
+      }
+    };
+
+    const handleUserBanned = (data: any) => {
+      const targetUserId = String(data?.userId || (data?.user && (data.user._id || data.user.id)) || '');
+      if (myId && targetUserId === myId) {
+        console.log('[Socket.IO CurrentUser] Received real-time user_banned:', data);
+        setCurrentUser(prev => prev ? {
+          ...prev,
+          banStatus: 'banned',
+          banReason: data.reason || data.banReason,
+          bannedAt: data.bannedAt || new Date().toISOString(),
+          suspendedUntil: undefined,
+          daysSuspended: undefined,
+        } : prev);
+      }
+    };
+
+    const handleUserSuspended = (data: any) => {
+      const targetUserId = String(data?.userId || (data?.user && (data.user._id || data.user.id)) || '');
+      if (myId && targetUserId === myId) {
+        console.log('[Socket.IO CurrentUser] Received real-time user_suspended:', data);
+        setCurrentUser(prev => prev ? {
+          ...prev,
+          banStatus: 'suspended',
+          banReason: data.reason || data.banReason,
+          bannedAt: data.bannedAt || new Date().toISOString(),
+          suspendedUntil: data.suspendedUntil ? new Date(data.suspendedUntil).toISOString() : undefined,
+          daysSuspended: data.daysSuspended,
+        } : prev);
+      }
+    };
+
+    const handleUserUnbanned = (data: any) => {
+      const targetUserId = String(data?.userId || (data?.user && (data.user._id || data.user.id)) || '');
+      if (myId && targetUserId === myId) {
+        console.log('[Socket.IO CurrentUser] Received real-time user_unbanned:', data);
+        setCurrentUser(prev => prev ? {
+          ...prev,
+          banStatus: 'active',
+          banReason: undefined,
+          bannedAt: undefined,
+          suspendedUntil: undefined,
+          daysSuspended: undefined,
+        } : prev);
+      }
+    };
+
+    const handleUserVerified = (data: any) => {
+      const targetUserId = String(data?.userId || (data?.user && (data.user._id || data.user.id)) || '');
+      if (myId && targetUserId === myId) {
+        console.log('[Socket.IO CurrentUser] Received real-time user_verified');
+        setCurrentUser(prev => prev ? { ...prev, isVerified: true } : prev);
+      }
+    };
+
+    socket.on('certification_updated', handleCertUpdated);
+    socket.on('user_updated', handleUserUpdated);
+    socket.on('credits_updated', handleCreditsUpdated);
+    socket.on('user_banned', handleUserBanned);
+    socket.on('user_suspended', handleUserSuspended);
+    socket.on('user_unbanned', handleUserUnbanned);
+    socket.on('user_verified', handleUserVerified);
+    socket.on('verification_approved', handleUserVerified);
+
+    return () => {
+      socket.off('certification_updated', handleCertUpdated);
+      socket.off('user_updated', handleUserUpdated);
+      socket.off('credits_updated', handleCreditsUpdated);
+      socket.off('user_banned', handleUserBanned);
+      socket.off('user_suspended', handleUserSuspended);
+      socket.off('user_unbanned', handleUserUnbanned);
+      socket.off('user_verified', handleUserVerified);
+      socket.off('verification_approved', handleUserVerified);
+    };
+  }, [socket, currentUser, loadUser]);
 
   useEffect(() => {
     loadUser();

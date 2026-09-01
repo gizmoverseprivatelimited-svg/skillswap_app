@@ -69,7 +69,6 @@ export const EARNING_RULES: EarningRule[] = [
   },
 ];
 
-// --- Credit packages for purchase (real money → credits) ---
 export interface CreditPackage {
   id: string;
   credits: number;
@@ -77,13 +76,18 @@ export interface CreditPackage {
   priceRupees: number;
   popular: boolean;
   label: string;
+  badge?: string;
+  emoji?: string;
+  color?: string;
 }
 
 export const CREDIT_PACKAGES: CreditPackage[] = [
-  { id: 'starter',     credits: 25,  bonusCredits: 0,  priceRupees: 29,  popular: false, label: 'Starter' },
-  { id: 'popular',     credits: 60,  bonusCredits: 5,  priceRupees: 59,  popular: true,  label: 'Popular' },
-  { id: 'best_value',  credits: 150, bonusCredits: 20, priceRupees: 129, popular: false, label: 'Best Value' },
-  { id: 'mega',        credits: 400, bonusCredits: 80, priceRupees: 299, popular: false, label: 'Mega Pack' },
+  { id: 'starter',   credits: 99,   bonusCredits: 0,   priceRupees: 99,   popular: false, label: 'Starter',   emoji: '🟢', color: '#22C55E' },
+  { id: 'basic',     credits: 249,  bonusCredits: 15,  priceRupees: 249,  popular: false, label: 'Basic',     emoji: '🔵', color: '#3B82F6' },
+  { id: 'popular',   credits: 499,  bonusCredits: 40,  priceRupees: 499,  popular: true,  label: 'Popular',   emoji: '⭐', color: '#F59E0B' },
+  { id: 'pro',       credits: 999,  bonusCredits: 100, priceRupees: 999,  popular: false, label: 'Pro',       emoji: '🟣', color: '#A855F7' },
+  { id: 'premium',   credits: 1999, bonusCredits: 250, priceRupees: 1999, popular: false, label: 'Premium',   emoji: '🔥', color: '#EF4444' },
+  { id: 'ultimate',  credits: 4999, bonusCredits: 750, priceRupees: 4999, popular: false, label: 'Ultimate',  emoji: '👑', color: '#EAB308' },
 ];
 
 // ============================================================

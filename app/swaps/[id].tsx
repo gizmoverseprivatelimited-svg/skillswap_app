@@ -203,6 +203,16 @@ export default function SwapDetailScreen() {
     return { myRole: 'Exchanger', partnerRole: 'Exchanger', color: '#F59E0B', bg: '#FFFBEB', Icon: ArrowLeftRight, myLabel: 'You offer', partnerLabel: `${partnerLabel} offers` };
   }, [swap, currentUser, partner]);
 
+  // Video call is only visible to the Teacher; if it's a mutual skill exchange (swap), visible to both users
+  const canStartVideoCall = useMemo(() => {
+    if (!swap || !currentUser) return false;
+    const currentSwapType = swap.swapType || 'swap';
+    if (currentSwapType === 'swap') {
+      return true;
+    }
+    return roleInfo?.myRole === 'Teacher';
+  }, [swap, currentUser, roleInfo?.myRole]);
+
   // Computed exchange details: clearly separated Teaching & Learning skills
   const exchangeSkills = useMemo(() => {
     if (!swap || !currentUser) {
@@ -948,13 +958,46 @@ export default function SwapDetailScreen() {
           <View style={styles.timeline}>
             {sortedNotes.map((note, i) => {
               const isSelf = note.authorId === currentUser?.id;
+              const isCallAlert = note.body?.toLowerCase().includes('started the') && note.body?.toLowerCase().includes('call');
               return (
-                <View key={i} style={[styles.noteBubble, isSelf ? styles.noteSelf : styles.notePartner]}
+                <TouchableOpacity
+                  key={i}
+                  disabled={!isCallAlert}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    if (isCallAlert) {
+                      const mode = note.body?.toLowerCase().includes('voice') ? 'voice' : 'video';
+                      const callerId = String(currentUser?.id || (currentUser as any)?._id || '');
+                      const reqId = String((swap?.requesterId as any)?._id || (swap?.requesterId as any)?.id || swap?.requesterId || '');
+                      const recId = String((swap?.recipientId as any)?._id || (swap?.recipientId as any)?.id || swap?.recipientId || '');
+                      const partnerId = String(partner?.id || (partner as any)?._id || (reqId === callerId ? recId : reqId));
+                      router.push(`/call/${swap?.id || id}?mode=${mode}&partnerId=${partnerId}` as any);
+                    }
+                  }}
+                  style={[
+                    styles.noteBubble,
+                    isSelf ? styles.noteSelf : styles.notePartner,
+                    isCallAlert && {
+                      backgroundColor: '#7C3AED',
+                      borderColor: '#6D28D9',
+                      borderWidth: 1,
+                      shadowColor: '#7C3AED',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 4,
+                      elevation: 3,
+                    },
+                  ]}
                   testID={`swap-note-${note.id}`}
                 >
-                  <Text style={styles.noteBody}>{note.body}</Text>
-                  <Text style={styles.noteTimestamp}>{formatTimestamp(note.createdAt)}</Text>
-                </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    {isCallAlert && <Video size={16} color="#FFFFFF" />}
+                    <Text style={[styles.noteBody, isCallAlert && { color: '#FFFFFF', fontWeight: '700' as const }]}>
+                      {note.body}
+                    </Text>
+                  </View>
+                  <Text style={[styles.noteTimestamp, isCallAlert && { color: '#DDD6FE' }]}>{formatTimestamp(note.createdAt)}</Text>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -1004,17 +1047,39 @@ export default function SwapDetailScreen() {
                 <Text style={styles.exportButtonText}>Export iCal</Text>
               </TouchableOpacity>
             </View>
-            <View style={styles.callActions}>
-              <TouchableOpacity
-                style={[styles.callButton, styles.videoCallButton, { backgroundColor: '#8B5CF6' }]}
-                onPress={() => handleStartCall('video')}
-                activeOpacity={0.9}
-                testID="start-video-call"
-              >
-                <Video size={20} color="#FFFFFF" />
-                <Text style={styles.callButtonText}>Start Video Call</Text>
-              </TouchableOpacity>
-            </View>
+            {canStartVideoCall ? (
+              <View style={styles.callActions}>
+                <TouchableOpacity
+                  style={[styles.callButton, styles.videoCallButton, { backgroundColor: '#8B5CF6' }]}
+                  onPress={() => handleStartCall('video')}
+                  activeOpacity={0.9}
+                  testID="start-video-call"
+                >
+                  <Video size={20} color="#FFFFFF" />
+                  <Text style={styles.callButtonText}>Start Video Call</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={[styles.callActions, { marginTop: 4, marginBottom: 8 }]}>
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 10,
+                  backgroundColor: '#F5F3FF',
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: '#DDD6FE',
+                  width: '100%',
+                }}>
+                  <Video size={20} color="#8B5CF6" />
+                  <Text style={{ fontSize: 13, color: '#5B21B6', flex: 1, fontWeight: '500' as const, lineHeight: 18 }}>
+                    Your teacher will start the video call at session time. You will receive an instant notification to join.
+                  </Text>
+                </View>
+              </View>
+            )}
             {roleInfo?.myRole !== 'Teacher' && (
               <TouchableOpacity
                 style={[styles.counterButton, styles.completeButton]}

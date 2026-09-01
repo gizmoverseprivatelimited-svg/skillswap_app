@@ -96,16 +96,15 @@ export function use100msCall({
         );
         if (!matchingInit) return existing; // Keep dynamically discovered WebRTC mesh peers!
         return {
-          ...matchingInit,
           ...existing,
-          name: matchingInit.name || existing.name,
-          role: matchingInit.role || existing.role,
-          avatarUrl: matchingInit.avatarUrl || existing.avatarUrl,
+          name: existing.name || matchingInit.name,
+          role: existing.role || matchingInit.role,
+          avatarUrl: existing.avatarUrl || matchingInit.avatarUrl,
           mediaStream: existing.isLocal ? (activeStream || existing.mediaStream) : existing.mediaStream,
           videoTrackId: existing.videoTrackId || matchingInit.videoTrackId,
           status: existing.status === 'connected' ? 'connected' : matchingInit.status,
-          isVideoOff: existing.isVideoOff !== undefined ? existing.isVideoOff : matchingInit.isVideoOff,
-          isMuted: existing.isMuted !== undefined ? existing.isMuted : matchingInit.isMuted,
+          isVideoOff: existing.isVideoOff,
+          isMuted: existing.isMuted,
         };
       });
 
@@ -327,10 +326,9 @@ export function use100msCall({
                         mediaStream: remoteStream,
                         screenShareStream: (p.screenShareStream || Boolean(p.screenShareTrackId)) ? remoteStream : p.screenShareStream,
                         status: 'connected' as const,
-                        isVideoOff: false,
                         name: name || p.name,
                         avatarUrl: avatarUrl || p.avatarUrl,
-                        role: (role as any) || p.role || 'student',
+                        role: (role as any) || p.role || (existing.role ? existing.role : 'student'),
                       }
                     : p
                 );
@@ -425,6 +423,28 @@ export function use100msCall({
                 );
               }
 
+              if (msg.isVideoOff !== undefined) {
+                setParticipants(prev =>
+                  prev.map(p =>
+                    p.id === senderId
+                      ? { ...p, isVideoOff: Boolean(msg.isVideoOff), isMuted: msg.isMuted !== undefined ? Boolean(msg.isMuted) : p.isMuted }
+                      : p
+                  )
+                );
+              }
+
+              const isCurrentLocalVideoOff = Boolean(
+                !webStreamRef.current ||
+                initialVideoOn === false ||
+                mode !== 'video' ||
+                !webStreamRef.current.getVideoTracks().some(t => t.enabled && !t.muted && t.readyState === 'live')
+              );
+              const isCurrentLocalMuted = Boolean(
+                !webStreamRef.current ||
+                initialMicOn === false ||
+                !webStreamRef.current.getAudioTracks().some(t => t.enabled && !t.muted)
+              );
+
               sendSignal({
                 type: 'answer',
                 answer,
@@ -433,13 +453,24 @@ export function use100msCall({
                 role: isTeacher ? 'teacher' : 'student',
                 userName: userNameRef.current,
                 isScreenSharing: Boolean(webScreenStreamRef.current && webScreenStreamRef.current.active),
+                isVideoOff: isCurrentLocalVideoOff,
+                isMuted: isCurrentLocalMuted,
               });
             } else if (msg.type === 'answer') {
-              console.log('[WebRTC Mesh] Processing Answer from', senderId);
+              console.log('[WebRTC Mesh] Processing Answer from', senderId, 'isVideoOff:', msg.isVideoOff);
               const pc = peerConnections.get(senderId);
               if (pc && pc.signalingState !== 'stable') {
                 await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
                 await drainCandidateQueue(senderId, pc);
+              }
+              if (msg.isVideoOff !== undefined) {
+                setParticipants(prev =>
+                  prev.map(p =>
+                    p.id === senderId
+                      ? { ...p, isVideoOff: Boolean(msg.isVideoOff), isMuted: msg.isMuted !== undefined ? Boolean(msg.isMuted) : p.isMuted }
+                      : p
+                  )
+                );
               }
               if (msg.isScreenSharing) {
                 setParticipants(prev =>
@@ -543,11 +574,11 @@ export function use100msCall({
           setMessages(prev => (prev.some(m => m.id === sysMsg.id) ? prev : [...prev, sysMsg]));
 
           setParticipants(prev => {
-            const existing = prev.find(p => p.id === peerId);
+            const existing = prev.find(p => p.id === peerId || (!p.isLocal && peerRole === 'teacher' && (p.role === 'teacher' || p.role === 'host')));
             if (existing) {
               return prev.map(p =>
-                p.id === peerId
-                  ? { ...p, status: 'connected' as const, name: peerName, avatarUrl: peerAvatar || p.avatarUrl, role: peerRole || p.role }
+                (p.id === peerId || p.id === existing.id)
+                  ? { ...p, id: peerId, status: 'connected' as const, name: peerName || p.name, avatarUrl: peerAvatar || p.avatarUrl, role: peerRole || p.role || existing.role }
                   : p
               );
             }
@@ -571,6 +602,18 @@ export function use100msCall({
 
           // Reply with our presence so the new peer registers us immediately
           const isCurrentlySharingScreen = Boolean(webScreenStreamRef.current && webScreenStreamRef.current.active);
+          const isCurrentLocalVideoOff = Boolean(
+            !webStreamRef.current ||
+            initialVideoOn === false ||
+            mode !== 'video' ||
+            !webStreamRef.current.getVideoTracks().some(t => t.enabled && !t.muted && t.readyState === 'live')
+          );
+          const isCurrentLocalMuted = Boolean(
+            !webStreamRef.current ||
+            initialMicOn === false ||
+            !webStreamRef.current.getAudioTracks().some(t => t.enabled && !t.muted)
+          );
+
           const presencePayload = {
             type: 'peer_present',
             room: roomId,
@@ -580,6 +623,8 @@ export function use100msCall({
             targetId: peerId,
             to: peerId,
             isScreenSharing: isCurrentlySharingScreen,
+            isVideoOff: isCurrentLocalVideoOff,
+            isMuted: isCurrentLocalMuted,
           };
           activeSocket?.emit('call_peer_present', presencePayload);
           if (bc) {
@@ -598,9 +643,20 @@ export function use100msCall({
             });
           }
 
+          // Send current media state directly to newly joined peer
+          sendSignal({
+            type: 'media_state',
+            room: roomId,
+            senderId: currentUserId,
+            targetId: peerId,
+            to: peerId,
+            isVideoOff: isCurrentLocalVideoOff,
+            isMuted: isCurrentLocalMuted,
+          });
+
           // Create offer for the new joiner
           const pc = getOrCreatePeerConnection(peerId, peerRole, peerName, peerAvatar);
-          if (pc && (pc.signalingState === 'stable' || pc.signalingState === 'have-local-offer')) {
+          if (pc) {
             try {
               const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
               await pc.setLocalDescription(offer);
@@ -612,6 +668,8 @@ export function use100msCall({
                 role: isTeacher ? 'teacher' : 'student',
                 userName: userNameRef.current,
                 isScreenSharing: isCurrentlySharingScreen,
+                isVideoOff: isCurrentLocalVideoOff,
+                isMuted: isCurrentLocalMuted,
               });
             } catch (err) {
               console.warn('[WebRTC Mesh] Create offer error for peer:', peerId, err);
@@ -628,18 +686,25 @@ export function use100msCall({
           const peerRole = data?.role || (data?.isTeacher ? 'teacher' : 'student');
           const peerAvatar = data?.userAvatar || data?.avatarUrl || '';
           const remoteIsSharingScreen = Boolean(data?.isScreenSharing);
+          const hasExplicitVideoOff = data?.isVideoOff !== undefined;
+          const remoteIsVideoOff = hasExplicitVideoOff ? Boolean(data.isVideoOff) : undefined;
+          const hasExplicitMuted = data?.isMuted !== undefined;
+          const remoteIsMuted = hasExplicitMuted ? Boolean(data.isMuted) : undefined;
 
           setParticipants(prev => {
-            const existing = prev.find(p => p.id === peerId);
+            const existing = prev.find(p => p.id === peerId || (!p.isLocal && peerRole === 'teacher' && (p.role === 'teacher' || p.role === 'host')));
             if (existing) {
               return prev.map(p =>
-                p.id === peerId
+                (p.id === peerId || p.id === existing.id)
                   ? {
                       ...p,
+                      id: peerId,
                       status: 'connected' as const,
-                      name: peerName,
+                      name: peerName || p.name,
                       avatarUrl: peerAvatar || p.avatarUrl,
-                      role: peerRole || p.role,
+                      role: peerRole || p.role || existing.role,
+                      isVideoOff: remoteIsVideoOff !== undefined ? remoteIsVideoOff : p.isVideoOff,
+                      isMuted: remoteIsMuted !== undefined ? remoteIsMuted : p.isMuted,
                       screenShareStream: remoteIsSharingScreen ? (p.mediaStream || p.screenShareStream) : p.screenShareStream,
                     }
                   : p
@@ -653,8 +718,8 @@ export function use100msCall({
                 avatarUrl: peerAvatar,
                 role: peerRole || 'student',
                 isLocal: false,
-                isMuted: false,
-                isVideoOff: false,
+                isMuted: remoteIsMuted ?? false,
+                isVideoOff: remoteIsVideoOff ?? false,
                 isHandRaised: false,
                 isSpeaking: false,
                 status: 'connected' as const,
@@ -795,7 +860,7 @@ export function use100msCall({
           };
         }
 
-        // Periodic presence heartbeat sync
+        // Periodic presence heartbeat sync (only presence and screenshare state; media_state is sent explicitly on user toggle)
         presenceHeartbeat = setInterval(() => {
           if (activeSocket) {
             const isCurrentlySharingScreen = Boolean(webScreenStreamRef.current && webScreenStreamRef.current.active);

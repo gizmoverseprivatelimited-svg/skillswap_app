@@ -20,6 +20,8 @@ export interface AdminUser extends User {
   // banStatus: BanStatus;
   banReason?: string;
   bannedAt?: string;
+  suspendedUntil?: string;
+  daysSuspended?: number;
   // reportCount: number;
 }
 
@@ -68,17 +70,53 @@ export interface SubmitCertificationInput {
   documentUri?: string;
 }
 
+export interface AdminTransaction {
+  id: string;
+  _id?: string;
+  userId: string;
+  userName: string;
+  userEmail?: string;
+  userUsername?: string;
+  userAvatar?: string;
+  userCredits?: number;
+  userTier?: string;
+  amount: number;
+  quantity: number;
+  type: 'earned' | 'redeemed' | 'pending';
+  source: string;
+  description: string;
+  swapId?: string | null;
+  currency?: string;
+  isMoneyPayment?: boolean;
+  paymentOrderId?: string;
+  paymentStatus?: string;
+  timestamp: string;
+  createdAt: string;
+}
+
+export interface AdminTransactionStats {
+  totalTransactions: number;
+  totalCreditsEarned: number;
+  totalCreditsRedeemed: number;
+  totalMoneyVolume: number;
+  pointTransactionsCount: number;
+  paymentOrdersCount: number;
+}
+
 interface AdminContextValue {
   users: AdminUser[];
   reviews: AdminReview[];
   verificationRequests: VerificationRequest[];
   certificationRequests: CertificationRequest[];
+  transactions: AdminTransaction[];
+  transactionStats: AdminTransactionStats;
+  fetchTransactions: (params?: { type?: string; source?: string; search?: string }) => Promise<void>;
   isAdminAuthenticated: boolean;
   adminLogin: (email: string, password: string) => Promise<void>;
   adminLogout: () => Promise<void>;
   banUser: (userId: string, reason: string) => void;
   unbanUser: (userId: string) => void;
-  suspendUser: (userId: string, reason: string) => void;
+  suspendUser: (userId: string, reason: string, days?: number) => void;
   updateUserCredits: (userId: string, credits: number) => void;
   approveReview: (reviewId: string, note?: string) => void;
   rejectReview: (reviewId: string, note: string) => void;
@@ -289,6 +327,109 @@ const seedCertificationRequests = (): CertificationRequest[] => {
   ];
 };
 
+const seedAdminTransactions = (): AdminTransaction[] => {
+  const now = Date.now();
+  return [
+    {
+      id: 'tx-seed-1',
+      userId: '2',
+      userName: 'Rahul Verma',
+      userEmail: 'rahul.verma@example.com',
+      userUsername: '@rahulverma',
+      userAvatar: 'https://i.pravatar.cc/150?img=12',
+      userCredits: 25,
+      userTier: 'free',
+      amount: 10,
+      quantity: 10,
+      type: 'earned',
+      source: 'class_taught',
+      description: 'Earnings for hosting "React Masterclass" group session',
+      currency: 'credits',
+      isMoneyPayment: false,
+      timestamp: new Date(now - 15 * 60 * 1000).toISOString(),
+      createdAt: new Date(now - 15 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'tx-seed-2',
+      userId: '3',
+      userName: 'Ananya Reddy',
+      userEmail: 'ananya.reddy@example.com',
+      userUsername: '@ananyareddy',
+      userAvatar: 'https://i.pravatar.cc/150?img=5',
+      userCredits: 60,
+      userTier: 'premium',
+      amount: -3,
+      quantity: 3,
+      type: 'redeemed',
+      source: 'swap_completed',
+      description: 'Platform fee for requesting Hindi Coaching session',
+      currency: 'credits',
+      isMoneyPayment: false,
+      timestamp: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+      createdAt: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'tx-seed-3',
+      userId: '4',
+      userName: 'Arjun Mehta',
+      userEmail: 'arjun.mehta@example.com',
+      userUsername: '@arjunmehta',
+      userAvatar: 'https://i.pravatar.cc/150?img=13',
+      userCredits: 100,
+      userTier: 'pro',
+      amount: 50,
+      quantity: 50,
+      type: 'earned',
+      source: 'top_up',
+      description: 'Credit Pack Purchase (Starter 50 Credits Pack - ₹299)',
+      currency: 'credits',
+      isMoneyPayment: false,
+      timestamp: new Date(now - 6 * 60 * 60 * 1000).toISOString(),
+      createdAt: new Date(now - 6 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'tx-seed-4',
+      userId: '1',
+      userName: 'User',
+      userEmail: 'user@example.com',
+      userUsername: '@user',
+      userAvatar: 'https://i.pravatar.cc/150?img=1',
+      userCredits: 50,
+      userTier: 'premium',
+      amount: 499,
+      quantity: 499,
+      type: 'earned',
+      source: 'monthly_subscription',
+      description: 'Premium Pro Membership Purchase (₹499.00 / month)',
+      paymentOrderId: 'order_cf_98231',
+      paymentStatus: 'PAID',
+      currency: 'INR',
+      isMoneyPayment: true,
+      timestamp: new Date(now - 12 * 60 * 60 * 1000).toISOString(),
+      createdAt: new Date(now - 12 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'tx-seed-5',
+      userId: '2',
+      userName: 'Rahul Verma',
+      userEmail: 'rahul.verma@example.com',
+      userUsername: '@rahulverma',
+      userAvatar: 'https://i.pravatar.cc/150?img=12',
+      userCredits: 25,
+      userTier: 'free',
+      amount: -500,
+      quantity: 500,
+      type: 'redeemed',
+      source: 'payout',
+      description: 'Creator Payout Withdrawal to Bank Account via UPI',
+      currency: 'INR',
+      isMoneyPayment: true,
+      timestamp: new Date(now - 24 * 60 * 60 * 1000).toISOString(),
+      createdAt: new Date(now - 24 * 60 * 60 * 1000).toISOString(),
+    },
+  ];
+};
+
 export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(() => {
   const { socket } = useSocket();
   const [isLoading, setIsLoading] = useState(true);
@@ -298,6 +439,21 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
   const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [verificationRequests, setVerificationRequests] = useState<VerificationRequest[]>([]);
   const [certificationRequests, setCertificationRequests] = useState<CertificationRequest[]>(seedCertificationRequests);
+  const [transactions, setTransactions] = useState<AdminTransaction[]>(seedAdminTransactions);
+  const [transactionStats, setTransactionStats] = useState<AdminTransactionStats>(() => {
+    const seeds = seedAdminTransactions();
+    const totalCreditsEarned = seeds.filter(t => t.type === 'earned' && !t.isMoneyPayment).reduce((sum, t) => sum + t.amount, 0);
+    const totalCreditsRedeemed = seeds.filter(t => t.type === 'redeemed' && !t.isMoneyPayment).reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const totalMoneyVolume = seeds.filter(t => t.isMoneyPayment && t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
+    return {
+      totalTransactions: seeds.length,
+      totalCreditsEarned,
+      totalCreditsRedeemed,
+      totalMoneyVolume,
+      pointTransactionsCount: seeds.filter(t => !t.isMoneyPayment).length,
+      paymentOrdersCount: seeds.filter(t => t.isMoneyPayment).length,
+    };
+  });
 
   const adminLogin = useCallback(async (email: string, password: string) => {
     console.log('[Admin] Login attempt', { email });
@@ -519,7 +675,31 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
     } catch (error) {
       console.error('[Admin] Fetch certifications failed', error);
     }
-  }
+  };
+
+  const fetchTransactions = useCallback(async (params?: { type?: string; source?: string; search?: string }) => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params?.type && params.type !== 'all') queryParams.append('type', params.type);
+      if (params?.source && params.source !== 'all') queryParams.append('source', params.source);
+      if (params?.search && params.search.trim().length > 0) queryParams.append('search', params.search.trim());
+
+      const endpoint = `${url}/admin/transactions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      const res = await fetch(endpoint);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.transactions)) {
+          setTransactions(data.transactions);
+          if (data.stats) {
+            setTransactionStats(data.stats);
+          }
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[Admin] Fetch transactions error:', err);
+    }
+  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -530,6 +710,7 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
           fetchReviews(),
           fetchVerificationRequests(),
           fetchCertifications(),
+          fetchTransactions(),
         ]);
       } catch (error) {
         console.error('[Admin] Fetch data failed', error);
@@ -538,7 +719,7 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
       }
     }
     loadData();
-  }, []);
+  }, [fetchTransactions]);
 
   // Real-time socket listener for certifications
   useEffect(() => {
@@ -664,9 +845,11 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
   }, []);
 
   const suspendUser = useCallback(
-    async (userId: string, reason: string) => {
+    async (userId: string, reason: string, days = 7) => {
       try {
-        console.log('[Admin] Suspending user', { userId, reason });
+        const numDays = Math.max(1, days || 7);
+        const suspendedUntil = new Date(Date.now() + numDays * 24 * 60 * 60 * 1000).toISOString();
+        console.log('[Admin] Suspending user', { userId, reason, days: numDays });
 
         // 🔹 Optimistic UI
         setUsers(prev =>
@@ -677,6 +860,8 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
                 banStatus: 'suspended',
                 banReason: reason,
                 bannedAt: new Date().toISOString(),
+                suspendedUntil,
+                daysSuspended: numDays,
               }
               : u
           )
@@ -687,7 +872,7 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
           {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reason }),
+            body: JSON.stringify({ reason, days: numDays }),
           }
         );
 
@@ -1115,6 +1300,9 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
     reviews,
     verificationRequests,
     certificationRequests,
+    transactions,
+    transactionStats,
+    fetchTransactions,
     isAdminAuthenticated,
     adminLogin,
     adminLogout,
@@ -1133,5 +1321,5 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
     refreshCertifications: fetchCertifications,
     stats,
     isLoading,
-  }), [users, reviews, verificationRequests, certificationRequests, isAdminAuthenticated, adminLogin, adminLogout, banUser, unbanUser, suspendUser, updateUserCredits, approveReview, rejectReview, approveVerification, rejectVerification, submitCertification, approveCertification, rejectCertification, getSkillCertificationStatus, stats, isLoading]);
+  }), [users, reviews, verificationRequests, certificationRequests, transactions, transactionStats, fetchTransactions, isAdminAuthenticated, adminLogin, adminLogout, banUser, unbanUser, suspendUser, updateUserCredits, approveReview, rejectReview, approveVerification, rejectVerification, submitCertification, approveCertification, rejectCertification, getSkillCertificationStatus, stats, isLoading]);
 });

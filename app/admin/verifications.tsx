@@ -11,7 +11,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import {
   ShieldCheck,
   ShieldX,
@@ -26,6 +26,7 @@ import {
   Briefcase,
   Filter,
   ExternalLink,
+  ArrowLeft,
 } from 'lucide-react-native';
 import { useAdmin, VerificationRequest } from '@/providers/admin';
 import { useAlert } from '@/providers/alert';
@@ -36,6 +37,7 @@ import Colors from '@/constants/colors';
 type VFilter = 'all' | 'pending' | 'verified' | 'rejected';
 
 export default function VerificationApprovals() {
+  const router = useRouter();
   const { verificationRequests, approveVerification, rejectVerification, isLoading } = useAdmin();
   const { showAlert } = useAlert();
   const [filter, setFilter] = useState<VFilter>('pending');
@@ -119,10 +121,34 @@ export default function VerificationApprovals() {
     { label: 'All', value: 'all' },
   ];
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/admin' as any);
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Stack.Screen options={{ headerShown: false }} />
+        <Stack.Screen
+          options={{
+            headerShown: true,
+            title: 'Verifications',
+            headerStyle: { backgroundColor: '#0F172A' },
+            headerTintColor: '#F8FAFC',
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={handleBack}
+                style={{ marginLeft: 8, padding: 4 }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <ArrowLeft size={22} color="#F8FAFC" />
+              </TouchableOpacity>
+            ),
+          }}
+        />
         <ActivityIndicator size="large" color={Colors.light.primary} />
       </View>
     );
@@ -130,7 +156,23 @@ export default function VerificationApprovals() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ headerShown: true, title: 'Verifications', headerStyle: { backgroundColor: '#0F172A' }, headerTintColor: '#F8FAFC' }} />
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: 'Verifications',
+          headerStyle: { backgroundColor: '#0F172A' },
+          headerTintColor: '#F8FAFC',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={handleBack}
+              style={{ marginLeft: 8, padding: 4 }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <ArrowLeft size={22} color="#F8FAFC" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
 
       <View style={styles.filterWrap}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterContent}>

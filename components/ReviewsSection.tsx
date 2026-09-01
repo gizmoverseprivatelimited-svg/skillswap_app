@@ -27,6 +27,7 @@ import { useCurrentUser } from "../providers/current-user";
 import type { RatingBucket, ReviewWithAuthor } from "../types";
 import url from "@/constants/backurl";
 import { useAlert } from "../providers/alert";
+import { useSocket } from "@/providers/socket";
 
 interface ReviewsSectionProps {
   revieweeId: string;
@@ -46,6 +47,7 @@ const reviewReasons = [
 const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSectionProps) => {
   const { currentUser } = useCurrentUser();
   const { showAlert } = useAlert();
+  const { socket } = useSocket();
   // console.log("Hii", skillId, revieweeId);
   const [isComposerVisible, setIsComposerVisible] = useState<boolean>(false);
   const [selectedRating, setSelectedRating] = useState<number>(5);
@@ -58,12 +60,6 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-
-
-  // console.log(revieweeId,skillId);
-
-
-
 
   const [reviews, setReviews] = useState<ReviewWithAuthor[]>([]);
   const [stats, setStats] = useState({
@@ -81,9 +77,6 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
         `${url}/reviews?revieweeId=${revieweeId}&skillId=${skillId ?? ""}`
       );
 
-      console.log(res);
-
-      
       if (!res.ok) throw new Error("Failed to fetch reviews");
 
       const data = await res.json();
@@ -97,12 +90,29 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
     }
   }, [revieweeId, skillId]);
 
-
   useEffect(() => {
-    console.log("I am also working");
-    
     fetchReviews();
   }, [fetchReviews]);
+
+  // Real-time socket listener for review moderation and updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleReviewEvent = (data: any) => {
+      console.log('[Socket.IO ReviewsSection] Review event received:', data);
+      fetchReviews();
+    };
+
+    socket.on('review_created', handleReviewEvent);
+    socket.on('review_updated', handleReviewEvent);
+    socket.on('review_moderated', handleReviewEvent);
+
+    return () => {
+      socket.off('review_created', handleReviewEvent);
+      socket.off('review_updated', handleReviewEvent);
+      socket.off('review_moderated', handleReviewEvent);
+    };
+  }, [socket, fetchReviews]);
 
   const handleSubmitReport = useCallback(async () => {
     if (!reportTarget || isSubmittingReport) return;

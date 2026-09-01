@@ -3,6 +3,8 @@ import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import url from '@/constants/backurl';
 
+import { useSocket } from '@/providers/socket';
+
 const TOKEN_KEY = '@skillswap/auth_token';
 const USER_KEY = '@skillswap/auth_user';
 
@@ -24,6 +26,11 @@ interface AuthUser {
   premiumExpiresAt?: number;
   hasCompletedOnboarding?: boolean;
   isDemo?: boolean;
+  banStatus?: 'active' | 'banned' | 'suspended';
+  banReason?: string;
+  bannedAt?: string;
+  suspendedUntil?: string;
+  daysSuspended?: number;
 }
 
 interface AuthContextValue {
@@ -55,6 +62,7 @@ const sendDebugLog = (msg: string, data: any) => {
 };
 
 export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() => {
+  const { socket } = useSocket();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -256,6 +264,109 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
       setUser(normalized);
     }
   }, []);
+
+  // Real-time socket listener for user account status updates
+  useEffect(() => {
+    if (!socket || !user?.id) return;
+    const myId = String(user.id || (user as any)._id);
+
+    // Join personal socket room immediately
+    socket.emit('join_room', myId);
+    console.log('[Socket.IO Auth] Joined room:', myId);
+
+    const handleUserBanned = (data: any) => {
+      const targetUserId = String(data?.userId || (data?.user && (data.user._id || data.user.id)) || '');
+      if (targetUserId === myId) {
+        console.log('[Socket.IO Auth] Current user banned in real-time:', data);
+        setUser(prev => {
+          if (!prev) return prev;
+          const next = {
+            ...prev,
+            banStatus: 'banned' as const,
+            banReason: data.reason || data.banReason,
+            bannedAt: data.bannedAt || new Date().toISOString(),
+            suspendedUntil: undefined,
+            daysSuspended: undefined,
+          };
+          AsyncStorage.setItem(USER_KEY, JSON.stringify(next)).catch(() => {});
+          return next;
+        });
+      }
+    };
+
+    const handleUserSuspended = (data: any) => {
+      const targetUserId = String(data?.userId || (data?.user && (data.user._id || data.user.id)) || '');
+      if (targetUserId === myId) {
+        console.log('[Socket.IO Auth] Current user suspended in real-time:', data);
+        setUser(prev => {
+          if (!prev) return prev;
+          const next = {
+            ...prev,
+            banStatus: 'suspended' as const,
+            banReason: data.reason || data.banReason,
+            bannedAt: data.bannedAt || new Date().toISOString(),
+            suspendedUntil: data.suspendedUntil ? new Date(data.suspendedUntil).toISOString() : undefined,
+            daysSuspended: data.daysSuspended,
+          };
+          AsyncStorage.setItem(USER_KEY, JSON.stringify(next)).catch(() => {});
+          return next;
+        });
+      }
+    };
+
+    const handleUserUnbanned = (data: any) => {
+      const targetUserId = String(data?.userId || (data?.user && (data.user._id || data.user.id)) || '');
+      if (targetUserId === myId) {
+        console.log('[Socket.IO Auth] Current user unbanned in real-time:', data);
+        setUser(prev => {
+          if (!prev) return prev;
+          const next = {
+            ...prev,
+            banStatus: 'active' as const,
+            banReason: undefined,
+            bannedAt: undefined,
+            suspendedUntil: undefined,
+            daysSuspended: undefined,
+          };
+          AsyncStorage.setItem(USER_KEY, JSON.stringify(next)).catch(() => {});
+          return next;
+        });
+      }
+    };
+
+    const handleUserUpdated = (updated: any) => {
+      const targetId = String(updated?._id || updated?.id || '');
+      if (targetId === myId) {
+        console.log('[Socket.IO Auth] Current user profile updated in real-time:', updated);
+        setUser(prev => {
+          if (!prev) return prev;
+          const next = {
+            ...prev,
+            ...updated,
+            id: myId,
+            banStatus: updated.banStatus || prev.banStatus,
+            banReason: updated.banReason !== undefined ? updated.banReason : prev.banReason,
+            suspendedUntil: updated.suspendedUntil || prev.suspendedUntil,
+            daysSuspended: updated.daysSuspended || prev.daysSuspended,
+          };
+          AsyncStorage.setItem(USER_KEY, JSON.stringify(next)).catch(() => {});
+          return next;
+        });
+      }
+    };
+
+    socket.on('user_banned', handleUserBanned);
+    socket.on('user_suspended', handleUserSuspended);
+    socket.on('user_unbanned', handleUserUnbanned);
+    socket.on('user_updated', handleUserUpdated);
+
+    return () => {
+      socket.off('user_banned', handleUserBanned);
+      socket.off('user_suspended', handleUserSuspended);
+      socket.off('user_unbanned', handleUserUnbanned);
+      socket.off('user_updated', handleUserUpdated);
+    };
+  }, [socket, user?.id]);
 
   const isAuthenticated = useMemo(() => {
     return !!token && !!user;

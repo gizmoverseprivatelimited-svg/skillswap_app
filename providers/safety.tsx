@@ -3,6 +3,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import url from '@/constants/backurl';
 import { useAuth } from './auth';
+import { useSocket } from './socket';
 import type { UserReport, BlockedUser, ReportReason, ReportStatus, ReportAction } from '../types';
 
 const REPORT_REASONS: { key: ReportReason; label: string; icon: string }[] = [
@@ -43,6 +44,7 @@ interface SafetyContextValue {
 }
 
 export const [SafetyProvider, useSafety] = createContextHook<SafetyContextValue>(() => {
+  const { socket } = useSocket();
   const auth = useAuth();
   const currentUserId = auth?.user?.id || (auth?.user as any)?._id || '';
 
@@ -120,6 +122,26 @@ export const [SafetyProvider, useSafety] = createContextHook<SafetyContextValue>
   useEffect(() => {
     fetchReports();
   }, [fetchReports]);
+
+  // Real-time socket listener for reports and safety events
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleReportEvent = (data: any) => {
+      console.log('[Socket.IO Safety] Report event received:', data);
+      fetchReports();
+    };
+
+    socket.on('report_created', handleReportEvent);
+    socket.on('report_updated', handleReportEvent);
+    socket.on('report_resolved', handleReportEvent);
+
+    return () => {
+      socket.off('report_created', handleReportEvent);
+      socket.off('report_updated', handleReportEvent);
+      socket.off('report_resolved', handleReportEvent);
+    };
+  }, [socket, fetchReports]);
 
   const submitReport = useCallback(
     async (

@@ -11,57 +11,34 @@ export interface LiveVideoTrackProps {
 
 function LiveVideoTrackComponent({ mediaStream, mirror = false, scaleType = 'fill', style }: LiveVideoTrackProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  streamRef.current = mediaStream || null;
 
-  const bindStream = useCallback(() => {
-    const videoEl = videoRef.current;
-    const stream = streamRef.current;
-    if (!videoEl || !stream) return;
-
+  const attachStream = useCallback((videoEl: HTMLVideoElement | null) => {
+    if (!videoEl || !mediaStream) return;
     try {
-      if (videoEl.srcObject !== stream) {
-        videoEl.srcObject = stream;
+      if (videoEl.srcObject !== mediaStream) {
+        videoEl.srcObject = mediaStream;
       }
+      videoEl.muted = Boolean(mirror);
       videoEl.playsInline = true;
       videoEl.autoplay = true;
-      videoEl.muted = Boolean(mirror);
-
-      if (videoEl.paused) {
-        const playPromise = videoEl.play();
-        if (playPromise !== undefined) {
-          playPromise.catch((err: any) => {
-            if (err?.name === 'AbortError') {
-              // Expected cleanup when React re-renders or unmounts component
-              return;
-            }
-            if (err?.name === 'NotAllowedError') {
-              // Browser autoplay policy restricted unmuted audio/video - retry muted
-              videoEl.muted = true;
-              videoEl.play().catch(() => {});
-            }
-          });
-        }
+      const playPromise = videoEl.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          videoEl.muted = true;
+          videoEl.play().catch(() => {});
+        });
       }
     } catch (e) {
-      console.warn('[LiveVideoTrack.web] bindStream error:', e);
+      console.warn('[LiveVideoTrack.web] attach error:', e);
     }
-  }, [mirror]);
+  }, [mediaStream, mirror]);
 
   useEffect(() => {
-    bindStream();
-    if (mediaStream) {
-      mediaStream.onaddtrack = () => {
-        bindStream();
-      };
-      mediaStream.onremovetrack = () => {
-        bindStream();
-      };
-    }
-  }, [mediaStream, bindStream]);
+    attachStream(videoRef.current);
+  }, [mediaStream, mirror, attachStream]);
 
   if (!mediaStream) {
-    return <View style={[styles.container, style]} />;
+    return null;
   }
 
   const flattenedStyle = StyleSheet.flatten([styles.container, style]);
@@ -80,7 +57,7 @@ function LiveVideoTrackComponent({ mediaStream, mirror = false, scaleType = 'fil
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#000000',
+        backgroundColor: 'transparent',
         borderRadius: (flattenedStyle as any)?.borderRadius || 0,
         ...(flattenedStyle as any),
       }}
@@ -88,9 +65,7 @@ function LiveVideoTrackComponent({ mediaStream, mirror = false, scaleType = 'fil
       <video
         ref={(el) => {
           videoRef.current = el;
-          if (el) {
-            bindStream();
-          }
+          attachStream(el);
         }}
         autoPlay
         playsInline
@@ -101,6 +76,9 @@ function LiveVideoTrackComponent({ mediaStream, mirror = false, scaleType = 'fil
           objectFit: scaleType === 'fit' ? 'contain' : 'cover',
           transform: mirror ? 'scaleX(-1)' : 'none',
           display: 'block',
+          position: 'absolute',
+          top: 0,
+          left: 0,
         }}
       />
     </div>

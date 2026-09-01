@@ -62,6 +62,9 @@ export default function UserManagement() {
   const [creditAmount, setCreditAmount] = useState<string>('');
   const [creditModalVisible, setCreditModalVisible] = useState<boolean>(false);
 
+  const [actionType, setActionType] = useState<'ban' | 'suspend'>('suspend');
+  const [suspendDays, setSuspendDays] = useState<string>('7');
+
   const filteredUsers = useMemo(() => {
     let result = users;
     if (filter !== 'all') {
@@ -84,25 +87,46 @@ export default function UserManagement() {
   }, [users, selectedUserId]);
 
   const handleBan = useCallback(() => {
-    if (!selectedUserId || !banReason.trim()) return;
-    banUser(selectedUserId, banReason.trim());
-    setActionModalVisible(false);
-    setBanReason('');
-    setSelectedUserId(null);
-  }, [selectedUserId, banReason, banUser]);
+    if (!selectedUserId || !banReason.trim()) {
+      showAlert('Reason Required', 'Please provide a reason for the permanent ban.');
+      return;
+    }
+    showAlert('Permanent Ban', 'Are you sure you want to permanently ban this user? They will not be able to access the platform until manually unbanned.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Permanently Ban',
+        style: 'destructive',
+        onPress: () => {
+          banUser(selectedUserId, banReason.trim());
+          setActionModalVisible(false);
+          setBanReason('');
+          setSelectedUserId(null);
+        },
+      },
+    ]);
+  }, [selectedUserId, banReason, banUser, showAlert]);
 
   const handleSuspend = useCallback(() => {
-    if (!selectedUserId || !banReason.trim()) return;
-    suspendUser(selectedUserId, banReason.trim());
+    if (!selectedUserId || !banReason.trim()) {
+      showAlert('Reason Required', 'Please provide a reason for the suspension.');
+      return;
+    }
+    const days = parseInt(suspendDays, 10);
+    if (isNaN(days) || days <= 0) {
+      showAlert('Invalid Duration', 'Please enter a valid number of days (at least 1 day).');
+      return;
+    }
+    suspendUser(selectedUserId, banReason.trim(), days);
     setActionModalVisible(false);
     setBanReason('');
+    setSuspendDays('7');
     setSelectedUserId(null);
-  }, [selectedUserId, banReason, suspendUser]);
+  }, [selectedUserId, banReason, suspendDays, suspendUser, showAlert]);
 
   const handleUnban = useCallback((userId: string) => {
-    showAlert('Unban User', 'Are you sure you want to unban this user?', [
+    showAlert('Unban / Restore User', 'Are you sure you want to restore access for this user?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Unban', onPress: () => unbanUser(userId) },
+      { text: 'Restore Access', onPress: () => unbanUser(userId) },
     ]);
   }, [unbanUser, showAlert]);
 
@@ -117,12 +141,13 @@ export default function UserManagement() {
     setCreditModalVisible(false);
     setCreditAmount('');
     setSelectedUserId(null);
-  }, [selectedUserId, creditAmount, updateUserCredits]);
+  }, [selectedUserId, creditAmount, updateUserCredits, showAlert]);
 
-  const openActionModal = useCallback((userId: string) => {
-    
+  const openActionModal = useCallback((userId: string, defaultAction: 'ban' | 'suspend' = 'suspend') => {
     setSelectedUserId(userId);
+    setActionType(defaultAction);
     setBanReason('');
+    setSuspendDays('7');
     setActionModalVisible(true);
   }, []);
 
@@ -244,10 +269,21 @@ export default function UserManagement() {
               )}
             </View>
 
+            {user.banStatus === 'suspended' && (
+              <View style={styles.suspendDetailWrap}>
+                <Text style={styles.suspendDetailLabel}>
+                  ⏳ Suspended for {user.daysSuspended || 'specified'} days
+                  {user.suspendedUntil ? ` (Until: ${new Date(user.suspendedUntil).toLocaleDateString()})` : ''}
+                </Text>
+              </View>
+            )}
+
             {user.banReason && (
-              <View style={styles.banReasonWrap}>
-                <Text style={styles.banReasonLabel}>Reason:</Text>
-                <Text style={styles.banReasonText}>{user.banReason}</Text>
+              <View style={[styles.banReasonWrap, user.banStatus === 'suspended' && styles.suspendReasonWrap]}>
+                <Text style={[styles.banReasonLabel, user.banStatus === 'suspended' && styles.suspendReasonLabel]}>
+                  {user.banStatus === 'banned' ? 'Permanent Ban Reason:' : 'Suspension Reason:'}
+                </Text>
+                <Text style={[styles.banReasonText, user.banStatus === 'suspended' && styles.suspendReasonText]}>{user.banReason}</Text>
               </View>
             )}
 
@@ -256,11 +292,19 @@ export default function UserManagement() {
                 <>
                   <TouchableOpacity
                     style={[styles.actionBtn, styles.actionBtnWarning]}
-                    onPress={() => openActionModal(user.id)}
+                    onPress={() => openActionModal(user.id, 'suspend')}
+                    testID={`suspend-user-${user.id}`}
+                  >
+                    <ShieldOff size={14} color="#F59E0B" />
+                    <Text style={styles.actionBtnWarningText}>Suspend</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.actionBtnDanger]}
+                    onPress={() => openActionModal(user.id, 'ban')}
                     testID={`ban-user-${user.id}`}
                   >
                     <Ban size={14} color="#EF4444" />
-                    <Text style={styles.actionBtnWarningText}>Ban / Suspend</Text>
+                    <Text style={styles.actionBtnDangerText}>Ban</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.actionBtn, styles.actionBtnNeutral]}
@@ -279,7 +323,7 @@ export default function UserManagement() {
                     testID={`unban-user-${user.id}`}
                   >
                     <ShieldCheck size={14} color="#10B981" />
-                    <Text style={styles.actionBtnSuccessText}>Unban</Text>
+                    <Text style={styles.actionBtnSuccessText}>Restore Access</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.actionBtn, styles.actionBtnNeutral]}
@@ -302,30 +346,99 @@ export default function UserManagement() {
         )}
       </ScrollView>
 
+      {/* Action Modal (Ban / Suspend) */}
       <Modal visible={actionModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Take Action</Text>
-             {selectedUser && <Text style={styles.modalSubtitle}>Against {selectedUser.username ? `@${selectedUser.username}` : selectedUser.name}</Text>}
+            <Text style={styles.modalTitle}>
+              {actionType === 'suspend' ? 'Suspend User' : 'Permanently Ban User'}
+            </Text>
+            {selectedUser && (
+              <Text style={styles.modalSubtitle}>
+                Target: {selectedUser.username ? `@${selectedUser.username}` : selectedUser.name} ({selectedUser.email})
+              </Text>
+            )}
+
+            {/* Switch between Suspend and Ban tabs */}
+            <View style={styles.actionTypeTabs}>
+              <TouchableOpacity
+                style={[styles.actionTypeTab, actionType === 'suspend' && styles.actionTypeTabActiveSuspend]}
+                onPress={() => setActionType('suspend')}
+              >
+                <ShieldOff size={14} color={actionType === 'suspend' ? '#FFFFFF' : '#64748B'} />
+                <Text style={[styles.actionTypeTabText, actionType === 'suspend' && styles.actionTypeTabTextActive]}>Suspend (Timed)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionTypeTab, actionType === 'ban' && styles.actionTypeTabActiveBan]}
+                onPress={() => setActionType('ban')}
+              >
+                <Ban size={14} color={actionType === 'ban' ? '#FFFFFF' : '#64748B'} />
+                <Text style={[styles.actionTypeTabText, actionType === 'ban' && styles.actionTypeTabTextActive]}>Ban (Permanent)</Text>
+              </TouchableOpacity>
+            </View>
+
+            {actionType === 'suspend' ? (
+              <View style={styles.suspendFieldsWrap}>
+                <Text style={styles.fieldLabel}>Suspension Duration (Days):</Text>
+                <View style={styles.daysPresetsRow}>
+                  {['1', '3', '7', '14', '30'].map(d => (
+                    <TouchableOpacity
+                      key={d}
+                      style={[styles.dayPresetBtn, suspendDays === d && styles.dayPresetBtnActive]}
+                      onPress={() => setSuspendDays(d)}
+                    >
+                      <Text style={[styles.dayPresetBtnText, suspendDays === d && styles.dayPresetBtnTextActive]}>
+                        {d}d
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TextInput
+                  style={styles.daysInput}
+                  placeholder="Custom number of days..."
+                  placeholderTextColor="#94A3B8"
+                  value={suspendDays}
+                  onChangeText={setSuspendDays}
+                  keyboardType="numeric"
+                />
+                <Text style={styles.fieldHint}>
+                  User will be blocked for {suspendDays || '0'} day(s) and automatically restored after.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.banNoticeBox}>
+                <Text style={styles.banNoticeTitle}>⚠️ Permanent Ban Notice</Text>
+                <Text style={styles.banNoticeDesc}>
+                  The user will remain permanently banned until an administrator manually restores their account.
+                </Text>
+              </View>
+            )}
+
+            <Text style={styles.fieldLabel}>Reason for {actionType === 'suspend' ? 'Suspension' : 'Ban'}:</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="Enter reason..."
+              placeholder="Enter violation reason details..."
               placeholderTextColor="#94A3B8"
               value={banReason}
               onChangeText={setBanReason}
               multiline
               testID="ban-reason-input"
             />
+
             <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnDanger]} onPress={handleBan}>
-                <Ban size={16} color="#FFFFFF" />
-                <Text style={styles.modalBtnDangerText}>Ban</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnWarn]} onPress={handleSuspend}>
-                <ShieldOff size={16} color="#FFFFFF" />
-                <Text style={styles.modalBtnWarnText}>Suspend</Text>
-              </TouchableOpacity>
+              {actionType === 'suspend' ? (
+                <TouchableOpacity style={[styles.modalBtn, styles.modalBtnWarn]} onPress={handleSuspend}>
+                  <ShieldOff size={16} color="#FFFFFF" />
+                  <Text style={styles.modalBtnWarnText}>Confirm Suspension ({suspendDays}d)</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={[styles.modalBtn, styles.modalBtnDanger]} onPress={handleBan}>
+                  <Ban size={16} color="#FFFFFF" />
+                  <Text style={styles.modalBtnDangerText}>Confirm Permanent Ban</Text>
+                </TouchableOpacity>
+              )}
             </View>
+
             <TouchableOpacity style={styles.modalCancel} onPress={() => setActionModalVisible(false)}>
               <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>
@@ -535,9 +648,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   actionBtnWarning: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: '#FFFBEB',
   },
   actionBtnWarningText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#D97706',
+  },
+  actionBtnDanger: {
+    backgroundColor: '#FEF2F2',
+  },
+  actionBtnDangerText: {
     fontSize: 13,
     fontWeight: '600' as const,
     color: '#EF4444',
@@ -557,6 +678,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600' as const,
     color: '#10B981',
+  },
+  suspendDetailWrap: {
+    marginTop: 8,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  suspendDetailLabel: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#92400E',
+  },
+  suspendReasonWrap: {
+    backgroundColor: '#FFFBEB',
+  },
+  suspendReasonLabel: {
+    color: '#B45309',
+  },
+  suspendReasonText: {
+    color: '#92400E',
   },
   empty: {
     alignItems: 'center',
@@ -580,7 +722,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 24,
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 420,
   },
   modalTitle: {
     fontSize: 18,
@@ -588,25 +730,125 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
   modalSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#64748B',
     marginTop: 4,
+    marginBottom: 14,
+  },
+  actionTypeTabs: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 4,
     marginBottom: 16,
+    gap: 6,
+  },
+  actionTypeTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  actionTypeTabActiveSuspend: {
+    backgroundColor: '#F59E0B',
+  },
+  actionTypeTabActiveBan: {
+    backgroundColor: '#EF4444',
+  },
+  actionTypeTabText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#64748B',
+  },
+  actionTypeTabTextActive: {
+    color: '#FFFFFF',
+  },
+  suspendFieldsWrap: {
+    marginBottom: 14,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#334155',
+    marginBottom: 6,
+  },
+  daysPresetsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  dayPresetBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  dayPresetBtnActive: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+  },
+  dayPresetBtnText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#475569',
+  },
+  dayPresetBtnTextActive: {
+    color: '#B45309',
+  },
+  daysInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: '#0F172A',
+  },
+  fieldHint: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 4,
+  },
+  banNoticeBox: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  banNoticeTitle: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#991B1B',
+    marginBottom: 2,
+  },
+  banNoticeDesc: {
+    fontSize: 12,
+    color: '#B91C1C',
+    lineHeight: 16,
   },
   modalInput: {
     backgroundColor: '#F1F5F9',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 15,
+    fontSize: 14,
     color: '#0F172A',
     marginBottom: 16,
-    minHeight: 48,
+    minHeight: 56,
   },
   modalActions: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   modalBtn: {
     flex: 1,

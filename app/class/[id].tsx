@@ -247,24 +247,13 @@ export default function ClassDetailScreen() {
     }
   }, [cls, router, showAlert]);
 
-  if (!cls) {
-    return (
-      <View style={s.notFound}>
-        <Text style={s.notFoundText}>Class not found</Text>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backBtnText}>Go back</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const isTeacher = String(cls.teacherId) === String(currentUser?.id);
-  const isFree = cls.seatPriceCredits === 0;
-  const seatsLeft = cls.maxCapacity - cls.enrolledCount;
+  const isTeacher = String(cls?.teacherId) === String(currentUser?.id);
+  const isFree = cls?.seatPriceCredits === 0;
+  const seatsLeft = (cls?.maxCapacity || 0) - (cls?.enrolledCount || 0);
   const isFull = seatsLeft <= 0;
-  const isCompleted = cls.status === 'completed';
-  const isCancelled = cls.status === 'cancelled';
-  const classOpen = cls.status === 'open';
+  const isCompleted = cls?.status === 'completed';
+  const isCancelled = cls?.status === 'cancelled';
+  const classOpen = cls?.status === 'open';
 
   const isBeforeScheduledStart = useMemo(() => {
     if (!cls?.startISO) return false;
@@ -277,6 +266,7 @@ export default function ClassDetailScreen() {
     return new Date(iso).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   };
   const formatTimeRange = () => {
+    if (!cls?.startISO || !cls?.endISO) return '';
     const start = new Date(cls.startISO).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
     const end = new Date(cls.endISO).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
     return `${start} — ${end}`;
@@ -340,6 +330,17 @@ export default function ClassDetailScreen() {
     const baseSwaps = teacherUser?.totalSwaps ?? cls?.teacher?.totalSwaps ?? 0;
     return Math.max(baseSwaps, swapCount);
   }, [allSwaps, teacherId, teacherUser, cls]);
+
+  if (!cls) {
+    return (
+      <View style={s.notFound}>
+        <Text style={s.notFoundText}>Class not found</Text>
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+          <Text style={s.backBtnText}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>

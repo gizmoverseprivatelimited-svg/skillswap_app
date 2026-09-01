@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import url from '@/constants/backurl';
-import { useCurrentUser } from '@/providers/current-user';
 
 interface SocketContextValue {
   socket: Socket | null;
@@ -16,13 +16,12 @@ const SocketContext = createContext<SocketContextValue>({
 });
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
-  const { currentUser } = useCurrentUser();
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
   useEffect(() => {
     const socket = io(url, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
@@ -34,13 +33,18 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       console.log('[Socket.IO Frontend] Connected:', socket.id);
       setIsConnected(true);
 
-      const uId = currentUser?.id || (currentUser as any)?._id;
-      if (uId) {
-        socket.emit('join_room', String(uId));
-        if ((currentUser as any)?._id && String((currentUser as any)._id) !== String(uId)) {
-          socket.emit('join_room', String((currentUser as any)._id));
+      AsyncStorage.getItem('@skillswap/auth_user').then((userStr) => {
+        if (userStr) {
+          try {
+            const u = JSON.parse(userStr);
+            const uid = u?.id || u?._id;
+            if (uid) {
+              socket.emit('join_room', String(uid));
+              console.log('[Socket.IO Frontend] Joined room on connect:', uid);
+            }
+          } catch (e) {}
         }
-      }
+      }).catch(() => {});
     });
 
     socket.on('disconnect', () => {
@@ -56,17 +60,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       socket.disconnect();
     };
   }, []);
-
-  useEffect(() => {
-    const socket = socketRef.current;
-    const uId = currentUser?.id || (currentUser as any)?._id;
-    if (socket && socket.connected && uId) {
-      socket.emit('join_room', String(uId));
-      if ((currentUser as any)?._id && String((currentUser as any)._id) !== String(uId)) {
-        socket.emit('join_room', String((currentUser as any)._id));
-      }
-    }
-  }, [currentUser?.id, (currentUser as any)?._id]);
 
   const emit = (event: string, data?: any) => {
     if (socketRef.current) {

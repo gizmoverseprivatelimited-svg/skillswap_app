@@ -1,12 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments, useRootNavigationState, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet, ActivityIndicator, View, Platform } from "react-native";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "../providers/auth";
-import { CurrentUserProvider } from "../providers/current-user";
+import { CurrentUserProvider, useCurrentUser } from "../providers/current-user";
 import { SkillSwapsProvider } from "../providers/skill-swaps";
 import { SafetyProvider } from "../providers/safety";
 import { ClassesProvider } from "../providers/classes";
@@ -26,12 +26,27 @@ if (Platform.OS !== 'web') {
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user: authUser, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { currentUser } = useCurrentUser();
   const { hasCompletedOnboarding, isChecking } = useOnboarding();
   const segments = useSegments();
   const router = useRouter();
   const rootNavigationState = useRootNavigationState();
   const pathname = usePathname();
+
+  const user = currentUser || authUser;
+  const isRestricted = useMemo(() => {
+    if (!user) return false;
+    if (user.banStatus === 'banned') return true;
+    if (user.banStatus === 'suspended') {
+      if (user.suspendedUntil) {
+        const hasExpired = new Date(user.suspendedUntil).getTime() <= Date.now();
+        return !hasExpired;
+      }
+      return true;
+    }
+    return false;
+  }, [user]);
 
   useEffect(() => {
     if (authLoading || isChecking) return;
@@ -42,23 +57,30 @@ function RootLayoutNav() {
 
     if (isAdminRoute) return;
 
+    const isBannedRoute = segment0 === 'banned' || currentPath === '/banned' || currentPath.startsWith('/banned');
     const isLogin = segment0 === 'login' || currentPath === '/login' || currentPath.startsWith('/login');
     const isOnboarding = segment0 === 'onboarding' || currentPath === '/onboarding' || currentPath.startsWith('/onboarding');
-    const publicRoutes = ['login', 'terms', 'privacy', 'about', 'contact', 'help', 'admin'];
+    const publicRoutes = ['login', 'terms', 'privacy', 'about', 'contact', 'help', 'admin', 'banned'];
     const isPublic = publicRoutes.includes(segment0) || isLogin || currentPath.startsWith('/admin');
 
     if (!isAuthenticated) {
       if (!isPublic) {
         router.replace('/login' as any);
       }
+    } else if (isRestricted) {
+      // User is banned or suspended: they can only access /banned, /login, and support/policy routes
+      const allowedForRestricted = ['banned', 'login', 'help', 'contact', 'terms', 'privacy'];
+      if (!allowedForRestricted.includes(segment0) && !isBannedRoute) {
+        router.replace('/banned' as any);
+      }
     } else if (!hasCompletedOnboarding) {
       if (!isOnboarding) {
         router.replace('/onboarding' as any);
       }
-    } else if (isLogin || isOnboarding) {
+    } else if (isLogin || isOnboarding || isBannedRoute) {
       router.replace('/(tabs)/home' as any);
     }
-  }, [isAuthenticated, authLoading, isChecking, hasCompletedOnboarding, segments, rootNavigationState?.key, pathname]);
+  }, [isAuthenticated, isRestricted, authLoading, isChecking, hasCompletedOnboarding, segments, rootNavigationState?.key, pathname, router]);
 
   if (authLoading && !isAuthenticated) {
     return (
@@ -70,6 +92,7 @@ function RootLayoutNav() {
 
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
+      <Stack.Screen name="banned" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -321,11 +344,11 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AlertProvider>
-        <AuthProvider>
-          <OnboardingProvider>
-            <SafetyProvider>
-              <CurrentUserProvider>
-                <SocketProvider>
+        <SocketProvider>
+          <AuthProvider>
+            <OnboardingProvider>
+              <SafetyProvider>
+                <CurrentUserProvider>
                   <EarningsProvider>
                     <SkillSwapsProvider>
                       <AdminProvider>
@@ -344,11 +367,11 @@ export default function RootLayout() {
                       </AdminProvider>
                     </SkillSwapsProvider>
                   </EarningsProvider>
-                </SocketProvider>
-              </CurrentUserProvider>
-            </SafetyProvider>
-          </OnboardingProvider>
-        </AuthProvider>
+                </CurrentUserProvider>
+              </SafetyProvider>
+            </OnboardingProvider>
+          </AuthProvider>
+        </SocketProvider>
       </AlertProvider>
     </QueryClientProvider>
   );

@@ -599,10 +599,15 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create swap request');
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || 'Failed to create swap request');
       }
 
-      const createdSwap = await response.json();
+      const rawSwap = await response.json();
+      const createdSwap: SkillSwapRequest = {
+        ...rawSwap,
+        id: String(rawSwap.id || rawSwap._id),
+      };
 
       // Deduct only platform fee (3 credits for free tier) from student upon requesting
       if (swapType !== 'teach') {
@@ -612,11 +617,11 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
         }
       }
 
-      // Update local state (optimistic UI)
-      setSwaps((prev) => [createdSwap, ...prev]);
+      // Update local state (optimistic UI) immediately so swap screen finds it instantly
+      setSwaps((prev) => [createdSwap, ...prev.filter((s) => s.id !== createdSwap.id)]);
 
-      // Reload user data to update credit balance in UI
-      await loadUser().catch((err: any) => console.error('[SkillSwaps] Failed to refresh user after swap creation', err));
+      // Reload user data silently in background to update credit balance in UI without blocking navigation
+      loadUser(true).catch((err: any) => console.warn('[SkillSwaps] Background user refresh error:', err));
 
       return createdSwap;
     },
@@ -1229,7 +1234,9 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
 
 
   const getSwapById = useCallback((requestId: string) => {
-    return swaps.find((swap) => swap.id === requestId);
+    if (!requestId) return undefined;
+    const reqStr = String(requestId);
+    return swaps.find((swap) => String(swap.id) === reqStr || String((swap as any)._id) === reqStr);
   }, [swaps]);
 
   // const setCalendarEventId = useCallback((requestId: string, eventId: string) => {

@@ -188,21 +188,29 @@ export default function CreateClassScreen() {
     setScheduleDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
   };
 
-  // Upload image to Multer backend
-  const uploadCoverImage = useCallback(async (fileUri: string) => {
+  // Upload image to Multer backend with fallback
+  const uploadCoverImage = useCallback(async (asset: ImagePicker.ImagePickerAsset) => {
+    const localUri = asset.uri;
+    if (!localUri) return;
+
+    // Instant local preview
+    setCoverUrl(localUri);
     setUploadingCover(true);
+
     try {
       const formData = new FormData();
       if (Platform.OS === 'web') {
-        const response = await fetch(fileUri);
+        const response = await fetch(localUri);
         const blob = await response.blob();
-        formData.append('coverImage', blob, 'cover.jpg');
+        const mime = blob.type || asset.mimeType || 'image/jpeg';
+        const ext = mime.includes('png') ? 'png' : 'jpg';
+        formData.append('coverImage', blob, `cover.${ext}`);
       } else {
-        const filename = fileUri.split('/').pop() || 'cover.jpg';
+        const filename = localUri.split('/').pop() || 'cover.jpg';
         const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : `image/jpeg`;
+        const type = asset.mimeType || (match ? `image/${match[1]}` : `image/jpeg`);
         // @ts-ignore
-        formData.append('coverImage', { uri: fileUri, name: filename, type });
+        formData.append('coverImage', { uri: localUri, name: filename, type });
       }
 
       const res = await fetch(`${url}/classes/upload-cover`, {
@@ -215,13 +223,21 @@ export default function CreateClassScreen() {
         if (data.coverUrl) {
           const fullUrl = data.coverUrl.startsWith('http') ? data.coverUrl : `${url}${data.coverUrl}`;
           setCoverUrl(fullUrl);
+          return;
         }
-      } else {
-        Alert.alert('Upload failed', 'Failed to upload cover image to backend.');
+      }
+
+      // If backend response wasn't ok, fallback to base64 data URI
+      if (asset.base64) {
+        const mime = asset.mimeType || 'image/jpeg';
+        setCoverUrl(`data:${mime};base64,${asset.base64}`);
       }
     } catch (err) {
-      console.error('[UploadCover] Failed to upload image:', err);
-      Alert.alert('Upload error', 'An error occurred while uploading cover image.');
+      console.warn('[UploadCover] Server upload failed, using local/base64 fallback:', err);
+      if (asset.base64) {
+        const mime = asset.mimeType || 'image/jpeg';
+        setCoverUrl(`data:${mime};base64,${asset.base64}`);
+      }
     } finally {
       setUploadingCover(false);
     }
@@ -229,45 +245,53 @@ export default function CreateClassScreen() {
 
   const handlePickImage = useCallback(async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission required', 'Permission to access media library is required.');
-        return;
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          showAlert('Permission required', 'Permission to access media library is required to select cover images.');
+          return;
+        }
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsEditing: Platform.OS !== 'web',
         aspect: [16, 9],
         quality: 0.8,
+        base64: true,
       });
-      if (!result.canceled && result.assets[0]?.uri) {
-        void uploadCoverImage(result.assets[0].uri);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        void uploadCoverImage(result.assets[0]);
       }
     } catch (err) {
       console.error('[ImagePicker] Error picking image:', err);
+      showAlert('Image Picker Error', 'Could not open image library.');
     }
-  }, [uploadCoverImage]);
+  }, [uploadCoverImage, showAlert]);
 
   const handleTakePhoto = useCallback(async () => {
     try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission required', 'Permission to access camera is required.');
-        return;
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          showAlert('Permission required', 'Permission to access camera is required to take cover photos.');
+          return;
+        }
       }
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsEditing: Platform.OS !== 'web',
         aspect: [16, 9],
         quality: 0.8,
+        base64: true,
       });
-      if (!result.canceled && result.assets[0]?.uri) {
-        void uploadCoverImage(result.assets[0].uri);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        void uploadCoverImage(result.assets[0]);
       }
     } catch (err) {
       console.error('[ImagePicker] Error taking photo:', err);
+      showAlert('Camera Error', 'Could not access camera.');
     }
-  }, [uploadCoverImage]);
+  }, [uploadCoverImage, showAlert]);
 
   // Pop-up modal visibility states
   const [isDurationPickerOpen, setIsDurationPickerOpen] = useState(false);
@@ -607,11 +631,11 @@ export default function CreateClassScreen() {
         <View style={s.coverUploadCard}>
           {coverUrl ? (
             <View style={s.coverPreviewWrap}>
-              <Image source={{ uri: coverUrl }} style={s.coverPreviewImage} resizeMode="cover" />
+              <Image source={{ uri: resolveImageUrl(coverUrl, DEFAULT_COVER) }} style={s.coverPreviewImage} resizeMode="cover" />
               {uploadingCover && (
                 <View style={s.coverUploadingOverlay}>
                   <ActivityIndicator size="large" color="#FFFFFF" />
-                  <Text style={s.uploadingText}>Uploading via Multer...</Text>
+                  <Text style={s.uploadingText}>Uploading...</Text>
                 </View>
               )}
             </View>

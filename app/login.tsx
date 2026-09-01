@@ -466,218 +466,218 @@ export default function LoginScreen() {
 
           <View style={styles.contentContainer}>
             <View style={styles.card}>
-                {flow === 'signin' && (
-                  <>
-                    <Text style={styles.label}>Email</Text>
-                    <View style={styles.inputRow}>
-                      <View style={styles.inputIcon}>
-                        <Mail size={18} color={Colors.light.textSecondary} />
-                      </View>
-                      <TextInput
-                        testID="email-input"
-                        placeholder="you@example.com"
-                        placeholderTextColor={Colors.light.textTertiary}
-                        style={styles.input}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        value={identifier}
-                        onChangeText={setIdentifier}
-                      />
+              {flow === 'signin' && (
+                <>
+                  <Text style={styles.label}>Email</Text>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputIcon}>
+                      <Mail size={18} color={Colors.light.textSecondary} />
                     </View>
+                    <TextInput
+                      testID="email-input"
+                      placeholder="you@example.com"
+                      placeholderTextColor={Colors.light.textTertiary}
+                      style={styles.input}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      value={identifier}
+                      onChangeText={setIdentifier}
+                    />
+                  </View>
 
-                    <Text style={[styles.label, styles.labelSpaced]}>Password</Text>
-                    <View style={styles.inputRow}>
-                      <View style={styles.inputIcon}>
-                        <Lock size={18} color={Colors.light.textSecondary} />
-                      </View>
-                      <TextInput
-                        testID="password-input"
-                        placeholder="••••••••"
-                        placeholderTextColor={Colors.light.textTertiary}
-                        style={styles.input}
-                        secureTextEntry
-                        value={password}
-                        onChangeText={setPassword}
-                      />
+                  <Text style={[styles.label, styles.labelSpaced]}>Password</Text>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputIcon}>
+                      <Lock size={18} color={Colors.light.textSecondary} />
                     </View>
+                    <TextInput
+                      testID="password-input"
+                      placeholder="••••••••"
+                      placeholderTextColor={Colors.light.textTertiary}
+                      style={styles.input}
+                      secureTextEntry
+                      value={password}
+                      onChangeText={setPassword}
+                    />
+                  </View>
 
-                    {!!error && <Text style={styles.errorText}>{error}</Text>}
+                  {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-                    <TouchableOpacity
-                      testID="sign-in-btn"
-                      style={styles.primaryBtn}
-                      onPress={onEmailSignIn}
-                      activeOpacity={0.8}
+                  <TouchableOpacity
+                    testID="sign-in-btn"
+                    style={styles.primaryBtn}
+                    onPress={onEmailSignIn}
+                    activeOpacity={0.8}
+                  >
+                    <LinearGradient
+                      colors={[Colors.light.primary, Colors.light.primaryLight]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.buttonGradient}
                     >
-                      <LinearGradient
-                        colors={[Colors.light.primary, Colors.light.primaryLight]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.buttonGradient}
-                      >
-                        <Text style={styles.primaryBtnText}>Sign In</Text>
-                      </LinearGradient>
+                      <Text style={styles.primaryBtnText}>Sign In</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.googleBtn} onPress={signInWithGoogle} testID="google-sign-in" activeOpacity={0.85}>
+                    <Chrome size={22} color="#fff" />
+                    <Text style={styles.googleText}>Continue with Google</Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.linkRow}>
+                    <TouchableOpacity testID="signup-link" onPress={() => setFlow('signup')}>
+                      <Text style={styles.linkText}>Create account</Text>
                     </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.googleBtn} onPress={signInWithGoogle} testID="google-sign-in" activeOpacity={0.85}>
-                      <Chrome size={22} color="#fff" />
-                      <Text style={styles.googleText}>Continue with Google</Text>
+                    <TouchableOpacity testID="forgot-link" onPress={() => setFlow('forgot')}>
+                      <Text style={styles.linkText}>Forgot password?</Text>
                     </TouchableOpacity>
+                  </View>
+                </>
+              )}
 
-                    <View style={styles.linkRow}>
-                      <TouchableOpacity testID="signup-link" onPress={() => setFlow('signup')}>
-                        <Text style={styles.linkText}>Create account</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity testID="forgot-link" onPress={() => setFlow('forgot')}>
-                        <Text style={styles.linkText}>Forgot password?</Text>
-                      </TouchableOpacity>
+              {flow === 'signup' && (
+                <>
+                  <TouchableOpacity style={styles.backBtn} onPress={() => setFlow('signin')} testID="back-to-signin">
+                    <ArrowLeft size={20} color={Colors.light.primary} />
+                    <Text style={styles.backText}>Back to sign in</Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.label}>Name</Text>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputIcon}>
+                      <User size={18} color={Colors.light.textSecondary} />
                     </View>
-                  </>
-                )}
+                    <TextInput
+                      testID="name-input"
+                      placeholder="Your name"
+                      placeholderTextColor={Colors.light.textTertiary}
+                      style={styles.input}
+                      value={name}
+                      onChangeText={setName}
+                    />
+                  </View>
 
-                {flow === 'signup' && (
-                  <>
-                    <TouchableOpacity style={styles.backBtn} onPress={() => setFlow('signin')} testID="back-to-signin">
-                      <ArrowLeft size={20} color={Colors.light.primary} />
-                      <Text style={styles.backText}>Back to sign in</Text>
-                    </TouchableOpacity>
-
-                    <Text style={styles.label}>Name</Text>
-                    <View style={styles.inputRow}>
-                      <View style={styles.inputIcon}>
-                        <User size={18} color={Colors.light.textSecondary} />
-                      </View>
-                      <TextInput
-                        testID="name-input"
-                        placeholder="Your name"
-                        placeholderTextColor={Colors.light.textTertiary}
-                        style={styles.input}
-                        value={name}
-                        onChangeText={setName}
-                      />
+                  <Text style={[styles.label, styles.labelSpaced]}>Username</Text>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputIcon}>
+                      <Sparkles size={18} color={Colors.light.textSecondary} />
                     </View>
+                    <TextInput
+                      testID="username-input"
+                      placeholder="Choose a unique username"
+                      placeholderTextColor={Colors.light.textTertiary}
+                      style={styles.input}
+                      autoCapitalize="none"
+                      value={username}
+                      onChangeText={(val) => setUsername(val.toLowerCase().replace(/[^a-z0-9_.-]/g, ''))}
+                    />
+                  </View>
 
-                    <Text style={[styles.label, styles.labelSpaced]}>Username</Text>
-                    <View style={styles.inputRow}>
-                      <View style={styles.inputIcon}>
-                        <Sparkles size={18} color={Colors.light.textSecondary} />
-                      </View>
-                      <TextInput
-                        testID="username-input"
-                        placeholder="Choose a unique username"
-                        placeholderTextColor={Colors.light.textTertiary}
-                        style={styles.input}
-                        autoCapitalize="none"
-                        value={username}
-                        onChangeText={(val) => setUsername(val.toLowerCase().replace(/[^a-z0-9_.-]/g, ''))}
-                      />
+                  <Text style={[styles.label, styles.labelSpaced]}>Email</Text>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputIcon}>
+                      <Mail size={18} color={Colors.light.textSecondary} />
                     </View>
+                    <TextInput
+                      testID="email-input"
+                      placeholder="you@example.com"
+                      placeholderTextColor={Colors.light.textTertiary}
+                      style={styles.input}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      value={identifier}
+                      onChangeText={setIdentifier}
+                    />
+                  </View>
 
-                    <Text style={[styles.label, styles.labelSpaced]}>Email</Text>
-                    <View style={styles.inputRow}>
-                      <View style={styles.inputIcon}>
-                        <Mail size={18} color={Colors.light.textSecondary} />
-                      </View>
-                      <TextInput
-                        testID="email-input"
-                        placeholder="you@example.com"
-                        placeholderTextColor={Colors.light.textTertiary}
-                        style={styles.input}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        value={identifier}
-                        onChangeText={setIdentifier}
-                      />
+                  <Text style={[styles.label, styles.labelSpaced]}>Password</Text>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputIcon}>
+                      <Lock size={18} color={Colors.light.textSecondary} />
                     </View>
+                    <TextInput
+                      testID="password-input"
+                      placeholder="At least 8 characters"
+                      placeholderTextColor={Colors.light.textTertiary}
+                      style={styles.input}
+                      secureTextEntry
+                      value={password}
+                      onChangeText={setPassword}
+                    />
+                  </View>
 
-                    <Text style={[styles.label, styles.labelSpaced]}>Password</Text>
-                    <View style={styles.inputRow}>
-                      <View style={styles.inputIcon}>
-                        <Lock size={18} color={Colors.light.textSecondary} />
-                      </View>
-                      <TextInput
-                        testID="password-input"
-                        placeholder="At least 8 characters"
-                        placeholderTextColor={Colors.light.textTertiary}
-                        style={styles.input}
-                        secureTextEntry
-                        value={password}
-                        onChangeText={setPassword}
-                      />
-                    </View>
+                  {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-                    {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-                    <TouchableOpacity
-                      testID="signup-btn"
-                      style={styles.primaryBtn}
-                      onPress={onEmailSignUp}
-                      activeOpacity={0.8}
+                  <TouchableOpacity
+                    testID="signup-btn"
+                    style={styles.primaryBtn}
+                    onPress={onEmailSignUp}
+                    activeOpacity={0.8}
+                  >
+                    <LinearGradient
+                      colors={[Colors.light.primary, Colors.light.primaryLight]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.buttonGradient}
                     >
-                      <LinearGradient
-                        colors={[Colors.light.primary, Colors.light.primaryLight]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.buttonGradient}
-                      >
-                        <Text style={styles.primaryBtnText}>Create Account</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </>
-                )}
+                      <Text style={styles.primaryBtnText}>Create Account</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </>
+              )}
 
-                {flow === 'forgot' && (
-                  <>
-                    <TouchableOpacity style={styles.backBtn} onPress={() => setFlow('signin')} testID="back-to-signin">
-                      <ArrowLeft size={20} color={Colors.light.primary} />
-                      <Text style={styles.backText}>Back to sign in</Text>
-                    </TouchableOpacity>
+              {flow === 'forgot' && (
+                <>
+                  <TouchableOpacity style={styles.backBtn} onPress={() => setFlow('signin')} testID="back-to-signin">
+                    <ArrowLeft size={20} color={Colors.light.primary} />
+                    <Text style={styles.backText}>Back to sign in</Text>
+                  </TouchableOpacity>
 
-                    <Text style={styles.forgotTitle}>Reset Password</Text>
-                    <Text style={styles.forgotSubtitle}>Enter your email to receive a reset link</Text>
+                  <Text style={styles.forgotTitle}>Reset Password</Text>
+                  <Text style={styles.forgotSubtitle}>Enter your email to receive a reset link</Text>
 
-                    <Text style={styles.label}>Email</Text>
-                    <View style={styles.inputRow}>
-                      <View style={styles.inputIcon}>
-                        <Mail size={18} color={Colors.light.textSecondary} />
-                      </View>
-                      <TextInput
-                        testID="email-input"
-                        placeholder="you@example.com"
-                        placeholderTextColor={Colors.light.textTertiary}
-                        style={styles.input}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        value={identifier}
-                        onChangeText={setIdentifier}
-                      />
+                  <Text style={styles.label}>Email</Text>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputIcon}>
+                      <Mail size={18} color={Colors.light.textSecondary} />
                     </View>
+                    <TextInput
+                      testID="email-input"
+                      placeholder="you@example.com"
+                      placeholderTextColor={Colors.light.textTertiary}
+                      style={styles.input}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      value={identifier}
+                      onChangeText={setIdentifier}
+                    />
+                  </View>
 
-                    {!!error && <Text style={styles.errorText}>{error}</Text>}
+                  {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-                    <TouchableOpacity
-                      testID="reset-btn"
-                      style={[styles.primaryBtn, isLoading && styles.primaryBtnDisabled]}
-                      onPress={onForgotPassword}
-                      disabled={isLoading}
-                      activeOpacity={0.8}
+                  <TouchableOpacity
+                    testID="reset-btn"
+                    style={[styles.primaryBtn, isLoading && styles.primaryBtnDisabled]}
+                    onPress={onForgotPassword}
+                    disabled={isLoading}
+                    activeOpacity={0.8}
+                  >
+                    <LinearGradient
+                      colors={[Colors.light.primary, Colors.light.primaryLight]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.buttonGradient}
                     >
-                      <LinearGradient
-                        colors={[Colors.light.primary, Colors.light.primaryLight]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.buttonGradient}
-                      >
-                        {isLoading ? (
-                          <ActivityIndicator color="#fff" />
-                        ) : (
-                          <Text style={styles.primaryBtnText}>Send Reset Link</Text>
-                        )}
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </>
-                )}
-              </View>
+                      {isLoading ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <Text style={styles.primaryBtnText}>Send Reset Link</Text>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
 
             <Text style={styles.disclaimer}>
               By continuing you agree to our Terms and Privacy Policy
