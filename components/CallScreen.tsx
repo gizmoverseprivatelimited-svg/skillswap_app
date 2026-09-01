@@ -561,6 +561,9 @@ export default function CallScreen({
             onSwitchAudioOutput={onSwitchAudioOutput}
             onMuteParticipant={onMuteParticipant}
             onRemoveParticipant={onRemoveParticipant}
+            isScreenSharing={isScreenSharing}
+            onToggleScreenShare={onToggleScreenShare}
+            isGroupCall={isGroupCall}
             onClose={() => setBottomPanel('none')}
             scrollRef={scrollRef}
             onSpotlight={handleSpotlight}
@@ -969,6 +972,9 @@ interface BottomPanelViewProps {
   isTeacher?: boolean;
   selectedAudioDevice?: AudioDevice;
   availableAudioDevices?: string[];
+  isScreenSharing?: boolean;
+  onToggleScreenShare?: () => void;
+  isGroupCall?: boolean;
   onChatDraftChange: (text: string) => void;
   onSendMessage: () => void;
   onSendReaction?: (emoji: string) => void;
@@ -990,6 +996,9 @@ function BottomPanelView({
   isTeacher,
   selectedAudioDevice,
   availableAudioDevices = [],
+  isScreenSharing,
+  onToggleScreenShare,
+  isGroupCall,
   onChatDraftChange,
   onSendMessage,
   onSendReaction,
@@ -1156,9 +1165,33 @@ function BottomPanelView({
       {/* 4. More Options Menu */}
       {panel === 'more' && (
         <View style={[styles.moreMenuWrap, { paddingBottom: bottomInset + 20 }]}>
+          {onToggleScreenShare && (!isGroupCall || isTeacher) && (
+            <TouchableOpacity
+              style={[styles.menuRow, isScreenSharing && styles.menuRowActive]}
+              onPress={() => {
+                onClose();
+                onToggleScreenShare();
+              }}
+              activeOpacity={0.7}
+            >
+              <MonitorUp size={20} color={isScreenSharing ? '#38BDF8' : '#F8FAFC'} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.menuText, isScreenSharing && { color: '#38BDF8' }]}>
+                  {isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}
+                </Text>
+                <Text style={styles.menuSubText}>
+                  {isScreenSharing ? 'You are currently presenting your screen' : 'Present your screen or app window to everyone in the call'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity style={styles.menuRow} onPress={() => onClose()}>
             <ShieldCheck size={20} color="#34D399" />
-            <Text style={styles.menuText}>End-to-End Encrypted Session</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuText}>End-to-End Encrypted Session</Text>
+              <Text style={styles.menuSubText}>Your media is encrypted and secure</Text>
+            </View>
           </TouchableOpacity>
         </View>
       )}
@@ -1694,24 +1727,25 @@ const styles = StyleSheet.create({
   controlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     width: '100%',
+    paddingHorizontal: 4,
   },
   controlBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    borderRadius: 14,
-    minWidth: 40,
-    flexShrink: 1,
+    gap: 3,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+    borderRadius: 12,
+    minWidth: 36,
+    flex: 1,
   },
   controlIconWrap: {
     position: 'relative',
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1849,6 +1883,20 @@ const styles = StyleSheet.create({
 
   // More Menu
   moreMenuWrap: { padding: 18, gap: 14 },
-  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
-  menuText: { fontSize: 14, fontWeight: '600', color: '#F8FAFC' },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#334155',
+    borderRadius: 14,
+  },
+  menuRowActive: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+  },
+  menuText: { fontSize: 15, fontWeight: '700', color: '#F8FAFC' },
+  menuSubText: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
 });
