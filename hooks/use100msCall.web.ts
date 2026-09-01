@@ -1140,8 +1140,20 @@ export function use100msCall({
           };
 
           setParticipants(prev => prev.map(p => (p.isLocal ? { ...p, screenShareStream: screenStream } : p)));
-        } catch (err) {
+        } catch (err: any) {
           console.warn('[use100msCall Web] DisplayMedia error:', err);
+          if (err?.name !== 'NotAllowedError' && err?.name !== 'AbortError') {
+            if (typeof window !== 'undefined' && window.alert) {
+              window.alert('Screen sharing could not be started on this browser.');
+            }
+          }
+        }
+      } else {
+        // Mobile web browsers (iOS Safari, Android Chrome without flags) do not expose getDisplayMedia
+        if (typeof window !== 'undefined' && window.alert) {
+          window.alert(
+            'Screen sharing is not supported by mobile web browsers (iOS Safari / Android Chrome) due to operating system security restrictions. Please use the desktop web browser or the native mobile app.'
+          );
         }
       }
     }
