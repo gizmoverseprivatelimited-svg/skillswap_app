@@ -123,7 +123,8 @@ export default function HomeScreen() {
   const { currentUser, topRecommendations, teachMatches, learnMatches, swapMatches, userRole, refreshRecommendations, isLoading: isUserLoading } = useCurrentUser();
   const { isBlocked } = useSafety();
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isSkillsLoading, setIsSkillsLoading] = useState(true);
+  const [hasFetchedSkills, setHasFetchedSkills] = useState(false);
 
   const fetchSkillsData = useCallback(async () => {
     try {
@@ -132,17 +133,13 @@ export default function HomeScreen() {
     } catch (err) {
       console.error('Failed to fetch skills data:', err);
     } finally {
-      setIsInitialLoading(false);
+      setIsSkillsLoading(false);
+      setHasFetchedSkills(true);
     }
   }, []);
 
   useEffect(() => {
     fetchSkillsData();
-    // Safety timer to prevent stuck loader under slow network
-    const timer = setTimeout(() => {
-      setIsInitialLoading(false);
-    }, 2000);
-    return () => clearTimeout(timer);
   }, [fetchSkillsData]);
 
   useFocusEffect(
@@ -300,7 +297,9 @@ export default function HomeScreen() {
     };
   }, [userRole, topTeachMatches, topLearnMatches, topSwapMatches]);
 
-  if (isInitialLoading && skillsWithUsers.length === 0) {
+  const isInitialBackendLoading = (isSkillsLoading || isUserLoading || !hasFetchedSkills) && skillsWithUsers.length === 0;
+
+  if (isInitialBackendLoading) {
     return (
       <View style={styles.fullScreenLoaderContainer}>
         <LinearGradient
@@ -333,7 +332,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
@@ -618,9 +617,9 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-            <ScrollView 
+            <ScrollView
               ref={featuredScrollRef}
-              horizontal 
+              horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.featuredScroll}
               onLayout={(e) => updateCarouselMetrics(featuredPosRef, setFeaturedNav, { layoutWidth: e.nativeEvent.layout.width })}
@@ -694,8 +693,8 @@ export default function HomeScreen() {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Categories</Text>
-            <ScrollView 
-              horizontal 
+            <ScrollView
+              horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.categoriesScroll}
             >
@@ -778,8 +777,8 @@ export default function HomeScreen() {
                 {selectedCategory === 'All'
                   ? 'All Skills'
                   : selectedSubcategory !== 'All'
-                  ? `${selectedCategory} • ${selectedSubcategory}`
-                  : selectedCategory}
+                    ? `${selectedCategory} • ${selectedSubcategory}`
+                    : selectedCategory}
               </Text>
               <View style={styles.skillsCountBadge}>
                 <Text style={styles.skillsCountText}>
