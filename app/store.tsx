@@ -126,7 +126,7 @@ export default function StoreScreen() {
   }, [socket, loadUser]);
 
   const startPaymentMonitoring = useCallback(
-    (initialCredits: number, expectedAdded: number, popupWindow?: any, isPremium = false) => {
+    (initialCredits: number, expectedAdded: number, popupWindow?: any, isPremium = false, initialExpiry?: any) => {
       if (pollingTimerRef.current) {
         clearInterval(pollingTimerRef.current);
       }
@@ -135,7 +135,7 @@ export default function StoreScreen() {
       if (!uId) return;
 
       let elapsedSeconds = 0;
-      const maxSeconds = 150;
+      const maxSeconds = 180;
 
       const checkBalance = async () => {
         try {
@@ -144,18 +144,17 @@ export default function StoreScreen() {
             const freshUser = await res.json();
             const freshCredits = freshUser?.credits ?? 0;
             const updated = isPremium
-              ? freshUser?.premiumTier && freshUser.premiumTier !== 'free'
+              ? (
+                  (initialExpiry && freshUser?.premiumExpiresAt && new Date(freshUser.premiumExpiresAt).getTime() > new Date(initialExpiry).getTime()) ||
+                  (!initialExpiry && freshUser?.premiumTier && freshUser.premiumTier !== 'free' && freshCredits >= initialCredits) ||
+                  freshCredits > initialCredits
+                )
               : freshCredits > initialCredits;
 
-            if (updated) {
+            if (updated && (freshCredits > initialCredits || (initialExpiry && new Date(freshUser.premiumExpiresAt).getTime() > new Date(initialExpiry).getTime()))) {
               if (pollingTimerRef.current) {
                 clearInterval(pollingTimerRef.current);
                 pollingTimerRef.current = null;
-              }
-              if (popupRef.current && !popupRef.current.closed) {
-                try {
-                  popupRef.current.close();
-                } catch (e) {}
               }
               if (earnCredits && freshCredits > initialCredits) {
                 earnCredits(freshCredits - initialCredits);
@@ -354,7 +353,7 @@ export default function StoreScreen() {
             window.open(checkoutUrl, '_blank');
           }
 
-          startPaymentMonitoring(currentUser?.credits || 0, 0, popup, true);
+          startPaymentMonitoring(currentUser?.credits || 0, 0, popup, true, currentUser?.premiumExpiresAt);
         } else {
           await WebBrowser.openBrowserAsync(checkoutUrl);
           await loadUser(true);
