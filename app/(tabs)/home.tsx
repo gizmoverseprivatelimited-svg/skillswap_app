@@ -120,21 +120,29 @@ export default function HomeScreen() {
   }, [windowWidth, numSkillColumns]);
 
   const { unreadCount } = useNotifications();
-  const { currentUser, topRecommendations, teachMatches, learnMatches, swapMatches, userRole, refreshRecommendations } = useCurrentUser();
+  const { currentUser, topRecommendations, teachMatches, learnMatches, swapMatches, userRole, refreshRecommendations, isLoading: isUserLoading } = useCurrentUser();
   const { isBlocked } = useSafety();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   const fetchSkillsData = useCallback(async () => {
     try {
       const data = await getSkillsWithUsers();
-      setSkillsWithUsers(data);
+      setSkillsWithUsers(data || []);
     } catch (err) {
       console.error('Failed to fetch skills data:', err);
+    } finally {
+      setIsInitialLoading(false);
     }
   }, []);
 
   useEffect(() => {
     fetchSkillsData();
+    // Safety timer to prevent stuck loader under slow network
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 2000);
+    return () => clearTimeout(timer);
   }, [fetchSkillsData]);
 
   useFocusEffect(
@@ -291,6 +299,37 @@ export default function HomeScreen() {
       color: '#F59E0B',
     };
   }, [userRole, topTeachMatches, topLearnMatches, topSwapMatches]);
+
+  if (isInitialLoading && skillsWithUsers.length === 0) {
+    return (
+      <View style={styles.fullScreenLoaderContainer}>
+        <LinearGradient
+          colors={['#0F172A', '#1E1B4B', '#0F172A']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.fullScreenLoaderGradient}
+        >
+          <View style={styles.loaderCenterBox}>
+            <View style={styles.loaderIconHalo}>
+              <LinearGradient
+                colors={['#6366F1', '#8B5CF6']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.loaderIconCircle}
+              >
+                <Sparkles size={32} color="#FFFFFF" />
+              </LinearGradient>
+            </View>
+
+            <ActivityIndicator size="large" color="#818CF8" style={{ marginTop: 16 }} />
+
+            <Text style={styles.loaderTitle}>Finding Best Matches...</Text>
+            <Text style={styles.loaderSubtitle}>Curating teachers and exchange partners for you</Text>
+          </View>
+        </LinearGradient>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -1587,5 +1626,57 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800' as const,
     color: '#FFFFFF',
+  },
+  fullScreenLoaderContainer: {
+    flex: 1,
+  },
+  fullScreenLoaderGradient: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  loaderCenterBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loaderIconHalo: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(129, 140, 248, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  loaderIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loaderTitle: {
+    fontSize: 20,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+    marginTop: 18,
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  loaderSubtitle: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: '#94A3B8',
+    marginTop: 6,
+    textAlign: 'center',
+    maxWidth: 280,
+    lineHeight: 20,
   },
 });
