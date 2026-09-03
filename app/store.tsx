@@ -336,7 +336,8 @@ export default function StoreScreen() {
 
         const originParam = origin ? `&origin=${encodeURIComponent(origin)}` : '';
         const sessionParam = data.paymentSessionId ? `&paymentSessionId=${encodeURIComponent(data.paymentSessionId)}` : '';
-        const checkoutUrl = `${url}/payments/checkout?orderId=${data.orderId}${sessionParam}&amount=${data.amount}&userId=${currentUser?.id}&purchaseType=premium&tier=${tier}&duration=${duration}${originParam}`;
+        const authParam = data.authLink ? `&authLink=${encodeURIComponent(data.authLink)}` : '';
+        const checkoutUrl = data.authLink || `${url}/payments/checkout?orderId=${data.orderId || data.subscriptionId}${sessionParam}${authParam}&amount=${data.amount}&userId=${currentUser?.id}&purchaseType=premium&tier=${tier}&duration=${duration}${originParam}`;
 
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           const width = 560;
@@ -574,6 +575,13 @@ export default function StoreScreen() {
                     </Text>
                   </View>
 
+                  <View style={[styles.autopayBadgeWrap, { backgroundColor: `${plan.color}15`, borderColor: `${plan.color}35` }]}>
+                    <Sparkles size={13} color={plan.color} />
+                    <Text style={[styles.autopayBadgeText, { color: plan.color }]}>
+                      Cashfree Autopay • Auto-renews {plan.periodLabel}
+                    </Text>
+                  </View>
+
                   <View style={styles.tierFeatures}>
                     {plan.features.map((feature, index) => (
                       <View key={index} style={styles.tierFeature}>
@@ -632,6 +640,13 @@ export default function StoreScreen() {
                 {formatPrice(checkoutItem.price)}
                 {checkoutItem.type === 'premium' && `/${checkoutItem.duration === 'monthly' ? 'mo' : 'yr'}`}
               </Text>
+              {checkoutItem.type === 'premium' && (
+                <View style={styles.modalAutopayNote}>
+                  <Text style={styles.modalAutopayNoteText}>
+                    ⚡ Recurring plan with Cashfree Autopay (UPI / Card Mandate)
+                  </Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.modalActions}>
@@ -646,7 +661,9 @@ export default function StoreScreen() {
                   }
                 }}
               >
-                <Text style={styles.modalActionButtonText}>Continue to Payment Gateway</Text>
+                <Text style={styles.modalActionButtonText}>
+                  {checkoutItem.type === 'premium' ? 'Continue to Cashfree Autopay' : 'Continue to Payment Gateway'}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -1192,4 +1209,35 @@ const styles = StyleSheet.create({
   modalActionButtonTextSecondary: {
     color: '#0F172A',
   },
+  autopayBadgeWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+    alignSelf: 'flex-start',
+  },
+  autopayBadgeText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+  },
+  modalAutopayNote: {
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  modalAutopayNoteText: {
+    fontSize: 12,
+    color: '#4F46E5',
+    fontWeight: '600' as const,
+    textAlign: 'center',
+  },
 });
+
