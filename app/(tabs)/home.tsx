@@ -299,39 +299,42 @@ export default function HomeScreen() {
 
   const isInitialBackendLoading = (isSkillsLoading || isUserLoading || !hasFetchedSkills) && skillsWithUsers.length === 0;
 
-  if (isInitialBackendLoading) {
-    return (
-      <View style={styles.fullScreenLoaderContainer}>
-        <LinearGradient
-          colors={['#0F172A', '#1E1B4B', '#0F172A']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.fullScreenLoaderGradient}
-        >
-          <View style={styles.loaderCenterBox}>
-            <View style={styles.loaderIconHalo}>
-              <LinearGradient
-                colors={['#6366F1', '#8B5CF6']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.loaderIconCircle}
-              >
-                <Sparkles size={32} color="#FFFFFF" />
-              </LinearGradient>
-            </View>
-
-            <ActivityIndicator size="large" color="#818CF8" style={{ marginTop: 16 }} />
-
-            <Text style={styles.loaderTitle}>Finding Best Matches...</Text>
-            <Text style={styles.loaderSubtitle}>Curating teachers and exchange partners for you</Text>
-          </View>
-        </LinearGradient>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
+      <Modal
+        visible={isInitialBackendLoading}
+        animationType="fade"
+        statusBarTranslucent
+        transparent={false}
+      >
+        <View style={styles.fullScreenLoaderContainer}>
+          <LinearGradient
+            colors={['#0F172A', '#1E1B4B', '#0F172A']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.fullScreenLoaderGradient}
+          >
+            <View style={styles.loaderCenterBox}>
+              <View style={styles.loaderIconHalo}>
+                <LinearGradient
+                  colors={['#6366F1', '#8B5CF6']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.loaderIconCircle}
+                >
+                  <Sparkles size={32} color="#FFFFFF" />
+                </LinearGradient>
+              </View>
+
+              <ActivityIndicator size="large" color="#818CF8" style={{ marginTop: 16 }} />
+
+              <Text style={styles.loaderTitle}>Finding Best Matches...</Text>
+              <Text style={styles.loaderSubtitle}>Curating teachers and exchange partners for you</Text>
+            </View>
+          </LinearGradient>
+        </View>
+      </Modal>
+
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
