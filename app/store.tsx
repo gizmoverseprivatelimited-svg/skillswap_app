@@ -577,7 +577,7 @@ export default function StoreScreen() {
                   <View style={[styles.autopayBadgeWrap, { backgroundColor: `${plan.color}15`, borderColor: `${plan.color}35` }]}>
                     <Sparkles size={13} color={plan.color} />
                     <Text style={[styles.autopayBadgeText, { color: plan.color }]}>
-                      Cashfree Autopay • Auto-renews {plan.periodLabel}
+                      Auto-renews {plan.periodLabel} • Cancel anytime
                     </Text>
                   </View>
 
@@ -642,7 +642,7 @@ export default function StoreScreen() {
               {checkoutItem.type === 'premium' && (
                 <View style={styles.modalAutopayNote}>
                   <Text style={styles.modalAutopayNoteText}>
-                    ⚡ Recurring plan with Cashfree Autopay (UPI / Card Mandate)
+                    ⚡ Recurring membership • Cancel anytime
                   </Text>
                 </View>
               )}
@@ -661,7 +661,7 @@ export default function StoreScreen() {
                 }}
               >
                 <Text style={styles.modalActionButtonText}>
-                  {checkoutItem.type === 'premium' ? 'Continue to Cashfree Autopay' : 'Continue to Payment Gateway'}
+                  {checkoutItem.type === 'premium' ? 'Continue to Subscribe' : 'Continue to Payment Gateway'}
                 </Text>
               </TouchableOpacity>
 
