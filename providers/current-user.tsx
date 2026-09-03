@@ -136,7 +136,13 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
     }
 
     try {
-      let data = await getUsers();
+      const userPromise = (currentId && currentId !== '1')
+        ? fetch(`${url}/users/${currentId}`).then(r => (r.ok ? r.json() : null)).catch(() => null)
+        : Promise.resolve(null);
+      const allUsersPromise = getUsers();
+
+      const [directUser, data] = await Promise.all([userPromise, allUsersPromise]);
+
       if (Array.isArray(data)) {
         setUsers(data);
       }
@@ -146,18 +152,7 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
       }
 
       if (currentId !== '1') {
-        let loadedUser: any = null;
-        try {
-          const directRes = await fetch(`${url}/users/${currentId}`);
-          if (directRes.ok) {
-            const freshUser = await directRes.json();
-            if (freshUser && (freshUser.id || freshUser._id)) {
-              loadedUser = freshUser;
-            }
-          }
-        } catch (fetchErr) {
-          console.warn('[CurrentUser] Direct fetch user error, falling back to allUsers:', fetchErr);
-        }
+        let loadedUser: any = (directUser && (directUser.id || directUser._id)) ? directUser : null;
 
         if (!loadedUser && Array.isArray(data)) {
           let authUser = data.find((u: any) => String(u.id || u._id) === String(currentId));

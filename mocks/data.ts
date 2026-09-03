@@ -6,34 +6,54 @@ const API_URL = url;
 console.log("Hey Hey", API_URL);
 
 
-async function apiGet<T>(endpoint: string): Promise<T> {
+const inflightRequests = new Map<string, Promise<any>>();
+const memoryCache = new Map<string, { data: any; timestamp: number }>();
+const CLIENT_CACHE_TTL_MS = 6000; // 6 seconds in-memory cache
+
+async function apiGet<T>(endpoint: string, forceFresh = false): Promise<T> {
   const fullUrl = `${API_URL}${endpoint}`;
-  try {
-    const res = await fetch(fullUrl);
-    if (!res.ok) {
-      throw new Error(`API error: ${res.status}`);
+  const now = Date.now();
+
+  if (!forceFresh) {
+    const cached = memoryCache.get(endpoint);
+    if (cached && (now - cached.timestamp < CLIENT_CACHE_TTL_MS)) {
+      return cached.data as T;
     }
-    const text = await res.text();
-    return JSON.parse(text) as T;
-  } catch (err) {
-    console.warn(`[apiGet] Backend fetch warning for ${fullUrl}:`, (err as any)?.message || err);
-    return [] as unknown as T;
   }
+
+  if (inflightRequests.has(endpoint)) {
+    return inflightRequests.get(endpoint)! as Promise<T>;
+  }
+
+  const reqPromise = (async () => {
+    try {
+      const res = await fetch(fullUrl);
+      if (!res.ok) {
+        throw new Error(`API error: ${res.status}`);
+      }
+      const data = await res.json() as T;
+      memoryCache.set(endpoint, { data, timestamp: Date.now() });
+      return data;
+    } catch (err) {
+      console.warn(`[apiGet] Backend fetch warning for ${fullUrl}:`, (err as any)?.message || err);
+      const cached = memoryCache.get(endpoint);
+      if (cached) return cached.data as T;
+      return [] as unknown as T;
+    } finally {
+      inflightRequests.delete(endpoint);
+    }
+  })();
+
+  inflightRequests.set(endpoint, reqPromise);
+  return reqPromise;
 }
 
-// export const mockUsers = apiGet<User[]>('/users');
-// apiGet<ResourceMeta[]>('/resources');
-
-
-// console.log("Hii",apiGet<SkillWithUser[]>('/skills/with-users'));
-
-
-export const getSkillsWithUsers = async (): Promise<SkillWithUser[]> => {
-  return apiGet<SkillWithUser[]>('/skills/with-users');
+export const getSkillsWithUsers = async (forceFresh = false): Promise<SkillWithUser[]> => {
+  return apiGet<SkillWithUser[]>('/skills/with-users', forceFresh);
 };
 
-export const getUsers = async (): Promise<User[]> => {
-  return apiGet<User[]>('/users');
+export const getUsers = async (forceFresh = false): Promise<User[]> => {
+  return apiGet<User[]>('/users', forceFresh);
 };
 
 // export const getResources = async (): Promise<ResourceMeta[]> => {
