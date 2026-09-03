@@ -5,6 +5,7 @@ export interface LiveVideoTrackProps {
   trackId?: string;
   mediaStream?: any;
   mirror?: boolean;
+  facingMode?: 'user' | 'environment';
   scaleType?: 'fill' | 'fit';
   style?: ViewStyle;
 }
@@ -13,6 +14,7 @@ function LiveVideoTrackComponent({
   trackId,
   mediaStream,
   mirror = false,
+  facingMode,
   scaleType = 'fill',
   style,
 }: LiveVideoTrackProps) {
@@ -68,8 +70,13 @@ function LiveVideoTrackComponent({
 
   // If on Web or DOM environment with mediaStream
   if (Platform.OS === 'web' || typeof document !== 'undefined') {
-    if (!mediaStream) {
-      return <View style={[styles.container, style]} />;
+    const videoTracks = (mediaStream && typeof (mediaStream as any).getVideoTracks === 'function')
+      ? (mediaStream as any).getVideoTracks()
+      : [];
+    const hasLiveVideoTrack = videoTracks.length > 0 && videoTracks.some((t: any) => t.readyState !== 'ended' && t.enabled !== false);
+
+    if (!mediaStream || !hasLiveVideoTrack) {
+      return null;
     }
 
     return (
@@ -82,13 +89,9 @@ function LiveVideoTrackComponent({
           bottom: 0,
           width: '100%',
           height: '100%',
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#000000',
           borderRadius: (flattenedStyle as any)?.borderRadius || 0,
           ...(flattenedStyle as any),
+          backgroundColor: 'transparent',
         }}
       >
         <video
@@ -105,8 +108,12 @@ function LiveVideoTrackComponent({
             width: '100%',
             height: '100%',
             objectFit: scaleType === 'fit' ? 'contain' : 'cover',
-            transform: mirror ? 'scaleX(-1)' : 'none',
+            transform: (mirror && facingMode !== 'environment') ? 'scaleX(-1)' : 'none',
             display: 'block',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            backgroundColor: 'transparent',
           }}
         />
       </div>
@@ -124,6 +131,6 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
-    backgroundColor: '#000000',
+    backgroundColor: 'transparent',
   },
 });

@@ -22,7 +22,7 @@ import {
   Hand, Send, Wifi, Signal, Volume2, Grid3x3, Maximize2,
   ChevronDown, Circle, Sparkles, SwitchCamera, MonitorUp, Smile,
   MoreVertical, VolumeX, UserMinus, ShieldCheck, Check, User, UserCheck, UserX,
-  Crown, GraduationCap,
+  Crown, GraduationCap, ArrowLeftRight, BookOpen,
 } from 'lucide-react-native';
 import {
   type CallParticipant,
@@ -520,6 +520,7 @@ export default function CallScreen({
               isTeacher={isTeacher}
               remoteParticipants={remoteParticipants}
               onSpotlight={handleSpotlight}
+              onSwitchCamera={onSwitchCamera}
             />
           ) : (
             <GridView
@@ -553,6 +554,8 @@ export default function CallScreen({
             joinedCount={joinedCount}
             chatDraft={chatDraft}
             isTeacher={isTeacher}
+            mode={mode}
+            onSwitchCamera={onSwitchCamera}
             selectedAudioDevice={selectedAudioDevice}
             availableAudioDevices={availableAudioDevices}
             onChatDraftChange={setChatDraft}
@@ -664,15 +667,18 @@ interface SpotlightViewProps {
   isTeacher?: boolean;
   remoteParticipants: CallParticipant[];
   onSpotlight: (id: string) => void;
+  onSwitchCamera?: () => void;
 }
 
 function SpotlightView({
-  participant, localParticipant, mode, isGroupCall, isTeacher, remoteParticipants, onSpotlight,
+  participant, localParticipant, mode, isGroupCall, isTeacher, remoteParticipants, onSpotlight, onSwitchCamera,
 }: SpotlightViewProps) {
-  // If user is a student in a group class, always spotlight the teacher exclusively
-  const teacherParticipant = remoteParticipants.find(p => p.role === 'teacher' || p.role === 'host');
+  // If user is a student in a group class, prioritize the teacher participant with the live stream
+  const teacherWithStream = remoteParticipants.find(p => (p.role === 'teacher' || p.role === 'host') && (Boolean(p.mediaStream) || Boolean(p.videoTrackId)));
+  const anyTeacher = remoteParticipants.find(p => p.role === 'teacher' || p.role === 'host');
+  const anyRemoteWithStream = remoteParticipants.find(p => !p.isLocal && (Boolean(p.mediaStream) || Boolean(p.videoTrackId)));
   const targetRemote = (!isTeacher && isGroupCall)
-    ? (teacherParticipant ?? (remoteParticipants.find(p => !p.isLocal) ?? participant))
+    ? (teacherWithStream ?? anyTeacher ?? anyRemoteWithStream ?? (remoteParticipants.find(p => !p.isLocal) ?? participant))
     : (!participant.isLocal ? participant : (remoteParticipants[0] ?? participant));
 
   const isTeacherTarget = targetRemote.role === 'teacher' || targetRemote.role === 'host';
@@ -689,17 +695,29 @@ function SpotlightView({
 
         {/* Top Role Pill on Spotlight */}
         <View style={styles.spotlightRoleBanner}>
-          {isTeacherTarget ? (
+          {targetRemote.roleLabel === 'Exchange Partner' ? (
+            <View style={styles.spotlightExchangePill}>
+              <ArrowLeftRight size={12} color="#DDD6FE" />
+              <Text style={styles.spotlightExchangeLabel}>EXCHANGE PARTNER</Text>
+              <Text style={styles.spotlightNameText} numberOfLines={1}>
+                {targetRemote.name}{targetRemote.skillTaught ? ` • ${targetRemote.skillTaught}` : ''}
+              </Text>
+            </View>
+          ) : isTeacherTarget ? (
             <View style={styles.spotlightTeacherPill}>
               <Crown size={12} color="#FDE047" />
-              <Text style={styles.spotlightTeacherLabel}>TEACHER</Text>
-              <Text style={styles.spotlightNameText} numberOfLines={1}>{targetRemote.name}</Text>
+              <Text style={styles.spotlightTeacherLabel}>{targetRemote.roleLabel ? targetRemote.roleLabel.toUpperCase() : 'TEACHER'}</Text>
+              <Text style={styles.spotlightNameText} numberOfLines={1}>
+                {targetRemote.name}{targetRemote.skillTaught ? ` • ${targetRemote.skillTaught}` : ''}
+              </Text>
             </View>
           ) : (
             <View style={styles.spotlightStudentPill}>
               <GraduationCap size={12} color="#93C5FD" />
-              <Text style={styles.spotlightStudentLabel}>STUDENT</Text>
-              <Text style={styles.spotlightNameText} numberOfLines={1}>{targetRemote.name}</Text>
+              <Text style={styles.spotlightStudentLabel}>{targetRemote.roleLabel ? targetRemote.roleLabel.toUpperCase() : 'STUDENT'}</Text>
+              <Text style={styles.spotlightNameText} numberOfLines={1}>
+                {targetRemote.name}{targetRemote.skillTaught ? ` • ${targetRemote.skillTaught}` : ''}
+              </Text>
             </View>
           )}
         </View>
@@ -716,6 +734,16 @@ function SpotlightView({
       {localParticipant && (
         <View style={styles.selfPip}>
           <ParticipantTile participant={localParticipant} mode={mode} isSmall />
+          {mode === 'video' && onSwitchCamera && (
+            <TouchableOpacity
+              style={styles.pipSwitchCameraBtn}
+              onPress={onSwitchCamera}
+              activeOpacity={0.8}
+              accessibilityLabel="Switch Camera"
+            >
+              <SwitchCamera size={13} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -812,9 +840,9 @@ function GridView({
   isOnlyOneUser?: boolean;
   onSpotlight: (id: string) => void;
 }) {
-  // Students in group calls only see the teacher and their self tile
+  // Students in group calls only see the teacher (or teacher's active stream) and their self tile
   const visibleParticipants = (!isTeacher && isGroupCall)
-    ? participants.filter(p => p.isLocal || p.role === 'teacher' || p.role === 'host')
+    ? participants.filter(p => p.isLocal || p.role === 'teacher' || p.role === 'host' || Boolean(p.mediaStream))
     : participants;
 
   const numColumns = isOnlyOneUser ? 1 : visibleParticipants.length <= 2 ? 1 : visibleParticipants.length <= 4 ? 2 : 3;
@@ -854,57 +882,78 @@ interface ParticipantTileProps {
 }
 
 function ParticipantTile({ participant, mode, isLarge, isSmall }: ParticipantTileProps) {
+  const [imageError, setImageError] = useState(false);
+  const [, setTrackCounter] = useState(0);
+
+  useEffect(() => {
+    const stream = participant.mediaStream as any;
+    if (!stream) return;
+    const forceUpdate = () => setTrackCounter(c => c + 1);
+    if (typeof stream.addEventListener === 'function') {
+      stream.addEventListener('addtrack', forceUpdate);
+      stream.addEventListener('removetrack', forceUpdate);
+    }
+    return () => {
+      if (typeof stream.removeEventListener === 'function') {
+        stream.removeEventListener('addtrack', forceUpdate);
+        stream.removeEventListener('removetrack', forceUpdate);
+      }
+    };
+  }, [participant.mediaStream]);
+
   const isCameraDisabled = mode !== 'video' || Boolean(participant.isVideoOff);
-  const hasLiveNativeTrack = Boolean(participant.videoTrackId && !isCameraDisabled);
-  const mediaStreamTracks = (participant.mediaStream && typeof (participant.mediaStream as any).getVideoTracks === 'function')
-    ? (participant.mediaStream as any).getVideoTracks()
-    : [];
-  const hasLiveWebStream = mediaStreamTracks.length > 0 && mediaStreamTracks.some((t: any) => t.readyState !== 'ended');
-  const isVideoActive = !isCameraDisabled && (hasLiveNativeTrack || hasLiveWebStream || Boolean(participant.mediaStream));
-  const avatarSize = isLarge ? 84 : isSmall ? 32 : 52;
+  const shouldRenderLiveTrack = !isCameraDisabled && Boolean(participant.videoTrackId || participant.mediaStream);
+  const avatarSize = isLarge ? 92 : isSmall ? 36 : 60;
   const isConnected = participant.status === 'connected' || Boolean(participant.mediaStream) || Boolean(participant.videoTrackId);
 
   return (
     <View style={styles.tileContainer}>
-      {isVideoActive ? (
+      {/* Background Avatar Card - always rendered so no blank screen ever appears */}
+      <View style={styles.tileAvatarWrapVisible}>
+        <LinearGradient
+          colors={getAvatarGradientColors(participant.id || participant.name || 'user')}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.tileAvatarGradient}
+        >
+          {participant.avatarUrl && !imageError ? (
+            <Image
+              source={{ uri: participant.avatarUrl }}
+              style={[styles.tileAvatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <View style={[styles.avatarLetterCircle, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}>
+              <Text style={[styles.tileAvatarText, { fontSize: isSmall ? 15 : isLarge ? 36 : 24 }]}>
+                {participant.name ? participant.name.charAt(0).toUpperCase() : 'U'}
+              </Text>
+            </View>
+          )}
+
+          {!isSmall && (
+            <View style={styles.cameraOffNoticeBox}>
+              <Text style={styles.cameraOffNoticeName} numberOfLines={1}>{participant.isLocal ? 'You' : participant.name}</Text>
+              <View style={styles.cameraOffBadge}>
+                <VideoOff size={11} color="#CBD5E1" />
+                <Text style={styles.cameraOffNoticeText}>
+                  {!isConnected && !participant.isLocal ? 'Connecting...' : isCameraDisabled ? 'Camera Off' : 'Connecting Video...'}
+                </Text>
+              </View>
+            </View>
+          )}
+        </LinearGradient>
+      </View>
+
+      {/* Real Live Video Track - seamlessly layers on top when camera is on and streaming */}
+      {shouldRenderLiveTrack && (
         <View style={styles.tileVideo}>
           <LiveVideoTrack
             trackId={participant.videoTrackId}
             mediaStream={participant.mediaStream}
             mirror={participant.isLocal}
+            facingMode={participant.facingMode}
             style={styles.liveVideoTrack}
           />
-        </View>
-      ) : (
-        <View style={styles.tileAvatarWrapVisible}>
-          <LinearGradient
-            colors={getAvatarGradientColors(participant.id)}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.tileAvatarGradient}
-          >
-            {participant.avatarUrl && !isSmall ? (
-              <Image source={{ uri: participant.avatarUrl }} style={[styles.tileAvatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]} />
-            ) : (
-              <View style={[styles.avatarLetterCircle, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}>
-                <Text style={[styles.tileAvatarText, { fontSize: isSmall ? 14 : isLarge ? 32 : 22 }]}>
-                  {participant.name ? participant.name.charAt(0).toUpperCase() : 'U'}
-                </Text>
-              </View>
-            )}
-
-            {!isSmall && (
-              <View style={styles.cameraOffNoticeBox}>
-                <Text style={styles.cameraOffNoticeName} numberOfLines={1}>{participant.isLocal ? 'You' : participant.name}</Text>
-                <View style={styles.cameraOffBadge}>
-                  <VideoOff size={11} color="#CBD5E1" />
-                  <Text style={styles.cameraOffNoticeText}>
-                    {!isConnected && !participant.isLocal ? 'Connecting...' : 'Camera Off'}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </LinearGradient>
         </View>
       )}
 
@@ -924,15 +973,20 @@ function ParticipantTile({ participant, mode, isLarge, isSmall }: ParticipantTil
           <Text style={styles.tileName} numberOfLines={1}>
             {participant.isLocal ? `${participant.name || 'You'} (You)` : participant.name}
           </Text>
-          {participant.role === 'teacher' || participant.role === 'host' ? (
+          {participant.roleLabel === 'Exchange Partner' ? (
+            <View style={styles.exchangeRoleBadge}>
+              <ArrowLeftRight size={10} color="#DDD6FE" />
+              <Text style={styles.exchangeRoleBadgeText}>{participant.skillTaught ? participant.skillTaught : 'Exchange'}</Text>
+            </View>
+          ) : participant.role === 'teacher' || participant.role === 'host' ? (
             <View style={styles.teacherRoleBadge}>
               <Crown size={10} color="#FDE047" />
-              <Text style={styles.teacherRoleBadgeText}>Teacher</Text>
+              <Text style={styles.teacherRoleBadgeText}>{participant.roleLabel || 'Teacher'}</Text>
             </View>
           ) : (
             <View style={styles.studentRoleBadge}>
               <GraduationCap size={10} color="#93C5FD" />
-              <Text style={styles.studentRoleBadgeText}>Student</Text>
+              <Text style={styles.studentRoleBadgeText}>{participant.roleLabel || 'Student'}</Text>
             </View>
           )}
         </View>
@@ -970,6 +1024,8 @@ interface BottomPanelViewProps {
   joinedCount?: number;
   chatDraft: string;
   isTeacher?: boolean;
+  mode?: CallMode;
+  onSwitchCamera?: () => void;
   selectedAudioDevice?: AudioDevice;
   availableAudioDevices?: string[];
   isScreenSharing?: boolean;
@@ -994,6 +1050,8 @@ function BottomPanelView({
   joinedCount = 1,
   chatDraft,
   isTeacher,
+  mode,
+  onSwitchCamera,
   selectedAudioDevice,
   availableAudioDevices = [],
   isScreenSharing,
@@ -1017,7 +1075,7 @@ function BottomPanelView({
       <View style={styles.bottomPanelHeader}>
         <Text style={styles.bottomPanelTitle}>
           {panel === 'chat' && 'In-Call Messages'}
-          {panel === 'participants' && `In Call (${joinedCount} joined)`}
+          {panel === 'participants' && `Participants (${participants.length})`}
           {panel === 'reactions' && 'Send Reaction'}
           {panel === 'more' && 'Call Options'}
           {panel === 'audioDevices' && 'Audio Output'}
@@ -1092,15 +1150,20 @@ function BottomPanelView({
                 <View style={styles.personInfo}>
                   <View style={styles.personNameRow}>
                     <Text style={styles.personName}>{p.isLocal ? `${displayName} (You)` : displayName}</Text>
-                    {isTeacherP ? (
+                    {p.roleLabel === 'Exchange Partner' ? (
+                      <View style={styles.exchangeRoleBadge}>
+                        <ArrowLeftRight size={10} color="#DDD6FE" />
+                        <Text style={styles.exchangeRoleBadgeText}>Exchange</Text>
+                      </View>
+                    ) : isTeacherP ? (
                       <View style={styles.teacherRoleBadge}>
                         <Crown size={10} color="#FDE047" />
-                        <Text style={styles.teacherRoleBadgeText}>Teacher</Text>
+                        <Text style={styles.teacherRoleBadgeText}>{p.roleLabel || 'Teacher'}</Text>
                       </View>
                     ) : (
                       <View style={styles.studentRoleBadge}>
                         <GraduationCap size={10} color="#93C5FD" />
-                        <Text style={styles.studentRoleBadgeText}>Student</Text>
+                        <Text style={styles.studentRoleBadgeText}>{p.roleLabel || 'Student'}</Text>
                       </View>
                     )}
                   </View>
@@ -1111,6 +1174,7 @@ function BottomPanelView({
                         <>
                           <View style={[styles.statusDot, { backgroundColor: isUserJoined ? '#10B981' : '#64748B' }]} />
                           <Text style={[styles.personStatus, !isUserJoined && { color: '#94A3B8' }]}>
+                            {p.skillTaught ? `${p.skillTaught} • ` : ''}
                             {isUserJoined ? (!p.isVideoOff ? 'Live Video' : 'Audio Only') : 'Not joined yet'}
                           </Text>
                         </>
@@ -1165,6 +1229,23 @@ function BottomPanelView({
       {/* 4. More Options Menu */}
       {panel === 'more' && (
         <View style={[styles.moreMenuWrap, { paddingBottom: bottomInset + 20 }]}>
+          {onSwitchCamera && mode === 'video' && (
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => {
+                onClose();
+                onSwitchCamera();
+              }}
+              activeOpacity={0.7}
+            >
+              <SwitchCamera size={20} color="#38BDF8" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuText}>Switch Camera</Text>
+                <Text style={styles.menuSubText}>Toggle between front and rear cameras</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
           {onToggleScreenShare && (!isGroupCall || isTeacher) && (
             <TouchableOpacity
               style={[styles.menuRow, isScreenSharing && styles.menuRowActive]}
@@ -1534,6 +1615,17 @@ const styles = StyleSheet.create({
     elevation: 8,
     zIndex: 20,
   },
+  pipSwitchCameraBtn: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    padding: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    zIndex: 25,
+  },
   filmstrip: { position: 'absolute', top: 50, left: 16, right: 16, zIndex: 15 },
   filmstripContent: { gap: 8 },
   filmstripTile: { width: 85, height: 110, borderRadius: 12, overflow: 'hidden' },
@@ -1568,7 +1660,7 @@ const styles = StyleSheet.create({
 
   // Participant tile
   tileContainer: { flex: 1, borderRadius: 20, overflow: 'hidden', backgroundColor: '#1E293B', position: 'relative' },
-  tileVideo: { flex: 1, width: '100%', height: '100%', position: 'relative' },
+  tileVideo: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
   liveVideoTrack: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
   tileVideoGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   tileVideoInitial: { fontSize: 48, fontWeight: '800', color: 'rgba(255,255,255,0.15)' },
@@ -1650,6 +1742,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   studentRoleBadgeText: { fontSize: 10, fontWeight: '700', color: '#BFDBFE' },
+  exchangeRoleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(88, 28, 135, 0.88)',
+    borderWidth: 1,
+    borderColor: 'rgba(196, 181, 253, 0.5)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  exchangeRoleBadgeText: { fontSize: 10, fontWeight: '700', color: '#DDD6FE' },
   smallTileNameWrap: {
     position: 'absolute',
     bottom: 4,
@@ -1682,6 +1786,23 @@ const styles = StyleSheet.create({
     left: 12,
     zIndex: 10,
   },
+  spotlightExchangePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(88, 28, 135, 0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(196, 181, 253, 0.7)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  spotlightExchangeLabel: { fontSize: 10, fontWeight: '900', color: '#DDD6FE', letterSpacing: 0.8 },
   spotlightTeacherPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1711,7 +1832,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   spotlightStudentLabel: { fontSize: 10, fontWeight: '800', color: '#93C5FD', letterSpacing: 0.8 },
-  spotlightNameText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF', maxWidth: 120 },
+  spotlightNameText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF', maxWidth: 180 },
 
   // Controls bar
   controlsBar: {

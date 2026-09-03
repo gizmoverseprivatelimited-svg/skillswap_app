@@ -364,13 +364,27 @@ export default function ProfileScreen() {
 
   const isDemoUser = Boolean(!auth.isAuthenticated || currentUser?.id === '1' || currentUser?.isDemo || auth.user?.isDemo);
 
+  const handleDemoLogin = async () => {
+    try {
+      await auth.signOut();
+    } catch (e) {
+      console.warn('[Profile] Error signing out guest:', e);
+    }
+    router.replace('/login' as any);
+  };
+
   const handleRequireLogin = (featureName = 'this feature') => {
     showAlert(
       'Login Required 🔒',
       `Please log in or create an account to access ${featureName}.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Log In', onPress: () => router.push('/login' as any) },
+        {
+          text: 'Log In',
+          onPress: () => {
+            void handleDemoLogin();
+          },
+        },
       ]
     );
   };
@@ -1041,7 +1055,7 @@ export default function ProfileScreen() {
             {isDemoUser ? (
               <TouchableOpacity
                 style={styles.loginButton}
-                onPress={() => router.push('/login' as any)}
+                onPress={handleDemoLogin}
                 activeOpacity={0.85}
                 testID="login-button"
               >

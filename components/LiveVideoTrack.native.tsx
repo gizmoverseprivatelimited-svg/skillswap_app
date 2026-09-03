@@ -14,7 +14,7 @@ export interface LiveVideoTrackProps {
 
 export default function LiveVideoTrack({ trackId, mirror = false, scaleType = 'fill', style }: LiveVideoTrackProps) {
   if (!trackId) {
-    return <View style={[styles.container, style]} />;
+    return null;
   }
 
   const flattenedStyle = StyleSheet.flatten([styles.container, style]);
@@ -39,6 +39,6 @@ export default function LiveVideoTrack({ trackId, mirror = false, scaleType = 'f
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: 'transparent',
   },
 });

@@ -902,10 +902,19 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           return;
         }
 
+        const now = Date.now();
+        const debounceKey = `${targetCallId}_${callerIdStr}`;
+        const lastPopupTime = lastCallPopupTimeRef.current.get(debounceKey);
+        if (lastPopupTime && (now - lastPopupTime < 25000)) {
+          console.log('[Notifications] Debounced duplicate incoming call alert received within 25s for', debounceKey);
+          return;
+        }
+        lastCallPopupTimeRef.current.set(debounceKey, now);
+
         const caller = data.callerName || 'Teacher';
         const mode = data.mode || 'video';
         const isClass = Boolean(data.metadata?.isClass || data.classId || data.metadata?.classId || data.title?.toLowerCase().includes('class'));
-        const eventKey = `call:${targetCallId}:${Date.now()}`;
+        const eventKey = `call:${targetCallId}:${Math.floor(now / 25000)}`;
 
         addNotification({
           category: isClass ? 'class' : 'swap',

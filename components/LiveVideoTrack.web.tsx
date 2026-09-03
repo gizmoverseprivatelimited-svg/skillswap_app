@@ -5,11 +5,12 @@ export interface LiveVideoTrackProps {
   trackId?: string;
   mediaStream?: MediaStream | null;
   mirror?: boolean;
+  facingMode?: 'user' | 'environment';
   scaleType?: 'fill' | 'fit';
   style?: ViewStyle;
 }
 
-function LiveVideoTrackComponent({ mediaStream, mirror = false, scaleType = 'fill', style }: LiveVideoTrackProps) {
+function LiveVideoTrackComponent({ mediaStream, mirror = false, facingMode, scaleType = 'fill', style }: LiveVideoTrackProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const attachStream = useCallback((videoEl: HTMLVideoElement | null) => {
@@ -22,7 +23,7 @@ function LiveVideoTrackComponent({ mediaStream, mirror = false, scaleType = 'fil
       videoEl.playsInline = true;
       videoEl.autoplay = true;
       const playPromise = videoEl.play();
-      if (playPromise !== undefined) {
+      if (playPromise !== undefined && typeof playPromise.catch === 'function') {
         playPromise.catch(() => {
           videoEl.muted = true;
           videoEl.play().catch(() => {});
@@ -35,13 +36,23 @@ function LiveVideoTrackComponent({ mediaStream, mirror = false, scaleType = 'fil
 
   useEffect(() => {
     attachStream(videoRef.current);
+    if (mediaStream) {
+      mediaStream.onaddtrack = () => attachStream(videoRef.current);
+      mediaStream.onremovetrack = () => attachStream(videoRef.current);
+    }
   }, [mediaStream, mirror, attachStream]);
 
-  if (!mediaStream) {
+  const videoTracks = (mediaStream && typeof (mediaStream as any).getVideoTracks === 'function')
+    ? (mediaStream as any).getVideoTracks()
+    : [];
+  const hasLiveVideoTrack = videoTracks.length > 0 && videoTracks.some((t: any) => t.readyState !== 'ended' && t.enabled !== false);
+
+  if (!mediaStream || !hasLiveVideoTrack) {
     return null;
   }
 
   const flattenedStyle = StyleSheet.flatten([styles.container, style]);
+  const shouldMirror = Boolean(mirror && facingMode !== 'environment');
 
   return (
     <div
@@ -53,13 +64,9 @@ function LiveVideoTrackComponent({ mediaStream, mirror = false, scaleType = 'fil
         bottom: 0,
         width: '100%',
         height: '100%',
-        overflow: 'hidden',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'transparent',
         borderRadius: (flattenedStyle as any)?.borderRadius || 0,
         ...(flattenedStyle as any),
+        backgroundColor: 'transparent',
       }}
     >
       <video
@@ -74,24 +81,25 @@ function LiveVideoTrackComponent({ mediaStream, mirror = false, scaleType = 'fil
           width: '100%',
           height: '100%',
           objectFit: scaleType === 'fit' ? 'contain' : 'cover',
-          transform: mirror ? 'scaleX(-1)' : 'none',
+          transform: shouldMirror ? 'scaleX(-1)' : 'none',
           display: 'block',
           position: 'absolute',
           top: 0,
           left: 0,
+          backgroundColor: 'transparent',
         }}
       />
     </div>
   );
 }
 
-export default React.memo(LiveVideoTrackComponent);
+export default LiveVideoTrackComponent;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     width: '100%',
     height: '100%',
-    backgroundColor: '#000000',
+    backgroundColor: 'transparent',
   },
 });

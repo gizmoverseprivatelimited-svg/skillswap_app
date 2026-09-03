@@ -66,6 +66,10 @@ export function use100msCall({
   const candidateQueueRef = useRef<RTCIceCandidateInit[]>([]);
   const broadcastChannelRef = useRef<any>(null);
 
+  const isVideoOffRef = useRef<boolean>(initialVideoOn === false || mode !== 'video');
+  const isMutedRef = useRef<boolean>(initialMicOn === false);
+  const facingModeRef = useRef<'user' | 'environment'>('user');
+
   const onEndCallRef = useRef(onEndCall);
   onEndCallRef.current = onEndCall;
 
@@ -92,7 +96,7 @@ export function use100msCall({
       // 1. Update existing participants in state
       const updatedExisting = prev.map(existing => {
         const matchingInit = initialParticipants.find(
-          initP => String(initP.id) === String(existing.id) || (initP.isLocal && existing.isLocal)
+          initP => String(initP.id) === String(existing.id) || (initP.isLocal && existing.isLocal) || (!existing.isLocal && !initP.isLocal && (existing.role === 'teacher' || existing.role === 'host') && (initP.role === 'teacher' || initP.role === 'host'))
         );
         if (!matchingInit) return existing; // Keep dynamically discovered WebRTC mesh peers!
         return {
@@ -103,14 +107,14 @@ export function use100msCall({
           mediaStream: existing.isLocal ? (activeStream || existing.mediaStream) : existing.mediaStream,
           videoTrackId: existing.videoTrackId || matchingInit.videoTrackId,
           status: existing.status === 'connected' ? 'connected' : matchingInit.status,
-          isVideoOff: existing.isVideoOff,
-          isMuted: existing.isMuted,
+          isVideoOff: existing.mediaStream ? existing.isVideoOff : matchingInit.isVideoOff,
+          isMuted: existing.mediaStream ? existing.isMuted : matchingInit.isMuted,
         };
       });
 
       // 2. Add any new initial participants not already in prev
       const newInitials = initialParticipants.filter(
-        initP => !prev.some(p => String(p.id) === String(initP.id) || (p.isLocal && initP.isLocal))
+        initP => !prev.some(p => String(p.id) === String(initP.id) || (p.isLocal && initP.isLocal) || (!p.isLocal && !initP.isLocal && (p.role === 'teacher' || p.role === 'host') && (initP.role === 'teacher' || initP.role === 'host')))
       );
 
       return [...updatedExisting, ...newInitials];
@@ -215,6 +219,11 @@ export function use100msCall({
         webStreamRef.current = stream;
       }
 
+      const initialOff = initialVideoOn === false || !enableVideo || !stream?.getVideoTracks()?.length;
+      const initialMute = initialMicOn === false || !stream?.getAudioTracks()?.length;
+      isVideoOffRef.current = initialOff;
+      isMutedRef.current = initialMute;
+
       // Update local participant with media stream
       setParticipants(prev =>
         prev.map(p =>
@@ -223,8 +232,8 @@ export function use100msCall({
               ...p,
               mediaStream: stream,
               status: 'connected',
-              isVideoOff: initialVideoOn === false || !enableVideo || !stream?.getVideoTracks()?.length,
-              isMuted: initialMicOn === false || !stream?.getAudioTracks()?.length,
+              isVideoOff: initialOff,
+              isMuted: initialMute,
             }
             : p
         )
@@ -293,17 +302,18 @@ export function use100msCall({
           peerConnections.set(targetId, pc);
 
           // Add local stream tracks to this peer connection (use active screenshare track if currently sharing)
-          if (stream) {
+          const activeLocalStream = webStreamRef.current || stream;
+          if (activeLocalStream) {
             const activeScreenTrack = webScreenStreamRef.current?.getVideoTracks()[0];
             const hasActiveScreen = activeScreenTrack && activeScreenTrack.readyState === 'live';
 
-            stream.getTracks().forEach(track => {
+            activeLocalStream.getTracks().forEach(track => {
               try {
                 if (track.kind === 'video' && hasActiveScreen) {
                   // Add the live screen share track directly to the new peer connection
-                  pc!.addTrack(activeScreenTrack, stream!);
+                  pc!.addTrack(activeScreenTrack, activeLocalStream);
                 } else {
-                  pc!.addTrack(track, stream!);
+                  pc!.addTrack(track, activeLocalStream);
                 }
               } catch (e) {
                 console.warn('[WebRTC Mesh] addTrack error:', e);
@@ -314,18 +324,24 @@ export function use100msCall({
           // Handle incoming remote media tracks exclusively for this specific peer
           pc.ontrack = (event: RTCTrackEvent) => {
             console.log('[WebRTC Mesh] Received remote track from peer:', targetId, event.track?.kind);
-            const remoteStream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream([event.track]);
+            const isVideoTrack = event.track?.kind === 'video';
 
             setParticipants(prev => {
-              const existing = prev.find(p => p.id === targetId);
+              const existing = prev.find(p => p.id === targetId || (!p.isLocal && (role === 'teacher' || p.role === 'teacher' || p.role === 'host')));
+              
+              const existingTracks = existing?.mediaStream ? (existing.mediaStream as MediaStream).getTracks() : [];
+              const combinedTracks = [...existingTracks, event.track].filter((t, idx, arr) => arr.findIndex(x => x.id === t.id) === idx);
+              const updatedStream = new MediaStream(combinedTracks);
+
               if (existing) {
                 return prev.map(p =>
-                  p.id === targetId
+                  (p.id === targetId || p.id === existing.id)
                     ? {
                         ...p,
-                        mediaStream: remoteStream,
-                        screenShareStream: (p.screenShareStream || Boolean(p.screenShareTrackId)) ? remoteStream : p.screenShareStream,
+                        mediaStream: updatedStream,
+                        screenShareStream: (p.screenShareStream || Boolean(p.screenShareTrackId)) ? updatedStream : p.screenShareStream,
                         status: 'connected' as const,
+                        isVideoOff: isVideoTrack ? false : p.isVideoOff,
                         name: name || p.name,
                         avatarUrl: avatarUrl || p.avatarUrl,
                         role: (role as any) || p.role || (existing.role ? existing.role : 'student'),
@@ -341,7 +357,7 @@ export function use100msCall({
                   avatarUrl: avatarUrl || '',
                   role: (role as any) || 'student',
                   isLocal: false,
-                  mediaStream: remoteStream,
+                  mediaStream: updatedStream,
                   status: 'connected' as const,
                   isVideoOff: false,
                   isMuted: false,
@@ -433,17 +449,8 @@ export function use100msCall({
                 );
               }
 
-              const isCurrentLocalVideoOff = Boolean(
-                !webStreamRef.current ||
-                initialVideoOn === false ||
-                mode !== 'video' ||
-                !webStreamRef.current.getVideoTracks().some(t => t.enabled && !t.muted && t.readyState === 'live')
-              );
-              const isCurrentLocalMuted = Boolean(
-                !webStreamRef.current ||
-                initialMicOn === false ||
-                !webStreamRef.current.getAudioTracks().some(t => t.enabled && !t.muted)
-              );
+              const isCurrentLocalVideoOff = isVideoOffRef.current;
+              const isCurrentLocalMuted = isMutedRef.current;
 
               sendSignal({
                 type: 'answer',
@@ -602,17 +609,8 @@ export function use100msCall({
 
           // Reply with our presence so the new peer registers us immediately
           const isCurrentlySharingScreen = Boolean(webScreenStreamRef.current && webScreenStreamRef.current.active);
-          const isCurrentLocalVideoOff = Boolean(
-            !webStreamRef.current ||
-            initialVideoOn === false ||
-            mode !== 'video' ||
-            !webStreamRef.current.getVideoTracks().some(t => t.enabled && !t.muted && t.readyState === 'live')
-          );
-          const isCurrentLocalMuted = Boolean(
-            !webStreamRef.current ||
-            initialMicOn === false ||
-            !webStreamRef.current.getAudioTracks().some(t => t.enabled && !t.muted)
-          );
+          const isCurrentLocalVideoOff = isVideoOffRef.current;
+          const isCurrentLocalMuted = isMutedRef.current;
 
           const presencePayload = {
             type: 'peer_present',
@@ -728,10 +726,10 @@ export function use100msCall({
             ];
           });
 
-          // Ensure connection exists and initiate offer if we are the designated offerer
+          // Ensure connection exists and initiate offer if we are the designated offerer and not already negotiated
           const isCurrentlySharingScreen = Boolean(webScreenStreamRef.current && webScreenStreamRef.current.active);
           const pc = getOrCreatePeerConnection(peerId, peerRole, peerName, peerAvatar);
-          if (pc && pc.signalingState === 'stable' && String(currentUserId) < String(peerId)) {
+          if (pc && pc.signalingState === 'stable' && pc.connectionState !== 'connected' && !pc.currentRemoteDescription && String(currentUserId) < String(peerId)) {
             try {
               const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
               await pc.setLocalDescription(offer);
@@ -946,6 +944,7 @@ export function use100msCall({
     setParticipants(prev => {
       const local = prev.find(p => p.isLocal);
       const nextMuted = !(local?.isMuted ?? false);
+      isMutedRef.current = nextMuted;
 
       if (webStreamRef.current) {
         webStreamRef.current.getAudioTracks().forEach((track: any) => {
@@ -980,6 +979,7 @@ export function use100msCall({
     setParticipants(prev => {
       const local = prev.find(p => p.isLocal);
       const nextVideoOff = !(local?.isVideoOff ?? false);
+      isVideoOffRef.current = nextVideoOff;
 
       if (webStreamRef.current) {
         webStreamRef.current.getVideoTracks().forEach((track: any) => {
@@ -1009,9 +1009,97 @@ export function use100msCall({
     });
   }, [socket, roomId, currentUserId]);
 
-  // Switch camera (Front / Back)
+  // Switch camera (Front to Rear / Rear to Front)
   const switchCamera = useCallback(async () => {
-    // Web camera toggle placeholder
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return;
+    try {
+      const nextFacing = facingModeRef.current === 'user' ? 'environment' : 'user';
+      let newStream: MediaStream | null = null;
+      // Multi-tier mobile browser camera acquisition
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: nextFacing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+      } catch {
+        try {
+          newStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: nextFacing },
+            audio: false,
+          });
+        } catch {
+          // Device enumeration fallback (select alternative video input device)
+          try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(d => d.kind === 'videoinput');
+            const currentTrack = webStreamRef.current?.getVideoTracks()[0];
+            const currentDeviceId = currentTrack?.getSettings?.()?.deviceId;
+            const nextDevice = videoDevices.find(d => d.deviceId && d.deviceId !== currentDeviceId) || videoDevices[0];
+            if (nextDevice?.deviceId) {
+              newStream = await navigator.mediaDevices.getUserMedia({
+                video: { deviceId: { exact: nextDevice.deviceId } },
+                audio: false,
+              });
+            }
+          } catch (enumErr) {
+            console.warn('[switchCamera] Mobile deviceId fallback notice:', enumErr);
+          }
+        }
+      }
+
+      if (!newStream) return;
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      if (!newVideoTrack) return;
+
+      facingModeRef.current = nextFacing;
+
+      // Update webStreamRef.current with the new camera track
+      if (webStreamRef.current) {
+        const oldTracks = webStreamRef.current.getVideoTracks();
+        oldTracks.forEach(t => {
+          t.stop();
+          webStreamRef.current?.removeTrack(t);
+        });
+        webStreamRef.current.addTrack(newVideoTrack);
+        newVideoTrack.enabled = !isVideoOffRef.current;
+      }
+
+      // Replace active video track on all WebRTC peer connections
+      meshPeerConnectionsRef.current.forEach(pc => {
+        try {
+          const senders = pc.getSenders();
+          const videoSender = senders.find(s => s.track?.kind === 'video');
+          if (videoSender) {
+            videoSender.replaceTrack(newVideoTrack).catch(e => console.warn('[switchCamera] replaceTrack error:', e));
+          }
+        } catch (e) {
+          console.warn('[switchCamera] pc error:', e);
+        }
+      });
+
+      // Update local participant state with new stream and facing mode
+      if (webStreamRef.current) {
+        const freshStream = new MediaStream(webStreamRef.current.getTracks());
+        setParticipants(prev =>
+          prev.map(p =>
+            p.isLocal
+              ? {
+                  ...p,
+                  mediaStream: freshStream,
+                  facingMode: nextFacing,
+                  isVideoOff: isVideoOffRef.current,
+                }
+              : p
+          )
+        );
+      }
+    } catch (err) {
+      console.warn('[switchCamera] error switching camera:', err);
+    }
   }, []);
 
   // Screen Sharing (Start / Stop)

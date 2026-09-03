@@ -12,6 +12,8 @@ export interface CallParticipant {
   name: string;
   avatarUrl: string;
   role: CallRole;
+  roleLabel?: string;
+  skillTaught?: string;
   isLocal: boolean;
   isMuted: boolean;
   isVideoOff: boolean;
@@ -23,6 +25,7 @@ export interface CallParticipant {
   screenShareTrackId?: string;
   mediaStream?: any;
   screenShareStream?: any;
+  facingMode?: 'user' | 'environment';
   networkQuality?: number; // 0 to 5 (5 is best)
 }
 
@@ -79,12 +82,19 @@ const NAME_POOL = [
 let timerInterval: ReturnType<typeof setInterval> | null = null;
 let speakingInterval: ReturnType<typeof setInterval> | null = null;
 
-export function buildLocalParticipant(user: User, role: CallRole): CallParticipant {
+export function buildLocalParticipant(
+  user: User,
+  role: CallRole,
+  roleLabel?: string,
+  skillTaught?: string,
+): CallParticipant {
   return {
     id: user.id || (user as any)._id || 'local-user',
     name: 'You',
     avatarUrl: user.avatarUrl || '',
     role,
+    roleLabel,
+    skillTaught,
     isLocal: true,
     isMuted: false,
     isVideoOff: false,
@@ -99,12 +109,16 @@ export function buildLocalParticipant(user: User, role: CallRole): CallParticipa
 export function buildRemoteParticipant(
   user: { id: string; name: string; avatarUrl?: string },
   role: CallRole,
+  roleLabel?: string,
+  skillTaught?: string,
 ): CallParticipant {
   return {
     id: user.id,
     name: user.name || 'Participant',
     avatarUrl: user.avatarUrl || '',
     role,
+    roleLabel,
+    skillTaught,
     isLocal: false,
     isMuted: false,
     isVideoOff: false,

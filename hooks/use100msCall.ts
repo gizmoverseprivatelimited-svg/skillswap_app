@@ -66,6 +66,7 @@ export function use100msCall({
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const candidateQueueRef = useRef<RTCIceCandidateInit[]>([]);
   const broadcastChannelRef = useRef<any>(null);
+  const facingModeRef = useRef<'user' | 'environment'>('user');
 
   // Sync initial participants when updated
   useEffect(() => {
@@ -79,26 +80,25 @@ export function use100msCall({
       // 1. Update existing participants in state
       const updatedExisting = prev.map(existing => {
         const matchingInit = initialParticipants.find(
-          initP => String(initP.id) === String(existing.id) || (initP.isLocal && existing.isLocal)
+          initP => String(initP.id) === String(existing.id) || (initP.isLocal && existing.isLocal) || (!existing.isLocal && !initP.isLocal && (existing.role === 'teacher' || existing.role === 'host') && (initP.role === 'teacher' || initP.role === 'host'))
         );
-        if (!matchingInit) return existing; // Keep dynamically discovered peers!
+        if (!matchingInit) return existing;
         return {
-          ...matchingInit,
           ...existing,
-          name: matchingInit.name || existing.name,
-          role: matchingInit.role || existing.role,
-          avatarUrl: matchingInit.avatarUrl || existing.avatarUrl,
+          name: existing.name || matchingInit.name,
+          role: existing.role || matchingInit.role,
+          avatarUrl: existing.avatarUrl || matchingInit.avatarUrl,
           mediaStream: existing.isLocal ? (activeStream || existing.mediaStream) : existing.mediaStream,
           videoTrackId: existing.videoTrackId || matchingInit.videoTrackId,
           status: existing.status === 'connected' ? 'connected' : matchingInit.status,
-          isVideoOff: existing.isVideoOff !== undefined ? existing.isVideoOff : matchingInit.isVideoOff,
+          isVideoOff: (existing.mediaStream || existing.videoTrackId) ? existing.isVideoOff : matchingInit.isVideoOff,
           isMuted: existing.isMuted !== undefined ? existing.isMuted : matchingInit.isMuted,
         };
       });
 
       // 2. Add any new initial participants not already in prev
       const newInitials = initialParticipants.filter(
-        initP => !prev.some(p => String(p.id) === String(initP.id) || (p.isLocal && initP.isLocal))
+        initP => !prev.some(p => String(p.id) === String(initP.id) || (p.isLocal && initP.isLocal) || (!p.isLocal && !initP.isLocal && (p.role === 'teacher' || p.role === 'host') && (initP.role === 'teacher' || initP.role === 'host')))
       );
 
       return [...updatedExisting, ...newInitials];
@@ -202,19 +202,23 @@ export function use100msCall({
           // Handle incoming remote tracks (camera video, screen share, and audio)
           pc.ontrack = (event) => {
             console.log('[WebRTC] Received remote track:', event.track?.kind, event.streams);
-            const remoteStream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream([event.track]);
+            const isVideoTrack = event.track?.kind === 'video';
 
             setParticipants(prev =>
-              prev.map(p =>
-                !p.isLocal
-                  ? {
-                      ...p,
-                      mediaStream: remoteStream,
-                      status: 'connected' as const,
-                      isVideoOff: false,
-                    }
-                  : p
-              )
+              prev.map(p => {
+                if (p.isLocal) return p;
+
+                const existingTracks = p.mediaStream ? (p.mediaStream as MediaStream).getTracks() : [];
+                const combinedTracks = [...existingTracks, event.track].filter((t, idx, arr) => arr.findIndex(x => x.id === t.id) === idx);
+                const updatedStream = new MediaStream(combinedTracks);
+
+                return {
+                  ...p,
+                  mediaStream: updatedStream,
+                  status: 'connected' as const,
+                  isVideoOff: isVideoTrack ? false : p.isVideoOff,
+                };
+              })
             );
           };
 
@@ -858,11 +862,99 @@ export function use100msCall({
 
   // Switch camera (Front / Back)
   const switchCamera = useCallback(async () => {
+    // 1. Native 100ms SDK switchCamera
     if (hmsInstanceRef.current?.localPeer?.localVideoTrack()) {
       try {
         await hmsInstanceRef.current.localPeer.localVideoTrack().switchCamera();
+        setParticipants(prev =>
+          prev.map(p =>
+            p.isLocal
+              ? {
+                  ...p,
+                  facingMode: p.facingMode === 'environment' ? 'user' : 'environment',
+                }
+              : p
+          )
+        );
+        return;
       } catch (err) {
         console.warn('[100ms] switchCamera error:', err);
+      }
+    }
+
+    // 2. Web / WebRTC Fallback switchCamera
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const nextFacing = facingModeRef.current === 'user' ? 'environment' : 'user';
+        let newStream: MediaStream | null = null;
+        try {
+          newStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: nextFacing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false,
+          });
+        } catch {
+          try {
+            newStream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: nextFacing },
+              audio: false,
+            });
+          } catch {
+            try {
+              const devices = await navigator.mediaDevices.enumerateDevices();
+              const videoDevices = devices.filter(d => d.kind === 'videoinput');
+              const currentTrack = webStreamRef.current?.getVideoTracks()[0];
+              const currentDeviceId = currentTrack?.getSettings?.()?.deviceId;
+              const nextDevice = videoDevices.find(d => d.deviceId && d.deviceId !== currentDeviceId) || videoDevices[0];
+              if (nextDevice?.deviceId) {
+                newStream = await navigator.mediaDevices.getUserMedia({
+                  video: { deviceId: { exact: nextDevice.deviceId } },
+                  audio: false,
+                });
+              }
+            } catch (enumErr) {
+              console.warn('[switchCamera] deviceId fallback notice:', enumErr);
+            }
+          }
+        }
+
+        if (!newStream) return;
+        const newVideoTrack = newStream.getVideoTracks()[0];
+        if (!newVideoTrack) return;
+
+        facingModeRef.current = nextFacing;
+
+        if (webStreamRef.current) {
+          const oldTracks = webStreamRef.current.getVideoTracks();
+          oldTracks.forEach((t: any) => {
+            t.stop();
+            webStreamRef.current?.removeTrack(t);
+          });
+          webStreamRef.current.addTrack(newVideoTrack);
+        }
+
+        if (peerConnectionRef.current) {
+          const sender = peerConnectionRef.current.getSenders().find((s: any) => s.track?.kind === 'video');
+          if (sender) {
+            sender.replaceTrack(newVideoTrack).catch((e: any) => console.warn('[switchCamera] replaceTrack error:', e));
+          }
+        }
+
+        if (webStreamRef.current) {
+          const freshStream = new MediaStream(webStreamRef.current.getTracks());
+          setParticipants(prev =>
+            prev.map(p =>
+              p.isLocal
+                ? {
+                    ...p,
+                    mediaStream: freshStream,
+                    facingMode: nextFacing,
+                  }
+                : p
+            )
+          );
+        }
+      } catch (e) {
+        console.warn('[switchCamera fallback] error:', e);
       }
     }
   }, []);

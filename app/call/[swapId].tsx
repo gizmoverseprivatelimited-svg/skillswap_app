@@ -203,6 +203,71 @@ export default function UnifiedCallScreen() {
     );
   }, [currentUser, currentUserId, authUser]);
 
+  const swapRoleInfo = useMemo(() => {
+    if (!swap || cls) return null;
+    const reqId = String((swap as any).requesterId?._id || (swap as any).requesterId?.id || (swap as any).requesterId || '');
+    const isRequester = reqId === String(currentUserId);
+    const swapType = (swap as any).swapType || 'swap';
+
+    const allSkills = [
+      ...(currentUser?.skillsOffered || []),
+      ...(partner?.skillsOffered || []),
+      ...allUsers.flatMap((u: any) => u.skillsOffered || []),
+    ];
+    const skillsMap = new Map<string, any>();
+    allSkills.forEach((s: any) => {
+      if (s?.id) skillsMap.set(String(s.id), s);
+      if (s?._id) skillsMap.set(String(s._id), s);
+    });
+
+    const requesterSkillId = (swap as any).requesterSkillId;
+    const recipientSkillId = (swap as any).recipientSkillId;
+
+    const reqSkill = (requesterSkillId ? skillsMap.get(String(requesterSkillId)) : null) || (currentUser?.skillsOffered?.find((s: any) => String(s.id) === String(requesterSkillId) || String(s._id) === String(requesterSkillId))) || null;
+    const recSkill = (recipientSkillId ? skillsMap.get(String(recipientSkillId)) : null) || (partner?.skillsOffered?.find((s: any) => String(s.id) === String(recipientSkillId) || String(s._id) === String(recipientSkillId))) || null;
+
+    if (swapType === 'learn') {
+      // Recipient is Teacher, Requester is Student
+      const skillTaught = recSkill?.title || (swap as any).recipientSkillName || (swap as any).skillTitle || 'Skill';
+      return {
+        localRole: isRequester ? ('student' as const) : ('teacher' as const),
+        localRoleLabel: isRequester ? 'Student' : 'Teacher',
+        localSkillTaught: isRequester ? `Learning ${skillTaught}` : `Teaching ${skillTaught}`,
+        remoteRole: isRequester ? ('teacher' as const) : ('student' as const),
+        remoteRoleLabel: isRequester ? 'Teacher' : 'Student',
+        remoteSkillTaught: isRequester ? `Teaching ${skillTaught}` : `Learning ${skillTaught}`,
+      };
+    }
+
+    if (swapType === 'teach') {
+      // Requester is Teacher, Recipient is Student
+      const skillTaught = reqSkill?.title || (swap as any).requesterSkillName || (swap as any).skillTitle || 'Skill';
+      return {
+        localRole: isRequester ? ('teacher' as const) : ('student' as const),
+        localRoleLabel: isRequester ? 'Teacher' : 'Student',
+        localSkillTaught: isRequester ? `Teaching ${skillTaught}` : `Learning ${skillTaught}`,
+        remoteRole: isRequester ? ('student' as const) : ('teacher' as const),
+        remoteRoleLabel: isRequester ? 'Student' : 'Teacher',
+        remoteSkillTaught: isRequester ? `Learning ${skillTaught}` : `Teaching ${skillTaught}`,
+      };
+    }
+
+    // Mutual Swap (1:1 Skill Exchange)
+    const requesterSkill = reqSkill?.title || (swap as any).requesterSkillName || 'Skill A';
+    const recipientSkill = recSkill?.title || (swap as any).recipientSkillName || 'Skill B';
+    const localSkill = isRequester ? requesterSkill : recipientSkill;
+    const remoteSkill = isRequester ? recipientSkill : requesterSkill;
+
+    return {
+      localRole: 'teacher' as const,
+      localRoleLabel: 'Exchange Partner',
+      localSkillTaught: `Teaching ${localSkill}`,
+      remoteRole: 'student' as const,
+      remoteRoleLabel: 'Exchange Partner',
+      remoteSkillTaught: `Teaching ${remoteSkill}`,
+    };
+  }, [swap, cls, currentUserId, currentUser, partner, allUsers]);
+
   const isJoiningCall = isJoining === 'true' || isJoining === '1';
 
   const initialParticipants: CallParticipant[] = useMemo(() => {
@@ -214,7 +279,12 @@ export default function UnifiedCallScreen() {
       const teacher = allUsers.find((u: any) => String(u.id || u._id) === teacherId);
       const isUserTeacher = teacherId === String(effectiveUser.id);
       const localRole = isUserTeacher ? 'teacher' : 'student';
-      const local = buildLocalParticipant(effectiveUser as any, localRole);
+      const local = buildLocalParticipant(
+        effectiveUser as any,
+        localRole,
+        isUserTeacher ? 'Teacher' : 'Student',
+        (cls as any).skillTitle || (cls as any).title ? `Class: ${(cls as any).skillTitle || (cls as any).title}` : undefined
+      );
       local.isVideoOff = callMode !== 'video';
 
       const others: CallParticipant[] = [];
@@ -222,7 +292,9 @@ export default function UnifiedCallScreen() {
         others.push(
           buildRemoteParticipant(
             { id: teacherId, name: teacher?.name || teacherName, avatarUrl: teacher?.avatarUrl || teacherAvatar },
-            'teacher'
+            'teacher',
+            'Teacher',
+            (cls as any).skillTitle || (cls as any).title ? `Class: ${(cls as any).skillTitle || (cls as any).title}` : undefined
           )
         );
       }
@@ -248,7 +320,8 @@ export default function UnifiedCallScreen() {
         others.push(
           buildRemoteParticipant(
             { id: student.id, name: student.name, avatarUrl: student.avatarUrl },
-            'student'
+            'student',
+            'Student'
           )
         );
       });
@@ -257,11 +330,21 @@ export default function UnifiedCallScreen() {
     }
 
     if (partner) {
-      const local = buildLocalParticipant(effectiveUser as any, 'guest');
+      const localRole = swapRoleInfo?.localRole || 'guest';
+      const localRoleLabel = swapRoleInfo?.localRoleLabel;
+      const localSkill = swapRoleInfo?.localSkillTaught;
+
+      const remoteRole = swapRoleInfo?.remoteRole || 'host';
+      const remoteRoleLabel = swapRoleInfo?.remoteRoleLabel;
+      const remoteSkill = swapRoleInfo?.remoteSkillTaught;
+
+      const local = buildLocalParticipant(effectiveUser as any, localRole, localRoleLabel, localSkill);
       local.isVideoOff = callMode !== 'video';
       const remote = buildRemoteParticipant(
         { id: partner.id, name: partner.name, avatarUrl: partner.avatarUrl },
-        'host'
+        remoteRole,
+        remoteRoleLabel,
+        remoteSkill
       );
       remote.isVideoOff = callMode !== 'video';
       remote.status = isJoiningCall ? 'connected' : 'connecting';
@@ -269,7 +352,7 @@ export default function UnifiedCallScreen() {
     }
 
     return [];
-  }, [cls, partner, effectiveUser, allUsers, callMode, isJoiningCall]);
+  }, [cls, partner, effectiveUser, allUsers, callMode, isJoiningCall, swapRoleInfo]);
 
   // Live 100ms / WebRTC real-time connection hook
   const {
@@ -384,7 +467,8 @@ export default function UnifiedCallScreen() {
                 studentIds,
                 mode: callMode,
               });
-            } else {
+            } else if (!hasAlertedPartnerRef.current) {
+              hasAlertedPartnerRef.current = true;
               const reqId = String((swap?.requesterId as any)?._id || (swap?.requesterId as any)?.id || swap?.requesterId || '');
               const recId = String((swap?.recipientId as any)?._id || (swap?.recipientId as any)?.id || swap?.recipientId || '');
               const resolvedPartnerId = String(partner?.id || (partner as any)?._id || queryPartnerId || (reqId === String(effectiveUser?.id) ? recId : reqId) || '');

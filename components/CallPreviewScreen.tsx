@@ -69,19 +69,39 @@ export default function CallPreviewScreen({
   const [streamError, setStreamError] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState<boolean>(false);
   const isMountedRef = useRef<boolean>(true);
+  const localStreamRef = useRef<MediaStream | null>(null);
+
+  const stopAllMediaTracks = useCallback(() => {
+    if (localStreamRef.current) {
+      try {
+        localStreamRef.current.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch (e) {}
+        });
+      } catch (e) {}
+      localStreamRef.current = null;
+    }
+    setLocalStream(null);
+  }, []);
 
   // Initialize local media preview on Web
   const startPreview = useCallback(async (withVideo: boolean, withAudio: boolean, face: 'user' | 'environment') => {
     if (Platform.OS !== 'web') return;
     try {
-      if (localStream) {
-        localStream.getTracks().forEach((track) => track.stop());
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch (e) {}
+        });
+        localStreamRef.current = null;
       }
       setStreamError(null);
 
       if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
         if (!withVideo && !withAudio) {
-          setLocalStream(null);
+          stopAllMediaTracks();
           return;
         }
 
@@ -93,9 +113,14 @@ export default function CallPreviewScreen({
         try {
           const stream = await navigator.mediaDevices.getUserMedia(constraints);
           if (isMountedRef.current) {
+            localStreamRef.current = stream;
             setLocalStream(stream);
           } else {
-            stream.getTracks().forEach((t) => t.stop());
+            stream.getTracks().forEach((t) => {
+              try {
+                t.stop();
+              } catch (e) {}
+            });
           }
         } catch (err: any) {
           console.warn('[CallPreviewScreen] getUserMedia notice:', err);
@@ -107,7 +132,14 @@ export default function CallPreviewScreen({
                 audio: false,
               });
               if (isMountedRef.current) {
+                localStreamRef.current = fallbackStream;
                 setLocalStream(fallbackStream);
+              } else {
+                fallbackStream.getTracks().forEach((t) => {
+                  try {
+                    t.stop();
+                  } catch (e) {}
+                });
               }
             } catch (e2) {
               if (isMountedRef.current) {
@@ -123,7 +155,7 @@ export default function CallPreviewScreen({
         setStreamError('Could not start camera preview');
       }
     }
-  }, [localStream]);
+  }, [stopAllMediaTracks]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -131,22 +163,24 @@ export default function CallPreviewScreen({
 
     return () => {
       isMountedRef.current = false;
-      if (localStream) {
-        localStream.getTracks().forEach((track) => track.stop());
-      }
+      stopAllMediaTracks();
     };
   }, []);
 
   const handleToggleVideo = useCallback(() => {
     const next = !isVideoOn;
     setIsVideoOn(next);
-    if (localStream) {
-      localStream.getVideoTracks().forEach((t) => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getVideoTracks().forEach((t) => {
         t.enabled = next;
       });
       if (!next) {
-        // Stop video tracks to free camera hardware light if needed
-        localStream.getVideoTracks().forEach((t) => t.stop());
+        // Stop video tracks to free camera hardware light immediately
+        localStreamRef.current.getVideoTracks().forEach((t) => {
+          try {
+            t.stop();
+          } catch (e) {}
+        });
         startPreview(false, isMicOn, facingMode);
       } else {
         startPreview(true, isMicOn, facingMode);
@@ -154,17 +188,17 @@ export default function CallPreviewScreen({
     } else if (next) {
       startPreview(true, isMicOn, facingMode);
     }
-  }, [isVideoOn, isMicOn, facingMode, localStream, startPreview]);
+  }, [isVideoOn, isMicOn, facingMode, startPreview]);
 
   const handleToggleMic = useCallback(() => {
     const next = !isMicOn;
     setIsMicOn(next);
-    if (localStream) {
-      localStream.getAudioTracks().forEach((t) => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach((t) => {
         t.enabled = next;
       });
     }
-  }, [isMicOn, localStream]);
+  }, [isMicOn]);
 
   const handleSwitchCamera = useCallback(() => {
     const nextFacing = facingMode === 'user' ? 'environment' : 'user';
@@ -176,20 +210,15 @@ export default function CallPreviewScreen({
 
   const handleJoinPress = useCallback(() => {
     setIsJoining(true);
-    // Stop local preview tracks so 100ms room connection can cleanly acquire media
-    if (localStream) {
-      localStream.getTracks().forEach((t) => t.stop());
-    }
+    // Stop local preview tracks so 100ms / call room connection can cleanly acquire media
+    stopAllMediaTracks();
     onJoin({ isMicOn, isVideoOn });
-  }, [isMicOn, isVideoOn, localStream, onJoin]);
+  }, [isMicOn, isVideoOn, stopAllMediaTracks, onJoin]);
 
   const handleExitPress = useCallback(() => {
-    if (localStream) {
-      localStream.getTracks().forEach((track) => track.stop());
-      setLocalStream(null);
-    }
+    stopAllMediaTracks();
     onCancel();
-  }, [localStream, onCancel]);
+  }, [stopAllMediaTracks, onCancel]);
 
   const avatarUri = resolveImageUrl(userAvatar, DEFAULT_AVATAR);
   const resolvedPartnerAvatar = partnerAvatar ? resolveImageUrl(partnerAvatar, DEFAULT_AVATAR) : undefined;

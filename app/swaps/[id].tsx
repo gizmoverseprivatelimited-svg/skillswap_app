@@ -669,21 +669,9 @@ export default function SwapDetailScreen() {
       });
     }
 
-    // 2. Emit real-time call alert to partner
-    if (socket && partnerId && partnerId !== 'partner-id' && partnerId !== 'partner' && partnerId.length > 2) {
-      socket.emit('swap_call_started', {
-        swapId: swap?.id || id,
-        callerId,
-        callerName,
-        partnerId,
-        recipientId: partnerId,
-        mode: callMode,
-      });
-    }
-
-    // 3. Navigate immediately to call room preview
+    // 2. Navigate immediately to call room preview
     router.push(`/call/${swap?.id || id}?mode=${callMode}&partnerId=${partnerId}` as any);
-  }, [currentUser, partner, swap, id, addMessage, router, showAlert, socket]);
+  }, [currentUser, partner, swap, id, addMessage, router, showAlert]);
 
   if (loading && !swap) {
     return (

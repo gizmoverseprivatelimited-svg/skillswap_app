@@ -63,6 +63,8 @@ function RootLayoutNav() {
     const publicRoutes = ['login', 'terms', 'privacy', 'about', 'contact', 'help', 'admin', 'banned'];
     const isPublic = publicRoutes.includes(segment0) || isLogin || currentPath.startsWith('/admin');
 
+    const isDemo = authUser?.isDemo === true || authUser?.email === 'guest@skillswap.com' || user?.isDemo === true || user?.id === '1';
+
     if (!isAuthenticated) {
       if (!isPublic) {
         router.replace('/login' as any);
@@ -78,9 +80,11 @@ function RootLayoutNav() {
         router.replace('/onboarding' as any);
       }
     } else if (isLogin || isOnboarding || isBannedRoute) {
-      router.replace('/(tabs)/home' as any);
+      if (!isDemo || !isLogin) {
+        router.replace('/(tabs)/home' as any);
+      }
     }
-  }, [isAuthenticated, isRestricted, authLoading, isChecking, hasCompletedOnboarding, segments, rootNavigationState?.key, pathname, router]);
+  }, [isAuthenticated, isRestricted, authLoading, isChecking, hasCompletedOnboarding, segments, rootNavigationState?.key, pathname, router, authUser, user]);
 
   if (authLoading && !isAuthenticated) {
     return (
