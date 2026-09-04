@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View, Animated, TouchableOpacity } from 'react-native';
 import { useNotifications } from '../providers/notifications';
 import { useAuth } from '../providers/auth';
-import { Bell, X, MessageSquare, Video } from 'lucide-react-native';
+import { Bell, X, MessageSquare, Video, Wallet } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -55,8 +55,11 @@ export function InAppNotificationBanner() {
     const classId = bannerNotification.metadata?.classId;
     const userId = bannerNotification.metadata?.userId;
     const type = bannerNotification.metadata?.type;
-    
-    if ((type === 'video-call' || type === 'class-video-call') && (swapId || classId)) {
+    const link = bannerNotification.metadata?.link as string | undefined;
+
+    if (link) {
+      router.push(link as never);
+    } else if ((type === 'video-call' || type === 'class-video-call') && (swapId || classId)) {
       router.push(`/call/${classId || swapId}?mode=video&isJoining=true` as never);
     } else if (classId) {
       router.push(`/class/${classId}` as never);
@@ -73,15 +76,23 @@ export function InAppNotificationBanner() {
 
   const isVideoCall = bannerNotification.metadata?.type === 'video-call' || bannerNotification.metadata?.type === 'class-video-call';
   const isMessage = bannerNotification.metadata?.type === 'chat-message' || bannerNotification.title?.toLowerCase().includes('message');
+  const isPayout = bannerNotification.metadata?.type === 'payout-action' || bannerNotification.title?.toLowerCase().includes('payout');
 
   return (
     <Animated.View style={[styles.bannerContainer, { transform: [{ translateY: slideAnim }] }]}>
       <TouchableOpacity activeOpacity={0.9} onPress={handlePress} style={[styles.bannerContent, isVideoCall && styles.videoCallBannerContent]}>
-        <View style={[styles.iconContainer, isVideoCall && styles.videoCallIconContainer, isMessage && styles.messageIconContainer]}>
+        <View style={[
+          styles.iconContainer, 
+          isVideoCall && styles.videoCallIconContainer, 
+          isMessage && styles.messageIconContainer,
+          isPayout && styles.payoutIconContainer,
+        ]}>
           {isVideoCall ? (
             <Video size={18} color="#FFFFFF" />
           ) : isMessage ? (
             <MessageSquare size={18} color="#FFFFFF" />
+          ) : isPayout ? (
+            <Wallet size={18} color="#FFFFFF" />
           ) : (
             <Bell size={18} color="#FFFFFF" />
           )}
@@ -141,6 +152,9 @@ const styles = StyleSheet.create({
   },
   messageIconContainer: {
     backgroundColor: '#3B82F6', // Sky Blue for chat messages
+  },
+  payoutIconContainer: {
+    backgroundColor: '#10B981', // Emerald for payouts
   },
   textContainer: {
     flex: 1,

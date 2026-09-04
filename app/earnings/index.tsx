@@ -158,29 +158,40 @@ export default function EarningsDashboard() {
             </View>
           ) : (
             <View style={s.payoutList}>
-              {recentPayouts.map((payout, index) => (
-                <View key={payout.id || (payout as any)._id || index} style={s.payoutCard}>
-                  <View style={[s.payoutIcon, { backgroundColor: payout.status === 'completed' ? '#ECFDF5' : payout.status === 'pending' ? '#FFFBEB' : '#FEE2E2' }]}>
-                    {payout.status === 'completed' ? (
-                      <CheckCircle2 size={18} color="#10B981" />
-                    ) : payout.status === 'pending' ? (
-                      <Clock size={18} color="#F59E0B" />
-                    ) : (
-                      <Info size={18} color="#EF4444" />
-                    )}
+              {recentPayouts.map((payout, index) => {
+                const statusBg = payout.status === 'completed' ? '#ECFDF5' : payout.status === 'pending' ? '#FFFBEB' : '#FEE2E2';
+                const statusColor = payout.status === 'completed' ? '#10B981' : payout.status === 'pending' ? '#D97706' : '#EF4444';
+                const statusLabel = payout.status === 'completed' ? 'Completed' : payout.status === 'pending' ? 'Pending' : payout.status === 'rejected' ? 'Rejected' : payout.status;
+
+                return (
+                  <View key={payout.id || (payout as any)._id || index} style={s.payoutCard}>
+                    <View style={[s.payoutIcon, { backgroundColor: statusBg }]}>
+                      {payout.status === 'completed' ? (
+                        <CheckCircle2 size={18} color="#10B981" />
+                      ) : payout.status === 'pending' ? (
+                        <Clock size={18} color="#F59E0B" />
+                      ) : (
+                        <Info size={18} color="#EF4444" />
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                        <Text style={s.payoutMethod}>{payoutMethodLabel(payout.method)}</Text>
+                        <View style={[s.statusBadge, { backgroundColor: statusBg }]}>
+                          <Text style={[s.statusBadgeText, { color: statusColor }]}>{statusLabel}</Text>
+                        </View>
+                      </View>
+                      <Text style={s.payoutDate}>
+                        {new Date(payout.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </Text>
+                    </View>
+                    <View style={s.payoutRight}>
+                      <Text style={s.payoutPoints}>{payout.points} pts</Text>
+                      <Text style={s.payoutAmount}>{formatPrice(payout.amount)}</Text>
+                    </View>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.payoutMethod}>{payoutMethodLabel(payout.method)}</Text>
-                    <Text style={s.payoutDate}>
-                      {new Date(payout.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </Text>
-                  </View>
-                  <View style={s.payoutRight}>
-                    <Text style={s.payoutPoints}>{payout.points} pts</Text>
-                    <Text style={s.payoutAmount}>{formatPrice(payout.amount)}</Text>
-                  </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           )}
         </View>
@@ -276,6 +287,8 @@ const s = StyleSheet.create({
   payoutIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   payoutMethod: { fontSize: 14, fontWeight: '700' as const, color: Colors.light.text, marginBottom: 2 },
   payoutDate: { fontSize: 12, color: Colors.light.textSecondary },
+  statusBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  statusBadgeText: { fontSize: 10, fontWeight: '700' as const, textTransform: 'uppercase' },
   payoutRight: { alignItems: 'flex-end' },
   payoutPoints: { fontSize: 14, fontWeight: '700' as const, color: Colors.light.text, marginBottom: 2 },
   payoutAmount: { fontSize: 13, color: Colors.light.primary, fontWeight: '600' as const },

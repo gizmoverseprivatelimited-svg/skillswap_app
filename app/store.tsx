@@ -1,7 +1,9 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { Coins, Crown, Zap, Check, Sparkles, Circle, Star, Flame, Gem } from 'lucide-react-native';
+import { Coins, Crown, Zap, Check, Sparkles, Circle, Star, Flame, Gem, ShieldCheck } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Colors from '@/constants/colors';
 import { formatPrice } from '@/constants/locale';
 import { useAlert } from '@/providers/alert';
@@ -193,6 +195,23 @@ export default function StoreScreen() {
   );
 
   const executePurchaseCredits = async (packageId: typeof creditPackages[number]['id'], mode: 'trial' | 'gateway') => {
+    const isDemo = !currentUser?.id || currentUser?.id === '1' || Boolean((currentUser as any)?.isDemo);
+
+    if (isDemo) {
+      if (mode === 'trial') {
+        const pkg = creditPackages.find((p) => p.id === packageId);
+        const added = (pkg?.credits || 0) + (pkg?.bonusCredits || 0);
+        if (earnCredits && added > 0) {
+          earnCredits(added);
+        }
+        showAlert('Success! 🎉', `${added} demo credits added to your account!`);
+        await loadUser(true);
+      } else {
+        showAlert('Demo Mode', 'Payment gateway is disabled in demo mode. Please use "Trial Payment (Free)" to simulate credit purchases.');
+      }
+      return;
+    }
+
     if (mode === 'trial') {
       try {
         setIsProcessing(true);
@@ -208,7 +227,7 @@ export default function StoreScreen() {
         if (earnCredits && added > 0) {
           earnCredits(added);
         }
-        showAlert('Success!', `${added} credits added to your account!`);
+        showAlert('Success! 🎉', `${added} credits added to your account!`);
         await loadUser(true);
       } catch (error: any) {
         showAlert('Error', error.message);
@@ -270,7 +289,7 @@ export default function StoreScreen() {
   };
 
   const handlePurchaseCredits = (packageId: typeof creditPackages[number]['id']) => {
-    if (!currentUser || currentUser?.id === '1' || (currentUser as any)?.isDemo) {
+    if (!currentUser) {
       showAlert(
         'Login Required 🔒',
         'Please log in or create an account to purchase credits.',
@@ -293,6 +312,39 @@ export default function StoreScreen() {
   };
 
   const executePurchasePremium = async (tier: PremiumPlan['id'] | string, duration: string, mode: 'trial' | 'gateway') => {
+    const isDemo = !currentUser?.id || currentUser?.id === '1' || Boolean((currentUser as any)?.isDemo);
+
+    if (isDemo) {
+      if (mode === 'trial') {
+        const plan = premiumPlans.find((p) => p.id === tier);
+        const days = tier === 'yearly' ? 365 : (tier === 'quarterly' ? 90 : 30);
+        const normalizedTier = tier === 'yearly' ? 'elite' : (tier === 'quarterly' ? 'premium' : 'basic');
+        const bonusCredits = plan?.bonusCredits || 50;
+
+        try {
+          const stored = await AsyncStorage.getItem('@skillswap/user');
+          const parsed = stored ? JSON.parse(stored) : {};
+          parsed.premiumTier = normalizedTier;
+          parsed.premiumExpiresAt = new Date(Date.now() + days * 86400000).toISOString();
+          parsed.credits = (parsed.credits || 0) + bonusCredits;
+          await AsyncStorage.setItem('@skillswap/user', JSON.stringify(parsed));
+        } catch (e) {}
+
+        if (earnCredits && bonusCredits > 0) {
+          earnCredits(bonusCredits);
+        }
+
+        showAlert(
+          'Welcome to Premium! 👑',
+          `Demo Membership Activated!\n\n✨ Active Plan: ${plan?.name || 'Premium'}\n🎁 +${bonusCredits} Bonus Credits Added\n💸 0 Platform Fee on Swaps\n🎓 Up to 20% Discount on Classes\n👑 Exclusive Profile Badge Unlocked!`
+        );
+        await loadUser(true);
+      } else {
+        showAlert('Demo Mode', 'Payment gateway is disabled in demo mode. Please use "Trial Payment (Free)" to activate demo subscription.');
+      }
+      return;
+    }
+
     if (mode === 'trial') {
       try {
         setIsProcessing(true);
@@ -308,7 +360,10 @@ export default function StoreScreen() {
         if (earnCredits && added > 0) {
           earnCredits(added);
         }
-        showAlert('Success!', `Welcome to ${data.tier} tier! ${added} bonus credits added!`);
+        showAlert(
+          'Welcome to Premium! 👑',
+          `Your subscription is active!\n\n✨ Tier: ${String(data.tier).toUpperCase()}\n🎁 +${added} Bonus Credits Added\n💸 0 Platform Fee on Swaps\n🎓 Group Class Discounts Active\n👑 Profile Badge Unlocked!`
+        );
         await loadUser(true);
       } catch (error: any) {
         showAlert('Error', error.message);
@@ -368,7 +423,7 @@ export default function StoreScreen() {
   };
 
   const handlePurchasePremium = (planId: PremiumPlan['id']) => {
-    if (!currentUser || currentUser?.id === '1' || (currentUser as any)?.isDemo) {
+    if (!currentUser) {
       showAlert(
         'Login Required 🔒',
         'Please log in or create an account to purchase a premium subscription.',
@@ -386,7 +441,7 @@ export default function StoreScreen() {
       id: planId,
       name: plan.name,
       price: plan.price,
-      duration: planId === 'yearly' ? 'yearly' : 'monthly',
+      duration: planId === 'yearly' ? 'yearly' : (planId === 'quarterly' ? 'quarterly' : 'monthly') as any,
     });
     setCheckoutModalVisible(true);
   };
@@ -527,9 +582,62 @@ export default function StoreScreen() {
           </View>
         ) : (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Premium Membership</Text>
+            {currentUser?.premiumTier && currentUser?.premiumTier !== 'free' && (
+              <View style={styles.activeMembershipCard}>
+                <LinearGradient
+                  colors={currentUser?.premiumTier === 'elite' ? ['#78350F', '#B45309'] : currentUser?.premiumTier === 'premium' ? ['#4C1D95', '#6D28D9'] : ['#312E81', '#4338CA']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.activeMembershipGradient}
+                >
+                  <View style={styles.activeMembershipHeader}>
+                    <View style={styles.activeMembershipBadgeWrap}>
+                      <Crown size={18} color="#FDE047" fill="#FDE047" />
+                      <Text style={styles.activeMembershipBadgeText}>ACTIVE MEMBERSHIP</Text>
+                    </View>
+                    <View style={styles.activeDaysPill}>
+                      <Text style={styles.activeDaysPillText}>
+                        {currentUser?.premiumExpiresAt ? `${Math.max(0, Math.ceil((new Date(currentUser.premiumExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days left` : 'Active'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.activePlanTitle}>
+                    {currentUser?.premiumTier === 'elite' ? 'Yearly Plan (Elite Member)' : currentUser?.premiumTier === 'premium' ? 'Quarterly Plan (Premium Member)' : 'Monthly Plan (Basic Member)'}
+                  </Text>
+                  <Text style={styles.activePlanExpiry}>
+                    Valid until {currentUser?.premiumExpiresAt ? new Date(currentUser.premiumExpiresAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Active'} • All perks unlocked
+                  </Text>
+
+                  <View style={styles.activePerksGrid}>
+                    <View style={styles.activePerkItem}>
+                      <Check size={14} color="#34D399" strokeWidth={3} />
+                      <Text style={styles.activePerkText}>0 Platform Fee on Swaps</Text>
+                    </View>
+                    <View style={styles.activePerkItem}>
+                      <Check size={14} color="#34D399" strokeWidth={3} />
+                      <Text style={styles.activePerkText}>{currentUser?.premiumTier === 'elite' ? '20%' : currentUser?.premiumTier === 'premium' ? '15%' : '10%'} Class Discounts</Text>
+                    </View>
+                    <View style={styles.activePerkItem}>
+                      <Check size={14} color="#34D399" strokeWidth={3} />
+                      <Text style={styles.activePerkText}>Verified Profile Badge</Text>
+                    </View>
+                    <View style={styles.activePerkItem}>
+                      <Check size={14} color="#34D399" strokeWidth={3} />
+                      <Text style={styles.activePerkText}>Monthly Bonus Credits</Text>
+                    </View>
+                  </View>
+                </LinearGradient>
+              </View>
+            )}
+
+            <Text style={styles.sectionTitle}>
+              {currentUser?.premiumTier && currentUser?.premiumTier !== 'free' ? 'Extend or Upgrade Plan' : 'Premium Membership'}
+            </Text>
             <Text style={styles.sectionDescription}>
-              Unlock unlimited swaps, priority matching, and exclusive features
+              {currentUser?.premiumTier && currentUser?.premiumTier !== 'free'
+                ? 'Choose a plan to extend your active subscription and receive instant bonus credits'
+                : 'Unlock unlimited swaps, priority matching, and exclusive features'}
             </Text>
 
             <View style={styles.tiersContainer}>
@@ -1237,6 +1345,83 @@ const styles = StyleSheet.create({
     color: '#4F46E5',
     fontWeight: '600' as const,
     textAlign: 'center',
+  },
+  activeMembershipCard: {
+    marginBottom: 24,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  activeMembershipGradient: {
+    padding: 20,
+    borderRadius: 20,
+  },
+  activeMembershipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  activeMembershipBadgeWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  activeMembershipBadgeText: {
+    fontSize: 11,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  activeDaysPill: {
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  activeDaysPillText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  activePlanTitle: {
+    fontSize: 22,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  activePlanExpiry: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 16,
+  },
+  activePerksGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  activePerkItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    width: '48%',
+  },
+  activePerkText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#FFFFFF',
+    flexShrink: 1,
   },
 });
 

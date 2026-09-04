@@ -77,7 +77,9 @@ export default function EarningsHistoryScreen() {
 
   const sections = useMemo(() => {
     const all: HistoryItem[] = [
-      ...transactions.map((t: any) => {
+      ...transactions
+        .filter((t: any) => t.source !== 'payout')
+        .map((t: any) => {
         const isTopUp = t.source === 'top_up' || t.source === 'purchase' || (t.source === 'bonus' && (t.description?.toLowerCase().includes('purchased') || t.description?.toLowerCase().includes('top-up')));
         const isSubscription = t.source === 'monthly_subscription';
         

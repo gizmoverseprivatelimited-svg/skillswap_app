@@ -350,7 +350,7 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
       return { success: false, error: 'Class is full' };
     }
 
-    const cost = getClassEnrollmentCost(cls.seatPriceCredits);
+    const cost = getClassEnrollmentCost(cls.seatPriceCredits, currentUser);
     if (cost > 0) {
       if (currentUser.credits < cost) {
         return { success: false, error: 'Not enough credits' };
@@ -424,7 +424,7 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
       ),
     );
 
-    const cost = getClassEnrollmentCost(cls.seatPriceCredits);
+    const cost = getClassEnrollmentCost(cls.seatPriceCredits, currentUser);
     if (cost > 0) {
       earnCredits(cost);
     }

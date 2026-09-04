@@ -128,8 +128,9 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
         rating: 5.0,
         totalSwaps: 0,
         joinedDate: '2026-01-01',
-        credits: 0,
-        premiumTier: 'free',
+        credits: typeof activeUser?.credits === 'number' ? activeUser.credits : 0,
+        premiumTier: activeUser?.premiumTier || 'free',
+        premiumExpiresAt: activeUser?.premiumExpiresAt ? String(activeUser.premiumExpiresAt) : undefined,
         isDemo: true,
       };
       setCurrentUser(demoUser);

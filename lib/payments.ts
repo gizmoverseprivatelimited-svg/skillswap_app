@@ -155,9 +155,22 @@ export function getClassSeatPrice(seatPriceCredits: number): number {
   return Math.max(0, seatPriceCredits);
 }
 
-/** Cost for a student to enroll in a class (seat price, no platform fee) */
-export function getClassEnrollmentCost(seatPriceCredits: number): number {
-  return getClassSeatPrice(seatPriceCredits);
+/** Cost for a student to enroll in a class (applying premium tier discounts if eligible) */
+export function getClassEnrollmentCost(seatPriceCredits: number, user?: Pick<User, 'premiumTier'> | null): number {
+  const base = getClassSeatPrice(seatPriceCredits);
+  if (base <= 0 || !user || !user.premiumTier || user.premiumTier === 'free') return base;
+  let discountRate = 0.10; // Monthly / Basic
+  if (user.premiumTier === 'premium' || (user.premiumTier as any) === 'quarterly') discountRate = 0.15;
+  if (user.premiumTier === 'elite' || (user.premiumTier as any) === 'yearly') discountRate = 0.20;
+  return Math.max(0, Math.round(base * (1 - discountRate)));
+}
+
+/** Get the percentage discount a user receives on group classes based on their premium plan */
+export function getClassDiscountPercent(user?: Pick<User, 'premiumTier'> | null): number {
+  if (!user || !user.premiumTier || user.premiumTier === 'free') return 0;
+  if (user.premiumTier === 'elite' || (user.premiumTier as any) === 'yearly') return 20;
+  if (user.premiumTier === 'premium' || (user.premiumTier as any) === 'quarterly') return 15;
+  return 10;
 }
 
 /** Calculate teacher earnings when a group class completes */

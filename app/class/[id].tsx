@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Calendar, Clock, Users, Coins, Star, Sparkles, CheckCircle2, XCircle, ArrowLeft, Video, Repeat, CreditCard } from 'lucide-react-native';
+import { Calendar, Clock, Users, Coins, Star, Sparkles, CheckCircle2, XCircle, ArrowLeft, Video, Repeat, CreditCard, Crown } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
 import { useClasses } from '@/providers/classes';
 import { useCurrentUser } from '@/providers/current-user';
 import { useAlert } from '@/providers/alert';
-import { formatCredits, getClassEnrollmentCost, formatClassSchedule, formatBillingCycle } from '@/lib/payments';
+import { formatCredits, getClassEnrollmentCost, getClassDiscountPercent, formatClassSchedule, formatBillingCycle } from '@/lib/payments';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import { useSkillSwaps } from '@/providers/skill-swaps';
 import { useSocket } from '@/providers/socket';
@@ -127,18 +127,23 @@ export default function ClassDetailScreen() {
       showAlert('Action Blocked', 'You cannot enroll in classes hosted by this user due to block settings.');
       return;
     }
-    const cost = getClassEnrollmentCost(cls.seatPriceCredits);
+    const cost = getClassEnrollmentCost(cls.seatPriceCredits, currentUser);
     const balanceAfter = currentUser.credits - cost;
+    const discountPercent = getClassDiscountPercent(currentUser);
 
     if (cost > 0 && balanceAfter < 0) {
       showAlert('Not enough credits', `You need ${cost} credits but have ${currentUser.credits}. Top up in the Store to enroll.`);
       return;
     }
 
+    const pricePrompt = discountPercent > 0
+      ? `Pay ${cost} credits to enroll? (${discountPercent}% Premium Member Discount Applied)\n\nCurrent balance: ${currentUser.credits}\nAfter enrollment: ${balanceAfter}`
+      : `Pay ${cost} credits to enroll?\n\nCurrent balance: ${currentUser.credits}\nAfter enrollment: ${balanceAfter}`;
+
     showAlert(
       'Confirm Enrollment',
       cost > 0
-        ? `Pay ${cost} credits to enroll?\n\nCurrent balance: ${currentUser.credits}\nAfter enrollment: ${balanceAfter}`
+        ? pricePrompt
         : 'Enroll in this free class?',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -167,7 +172,7 @@ export default function ClassDetailScreen() {
     }
     showAlert(
       'Cancel enrollment?',
-      `You'll be refunded ${getClassEnrollmentCost(cls.seatPriceCredits)} credits.`,
+      `You'll be refunded ${getClassEnrollmentCost(cls.seatPriceCredits, currentUser)} credits.`,
       [
         { text: 'Keep', style: 'cancel' },
         {
@@ -467,10 +472,25 @@ export default function ClassDetailScreen() {
                 <Text style={s.freePriceText}>Free Class</Text>
               </View>
             ) : (
-              <View style={s.priceTag}>
-                <Coins size={20} color="#F59E0B" />
-                <Text style={s.priceText}>{formatCredits(cls.seatPriceCredits)}</Text>
-                <Text style={s.pricePerText}>per seat · {cls.billingCycle === 'monthly' ? 'monthly' : 'one-time'}</Text>
+              <View style={{ flex: 1 }}>
+                <View style={s.priceTag}>
+                  <Coins size={20} color="#F59E0B" />
+                  <Text style={s.priceText}>{formatCredits(getClassEnrollmentCost(cls.seatPriceCredits, currentUser))}</Text>
+                  {getClassDiscountPercent(currentUser) > 0 && (
+                    <Text style={{ fontSize: 13, textDecorationLine: 'line-through', color: '#94A3B8', marginLeft: 6 }}>
+                      {cls.seatPriceCredits}
+                    </Text>
+                  )}
+                  <Text style={s.pricePerText}>per seat · {cls.billingCycle === 'monthly' ? 'monthly' : 'one-time'}</Text>
+                </View>
+                {getClassDiscountPercent(currentUser) > 0 && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 }}>
+                    <Crown size={13} color="#6366F1" />
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: '#6366F1' }}>
+                      {getClassDiscountPercent(currentUser)}% Premium Member Discount Applied!
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -540,7 +560,7 @@ export default function ClassDetailScreen() {
               ) : !enrolled && classOpen && !isFull ? (
                 <TouchableOpacity style={s.enrollBtn} onPress={handleEnroll} activeOpacity={0.8}>
                   <Text style={s.enrollBtnText}>
-                    {isFree ? 'Enroll Free' : `Enroll for ${cls.seatPriceCredits} credits ${cls.billingCycle === 'monthly' ? '/month' : ''}`}
+                    {isFree ? 'Enroll Free' : `Enroll for ${getClassEnrollmentCost(cls.seatPriceCredits, currentUser)} credits ${cls.billingCycle === 'monthly' ? '/month' : ''}`}
                   </Text>
                 </TouchableOpacity>
               ) : !enrolled && classOpen && isFull ? (

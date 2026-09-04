@@ -398,28 +398,28 @@ export default function SkillDetailScreen() {
         </View>
 
         <View style={styles.content}>
-          {activeSwap && swapStatusLabel && (
+          {activeSwap && swapStatusLabel ? (
             <View style={styles.swapStatusCard} testID="existing-swap-status">
               <View style={styles.swapStatusHeader}>
                 <View style={[styles.swapTagBase, resolveSwapTagStyle(activeSwap.status)]}>
                   <Text style={styles.swapTagText}>{activeSwap.status.toUpperCase()}</Text>
                 </View>
-                {nextSwapTime && (
+                {Boolean(nextSwapTime) ? (
                   <View style={styles.swapTimeRow}>
                     <CalendarCheck2 size={16} color={Colors.light.primary} />
                     <Text style={styles.swapTimeText}>{nextSwapTime}</Text>
                   </View>
-                )}
+                ) : null}
               </View>
               <Text style={styles.swapStatusBody}>{swapStatusLabel}</Text>
-              {activeSwap.locationPreference && (
+              {activeSwap.locationPreference ? (
                 <View style={styles.swapFooter}>
                   <MapPin size={16} color={Colors.light.textSecondary} />
                   <Text style={styles.swapLocationText}>{activeSwap.locationPreference}</Text>
                 </View>
-              )}
+              ) : null}
             </View>
-          )}
+          ) : null}
           <View style={styles.header}>
             <View style={styles.categoryBadge}>
               <Text style={styles.categoryBadgeText}>{skill.category}</Text>
@@ -427,17 +427,17 @@ export default function SkillDetailScreen() {
             <View style={styles.levelBadge}>
               <Text style={styles.levelText}>{skill.level}</Text>
             </View>
-            {skill.certificateUri && (
+            {Boolean(skill.certificateUri) ? (
               <View style={styles.certVerifiedBadge}>
                 <BadgeCheck size={14} color="#10B981" />
                 <Text style={styles.certVerifiedBadgeText}>Certified</Text>
               </View>
-            )}
+            ) : null}
           </View>
 
           <View style={styles.titleRow}>
             <Text style={styles.title}>{skill.title}</Text>
-            {isOwner && (
+            {Boolean(isOwner) ? (
               <View style={styles.ownerActionsRow}>
                 <TouchableOpacity
                   onPress={() => router.push(`/add-skill?id=${skill._id || skill.id}` as any)}
@@ -456,18 +456,18 @@ export default function SkillDetailScreen() {
                   <Trash2 size={18} color="#EF4444" />
                 </TouchableOpacity>
               </View>
-            )}
+            ) : null}
           </View>
 
-          {(skill.promoted || skill.pricingModel) && (
+          {Boolean(skill.promoted || (skill.pricingModel && skill.pricingModel !== 'free')) ? (
             <View style={styles.pricingCard}>
-              {skill.promoted && skill.promoTagline && (
+              {Boolean(skill.promoted && skill.promoTagline) ? (
                 <View style={styles.promoBanner}>
                   <Sparkles size={16} color="#F59E0B" />
                   <Text style={styles.promoText}>{skill.promoTagline}</Text>
                 </View>
-              )}
-              {skill.pricingModel && skill.pricingModel !== 'free' && (
+              ) : null}
+              {Boolean(skill.pricingModel && skill.pricingModel !== 'free') ? (
                 <View>
                   <View style={styles.priceRow}>
                     <IndianRupee size={20} color="#10B981" />
@@ -487,18 +487,20 @@ export default function SkillDetailScreen() {
                     </Text>
                   </View>
                 </View>
-              )}
-              {skill.pricingModel === 'free' && (
+              ) : null}
+              {Boolean(skill.pricingModel === 'free') ? (
                 <View style={styles.priceRow}>
                   <Text style={styles.freeTag}>Free — Skill Exchange</Text>
                 </View>
-              )}
+              ) : null}
             </View>
-          )}
+          ) : null}
 
-          <View style={styles.description}>
-            <Text style={styles.descriptionText}>{skill.description}</Text>
-          </View>
+          {Boolean(skill.description) ? (
+            <View style={styles.description}>
+              <Text style={styles.descriptionText}>{skill.description}</Text>
+            </View>
+          ) : null}
 
           <View style={styles.divider} />
 
@@ -516,7 +518,7 @@ export default function SkillDetailScreen() {
                 style={styles.teacherAvatar}
               />
               <View style={styles.teacherInfo}>
-                <Text style={styles.teacherName}>{skill.user.username ? (skill.user.username.startsWith('@') ? skill.user.username : `@${skill.user.username}`) : `@${skill.user.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
+                <Text style={styles.teacherName}>{skill.user?.username ? (skill.user.username.startsWith('@') ? skill.user.username : `@${skill.user.username}`) : skill.user?.name ? `@${skill.user.name.toLowerCase().replace(/\s+/g, '')}` : '@teacher'}</Text>
                 <View style={styles.teacherStats}>
                   <View style={styles.statItem}>
                     <Star size={14} fill={Colors.light.accent} color={Colors.light.accent} />
@@ -530,7 +532,7 @@ export default function SkillDetailScreen() {
                 </View>
                 <View style={styles.locationRow}>
                   <MapPin size={14} color={Colors.light.textSecondary} />
-                  <Text style={styles.locationText}>{skill.user.location}</Text>
+                  <Text style={styles.locationText}>{skill.user?.location || 'Location not set'}</Text>
                 </View>
               </View>
               <View style={styles.arrowIcon}>
@@ -547,7 +549,7 @@ export default function SkillDetailScreen() {
               <Clock size={18} color={Colors.light.secondary} />
             </View>
             <View style={styles.aboutCard}>
-              <Text style={styles.aboutText}>{skill.user.bio}</Text>
+              <Text style={styles.aboutText}>{skill.user?.bio || 'No bio available.'}</Text>
             </View>
           </View>
 
@@ -562,7 +564,7 @@ export default function SkillDetailScreen() {
             </View>
           </View>
 
-          {teacherClasses.length > 0 && (
+          {Boolean(teacherClasses && teacherClasses.length > 0) ? (
             <View style={styles.classesSection}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>
@@ -678,7 +680,7 @@ export default function SkillDetailScreen() {
                 })}
               </View>
             </View>
-          )}
+          ) : null}
         </View>
 
         <View style={styles.reviewsWrapper}>
@@ -689,7 +691,7 @@ export default function SkillDetailScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        {canCreateGroupClass && (
+        {Boolean(canCreateGroupClass) ? (
           <TouchableOpacity
             style={styles.groupClassButton}
             onPress={() => router.push(`/class/create?skillId=${skill.id}` as any)}
@@ -705,8 +707,8 @@ export default function SkillDetailScreen() {
               <Text style={styles.groupClassButtonText}>Create Group Class</Text>
             </LinearGradient>
           </TouchableOpacity>
-        )}
-        {!isOwner && (
+        ) : null}
+        {Boolean(!isOwner) ? (
           <TouchableOpacity
             style={[styles.requestButton, activeSwap && styles.requestButtonActive]}
             onPress={handleRequestPress}
@@ -722,7 +724,7 @@ export default function SkillDetailScreen() {
               <Text style={styles.requestButtonText}>{activeSwap ? 'Open Exchange Thread' : 'Request Skill Exchange'}</Text>
             </LinearGradient>
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
 
       <SkillSwapRequestModal

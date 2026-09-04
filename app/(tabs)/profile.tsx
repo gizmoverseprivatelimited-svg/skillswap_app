@@ -464,13 +464,19 @@ export default function ProfileScreen() {
         <View style={styles.content}>
           {currentUser?.premiumTier && currentUser?.premiumTier !== 'free' && (
             <View style={styles.premiumBanner}>
-              <View style={[styles.premiumGlow, { backgroundColor: currentUser?.premiumTier === 'elite' ? '#F59E0B' : currentUser?.premiumTier === 'premium' ? '#8B5CF6' : '#6366F1' }]} />
+              <View style={[styles.premiumGlow, { backgroundColor: (currentUser?.premiumTier === 'elite' || (currentUser?.premiumTier as any) === 'yearly') ? '#F59E0B' : (currentUser?.premiumTier === 'premium' || (currentUser?.premiumTier as any) === 'quarterly') ? '#8B5CF6' : '#6366F1' }]} />
               <View style={styles.premiumContent}>
                 <Crown size={24} color="#FFFFFF" fill="#FFFFFF" />
                 <View style={styles.premiumInfo}>
-                  <Text style={styles.premiumTitle}>{currentUser?.premiumTier.toUpperCase()} MEMBER</Text>
+                  <Text style={styles.premiumTitle}>
+                    {(currentUser?.premiumTier === 'elite' || (currentUser?.premiumTier as any) === 'yearly')
+                      ? 'YEARLY (ELITE) MEMBER'
+                      : (currentUser?.premiumTier === 'premium' || (currentUser?.premiumTier as any) === 'quarterly')
+                        ? 'QUARTERLY (PREMIUM) MEMBER'
+                        : 'MONTHLY MEMBER'}
+                  </Text>
                   <Text style={styles.premiumExpiry}>
-                    {currentUser?.premiumExpiresAt ? `Active until ${new Date(currentUser?.premiumExpiresAt).toLocaleDateString()}` : 'Active'}
+                    {currentUser?.premiumExpiresAt ? `Active until ${new Date(currentUser?.premiumExpiresAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })} • All Perks Active` : 'Active Membership'}
                   </Text>
                 </View>
               </View>
