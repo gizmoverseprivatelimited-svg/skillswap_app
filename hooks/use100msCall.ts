@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
+import { requestCameraAndMicrophonePermissions } from '../lib/media-permissions';
 import {
   type CallParticipant,
   type CallMessage,
@@ -759,12 +760,33 @@ export function use100msCall({
           onEndCall();
         });
 
+        // Ensure camera and microphone permissions are granted on mobile device
+        await requestCameraAndMicrophonePermissions({ showAlertOnDenial: false });
+
         const config = new HMSConfig({
           username: userName || (isTeacher ? 'Teacher' : 'Participant'),
           authToken: authToken || roomCode || '',
         });
 
         await hms.join(config);
+
+        // Apply initial mic and video states on join if user chose them in preview
+        if (initialMicOn === false) {
+          try {
+            const track = (hms as any).localPeer?.localAudioTrack?.();
+            if (track && typeof track.setMute === 'function') {
+              track.setMute(true);
+            }
+          } catch (e) {}
+        }
+        if (initialVideoOn === false || mode !== 'video') {
+          try {
+            const track = (hms as any).localPeer?.localVideoTrack?.();
+            if (track && typeof track.setMute === 'function') {
+              track.setMute(true);
+            }
+          } catch (e) {}
+        }
       } catch (err) {
         console.warn('[use100msCall Native] Join exception:', err);
         setIsConnecting(false);
@@ -1015,7 +1037,9 @@ export function use100msCall({
         setParticipants(prev => prev.map(p => (p.isLocal ? { ...p, screenShareStream: undefined } : p)));
       } else if (hmsInstanceRef.current) {
         try {
-          await hmsInstanceRef.current.stopScreenshare();
+          if (typeof hmsInstanceRef.current.stopScreenshare === 'function') {
+            await hmsInstanceRef.current.stopScreenshare();
+          }
         } catch (e) {
           console.warn('[100ms] stopScreenshare error:', e);
         }
@@ -1086,16 +1110,34 @@ export function use100msCall({
           };
 
           setParticipants(prev => prev.map(p => (p.isLocal ? { ...p, screenShareStream: screenStream } : p)));
-        } catch (err) {
+        } catch (err: any) {
           console.warn('[use100msCall] DisplayMedia error:', err);
+          setIsScreenSharing(false);
         }
       } else if (hmsInstanceRef.current) {
         try {
-          await hmsInstanceRef.current.startScreenshare();
-          setIsScreenSharing(true);
-        } catch (err) {
+          if (typeof hmsInstanceRef.current.startScreenshare === 'function') {
+            await hmsInstanceRef.current.startScreenshare();
+            setIsScreenSharing(true);
+          } else {
+            Alert.alert(
+              'Screen Sharing',
+              'Screen sharing is best supported on desktop web browsers. Mobile screen broadcasting is not available on this device.'
+            );
+          }
+        } catch (err: any) {
           console.warn('[100ms] startScreenshare error:', err);
+          setIsScreenSharing(false);
+          Alert.alert(
+            'Screen Sharing Unavailable',
+            'Screen sharing could not be started on this mobile device. Please use a desktop browser to share your screen.'
+          );
         }
+      } else {
+        Alert.alert(
+          'Screen Sharing',
+          'Screen sharing requires an active video call room.'
+        );
       }
     }
   }, [isScreenSharing, roomId, currentUserId, socket]);

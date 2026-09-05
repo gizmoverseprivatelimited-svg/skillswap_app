@@ -27,6 +27,7 @@ import {
 } from 'lucide-react-native';
 import LiveVideoTrack from './LiveVideoTrack';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
+import { requestCameraAndMicrophonePermissions } from '@/lib/media-permissions';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
 
@@ -159,7 +160,13 @@ export default function CallPreviewScreen({
 
   useEffect(() => {
     isMountedRef.current = true;
-    startPreview(isVideoOn, isMicOn, facingMode);
+
+    // Request native camera & mic permissions on mobile devices
+    if (Platform.OS !== 'web') {
+      void requestCameraAndMicrophonePermissions();
+    } else {
+      startPreview(isVideoOn, isMicOn, facingMode);
+    }
 
     return () => {
       isMountedRef.current = false;
