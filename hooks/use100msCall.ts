@@ -796,8 +796,15 @@ export function use100msCall({
         });
       }
 
-      if (hmsInstanceRef.current?.localPeer?.localAudioTrack()) {
-        hmsInstanceRef.current.localPeer.localAudioTrack().setMute(nextMuted);
+      try {
+        if (hmsInstanceRef.current?.localPeer?.localAudioTrack) {
+          const track = hmsInstanceRef.current.localPeer.localAudioTrack();
+          if (track && typeof track.setMute === 'function') {
+            track.setMute(nextMuted);
+          }
+        }
+      } catch (hmsErr) {
+        console.warn('[100ms] setMute notice:', hmsErr);
       }
 
       const mediaStateMsg = {
@@ -834,8 +841,15 @@ export function use100msCall({
         });
       }
 
-      if (hmsInstanceRef.current?.localPeer?.localVideoTrack()) {
-        hmsInstanceRef.current.localPeer.localVideoTrack().setMute(nextVideoOff);
+      try {
+        if (hmsInstanceRef.current?.localPeer?.localVideoTrack) {
+          const track = hmsInstanceRef.current.localPeer.localVideoTrack();
+          if (track && typeof track.setMute === 'function') {
+            track.setMute(nextVideoOff);
+          }
+        }
+      } catch (hmsErr) {
+        console.warn('[100ms] setVideoMute notice:', hmsErr);
       }
 
       const mediaStateMsg = {
@@ -863,23 +877,26 @@ export function use100msCall({
   // Switch camera (Front / Back)
   const switchCamera = useCallback(async () => {
     // 1. Native 100ms SDK switchCamera
-    if (hmsInstanceRef.current?.localPeer?.localVideoTrack()) {
-      try {
-        await hmsInstanceRef.current.localPeer.localVideoTrack().switchCamera();
-        setParticipants(prev =>
-          prev.map(p =>
-            p.isLocal
-              ? {
-                  ...p,
-                  facingMode: p.facingMode === 'environment' ? 'user' : 'environment',
-                }
-              : p
-          )
-        );
-        return;
-      } catch (err) {
-        console.warn('[100ms] switchCamera error:', err);
+    try {
+      if (hmsInstanceRef.current?.localPeer?.localVideoTrack) {
+        const track = hmsInstanceRef.current.localPeer.localVideoTrack();
+        if (track && typeof track.switchCamera === 'function') {
+          await track.switchCamera();
+          setParticipants(prev =>
+            prev.map(p =>
+              p.isLocal
+                ? {
+                    ...p,
+                    facingMode: p.facingMode === 'environment' ? 'user' : 'environment',
+                  }
+                : p
+            )
+          );
+          return;
+        }
       }
+    } catch (err) {
+      console.warn('[100ms] switchCamera error:', err);
     }
 
     // 2. Web / WebRTC Fallback switchCamera
