@@ -2,6 +2,7 @@ import { Tabs } from "expo-router";
 import { Home, Compass, User, BookOpen, Bell, Users } from "lucide-react-native";
 import React, { useMemo } from "react";
 import { Platform, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "../../constants/colors";
 import { useNotifications } from "../../providers/notifications";
@@ -9,8 +10,11 @@ import { useNotifications } from "../../providers/notifications";
 export default function TabLayout() {
   const { unreadCount } = useNotifications();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const isSmallScreen = width < 770;
+  const isWeb = Platform.OS === 'web';
+  const bottomInset = isWeb ? 0 : Math.max(insets.bottom, 8);
 
   const notificationsBadge = useMemo(() => {
     if (unreadCount === 0) {
@@ -24,7 +28,7 @@ export default function TabLayout() {
 
   return (
     <>
-      {Platform.OS === 'web' && isSmallScreen && (
+      {isWeb && isSmallScreen && (
         // @ts-ignore
         <style dangerouslySetInnerHTML={{
           __html: `
@@ -40,7 +44,7 @@ export default function TabLayout() {
         }} />
       )}
       <Tabs
-        safeAreaInsets={isSmallScreen ? { top: 0, bottom: 0, left: 0, right: 0 } : undefined}
+        safeAreaInsets={isWeb ? { top: 0, bottom: 0, left: 0, right: 0 } : undefined}
         screenOptions={{
           tabBarActiveTintColor: Colors.light.primary,
           tabBarInactiveTintColor: Colors.light.tabIconDefault,
@@ -61,10 +65,9 @@ export default function TabLayout() {
             backgroundColor: Colors.light.background,
             borderTopColor: Colors.light.borderLight,
             borderTopWidth: 1,
-            paddingTop: isSmallScreen ? 4 : 0,
-            paddingBottom: 4,
-            paddingVertical: 4,
-            height: isSmallScreen ? 60 : 60,
+            paddingTop: 6,
+            paddingBottom: isWeb ? 4 : bottomInset,
+            height: isWeb ? 60 : 60 + bottomInset,
             elevation: 8,
             shadowColor: Colors.light.shadow,
             shadowOffset: { width: 0, height: -2 },
@@ -72,22 +75,16 @@ export default function TabLayout() {
             shadowRadius: 12,
           },
           tabBarItemStyle: {
-            paddingVertical: isSmallScreen ? 0 : 4,
-            paddingTop: isSmallScreen ? 0 : 4,
-            paddingBottom: isSmallScreen ? 0 : 4,
+            paddingVertical: 2,
             paddingHorizontal: 0,
-            marginVertical: 0,
-            marginTop: 0,
-            marginBottom: 0,
-            height: isSmallScreen ? 68 : 60,
             justifyContent: 'center',
             alignItems: 'center',
           },
           tabBarLabelStyle: {
-            fontSize: isSmallScreen ? 11 : 12,
+            fontSize: 11,
             fontWeight: '600' as const,
-            marginTop: isSmallScreen ? 0 : 2,
-            marginBottom: isSmallScreen ? 0 : 2,
+            marginTop: 2,
+            marginBottom: 0,
             paddingTop: 0,
             paddingBottom: 0,
           },
