@@ -28,7 +28,7 @@ export default function TabLayout() {
 
   return (
     <>
-      {isWeb && isSmallScreen && (
+      {isWeb && (
         // @ts-ignore
         <style dangerouslySetInnerHTML={{
           __html: `
@@ -39,6 +39,12 @@ export default function TabLayout() {
               margin-bottom: 0px !important;
               padding-left: 0px !important;
               padding-right: 0px !important;
+            }
+            /* Support dynamic safe area bottom gap in mobile browsers (Safari / Chrome iOS & Android) */
+            nav[role="tablist"], [role="tablist"], div[style*="flex-direction: row"][style*="bottom: 0"] {
+              padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px) !important;
+              height: calc(60px + max(env(safe-area-inset-bottom, 0px), 8px)) !important;
+              box-sizing: content-box !important;
             }
           `
         }} />
@@ -66,8 +72,8 @@ export default function TabLayout() {
             borderTopColor: Colors.light.borderLight,
             borderTopWidth: 1,
             paddingTop: 6,
-            paddingBottom: isWeb ? 4 : bottomInset,
-            height: isWeb ? 60 : 60 + bottomInset,
+            paddingBottom: isWeb ? 8 : bottomInset,
+            height: isWeb ? 68 : 60 + bottomInset,
             elevation: 8,
             shadowColor: Colors.light.shadow,
             shadowOffset: { width: 0, height: -2 },
