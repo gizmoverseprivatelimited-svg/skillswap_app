@@ -93,3 +93,10 @@ update the root folder and server folder code on github as server folder has its
 
 ===== Eas Cloud =====
 create a new .aab build for playstore with cloud eas as cloude eas is already configured
+
+
+===== Eas android build with cloud eas =====
+
+npx eas-cli build --platform android --profile production --non-interactive
+
+ 

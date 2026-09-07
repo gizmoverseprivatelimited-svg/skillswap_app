@@ -38,6 +38,11 @@ export async function requestCameraAndMicrophonePermissions(
         permissionsToRequest.push(PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT);
       }
 
+      // Request Notification permission for Android 13+ (API 33+) for foreground media projection
+      if (Platform.Version >= 33 && (PermissionsAndroid.PERMISSIONS as any).POST_NOTIFICATIONS) {
+        permissionsToRequest.push((PermissionsAndroid.PERMISSIONS as any).POST_NOTIFICATIONS);
+      }
+
       const grantedResults = await PermissionsAndroid.requestMultiple(permissionsToRequest);
 
       const cameraGranted =

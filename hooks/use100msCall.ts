@@ -561,9 +561,45 @@ export function use100msCall({
 
     async function initNative100ms() {
       try {
-        const { HMSSDK, HMSConfig, HMSUpdateListenerActions } = await import('@100mslive/react-native-hms');
+        setIsConnecting(true);
 
-        const hms = await HMSSDK.build();
+        // Ensure camera and microphone permissions are requested and granted BEFORE building SDK instance
+        const permResult = await requestCameraAndMicrophonePermissions({ showAlertOnDenial: true });
+        console.log('[100ms] Permissions result:', permResult);
+
+        const {
+          HMSSDK,
+          HMSConfig,
+          HMSUpdateListenerActions,
+          HMSTrackSource,
+          HMSTrackSettings,
+          HMSVideoTrackSettings,
+          HMSAudioTrackSettings,
+          HMSTrackSettingsInitState,
+        } = await import('@100mslive/react-native-hms');
+
+        // Configure initial hardware media track states based on user preview choices
+        let trackSettings: any;
+        try {
+          trackSettings = new HMSTrackSettings({
+            video: new HMSVideoTrackSettings({
+              initialState:
+                initialVideoOn && mode === 'video'
+                  ? HMSTrackSettingsInitState.UNMUTED
+                  : HMSTrackSettingsInitState.MUTED,
+            }),
+            audio: new HMSAudioTrackSettings({
+              initialState:
+                initialMicOn
+                  ? HMSTrackSettingsInitState.UNMUTED
+                  : HMSTrackSettingsInitState.MUTED,
+            }),
+          });
+        } catch (tsErr) {
+          console.warn('[100ms] trackSettings config notice:', tsErr);
+        }
+
+        const hms = trackSettings ? await HMSSDK.build({ trackSettings }) : await HMSSDK.build();
         hmsInstanceRef.current = hms;
 
         try {
@@ -577,28 +613,77 @@ export function use100msCall({
 
         hms.addEventListener(HMSUpdateListenerActions.ON_JOIN, (data: any) => {
           if (!isMounted) return;
-          console.log('[100ms] Joined room:', data);
+          console.log('[100ms] Joined room successfully:', data);
           setIsConnecting(false);
           setIsConnected(true);
 
-          if (data?.localPeer?.videoTrack?.trackId) {
-            const videoTrackId = data.localPeer.videoTrack.trackId;
-            setParticipants(prev =>
-              prev.map(p =>
-                p.isLocal
-                  ? {
-                      ...p,
-                      videoTrackId,
-                      status: 'connected',
-                      isVideoOff: data.localPeer.videoTrack.isMute() ?? false,
-                    }
-                  : p
-              )
-            );
+          const localVideoTrack =
+            data?.localPeer?.videoTrack ||
+            (data?.localPeer?.localVideoTrack && typeof data.localPeer.localVideoTrack === 'function'
+              ? data.localPeer.localVideoTrack()
+              : null) ||
+            (hms as any).localPeer?.videoTrack ||
+            (hms as any).localPeer?.localVideoTrack?.() ||
+            (typeof (hms as any).getLocalPeer === 'function' ? (hms as any).getLocalPeer()?.videoTrack : null);
+
+          const localAudioTrack =
+            data?.localPeer?.audioTrack ||
+            (data?.localPeer?.localAudioTrack && typeof data.localPeer.localAudioTrack === 'function'
+              ? data.localPeer.localAudioTrack()
+              : null) ||
+            (hms as any).localPeer?.audioTrack ||
+            (hms as any).localPeer?.localAudioTrack?.() ||
+            (typeof (hms as any).getLocalPeer === 'function' ? (hms as any).getLocalPeer()?.audioTrack : null);
+
+          const localVideoTrackId = localVideoTrack?.trackId;
+          const isVideoMuted =
+            localVideoTrack && typeof localVideoTrack.isMute === 'function'
+              ? localVideoTrack.isMute()
+              : !initialVideoOn || mode !== 'video';
+          const isAudioMuted =
+            localAudioTrack && typeof localAudioTrack.isMute === 'function'
+              ? localAudioTrack.isMute()
+              : !initialMicOn;
+
+          // Explicitly set unmuted on local tracks if enabled
+          try {
+            if (localAudioTrack && typeof localAudioTrack.setMute === 'function') {
+              localAudioTrack.setMute(initialMicOn === false);
+            }
+            if (localVideoTrack && typeof localVideoTrack.setMute === 'function') {
+              localVideoTrack.setMute(initialVideoOn === false || mode !== 'video');
+            }
+          } catch (muteErr) {
+            console.warn('[100ms] ON_JOIN setMute notice:', muteErr);
           }
+
+          setParticipants(prev =>
+            prev.map(p =>
+              p.isLocal
+                ? {
+                    ...p,
+                    videoTrackId: localVideoTrackId || p.videoTrackId,
+                    status: 'connected' as const,
+                    isVideoOff: isVideoMuted,
+                    isMuted: isAudioMuted,
+                  }
+                : p
+            )
+          );
 
           if (data?.remotePeers && Array.isArray(data.remotePeers) && data.remotePeers.length > 0) {
             for (const remotePeer of data.remotePeers) {
+              const rVideoTrack =
+                remotePeer.videoTrack ||
+                (typeof remotePeer.remoteVideoTrack === 'function' ? remotePeer.remoteVideoTrack() : null);
+              const rAudioTrack =
+                remotePeer.audioTrack ||
+                (typeof remotePeer.remoteAudioTrack === 'function' ? remotePeer.remoteAudioTrack() : null);
+
+              const rVideoTrackId = rVideoTrack?.trackId;
+              const rIsVideoMuted = rVideoTrack?.isMute?.() ?? false;
+              const rIsAudioMuted = rAudioTrack?.isMute?.() ?? false;
+
               setParticipants(prev => {
                 const existingIndex = prev.findIndex(
                   p => !p.isLocal && (p.id === remotePeer.peerID || p.role === remotePeer.role?.name)
@@ -609,10 +694,11 @@ export function use100msCall({
                       ? {
                           ...p,
                           id: remotePeer.peerID,
-                          videoTrackId: remotePeer.videoTrack?.trackId,
-                          isVideoOff: remotePeer.videoTrack?.isMute() ?? false,
-                          isMuted: remotePeer.audioTrack?.isMute() ?? false,
-                          status: 'connected',
+                          name: remotePeer.name || p.name,
+                          videoTrackId: rVideoTrackId || p.videoTrackId,
+                          isVideoOff: rIsVideoMuted,
+                          isMuted: rIsAudioMuted,
+                          status: 'connected' as const,
                         }
                       : p
                   );
@@ -628,13 +714,13 @@ export function use100msCall({
                         ? 'teacher'
                         : 'student',
                     isLocal: false,
-                    isMuted: remotePeer.audioTrack?.isMute() ?? true,
-                    isVideoOff: remotePeer.videoTrack?.isMute() ?? false,
+                    isMuted: rIsAudioMuted,
+                    isVideoOff: rIsVideoMuted,
                     isHandRaised: false,
                     isSpeaking: false,
-                    status: 'connected',
+                    status: 'connected' as const,
                     joinedAt: new Date().toISOString(),
-                    videoTrackId: remotePeer.videoTrack?.trackId,
+                    videoTrackId: rVideoTrackId,
                   },
                 ];
               });
@@ -648,6 +734,11 @@ export function use100msCall({
           if (!peer) return;
 
           if (type === 'PEER_JOINED' && !peer.isLocal) {
+            const rVideoTrack =
+              peer.videoTrack || (typeof peer.remoteVideoTrack === 'function' ? peer.remoteVideoTrack() : null);
+            const rAudioTrack =
+              peer.audioTrack || (typeof peer.remoteAudioTrack === 'function' ? peer.remoteAudioTrack() : null);
+
             setParticipants(prev => {
               const existingIndex = prev.findIndex(
                 p => !p.isLocal && (p.id === peer.peerID || p.status === 'connecting' || !p.videoTrackId)
@@ -660,9 +751,9 @@ export function use100msCall({
                         id: peer.peerID,
                         name: peer.name || p.name || 'Partner',
                         status: 'connected' as const,
-                        videoTrackId: peer.videoTrack?.trackId || p.videoTrackId,
-                        isVideoOff: peer.videoTrack?.isMute() ?? false,
-                        isMuted: peer.audioTrack?.isMute() ?? false,
+                        videoTrackId: rVideoTrack?.trackId || p.videoTrackId,
+                        isVideoOff: rVideoTrack?.isMute?.() ?? false,
+                        isMuted: rAudioTrack?.isMute?.() ?? false,
                       }
                     : p
                 );
@@ -678,13 +769,13 @@ export function use100msCall({
                       ? 'teacher'
                       : 'student',
                   isLocal: false,
-                  isMuted: peer.audioTrack?.isMute() ?? true,
-                  isVideoOff: peer.videoTrack?.isMute() ?? false,
+                  isMuted: rAudioTrack?.isMute?.() ?? false,
+                  isVideoOff: rVideoTrack?.isMute?.() ?? false,
                   isHandRaised: false,
                   isSpeaking: false,
                   status: 'connected' as const,
                   joinedAt: new Date().toISOString(),
-                  videoTrackId: peer.videoTrack?.trackId,
+                  videoTrackId: rVideoTrack?.trackId,
                 },
               ];
             });
@@ -698,6 +789,11 @@ export function use100msCall({
           const { peer, track, type } = data;
           if (!peer || !track) return;
 
+          const isScreenSource =
+            track.source === 'screen' ||
+            track.source === 'SCREEN' ||
+            (HMSTrackSource && track.source === HMSTrackSource.SCREEN);
+
           setParticipants(prev => {
             let updatedAny = false;
             return prev.map(p => {
@@ -708,18 +804,29 @@ export function use100msCall({
               updatedAny = true;
 
               if (track.type === 'VIDEO') {
-                const isVideoMuted = track.isMute() || type === 'TRACK_MUTED' || type === 'TRACK_REMOVED';
+                const isTrackMuted = track.isMute?.() || type === 'TRACK_MUTED' || type === 'TRACK_REMOVED';
+
+                if (isScreenSource) {
+                  return {
+                    ...p,
+                    id: peer.isLocal ? p.id : peer.peerID,
+                    name: !peer.isLocal && peer.name ? peer.name : p.name,
+                    screenShareTrackId: type === 'TRACK_REMOVED' ? undefined : track.trackId,
+                    status: 'connected' as const,
+                  };
+                }
+
                 return {
                   ...p,
                   id: peer.isLocal ? p.id : peer.peerID,
                   name: !peer.isLocal && peer.name ? peer.name : p.name,
                   videoTrackId: type === 'TRACK_REMOVED' ? undefined : track.trackId,
-                  isVideoOff: isVideoMuted,
+                  isVideoOff: isTrackMuted,
                   status: 'connected' as const,
                 };
               }
               if (track.type === 'AUDIO') {
-                const isAudioMuted = track.isMute() || type === 'TRACK_MUTED' || type === 'TRACK_REMOVED';
+                const isAudioMuted = track.isMute?.() || type === 'TRACK_MUTED' || type === 'TRACK_REMOVED';
                 return {
                   ...p,
                   id: peer.isLocal ? p.id : peer.peerID,
@@ -760,37 +867,98 @@ export function use100msCall({
           onEndCall();
         });
 
-        // Ensure camera and microphone permissions are granted on mobile device
-        await requestCameraAndMicrophonePermissions({ showAlertOnDenial: false });
+        // Listen for SDK-level errors to surface them instead of silently failing
+        hms.addEventListener(HMSUpdateListenerActions.ON_ERROR, (error: any) => {
+          if (!isMounted) return;
+          const errorCode = error?.code || error?.errorCode || 'UNKNOWN';
+          const errorMsg = error?.message || error?.description || String(error || 'Unknown error');
+          console.error('[100ms] SDK Error:', errorCode, errorMsg);
+
+          // If this is a fatal error (join failure, auth failure), surface to user
+          if (
+            errorCode === 2003 || // Token error
+            errorCode === 4005 || // Peer already joined
+            errorMsg.includes('join') ||
+            errorMsg.includes('token') ||
+            errorMsg.includes('auth')
+          ) {
+            setIsConnecting(false);
+            Alert.alert(
+              'Connection Error',
+              `Could not connect to the call room: ${errorMsg}`,
+              [{ text: 'OK' }]
+            );
+          }
+        });
+
+        let tokenToUse = authToken || '';
+        if (!tokenToUse && roomCode) {
+          try {
+            if (typeof hms.getAuthTokenByRoomCode === 'function') {
+              tokenToUse = await hms.getAuthTokenByRoomCode(roomCode);
+            }
+          } catch (tokenErr) {
+            console.warn('[100ms] getAuthTokenByRoomCode fallback notice:', tokenErr);
+          }
+          if (!tokenToUse) {
+            tokenToUse = roomCode;
+          }
+        }
 
         const config = new HMSConfig({
           username: userName || (isTeacher ? 'Teacher' : 'Participant'),
-          authToken: authToken || roomCode || '',
+          authToken: tokenToUse,
         });
 
-        await hms.join(config);
+        // Small delay to ensure native SDK modules are fully initialized before joining
+        await new Promise(resolve => setTimeout(resolve, 200));
 
-        // Apply initial mic and video states on join if user chose them in preview
-        if (initialMicOn === false) {
-          try {
-            const track = (hms as any).localPeer?.localAudioTrack?.();
-            if (track && typeof track.setMute === 'function') {
-              track.setMute(true);
-            }
-          } catch (e) {}
+        console.log('[100ms] Joining room with config...');
+        await hms.join(config);
+        console.log('[100ms] Join call completed (awaiting ON_JOIN callback)');
+
+        // Ensure tracks are explicitly unmuted or muted according to initial user choices
+        try {
+          const lPeer = (hms as any).localPeer;
+          const audioTrack = lPeer?.localAudioTrack?.() || lPeer?.audioTrack;
+          const videoTrack = lPeer?.localVideoTrack?.() || lPeer?.videoTrack;
+
+          if (audioTrack && typeof audioTrack.setMute === 'function') {
+            audioTrack.setMute(initialMicOn === false);
+          }
+          if (videoTrack && typeof videoTrack.setMute === 'function') {
+            videoTrack.setMute(initialVideoOn === false || mode !== 'video');
+          }
+
+          if (videoTrack?.trackId) {
+            setParticipants(prev =>
+              prev.map(p =>
+                p.isLocal
+                  ? {
+                      ...p,
+                      videoTrackId: videoTrack.trackId,
+                      status: 'connected' as const,
+                      isVideoOff: initialVideoOn === false || mode !== 'video',
+                      isMuted: initialMicOn === false,
+                    }
+                  : p
+              )
+            );
+          }
+        } catch (e) {
+          console.warn('[100ms] Post-join track sync notice:', e);
         }
-        if (initialVideoOn === false || mode !== 'video') {
-          try {
-            const track = (hms as any).localPeer?.localVideoTrack?.();
-            if (track && typeof track.setMute === 'function') {
-              track.setMute(true);
-            }
-          } catch (e) {}
-        }
-      } catch (err) {
-        console.warn('[use100msCall Native] Join exception:', err);
+      } catch (err: any) {
+        const errMsg = err?.message || err?.description || String(err || 'Unknown error');
+        console.error('[use100msCall Native] Join exception:', errMsg, err);
         setIsConnecting(false);
-        setIsConnected(true);
+        // Do NOT set isConnected=true on failure — this was masking real errors
+        // Show an alert so the user knows what happened
+        Alert.alert(
+          'Call Connection Failed',
+          `Could not connect to the call: ${errMsg}. Please check your internet connection and try again.`,
+          [{ text: 'OK' }]
+        );
       }
     }
 
@@ -804,7 +972,7 @@ export function use100msCall({
         hmsInstanceRef.current = null;
       }
     };
-  }, [roomCode, authToken, userName, isTeacher]);
+  }, [roomCode, authToken, userName, isTeacher, initialMicOn, initialVideoOn, mode]);
 
   // Toggle local microphone
   const toggleMute = useCallback(() => {
@@ -1043,6 +1211,25 @@ export function use100msCall({
         } catch (e) {
           console.warn('[100ms] stopScreenshare error:', e);
         }
+
+        // Broadcast native screen share stopped
+        const screenShareMsg = {
+          type: 'screenshare_state',
+          room: roomId,
+          senderId: currentUserId,
+          isScreenSharing: false,
+        };
+        if (broadcastChannelRef.current) {
+          try {
+            broadcastChannelRef.current.postMessage(screenShareMsg);
+          } catch (e) {}
+        }
+        if (socket) {
+          socket.emit('call_signal', screenShareMsg);
+          socket.emit('signal', screenShareMsg);
+        }
+
+        setParticipants(prev => prev.map(p => (p.isLocal ? { ...p, screenShareTrackId: undefined, screenShareStream: undefined } : p)));
       }
       setIsScreenSharing(false);
     } else {
@@ -1116,22 +1303,45 @@ export function use100msCall({
         }
       } else if (hmsInstanceRef.current) {
         try {
+          if (Platform.OS === 'android') {
+            await requestCameraAndMicrophonePermissions({ showAlertOnDenial: false });
+          }
           if (typeof hmsInstanceRef.current.startScreenshare === 'function') {
             await hmsInstanceRef.current.startScreenshare();
             setIsScreenSharing(true);
+
+            // Broadcast screenshare started to cross-platform peers
+            const screenShareMsg = {
+              type: 'screenshare_state',
+              room: roomId,
+              senderId: currentUserId,
+              isScreenSharing: true,
+            };
+            if (broadcastChannelRef.current) {
+              try {
+                broadcastChannelRef.current.postMessage(screenShareMsg);
+              } catch (e) {}
+            }
+            if (socket) {
+              socket.emit('call_signal', screenShareMsg);
+              socket.emit('signal', screenShareMsg);
+            }
           } else {
             Alert.alert(
               'Screen Sharing',
-              'Screen sharing is best supported on desktop web browsers. Mobile screen broadcasting is not available on this device.'
+              'Screen sharing is best supported on desktop web browsers. Mobile screen broadcasting is not supported on this device.'
             );
           }
         } catch (err: any) {
           console.warn('[100ms] startScreenshare error:', err);
           setIsScreenSharing(false);
-          Alert.alert(
-            'Screen Sharing Unavailable',
-            'Screen sharing could not be started on this mobile device. Please use a desktop browser to share your screen.'
-          );
+          const errorMsg = String(err?.message || err?.description || err || '');
+          if (!errorMsg.includes('RESULT_CANCELED') && !errorMsg.includes('canceled') && !errorMsg.includes('cancelled')) {
+            Alert.alert(
+              'Screen Sharing',
+              'Screen sharing could not be started. Ensure you granted screen recording permission when prompted.'
+            );
+          }
         }
       } else {
         Alert.alert(

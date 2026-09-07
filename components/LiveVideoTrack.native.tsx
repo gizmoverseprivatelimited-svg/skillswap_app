@@ -1,68 +1,82 @@
-import React from 'react';
-import { StyleSheet, ViewStyle, requireNativeComponent, UIManager } from 'react-native';
+import React, { useMemo } from 'react';
+import { StyleSheet, ViewStyle, Platform, View } from 'react-native';
 
-let NativeHMSView: any = null;
-let HMSVideoViewModeObj: any = {
-  ASPECT_FIT: 1,
-  ASPECT_FILL: 2,
-};
+// Use the SDK's own HmsViewComponent which has critical Android lifecycle handling:
+// - On Android, it delays applying styles until the native view emits an onChange event
+// - It correctly manages track attachment and resolution change events
+let HmsViewComponent: any = null;
 
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const hmsModule = require('@100mslive/react-native-hms');
-  if (hmsModule?.HMSVideoViewMode) {
-    HMSVideoViewModeObj = hmsModule.HMSVideoViewMode;
+if (Platform.OS !== 'web') {
+  try {
+    // Try the SDK's exported HmsViewComponent first (recommended approach)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const hmsModule = require('@100mslive/react-native-hms');
+    if (hmsModule?.HmsViewComponent) {
+      HmsViewComponent = hmsModule.HmsViewComponent;
+    } else if (hmsModule?.HmsView) {
+      HmsViewComponent = hmsModule.HmsView;
+    }
+  } catch (e) {
+    // Primary import failed, try internal path
   }
-} catch {
-  // Gracefully fallback if module is not available
-}
 
-try {
-  // Check if HMSView is registered in native UIManager before requiring it
-  const hasHMSViewConfig = Boolean(
-    UIManager.getViewManagerConfig?.('HMSView') ||
-    (UIManager as any)?.HMSView
-  );
-  if (hasHMSViewConfig) {
-    NativeHMSView = requireNativeComponent<any>('HMSView');
+  if (!HmsViewComponent) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const hmsViewModule = require('@100mslive/react-native-hms/lib/commonjs/classes/HmsView');
+      if (hmsViewModule?.HmsViewComponent) {
+        HmsViewComponent = hmsViewModule.HmsViewComponent;
+      }
+    } catch (e) {
+      console.warn('[LiveVideoTrack.native] Could not load HmsViewComponent:', e);
+    }
   }
-} catch {
-  NativeHMSView = null;
 }
 
 export interface LiveVideoTrackProps {
   trackId?: string;
   mediaStream?: any;
   mirror?: boolean;
+  facingMode?: 'user' | 'environment';
   scaleType?: 'fill' | 'fit';
   style?: ViewStyle;
 }
 
-export default function LiveVideoTrack({ trackId, mirror = false, scaleType = 'fill', style }: LiveVideoTrackProps) {
-  if (!trackId || !NativeHMSView) {
+export default function LiveVideoTrack({
+  trackId,
+  mirror = false,
+  scaleType = 'fill',
+  style,
+}: LiveVideoTrackProps) {
+  // Don't render if no trackId or no component available
+  if (!trackId || !HmsViewComponent) {
     return null;
   }
 
   const flattenedStyle = StyleSheet.flatten([styles.container, style]);
-  const hmsScaleType = scaleType === 'fit' ? HMSVideoViewModeObj.ASPECT_FIT : HMSVideoViewModeObj.ASPECT_FILL;
+  const hmsScaleType = scaleType === 'fit' ? 'ASPECT_FIT' : 'ASPECT_FILL';
+
+  // Use key to force remount when trackId changes, ensuring the native view
+  // correctly binds to the new track
+  const viewKey = `hms-track-${trackId}`;
 
   try {
     return (
-      <NativeHMSView
-        data={{
-          trackId,
-          id: 'default-hms-view',
-          mirror,
-          scaleType: hmsScaleType,
-        }}
-        autoSimulcast={true}
-        scaleType={hmsScaleType}
-        setZOrderMediaOverlay={false}
-        style={flattenedStyle}
-      />
+      <View style={flattenedStyle} pointerEvents="none">
+        <HmsViewComponent
+          key={viewKey}
+          trackId={trackId}
+          id="12345"
+          mirror={Boolean(mirror)}
+          scaleType={hmsScaleType}
+          autoSimulcast={true}
+          setZOrderMediaOverlay={false}
+          style={styles.innerNativeView}
+        />
+      </View>
     );
   } catch (err) {
-    console.warn('[LiveVideoTrack.native] Render error:', err);
+    console.warn('[LiveVideoTrack.native] Render exception:', err);
     return null;
   }
 }
@@ -70,6 +84,15 @@ export default function LiveVideoTrack({ trackId, mirror = false, scaleType = 'f
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+  },
+  innerNativeView: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
     backgroundColor: 'transparent',
   },
 });

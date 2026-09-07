@@ -72,6 +72,9 @@ export default function CallPreviewScreen({
   const isMountedRef = useRef<boolean>(true);
   const localStreamRef = useRef<MediaStream | null>(null);
 
+  const [permissionGranted, setPermissionGranted] = useState<boolean>(true);
+  const [isCheckingPermission, setIsCheckingPermission] = useState<boolean>(Platform.OS !== 'web');
+
   const stopAllMediaTracks = useCallback(() => {
     if (localStreamRef.current) {
       try {
@@ -125,7 +128,6 @@ export default function CallPreviewScreen({
           }
         } catch (err: any) {
           console.warn('[CallPreviewScreen] getUserMedia notice:', err);
-          // Fallback to video-only if audio device is locked or vice versa
           if (withVideo) {
             try {
               const fallbackStream = await navigator.mediaDevices.getUserMedia({
@@ -163,7 +165,19 @@ export default function CallPreviewScreen({
 
     // Request native camera & mic permissions on mobile devices
     if (Platform.OS !== 'web') {
-      void requestCameraAndMicrophonePermissions();
+      setIsCheckingPermission(true);
+      void requestCameraAndMicrophonePermissions({ showAlertOnDenial: false })
+        .then((res) => {
+          if (isMountedRef.current) {
+            setPermissionGranted(Boolean(res.granted || res.camera || res.microphone));
+            setIsCheckingPermission(false);
+          }
+        })
+        .catch(() => {
+          if (isMountedRef.current) {
+            setIsCheckingPermission(false);
+          }
+        });
     } else {
       startPreview(isVideoOn, isMicOn, facingMode);
     }
@@ -177,30 +191,31 @@ export default function CallPreviewScreen({
   const handleToggleVideo = useCallback(() => {
     const next = !isVideoOn;
     setIsVideoOn(next);
-    if (localStreamRef.current) {
-      localStreamRef.current.getVideoTracks().forEach((t) => {
-        t.enabled = next;
-      });
-      if (!next) {
-        // Stop video tracks to free camera hardware light immediately
+    if (Platform.OS === 'web') {
+      if (localStreamRef.current) {
         localStreamRef.current.getVideoTracks().forEach((t) => {
-          try {
-            t.stop();
-          } catch (e) {}
+          t.enabled = next;
         });
-        startPreview(false, isMicOn, facingMode);
-      } else {
+        if (!next) {
+          localStreamRef.current.getVideoTracks().forEach((t) => {
+            try {
+              t.stop();
+            } catch (e) {}
+          });
+          startPreview(false, isMicOn, facingMode);
+        } else {
+          startPreview(true, isMicOn, facingMode);
+        }
+      } else if (next) {
         startPreview(true, isMicOn, facingMode);
       }
-    } else if (next) {
-      startPreview(true, isMicOn, facingMode);
     }
   }, [isVideoOn, isMicOn, facingMode, startPreview]);
 
   const handleToggleMic = useCallback(() => {
     const next = !isMicOn;
     setIsMicOn(next);
-    if (localStreamRef.current) {
+    if (Platform.OS === 'web' && localStreamRef.current) {
       localStreamRef.current.getAudioTracks().forEach((t) => {
         t.enabled = next;
       });
@@ -210,16 +225,39 @@ export default function CallPreviewScreen({
   const handleSwitchCamera = useCallback(() => {
     const nextFacing = facingMode === 'user' ? 'environment' : 'user';
     setFacingMode(nextFacing);
-    if (isVideoOn) {
+    if (isVideoOn && Platform.OS === 'web') {
       startPreview(true, isMicOn, nextFacing);
     }
   }, [facingMode, isVideoOn, isMicOn, startPreview]);
 
   const handleJoinPress = useCallback(() => {
-    setIsJoining(true);
-    // Stop local preview tracks so 100ms / call room connection can cleanly acquire media
-    stopAllMediaTracks();
-    onJoin({ isMicOn, isVideoOn });
+    try {
+      setIsJoining(true);
+      // Stop local preview tracks so 100ms / call room connection can cleanly acquire media
+      stopAllMediaTracks();
+      onJoin({ isMicOn, isVideoOn });
+
+      // Safety timeout: if the join process hangs for more than 15 seconds, reset the button
+      const joinTimeout = setTimeout(() => {
+        if (isMountedRef.current) {
+          setIsJoining(false);
+        }
+      }, 15000);
+
+      // Clean up timeout on unmount
+      return () => clearTimeout(joinTimeout);
+    } catch (err: any) {
+      console.error('[CallPreviewScreen] Join error:', err);
+      setIsJoining(false);
+      if (Platform.OS !== 'web') {
+        const { Alert: RNAlert } = require('react-native');
+        RNAlert.alert(
+          'Join Failed',
+          'Could not join the meeting. Please try again.',
+          [{ text: 'OK' }]
+        );
+      }
+    }
   }, [isMicOn, isVideoOn, stopAllMediaTracks, onJoin]);
 
   const handleExitPress = useCallback(() => {
@@ -296,6 +334,18 @@ export default function CallPreviewScreen({
                   mirror={facingMode === 'user'}
                   style={styles.videoTrack}
                 />
+              ) : isVideoOn && Platform.OS !== 'web' ? (
+                <View style={styles.cameraOffOverlay}>
+                  <View style={styles.avatarGlow}>
+                    <Image source={{ uri: avatarUri }} style={styles.largeAvatar} />
+                  </View>
+                  <View style={[styles.cameraOffPill, { borderColor: 'rgba(52, 211, 153, 0.4)', backgroundColor: 'rgba(6, 78, 59, 0.6)' }]}>
+                    <Video size={14} color="#34D399" />
+                    <Text style={[styles.cameraOffText, { color: '#34D399' }]}>
+                      {permissionGranted ? 'Camera Ready (HD)' : 'Grant Permission in Call'}
+                    </Text>
+                  </View>
+                </View>
               ) : (
                 <View style={styles.cameraOffOverlay}>
                   <View style={styles.avatarGlow}>
