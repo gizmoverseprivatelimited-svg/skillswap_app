@@ -11,6 +11,7 @@ import {
   Platform,
   Share,
   useWindowDimensions,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -162,15 +163,29 @@ export default function ProfileScreen() {
     try {
       if (Platform.OS !== 'web') {
         if (source === 'camera') {
-          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync();
           if (status !== 'granted') {
-            showAlert('Permission needed', 'Please allow camera access to take a photo.');
+            if (!canAskAgain) {
+              showAlert('Permission Required', 'Camera permission is required. Please enable it in your device settings.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => Linking.openSettings() }
+              ]);
+            } else {
+              showAlert('Permission needed', 'Please allow camera access to take a photo.');
+            }
             return;
           }
         } else {
-          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (status !== 'granted') {
-            showAlert('Permission needed', 'Please allow access to your photos to upload a document.');
+            if (!canAskAgain) {
+              showAlert('Permission Required', 'Photo library permission is required. Please enable it in your device settings.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => Linking.openSettings() }
+              ]);
+            } else {
+              showAlert('Permission needed', 'Please allow access to your photos to upload a document.');
+            }
             return;
           }
         }
