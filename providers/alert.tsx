@@ -26,17 +26,26 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     if (Platform.OS === 'web') {
       setConfig({ title, message, buttons });
     } else {
-      Alert.alert(title, message, buttons as any);
+      const wrappedButtons = buttons?.map(btn => ({
+        ...btn,
+        onPress: btn.onPress ? () => {
+          if (Platform.OS === 'ios') {
+            setTimeout(() => {
+              btn.onPress!();
+            }, 100);
+          } else {
+            btn.onPress!();
+          }
+        } : undefined
+      }));
+      Alert.alert(title, message, wrappedButtons as any);
     }
   }, []);
 
   const handleButtonPress = (onPress?: () => void) => {
     setConfig(null);
     if (onPress) {
-      // Small delay to let modal close transition finish
-      setTimeout(() => {
-        onPress();
-      }, 100);
+      onPress();
     }
   };
 
