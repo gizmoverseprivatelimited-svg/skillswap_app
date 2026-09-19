@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "Leteski",
-    "slug": "leteski-community-90mlx56",
-    "owner": "anonymousepersondev",
+    "slug": "leteski-app",
+    "owner": "shersingh309892",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -17,28 +17,36 @@
         "NSCalendarsUsageDescription": "Allow $(PRODUCT_NAME) to access your calendar",
         "NSRemindersUsageDescription": "Allow $(PRODUCT_NAME) to access your reminders",
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to use your camera for video calls and profile pictures",
-        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use your microphone for voice and video calls"
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use your microphone for voice and video calls",
+        "UIBackgroundModes": [
+          "audio",
+          "voip"
+        ]
       }
     },
     "android": {
+      "versionCode": 18,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.leteski_community",
-      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CHANGE_NETWORK_STATE",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.BLUETOOTH",
         "android.permission.BLUETOOTH_CONNECT",
-        "android.permission.READ_CALENDAR",
-        "android.permission.WRITE_CALENDAR",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.FOREGROUND_SERVICE_CAMERA",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
       ]
     },
     "web": {
@@ -51,10 +59,13 @@
         {
           "android": {
             "usesCleartextTraffic": true,
-            "minSdkVersion": 24
+            "minSdkVersion": 24,
+            "targetSdkVersion": 36,
+            "newArchEnabled": false
           },
           "ios": {
-            "useFrameworks": "static"
+            "useFrameworks": "static",
+            "newArchEnabled": false
           }
         }
       ],
@@ -104,7 +115,9 @@
       ],
       "expo-status-bar",
       "expo-web-browser",
-      "./plugins/withHmsScreenshare"
+      "./plugins/withHmsScreenshare",
+      "@react-native-community/datetimepicker",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true
@@ -114,7 +127,7 @@
         "origin": "https://rork.com/"
       },
       "eas": {
-        "projectId": "acce33d6-7ef2-4992-b90f-39f02ccb2aaf"
+        "projectId": "5a9c080f-58e9-40e8-a567-58f609b89caa"
       }
     }
   }

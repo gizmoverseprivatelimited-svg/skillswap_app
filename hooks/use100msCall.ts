@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Platform, Alert } from 'react-native';
-import { requestCameraAndMicrophonePermissions } from '../lib/media-permissions';
+import { Platform, Alert, PermissionsAndroid, type Permission } from 'react-native';
+import {
+  requestCameraAndMicrophonePermissions,
+  checkCameraAndMicrophonePermissions,
+} from '../lib/media-permissions';
 import {
   type CallParticipant,
   type CallMessage,
@@ -60,6 +63,7 @@ export function use100msCall({
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [selectedAudioDevice, setSelectedAudioDevice] = useState<AudioDevice>('SPEAKER_PHONE');
   const [availableAudioDevices, setAvailableAudioDevices] = useState<string[]>(['SPEAKER_PHONE', 'EARPIECE']);
+  const [sdkId, setSdkId] = useState<string>('12345');
 
   const hmsInstanceRef = useRef<any>(null);
   const webStreamRef = useRef<MediaStream | null>(null);
@@ -563,9 +567,17 @@ export function use100msCall({
       try {
         setIsConnecting(true);
 
-        // Ensure camera and microphone permissions are requested and granted BEFORE building SDK instance
-        const permResult = await requestCameraAndMicrophonePermissions({ showAlertOnDenial: true });
-        console.log('[100ms] Permissions result:', permResult);
+        // Verify camera and microphone permissions are active
+        const curPerm = await checkCameraAndMicrophonePermissions();
+        let permResult = curPerm;
+        if (!curPerm.granted) {
+          permResult = await requestCameraAndMicrophonePermissions({ showAlertOnDenial: false });
+        }
+        console.log("===== LETESKI MEDIA PERMISSIONS =====");
+        console.log("Camera:", JSON.stringify(curPerm.camera, null, 2));
+        console.log("Microphone:", JSON.stringify(curPerm.microphone, null, 2));
+        console.log("Granted:", JSON.stringify(curPerm.granted, null, 2));
+        console.log("=====================================");
 
         const {
           HMSSDK,
@@ -599,8 +611,37 @@ export function use100msCall({
           console.warn('[100ms] trackSettings config notice:', tsErr);
         }
 
-        const hms = trackSettings ? await HMSSDK.build({ trackSettings }) : await HMSSDK.build();
+        console.log('[100ms] Building HMSSDK instance with trackSettings...');
+        const buildOptions: any = {
+          haltPreviewJoinForPermissionsRequestOnAndroid: true,
+        };
+        if (trackSettings) {
+          buildOptions.trackSettings = trackSettings;
+        }
+        
+        const hms = await HMSSDK.build(buildOptions);
+        
+        if (Platform.OS === 'android') {
+          hms.addEventListener(
+            HMSUpdateListenerActions.ON_PERMISSIONS_REQUESTED,
+            async (data: { permissions: Array<string> }) => {
+              try {
+                if (data.permissions && data.permissions.length > 0) {
+                  await PermissionsAndroid.requestMultiple(data.permissions as Permission[]);
+                }
+                await hms.setPermissionsAcceptedOnAndroid();
+              } catch (e) {
+                console.warn('[100ms] Error requesting Android permissions:', e);
+                await hms.setPermissionsAcceptedOnAndroid();
+              }
+            }
+          );
+        }
         hmsInstanceRef.current = hms;
+        if (hms?.id) {
+          setSdkId(hms.id);
+        }
+        console.log('[100ms] HMSSDK built successfully, id:', hms?.id);
 
         try {
           const devices = await hms.getAudioDevicesList();
@@ -617,33 +658,34 @@ export function use100msCall({
           setIsConnecting(false);
           setIsConnected(true);
 
+          const room = data?.room;
+          const localPeer = room?.localPeer || data?.localPeer || (hms as any).localPeer;
           const localVideoTrack =
-            data?.localPeer?.videoTrack ||
-            (data?.localPeer?.localVideoTrack && typeof data.localPeer.localVideoTrack === 'function'
-              ? data.localPeer.localVideoTrack()
+            localPeer?.videoTrack ||
+            (localPeer?.localVideoTrack && typeof localPeer.localVideoTrack === 'function'
+              ? localPeer.localVideoTrack()
               : null) ||
             (hms as any).localPeer?.videoTrack ||
-            (hms as any).localPeer?.localVideoTrack?.() ||
-            (typeof (hms as any).getLocalPeer === 'function' ? (hms as any).getLocalPeer()?.videoTrack : null);
+            (hms as any).localPeer?.localVideoTrack?.();
 
           const localAudioTrack =
-            data?.localPeer?.audioTrack ||
-            (data?.localPeer?.localAudioTrack && typeof data.localPeer.localAudioTrack === 'function'
-              ? data.localPeer.localAudioTrack()
+            localPeer?.audioTrack ||
+            (localPeer?.localAudioTrack && typeof localPeer.localAudioTrack === 'function'
+              ? localPeer.localAudioTrack()
               : null) ||
             (hms as any).localPeer?.audioTrack ||
-            (hms as any).localPeer?.localAudioTrack?.() ||
-            (typeof (hms as any).getLocalPeer === 'function' ? (hms as any).getLocalPeer()?.audioTrack : null);
+            (hms as any).localPeer?.localAudioTrack?.();
+
+          console.log("===== LETESKI LOCAL PEER DIAGNOSTICS =====");
+          console.log("Local peer:", localPeer?.name, localPeer?.peerID);
+          console.log("Local audio track:", localAudioTrack ? "Found" : "None");
+          console.log("Local video track:", localVideoTrack ? "Found" : "None");
+          console.log("Video track ID:", localVideoTrack?.trackId);
+          console.log("==========================================");
 
           const localVideoTrackId = localVideoTrack?.trackId;
-          const isVideoMuted =
-            localVideoTrack && typeof localVideoTrack.isMute === 'function'
-              ? localVideoTrack.isMute()
-              : !initialVideoOn || mode !== 'video';
-          const isAudioMuted =
-            localAudioTrack && typeof localAudioTrack.isMute === 'function'
-              ? localAudioTrack.isMute()
-              : !initialMicOn;
+          const isVideoMuted = !initialVideoOn || mode !== 'video';
+          const isAudioMuted = !initialMicOn;
 
           // Explicitly set unmuted on local tracks if enabled
           try {
@@ -671,22 +713,43 @@ export function use100msCall({
             )
           );
 
-          if (data?.remotePeers && Array.isArray(data.remotePeers) && data.remotePeers.length > 0) {
-            for (const remotePeer of data.remotePeers) {
+          // In 100ms React Native SDK, room.peers contains all peers
+          const allPeers: any[] = room?.peers || [];
+          const remotePeers: any[] = allPeers.length > 0
+            ? allPeers.filter((p: any) => !p.isLocal)
+            : (room?.remotePeers || data?.remotePeers || []);
+
+          if (remotePeers && Array.isArray(remotePeers) && remotePeers.length > 0) {
+            for (const remotePeer of remotePeers) {
               const rVideoTrack =
                 remotePeer.videoTrack ||
                 (typeof remotePeer.remoteVideoTrack === 'function' ? remotePeer.remoteVideoTrack() : null);
               const rAudioTrack =
                 remotePeer.audioTrack ||
                 (typeof remotePeer.remoteAudioTrack === 'function' ? remotePeer.remoteAudioTrack() : null);
+              const rAuxiliaryTracks: any[] = remotePeer.auxiliaryTracks || [];
+              const screenTrack = rAuxiliaryTracks.find((t: any) =>
+                t.type === 'VIDEO' &&
+                (String(t.source || '').toLowerCase() === 'screen' || (HMSTrackSource && t.source === HMSTrackSource.SCREEN) || Boolean(t.trackId))
+              );
 
               const rVideoTrackId = rVideoTrack?.trackId;
-              const rIsVideoMuted = rVideoTrack?.isMute?.() ?? false;
-              const rIsAudioMuted = rAudioTrack?.isMute?.() ?? false;
+              const rScreenTrackId = screenTrack?.trackId;
+              const rIsVideoMuted = typeof rVideoTrack?.isMute === 'function'
+                ? Boolean(rVideoTrack.isMute())
+                : Boolean(rVideoTrack?.mute ?? rVideoTrack?.isMute ?? false);
+              const rIsAudioMuted = typeof rAudioTrack?.isMute === 'function'
+                ? Boolean(rAudioTrack.isMute())
+                : Boolean(rAudioTrack?.mute ?? rAudioTrack?.isMute ?? false);
 
               setParticipants(prev => {
                 const existingIndex = prev.findIndex(
-                  p => !p.isLocal && (p.id === remotePeer.peerID || p.role === remotePeer.role?.name)
+                  p => !p.isLocal && (
+                    p.id === remotePeer.peerID ||
+                    (p.role === 'teacher' && (remotePeer.role?.name?.includes('teacher') || remotePeer.role?.name?.includes('host'))) ||
+                    (p.name && remotePeer.name && p.name.trim().toLowerCase() === remotePeer.name.trim().toLowerCase()) ||
+                    prev.filter(x => !x.isLocal).length === 1
+                  )
                 );
                 if (existingIndex !== -1) {
                   return prev.map((p, idx) =>
@@ -696,7 +759,8 @@ export function use100msCall({
                           id: remotePeer.peerID,
                           name: remotePeer.name || p.name,
                           videoTrackId: rVideoTrackId || p.videoTrackId,
-                          isVideoOff: rIsVideoMuted,
+                          screenShareTrackId: rScreenTrackId || p.screenShareTrackId,
+                          isVideoOff: rVideoTrackId ? rIsVideoMuted : p.isVideoOff,
                           isMuted: rIsAudioMuted,
                           status: 'connected' as const,
                         }
@@ -721,6 +785,7 @@ export function use100msCall({
                     status: 'connected' as const,
                     joinedAt: new Date().toISOString(),
                     videoTrackId: rVideoTrackId,
+                    screenShareTrackId: rScreenTrackId,
                   },
                 ];
               });
@@ -738,10 +803,31 @@ export function use100msCall({
               peer.videoTrack || (typeof peer.remoteVideoTrack === 'function' ? peer.remoteVideoTrack() : null);
             const rAudioTrack =
               peer.audioTrack || (typeof peer.remoteAudioTrack === 'function' ? peer.remoteAudioTrack() : null);
+            const rAuxiliaryTracks: any[] = peer.auxiliaryTracks || [];
+            const screenTrack = rAuxiliaryTracks.find((t: any) =>
+              t.type === 'VIDEO' &&
+              (String(t.source || '').toLowerCase() === 'screen' || (HMSTrackSource && t.source === HMSTrackSource.SCREEN) || Boolean(t.trackId))
+            );
+
+            const rVideoTrackId = rVideoTrack?.trackId;
+            const rScreenTrackId = screenTrack?.trackId;
+            const rIsVideoMuted = typeof rVideoTrack?.isMute === 'function'
+              ? Boolean(rVideoTrack.isMute())
+              : Boolean(rVideoTrack?.mute ?? rVideoTrack?.isMute ?? false);
+            const rIsAudioMuted = typeof rAudioTrack?.isMute === 'function'
+              ? Boolean(rAudioTrack.isMute())
+              : Boolean(rAudioTrack?.mute ?? rAudioTrack?.isMute ?? false);
 
             setParticipants(prev => {
               const existingIndex = prev.findIndex(
-                p => !p.isLocal && (p.id === peer.peerID || p.status === 'connecting' || !p.videoTrackId)
+                p => !p.isLocal && (
+                  p.id === peer.peerID ||
+                  (p.role === 'teacher' && (peer.role?.name?.includes('teacher') || peer.role?.name?.includes('host'))) ||
+                  (p.name && peer.name && p.name.trim().toLowerCase() === peer.name.trim().toLowerCase()) ||
+                  p.status === 'connecting' ||
+                  !p.videoTrackId ||
+                  prev.filter(x => !x.isLocal).length === 1
+                )
               );
               if (existingIndex !== -1) {
                 return prev.map((p, idx) =>
@@ -751,9 +837,10 @@ export function use100msCall({
                         id: peer.peerID,
                         name: peer.name || p.name || 'Partner',
                         status: 'connected' as const,
-                        videoTrackId: rVideoTrack?.trackId || p.videoTrackId,
-                        isVideoOff: rVideoTrack?.isMute?.() ?? false,
-                        isMuted: rAudioTrack?.isMute?.() ?? false,
+                        videoTrackId: rVideoTrackId || p.videoTrackId,
+                        screenShareTrackId: rScreenTrackId || p.screenShareTrackId,
+                        isVideoOff: rVideoTrackId ? rIsVideoMuted : p.isVideoOff,
+                        isMuted: rIsAudioMuted,
                       }
                     : p
                 );
@@ -769,13 +856,14 @@ export function use100msCall({
                       ? 'teacher'
                       : 'student',
                   isLocal: false,
-                  isMuted: rAudioTrack?.isMute?.() ?? false,
-                  isVideoOff: rVideoTrack?.isMute?.() ?? false,
+                  isMuted: rIsAudioMuted,
+                  isVideoOff: rIsVideoMuted,
                   isHandRaised: false,
                   isSpeaking: false,
                   status: 'connected' as const,
                   joinedAt: new Date().toISOString(),
-                  videoTrackId: rVideoTrack?.trackId,
+                  videoTrackId: rVideoTrackId,
+                  screenShareTrackId: rScreenTrackId,
                 },
               ];
             });
@@ -790,22 +878,37 @@ export function use100msCall({
           if (!peer || !track) return;
 
           const isScreenSource =
-            track.source === 'screen' ||
-            track.source === 'SCREEN' ||
-            (HMSTrackSource && track.source === HMSTrackSource.SCREEN);
+            String(track.source || '').toLowerCase() === 'screen' ||
+            (HMSTrackSource && track.source === HMSTrackSource.SCREEN) ||
+            (track.type === 'VIDEO' && Boolean(peer.auxiliaryTracks?.some((at: any) => at.trackId === track.trackId)));
+
+          const isTrackMuted =
+            type === 'TRACK_MUTED' || type === 'TRACK_REMOVED'
+              ? true
+              : type === 'TRACK_UNMUTED'
+              ? false
+              : typeof track.isMute === 'function'
+              ? Boolean(track.isMute())
+              : Boolean(track.mute ?? track.isMute ?? false);
 
           setParticipants(prev => {
             let updatedAny = false;
-            return prev.map(p => {
+            const updated = prev.map(p => {
               const isTarget = p.isLocal
                 ? peer.isLocal
-                : p.id === peer.peerID || (!peer.isLocal && (!p.videoTrackId || !updatedAny));
+                : (
+                    p.id === peer.peerID ||
+                    (!peer.isLocal && !p.isLocal && (
+                      (p.role === 'teacher' && (peer.role?.name?.includes('teacher') || peer.role?.name?.includes('host'))) ||
+                      (p.name && peer.name && p.name.trim().toLowerCase() === peer.name.trim().toLowerCase()) ||
+                      (!p.videoTrackId && !p.screenShareTrackId) ||
+                      (!updatedAny && prev.filter(x => !x.isLocal).length === 1)
+                    ))
+                  );
               if (!isTarget) return p;
               updatedAny = true;
 
               if (track.type === 'VIDEO') {
-                const isTrackMuted = track.isMute?.() || type === 'TRACK_MUTED' || type === 'TRACK_REMOVED';
-
                 if (isScreenSource) {
                   return {
                     ...p,
@@ -816,25 +919,57 @@ export function use100msCall({
                   };
                 }
 
+                // If local peer was set to video on in preview, keep it unmuted on TRACK_ADDED
+                const resolvedVideoOff = p.isLocal && type === 'TRACK_ADDED' && initialVideoOn && mode === 'video'
+                  ? false
+                  : isTrackMuted;
+
                 return {
                   ...p,
                   id: peer.isLocal ? p.id : peer.peerID,
                   name: !peer.isLocal && peer.name ? peer.name : p.name,
                   videoTrackId: type === 'TRACK_REMOVED' ? undefined : track.trackId,
-                  isVideoOff: isTrackMuted,
+                  isVideoOff: resolvedVideoOff,
                   status: 'connected' as const,
                 };
               }
               if (track.type === 'AUDIO') {
-                const isAudioMuted = track.isMute?.() || type === 'TRACK_MUTED' || type === 'TRACK_REMOVED';
+                const resolvedAudioMuted = p.isLocal && type === 'TRACK_ADDED' && initialMicOn
+                  ? false
+                  : isTrackMuted;
                 return {
                   ...p,
                   id: peer.isLocal ? p.id : peer.peerID,
-                  isMuted: isAudioMuted,
+                  isMuted: resolvedAudioMuted,
+                  status: 'connected' as const,
                 };
               }
               return p;
             });
+
+            // If a remote video track arrived for a peer not yet in participants list, add them
+            if (!updatedAny && !peer.isLocal && track.type === 'VIDEO') {
+              return [
+                ...updated,
+                {
+                  id: peer.peerID,
+                  name: peer.name || 'Participant',
+                  avatarUrl: '',
+                  role: peer.role?.name?.includes('teacher') || peer.role?.name?.includes('host') ? 'teacher' : 'student',
+                  isLocal: false,
+                  isMuted: false,
+                  isVideoOff: isScreenSource ? false : isTrackMuted,
+                  isHandRaised: false,
+                  isSpeaking: false,
+                  status: 'connected' as const,
+                  joinedAt: new Date().toISOString(),
+                  videoTrackId: isScreenSource ? undefined : (type === 'TRACK_REMOVED' ? undefined : track.trackId),
+                  screenShareTrackId: isScreenSource ? (type === 'TRACK_REMOVED' ? undefined : track.trackId) : undefined,
+                },
+              ];
+            }
+
+            return updated;
           });
         });
 
@@ -919,7 +1054,12 @@ export function use100msCall({
 
         // Ensure tracks are explicitly unmuted or muted according to initial user choices
         try {
-          const lPeer = (hms as any).localPeer;
+          let lPeer = (hms as any).localPeer;
+          if (!lPeer && typeof hms.getLocalPeer === 'function') {
+            try {
+              lPeer = await hms.getLocalPeer();
+            } catch (e) {}
+          }
           const audioTrack = lPeer?.localAudioTrack?.() || lPeer?.audioTrack;
           const videoTrack = lPeer?.localVideoTrack?.() || lPeer?.videoTrack;
 
@@ -967,12 +1107,31 @@ export function use100msCall({
     return () => {
       isMounted = false;
       if (hmsInstanceRef.current) {
-        hmsInstanceRef.current.leave().catch(() => {});
-        hmsInstanceRef.current.destroy().catch(() => {});
+        console.log('[100ms] Leaving room and cleaning up SDK instance');
+        try {
+          hmsInstanceRef.current.leave();
+          hmsInstanceRef.current.destroy();
+        } catch (e) {}
         hmsInstanceRef.current = null;
       }
     };
   }, [roomCode, authToken, userName, isTeacher, initialMicOn, initialVideoOn, mode]);
+
+  // Helper to obtain native local peer
+  const getNativeLocalPeer = useCallback(async () => {
+    if (!hmsInstanceRef.current) return null;
+    if (typeof hmsInstanceRef.current.getLocalPeer === 'function') {
+      try {
+        const p = await hmsInstanceRef.current.getLocalPeer();
+        if (p) return p;
+      } catch (e) {}
+    }
+    return (
+      (hmsInstanceRef.current as any).localPeer ||
+      (hmsInstanceRef.current.getRoom?.() as any)?.localPeer ||
+      null
+    );
+  }, []);
 
   // Toggle local microphone
   const toggleMute = useCallback(() => {
@@ -986,16 +1145,30 @@ export function use100msCall({
         });
       }
 
-      try {
-        if (hmsInstanceRef.current?.localPeer?.localAudioTrack) {
-          const track = hmsInstanceRef.current.localPeer.localAudioTrack();
+      // Primary: Direct NativeModules call (most reliable on Android)
+      if (Platform.OS !== 'web' && hmsInstanceRef.current) {
+        try {
+          const { NativeModules } = require('react-native');
+          const HMSManager = NativeModules.HMSManager;
+          if (HMSManager && typeof HMSManager.setLocalMute === 'function') {
+            HMSManager.setLocalMute({ isMute: nextMuted, id: hmsInstanceRef.current.id || '12345' });
+          }
+        } catch (hmsErr) {
+          console.warn('[100ms] setLocalMute NativeModules notice:', hmsErr);
+        }
+      }
+
+      // Fallback: track-level setMute via getLocalPeer
+      void getNativeLocalPeer().then(lPeer => {
+        try {
+          const track = lPeer?.localAudioTrack?.() || lPeer?.audioTrack;
           if (track && typeof track.setMute === 'function') {
             track.setMute(nextMuted);
           }
+        } catch (hmsErr) {
+          console.warn('[100ms] setMute notice:', hmsErr);
         }
-      } catch (hmsErr) {
-        console.warn('[100ms] setMute notice:', hmsErr);
-      }
+      });
 
       const mediaStateMsg = {
         type: 'media_state',
@@ -1017,7 +1190,7 @@ export function use100msCall({
 
       return prev.map(p => (p.isLocal ? { ...p, isMuted: nextMuted, isSpeaking: false } : p));
     });
-  }, [socket, roomId, currentUserId]);
+  }, [socket, roomId, currentUserId, getNativeLocalPeer]);
 
   // Toggle local camera video
   const toggleVideo = useCallback(() => {
@@ -1031,16 +1204,30 @@ export function use100msCall({
         });
       }
 
-      try {
-        if (hmsInstanceRef.current?.localPeer?.localVideoTrack) {
-          const track = hmsInstanceRef.current.localPeer.localVideoTrack();
+      // Primary: Direct NativeModules call (most reliable on Android)
+      if (Platform.OS !== 'web' && hmsInstanceRef.current) {
+        try {
+          const { NativeModules } = require('react-native');
+          const HMSManager = NativeModules.HMSManager;
+          if (HMSManager && typeof HMSManager.setLocalVideoMute === 'function') {
+            HMSManager.setLocalVideoMute({ isMute: nextVideoOff, id: hmsInstanceRef.current.id || '12345' });
+          }
+        } catch (hmsErr) {
+          console.warn('[100ms] setLocalVideoMute NativeModules notice:', hmsErr);
+        }
+      }
+
+      // Fallback: track-level setMute via getLocalPeer
+      void getNativeLocalPeer().then(lPeer => {
+        try {
+          const track = lPeer?.localVideoTrack?.() || lPeer?.videoTrack;
           if (track && typeof track.setMute === 'function') {
             track.setMute(nextVideoOff);
           }
+        } catch (hmsErr) {
+          console.warn('[100ms] setVideoMute notice:', hmsErr);
         }
-      } catch (hmsErr) {
-        console.warn('[100ms] setVideoMute notice:', hmsErr);
-      }
+      });
 
       const mediaStateMsg = {
         type: 'media_state',
@@ -1062,16 +1249,17 @@ export function use100msCall({
 
       return prev.map(p => (p.isLocal ? { ...p, isVideoOff: nextVideoOff } : p));
     });
-  }, [socket, roomId, currentUserId]);
+  }, [socket, roomId, currentUserId, getNativeLocalPeer]);
 
   // Switch camera (Front / Back)
   const switchCamera = useCallback(async () => {
-    // 1. Native 100ms SDK switchCamera
-    try {
-      if (hmsInstanceRef.current?.localPeer?.localVideoTrack) {
-        const track = hmsInstanceRef.current.localPeer.localVideoTrack();
-        if (track && typeof track.switchCamera === 'function') {
-          await track.switchCamera();
+    // 1. Primary: Direct NativeModules call for native (most reliable)
+    if (Platform.OS !== 'web' && hmsInstanceRef.current) {
+      try {
+        const { NativeModules } = require('react-native');
+        const HMSManager = NativeModules.HMSManager;
+        if (HMSManager && typeof HMSManager.switchCamera === 'function') {
+          HMSManager.switchCamera({ id: hmsInstanceRef.current.id || '12345' });
           setParticipants(prev =>
             prev.map(p =>
               p.isLocal
@@ -1084,6 +1272,28 @@ export function use100msCall({
           );
           return;
         }
+      } catch (err) {
+        console.warn('[100ms] switchCamera NativeModules error:', err);
+      }
+    }
+
+    // 2. Fallback: track-level switchCamera via getLocalPeer
+    try {
+      const lPeer = await getNativeLocalPeer();
+      const track = lPeer?.localVideoTrack?.() || lPeer?.videoTrack;
+      if (track && typeof track.switchCamera === 'function') {
+        await track.switchCamera();
+        setParticipants(prev =>
+          prev.map(p =>
+            p.isLocal
+              ? {
+                  ...p,
+                  facingMode: p.facingMode === 'environment' ? 'user' : 'environment',
+                }
+              : p
+          )
+        );
+        return;
       }
     } catch (err) {
       console.warn('[100ms] switchCamera error:', err);
@@ -1339,7 +1549,7 @@ export function use100msCall({
           if (!errorMsg.includes('RESULT_CANCELED') && !errorMsg.includes('canceled') && !errorMsg.includes('cancelled')) {
             Alert.alert(
               'Screen Sharing',
-              'Screen sharing could not be started. Ensure you granted screen recording permission when prompted.'
+              `Screen sharing could not be started.\n\n${errorMsg ? errorMsg : 'Ensure you granted screen recording permission when prompted.'}`
             );
           }
         }
@@ -1518,5 +1728,6 @@ export function use100msCall({
     removeParticipant,
     sendMessage,
     leaveCall,
+    sdkId,
   };
 }

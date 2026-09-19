@@ -99,4 +99,9 @@ create a new .aab build for playstore with cloud eas as cloude eas is already co
 
 npx eas-cli build --platform android --profile production --non-interactive
 
+
+camera and mic all fucntionality  are not working fine in the call preview screen and call screen page in android devices and also the app is crashing when we click join meeting in the call preview page let everything work good on android devices
+
+nothing fixed facing same issues with the new apk file in android device 
+
  

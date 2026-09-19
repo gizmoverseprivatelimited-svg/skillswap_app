@@ -65,6 +65,7 @@ interface CallScreenProps {
   onRemoveParticipant?: (id: string) => void;
   onSendMessage?: (text: string) => void;
   externalMessages?: CallMessage[];
+  sdkId?: string;
 }
 
 type BottomPanel = 'none' | 'chat' | 'participants' | 'more' | 'reactions' | 'audioDevices';
@@ -91,6 +92,7 @@ export default function CallScreen({
   onRemoveParticipant,
   onSendMessage,
   externalMessages,
+  sdkId = '12345',
 }: CallScreenProps) {
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -510,6 +512,7 @@ export default function CallScreen({
               isTeacher={isTeacher}
               isGroupCall={isGroupCall}
               onSpotlight={handleSpotlight}
+              sdkId={sdkId}
             />
           ) : layout === 'spotlight' && spotlightParticipant ? (
             <SpotlightView
@@ -521,6 +524,7 @@ export default function CallScreen({
               remoteParticipants={remoteParticipants}
               onSpotlight={handleSpotlight}
               onSwitchCamera={onSwitchCamera}
+              sdkId={sdkId}
             />
           ) : (
             <GridView
@@ -530,6 +534,7 @@ export default function CallScreen({
               isGroupCall={isGroupCall}
               isOnlyOneUser={isOnlyOneUser}
               onSpotlight={handleSpotlight}
+              sdkId={sdkId}
             />
           )}
 
@@ -668,10 +673,11 @@ interface SpotlightViewProps {
   remoteParticipants: CallParticipant[];
   onSpotlight: (id: string) => void;
   onSwitchCamera?: () => void;
+  sdkId?: string;
 }
 
 function SpotlightView({
-  participant, localParticipant, mode, isGroupCall, isTeacher, remoteParticipants, onSpotlight, onSwitchCamera,
+  participant, localParticipant, mode, isGroupCall, isTeacher, remoteParticipants, onSpotlight, onSwitchCamera, sdkId,
 }: SpotlightViewProps) {
   // If user is a student in a group class, prioritize the teacher participant with the live stream
   const teacherWithStream = remoteParticipants.find(p => (p.role === 'teacher' || p.role === 'host') && (Boolean(p.mediaStream) || Boolean(p.videoTrackId)));
@@ -691,6 +697,7 @@ function SpotlightView({
           participant={targetRemote}
           mode={mode}
           isLarge
+          sdkId={sdkId}
         />
 
         {/* Top Role Pill on Spotlight */}
@@ -733,7 +740,7 @@ function SpotlightView({
       {/* Self PiP: User's own camera video ALWAYS in the small box */}
       {localParticipant && (
         <View style={styles.selfPip}>
-          <ParticipantTile participant={localParticipant} mode={mode} isSmall />
+          <ParticipantTile participant={localParticipant} mode={mode} isSmall sdkId={sdkId} />
           {mode === 'video' && onSwitchCamera && (
             <TouchableOpacity
               style={styles.pipSwitchCameraBtn}
@@ -758,7 +765,7 @@ function SpotlightView({
                 onPress={() => onSpotlight(p.id)}
                 activeOpacity={0.8}
               >
-                <ParticipantTile participant={p} mode={mode} isSmall />
+                <ParticipantTile participant={p} mode={mode} isSmall sdkId={sdkId} />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -776,10 +783,11 @@ interface ScreenShareViewProps {
   isTeacher?: boolean;
   isGroupCall?: boolean;
   onSpotlight: (id: string) => void;
+  sdkId?: string;
 }
 
 function ScreenShareView({
-  sharer, localParticipant, remoteParticipants, mode, isTeacher, isGroupCall, onSpotlight,
+  sharer, localParticipant, remoteParticipants, mode, isTeacher, isGroupCall, onSpotlight, sdkId,
 }: ScreenShareViewProps) {
   const hasLiveScreen = Boolean(sharer.screenShareTrackId || sharer.screenShareStream);
 
@@ -789,6 +797,7 @@ function ScreenShareView({
       <View style={styles.spotlightVideo}>
         {hasLiveScreen ? (
           <LiveVideoTrack
+            id={sdkId}
             trackId={sharer.screenShareTrackId}
             mediaStream={sharer.screenShareStream}
             scaleType="fit"
@@ -810,7 +819,7 @@ function ScreenShareView({
       {/* Self PiP */}
       {localParticipant && (
         <View style={styles.selfPip}>
-          <ParticipantTile participant={localParticipant} mode={mode} isSmall />
+          <ParticipantTile participant={localParticipant} mode={mode} isSmall sdkId={sdkId} />
         </View>
       )}
 
@@ -820,7 +829,7 @@ function ScreenShareView({
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filmstripContent}>
             {remoteParticipants.map(p => (
               <TouchableOpacity key={p.id} style={styles.filmstripTile} onPress={() => onSpotlight(p.id)} activeOpacity={0.8}>
-                <ParticipantTile participant={p} mode={mode} isSmall />
+                <ParticipantTile participant={p} mode={mode} isSmall sdkId={sdkId} />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -831,7 +840,7 @@ function ScreenShareView({
 }
 
 function GridView({
-  participants, mode, isTeacher, isGroupCall, isOnlyOneUser, onSpotlight,
+  participants, mode, isTeacher, isGroupCall, isOnlyOneUser, onSpotlight, sdkId,
 }: {
   participants: CallParticipant[];
   mode: CallMode;
@@ -839,6 +848,7 @@ function GridView({
   isGroupCall?: boolean;
   isOnlyOneUser?: boolean;
   onSpotlight: (id: string) => void;
+  sdkId?: string;
 }) {
   // Students in group calls only see the teacher (or teacher's active stream) and their self tile
   const visibleParticipants = (!isTeacher && isGroupCall)
@@ -861,7 +871,7 @@ function GridView({
             onPress={() => onSpotlight(p.id)}
             activeOpacity={0.85}
           >
-            <ParticipantTile participant={p} mode={mode} isGrid />
+            <ParticipantTile participant={p} mode={mode} isGrid sdkId={sdkId} />
           </TouchableOpacity>
         ))}
       </View>
@@ -879,9 +889,10 @@ interface ParticipantTileProps {
   isLarge?: boolean;
   isSmall?: boolean;
   isGrid?: boolean;
+  sdkId?: string;
 }
 
-function ParticipantTile({ participant, mode, isLarge, isSmall }: ParticipantTileProps) {
+function ParticipantTile({ participant, mode, isLarge, isSmall, sdkId }: ParticipantTileProps) {
   const [imageError, setImageError] = useState(false);
   const [, setTrackCounter] = useState(0);
 
@@ -948,10 +959,12 @@ function ParticipantTile({ participant, mode, isLarge, isSmall }: ParticipantTil
       {shouldRenderLiveTrack && (
         <View style={styles.tileVideo}>
           <LiveVideoTrack
+            id={sdkId}
             trackId={participant.videoTrackId}
             mediaStream={participant.mediaStream}
             mirror={participant.isLocal}
             facingMode={participant.facingMode}
+            setZOrderMediaOverlay={Boolean(isSmall)}
             style={styles.liveVideoTrack}
           />
         </View>

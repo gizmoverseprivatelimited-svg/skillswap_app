@@ -75,8 +75,8 @@ export function buildSwapCertificates(
     const fallbackTitle = swap.id === 'swap-completed-1'
       ? 'Hindi Conversation'
       : swap.id === 'swap-completed-2'
-      ? 'Portrait Photography'
-      : 'Skill Session';
+        ? 'Portrait Photography'
+        : 'Skill Session';
 
     const certId = `cert-swap-${swap.id}`;
 
@@ -166,7 +166,7 @@ export function formatDate(dateISO: string): string {
 //  HTML Certificate — for download/share
 // ============================================================
 
-export function generateCertificateHTML(cert: CertificateData): string {
+export function generateCertificateHTML(cert: CertificateData, isPdf: boolean = false): string {
   const label = getCertificateLabel(cert.type);
   const dateStr = formatDate(cert.completedAt);
   const roleText = cert.role === 'teacher' ? 'successfully taught' : 'successfully completed';
@@ -176,9 +176,9 @@ export function generateCertificateHTML(cert: CertificateData): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>leteski Certificate — ${cert.recipientName} — ${cert.skillTitle}</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="${isPdf ? 'width=1122, height=793, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' : 'width=device-width, initial-scale=1.0'}">
+  <title>leteski Certificate — ${cert.recipientName} — ${cert.skillTitle}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;0,900;1,600&display=swap" rel="stylesheet">
@@ -199,6 +199,62 @@ export function generateCertificateHTML(cert: CertificateData): string {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+  ${isPdf ? `
+  /* PDF Specific Styles */
+  @page {
+    size: landscape;
+    margin: 0;
+  }
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    background: #FFFFFF !important;
+  }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text-dark);
+    display: block !important;
+  }
+  .cert-wrapper.is-pdf {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #FFFFFF !important;
+    overflow: hidden !important;
+    page-break-inside: avoid !important;
+  }
+  .cert-wrapper.is-pdf .cert-container {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    padding: 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #FFFFFF !important;
+    overflow: hidden !important;
+  }
+  .cert-wrapper.is-pdf .border-frame {
+    top: 6px !important; left: 6px !important; right: 6px !important; bottom: 6px !important;
+  }
+  ` : `
   body {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: #0B0F19;
@@ -210,6 +266,7 @@ export function generateCertificateHTML(cert: CertificateData): string {
     justify-content: center;
     padding: clamp(12px, 3vw, 32px);
   }
+  `}
 
   /* Action toolbar for browser viewing */
   .toolbar {
@@ -544,7 +601,7 @@ export function generateCertificateHTML(cert: CertificateData): string {
 <body>
 
   <!-- Floating browser actions bar (hidden during print) -->
-  <div class="toolbar">
+  <div class="toolbar" style="${isPdf ? 'display: none !important;' : ''}">
     <div class="toolbar-brand">
       <span>leteski Verified Certificate</span>
       <span class="toolbar-badge">
@@ -558,7 +615,7 @@ export function generateCertificateHTML(cert: CertificateData): string {
     </button>
   </div>
 
-  <div class="cert-wrapper">
+  <div class="cert-wrapper ${isPdf ? 'is-pdf' : ''}">
     <div class="cert-container">
       <!-- Decorative Borders & Corners -->
       <div class="border-frame"></div>

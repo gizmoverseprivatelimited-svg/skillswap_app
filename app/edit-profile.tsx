@@ -143,44 +143,106 @@ export default function EditProfileScreen() {
     setCertifications(prev => prev.filter(c => c.id !== id));
   };
 
-  const pickCertificate = async (certId: string) => {
+  const pickCertificate = (certId: string) => {
+    showAlert(
+      'Upload Certificate',
+      'Choose an option',
+      [
+        {
+          text: 'Take Photo',
+          onPress: () => handlePickCertificateSource('camera', certId),
+        },
+        {
+          text: 'Choose from Library',
+          onPress: () => handlePickCertificateSource('library', certId),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const handlePickCertificateSource = async (source: 'camera' | 'library', certId: string) => {
     try {
       if (Platform.OS !== 'web') {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          showAlert('Permission needed', 'Please allow access to your photos to upload a certificate document.');
-          return;
+        if (source === 'camera') {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== 'granted') {
+            showAlert('Permission needed', 'Please allow camera access to take a photo.');
+            return;
+          }
+        } else {
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== 'granted') {
+            showAlert('Permission needed', 'Please allow access to your photos to upload a document.');
+            return;
+          }
         }
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.7,
-        base64: true,
-      });
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            quality: 0.7,
+            base64: true,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: false,
+            quality: 0.7,
+            base64: true,
+          });
+
       const asset = result.assets?.[0];
       if (!result.canceled && asset) {
         let uri = asset.uri;
         try {
           const formData = new FormData();
+          const filename = asset.fileName || asset.uri.split('/').pop() || 'certificate.jpg';
+          const match = /\.(\w+)$/.exec(filename);
+          const type = asset.mimeType || (match ? `image/${match[1]}` : 'image/jpeg');
+
           if (Platform.OS === 'web') {
             const resp = await fetch(asset.uri);
             const blob = await resp.blob();
-            formData.append('certificate', blob, 'certificate.jpg');
+            formData.append('certificate', blob, filename);
           } else {
-            const filename = asset.uri.split('/').pop() || 'certificate.jpg';
-            const match = /\.(\w+)$/.exec(filename);
-            const type = match ? `image/${match[1]}` : `image/jpeg`;
             // @ts-ignore
             formData.append('certificate', { uri: asset.uri, name: filename, type });
           }
-          const uploadRes = await fetch(`${url}/skills/upload-certificate`, {
-            method: 'POST',
-            body: formData,
-          });
-          if (uploadRes.ok) {
-            const uploadData = await uploadRes.json();
+
+          if (Platform.OS === 'web') {
+            const uploadRes = await fetch(`${url}/skills/upload-certificate`, {
+              method: 'POST',
+              body: formData,
+            });
+            if (uploadRes.ok) {
+              const uploadData = await uploadRes.json();
+              if (uploadData.certificateUri) {
+                uri = uploadData.certificateUri.startsWith('http') ? uploadData.certificateUri : `${url}${uploadData.certificateUri}`;
+              }
+            }
+          } else {
+            const uploadData = await new Promise<any>((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open('POST', `${url}/skills/upload-certificate`);
+              xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  try {
+                    resolve(JSON.parse(xhr.responseText));
+                  } catch(e) {
+                    reject(new Error('Failed to parse response'));
+                  }
+                } else {
+                  reject(new Error(`Upload failed: ${xhr.status}`));
+                }
+              };
+              xhr.onerror = () => reject(new Error('Network error during upload'));
+              xhr.send(formData);
+            });
             if (uploadData.certificateUri) {
               uri = uploadData.certificateUri.startsWith('http') ? uploadData.certificateUri : `${url}${uploadData.certificateUri}`;
             }
@@ -465,10 +527,10 @@ export default function EditProfileScreen() {
             { type: blob.type }
           );
           formData.append('avatar', file);
-        } else if (avatarUrl.startsWith('file://')) {
-          const filename = avatarUrl.split('/').pop()!;
+        } else if (!avatarUrl.startsWith('http')) {
+          const filename = avatarUrl.split('/').pop() || 'avatar.jpg';
           const match = /\.(\w+)$/.exec(filename);
-          const type = match ? `image/${match[1]}` : `image`;
+          const type = match ? `image/${match[1]}` : `image/jpeg`;
 
           formData.append('avatar', {
             uri: avatarUrl,

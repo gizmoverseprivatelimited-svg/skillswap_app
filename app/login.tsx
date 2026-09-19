@@ -4,7 +4,6 @@ import { useAlert } from '@/providers/alert';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import * as AuthSession from 'expo-auth-session';
 import Colors from '@/constants/colors';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,12 +25,6 @@ if (Platform.OS !== 'web') {
 }
 
 WebBrowser.maybeCompleteAuthSession();
-
-const redirectUri = Platform.OS === 'web'
-  ? (typeof window !== 'undefined' ? window.location.origin + '/' : 'http://localhost:8081/')
-  : AuthSession.makeRedirectUri({
-    scheme: 'myapp',
-  });
 
 type AuthMode = 'otp' | 'social' | 'email';
 type AuthFlow = 'signin' | 'signup' | 'forgot';
@@ -321,6 +314,7 @@ export default function LoginScreen() {
         const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
           client_id: clientId,
           scope: 'openid profile email',
+          state: 'leteski_auth_state', // Add state parameter here
           callback: async (tokenResponse: any) => {
             if (tokenResponse.error) {
               console.error('[Login] GIS token error', tokenResponse);
@@ -352,80 +346,27 @@ export default function LoginScreen() {
         tokenClient.requestAccessToken();
         return;
       } else {
-        // Mobile platform: try native GoogleSignin first
-        try {
-          GoogleSignin.configure({
-            webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
-            iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_ID,
-          });
-          await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-          const response = await GoogleSignin.signIn();
-          const user = response.data?.user;
+        // Mobile platform: use native GoogleSignin exclusively
+        GoogleSignin.configure({
+          webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
+          iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_ID,
+        });
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        const response = await GoogleSignin.signIn();
+        const user = response.data?.user;
 
-          if (!user) {
-            throw new Error('Could not retrieve user details from Google Sign-In');
-          }
-
-          await auth.signInWithOAuth('google', {
-            providerId: user.id,
-            email: user.email,
-            name: user.name || undefined,
-            avatar: user.photo || undefined,
-          });
-
-          router.replace('/');
-          return;
-        } catch (nativeErr: any) {
-          if (nativeErr?.code === statusCodes.SIGN_IN_CANCELLED) {
-            console.log('[Login] Native Google sign-in cancelled by user');
-            return;
-          }
-          console.warn('[Login] Native Google Sign-In notice/fallback triggered:', nativeErr?.message || nativeErr);
-
-          // Fallback to Expo WebBrowser OAuth for mobile environments (e.g. Expo Go / unlinked native builds)
-          const clientId = Platform.select<string | undefined>({
-            ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
-            android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
-            default: process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
-          });
-
-          if (!clientId) {
-            throw nativeErr;
-          }
-
-          const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
-            clientId
-          )}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent('openid profile email')}`;
-
-          const res = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-          if (res.type === 'success' && res.url) {
-            const hash = res.url.includes('#') ? res.url.split('#')[1] : res.url.split('?')[1] ?? '';
-            const params = new URLSearchParams(hash);
-            const token = params.get('access_token');
-
-            if (token) {
-              const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              const userInfo = await userInfoResponse.json();
-
-              await auth.signInWithOAuth('google', {
-                providerId: userInfo.id,
-                email: userInfo.email,
-                name: userInfo.name,
-                avatar: userInfo.picture,
-              });
-
-              router.replace('/');
-              return;
-            }
-          } else if (res.type === 'cancel' || res.type === 'dismiss') {
-            console.log('[Login] WebBrowser Google sign-in cancelled by user');
-            return;
-          }
-
-          throw nativeErr;
+        if (!user) {
+          throw new Error('Could not retrieve user details from Google Sign-In');
         }
+
+        await auth.signInWithOAuth('google', {
+          providerId: user.id,
+          email: user.email,
+          name: user.name || undefined,
+          avatar: user.photo || undefined,
+        });
+
+        router.replace('/');
       }
     } catch (error: any) {
       if (error?.code === statusCodes.SIGN_IN_CANCELLED) {

@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Modal,
   useWindowDimensions,
+  Platform,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { RefreshCcw, Star, TrendingUp, Users, Zap, GraduationCap, BookOpen, ArrowLeftRight, Sparkles, Bell, Bot, ChevronLeft, ChevronRight, BadgeCheck } from 'lucide-react-native';
@@ -28,6 +29,7 @@ import {
   getCategoryImageUrl,
 } from '@/constants/categories';
 import { useSafety } from '@/providers/safety';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
 const DEFAULT_SKILL_IMAGE = 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800';
@@ -141,6 +143,8 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchSkillsData();
   }, [fetchSkillsData]);
+
+
 
   useFocusEffect(
     useCallback(() => {

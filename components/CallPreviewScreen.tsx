@@ -27,9 +27,22 @@ import {
 } from 'lucide-react-native';
 import LiveVideoTrack from './LiveVideoTrack';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
-import { requestCameraAndMicrophonePermissions } from '@/lib/media-permissions';
+import {
+  requestCameraAndMicrophonePermissions,
+  checkCameraAndMicrophonePermissions,
+} from '@/lib/media-permissions';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+
+// Lazy-load CameraView to avoid import errors on web
+let CameraViewComponent: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    CameraViewComponent = require('expo-camera').CameraView;
+  } catch (e) {
+    console.warn('[CallPreviewScreen] expo-camera CameraView not available:', e);
+  }
+}
 
 export interface CallPreviewScreenProps {
   roomTitle: string;
@@ -41,6 +54,8 @@ export interface CallPreviewScreenProps {
   isGroupCall?: boolean;
   initialMicOn?: boolean;
   initialVideoOn?: boolean;
+  roomCode?: string | null;
+  authToken?: string | null;
   onJoin: (settings: { isMicOn: boolean; isVideoOn: boolean }) => void;
   onCancel: () => void;
 }
@@ -55,6 +70,8 @@ export default function CallPreviewScreen({
   isGroupCall = false,
   initialMicOn = true,
   initialVideoOn = true,
+  roomCode,
+  authToken,
   onJoin,
   onCancel,
 }: CallPreviewScreenProps) {
@@ -75,7 +92,10 @@ export default function CallPreviewScreen({
   const [permissionGranted, setPermissionGranted] = useState<boolean>(true);
   const [isCheckingPermission, setIsCheckingPermission] = useState<boolean>(Platform.OS !== 'web');
 
-  const stopAllMediaTracks = useCallback(() => {
+  // Native camera preview state (using expo-camera instead of HMSSDK)
+  const [nativeCameraReady, setNativeCameraReady] = useState<boolean>(false);
+
+  const stopAllMediaTracks = useCallback(async () => {
     if (localStreamRef.current) {
       try {
         localStreamRef.current.getTracks().forEach((track) => {
@@ -160,24 +180,43 @@ export default function CallPreviewScreen({
     }
   }, [stopAllMediaTracks]);
 
+  // Request permissions on native (Android/iOS) using expo-camera
+  const requestNativePermissions = useCallback(async () => {
+    if (Platform.OS === 'web') return;
+    try {
+      setIsCheckingPermission(true);
+      const currentPerm = await checkCameraAndMicrophonePermissions();
+      let isGranted = Boolean(currentPerm.granted || (currentPerm.camera && currentPerm.microphone));
+
+      if (!isGranted) {
+        const permResult = await requestCameraAndMicrophonePermissions({ showAlertOnDenial: false });
+        isGranted = Boolean(permResult.granted || permResult.camera || permResult.microphone);
+      }
+
+      if (!isMountedRef.current) return;
+      setPermissionGranted(isGranted);
+      setIsCheckingPermission(false);
+      setNativeCameraReady(isGranted);
+
+      console.log("===== CALL PREVIEW MEDIA PERMISSIONS =====");
+      console.log("Camera:", isGranted);
+      console.log("RoomCode / AuthToken present:", Boolean(roomCode || authToken));
+      console.log("=========================================");
+    } catch (err) {
+      console.warn('[CallPreviewScreen] Permission request error:', err);
+      if (isMountedRef.current) {
+        setPermissionGranted(false);
+        setIsCheckingPermission(false);
+      }
+    }
+  }, [roomCode, authToken]);
+
   useEffect(() => {
     isMountedRef.current = true;
 
-    // Request native camera & mic permissions on mobile devices
     if (Platform.OS !== 'web') {
-      setIsCheckingPermission(true);
-      void requestCameraAndMicrophonePermissions({ showAlertOnDenial: false })
-        .then((res) => {
-          if (isMountedRef.current) {
-            setPermissionGranted(Boolean(res.granted || res.camera || res.microphone));
-            setIsCheckingPermission(false);
-          }
-        })
-        .catch(() => {
-          if (isMountedRef.current) {
-            setIsCheckingPermission(false);
-          }
-        });
+      // On native, just request permissions — expo-camera CameraView handles the rest
+      requestNativePermissions();
     } else {
       startPreview(isVideoOn, isMicOn, facingMode);
     }
@@ -186,9 +225,9 @@ export default function CallPreviewScreen({
       isMountedRef.current = false;
       stopAllMediaTracks();
     };
-  }, []);
+  }, [roomCode, authToken]);
 
-  const handleToggleVideo = useCallback(() => {
+  const handleToggleVideo = useCallback(async () => {
     const next = !isVideoOn;
     setIsVideoOn(next);
     if (Platform.OS === 'web') {
@@ -210,31 +249,52 @@ export default function CallPreviewScreen({
         startPreview(true, isMicOn, facingMode);
       }
     }
+    // On native, expo-camera CameraView is shown/hidden by isVideoOn state — no SDK calls needed
   }, [isVideoOn, isMicOn, facingMode, startPreview]);
 
-  const handleToggleMic = useCallback(() => {
+  const handleToggleMic = useCallback(async () => {
     const next = !isMicOn;
     setIsMicOn(next);
-    if (Platform.OS === 'web' && localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach((t) => {
-        t.enabled = next;
-      });
+    if (Platform.OS === 'web') {
+      if (localStreamRef.current) {
+        localStreamRef.current.getAudioTracks().forEach((t) => {
+          t.enabled = next;
+        });
+      }
     }
+    // On native, mic state is just tracked in React state and passed to use100msCall when joining
   }, [isMicOn]);
 
-  const handleSwitchCamera = useCallback(() => {
+  const handleSwitchCamera = useCallback(async () => {
     const nextFacing = facingMode === 'user' ? 'environment' : 'user';
     setFacingMode(nextFacing);
     if (isVideoOn && Platform.OS === 'web') {
       startPreview(true, isMicOn, nextFacing);
     }
+    // On native, expo-camera CameraView's facing prop handles camera switching reactively
   }, [facingMode, isVideoOn, isMicOn, startPreview]);
 
-  const handleJoinPress = useCallback(() => {
+  const handleJoinPress = useCallback(async () => {
     try {
       setIsJoining(true);
-      // Stop local preview tracks so 100ms / call room connection can cleanly acquire media
-      stopAllMediaTracks();
+
+      // 1. Clear web streams
+      setLocalStream(null);
+
+      if (localStreamRef.current) {
+        try {
+          localStreamRef.current.getTracks().forEach((track) => {
+            try { track.stop(); } catch (e) {}
+          });
+        } catch (e) {}
+        localStreamRef.current = null;
+      }
+
+      // 2. Brief delay to let any native camera cleanup settle
+      if (Platform.OS !== 'web') {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+
       onJoin({ isMicOn, isVideoOn });
 
       // Safety timeout: if the join process hangs for more than 15 seconds, reset the button
@@ -244,7 +304,6 @@ export default function CallPreviewScreen({
         }
       }, 15000);
 
-      // Clean up timeout on unmount
       return () => clearTimeout(joinTimeout);
     } catch (err: any) {
       console.error('[CallPreviewScreen] Join error:', err);
@@ -258,7 +317,7 @@ export default function CallPreviewScreen({
         );
       }
     }
-  }, [isMicOn, isVideoOn, stopAllMediaTracks, onJoin]);
+  }, [isMicOn, isVideoOn, onJoin]);
 
   const handleExitPress = useCallback(() => {
     stopAllMediaTracks();
@@ -276,6 +335,11 @@ export default function CallPreviewScreen({
     }
     return roomTitle;
   }, [roomTitle, partnerName, isGroupCall]);
+
+  // Determine whether to show native camera preview
+  const showNativeCameraPreview = Platform.OS !== 'web' && isVideoOn && nativeCameraReady && permissionGranted && CameraViewComponent && !isJoining;
+  // Map facingMode to expo-camera facing prop
+  const cameraFacing = facingMode === 'user' ? 'front' : 'back';
 
   return (
     <View style={styles.container}>
@@ -328,23 +392,51 @@ export default function CallPreviewScreen({
             {/* Video Preview Viewport */}
             <View style={[styles.previewCard, { height: dynamicPreviewHeight }]}>
             <View style={styles.previewContainer}>
-              {isVideoOn && localStream ? (
+              {/* NATIVE: Use expo-camera CameraView for live preview (avoids HMSSDK crashes) */}
+              {showNativeCameraPreview ? (
+                <View style={styles.videoTrack}>
+                  <CameraViewComponent
+                    style={{ flex: 1, width: '100%', height: '100%' }}
+                    facing={cameraFacing}
+                    mirror={facingMode === 'user'}
+                  />
+                </View>
+              ) : /* WEB: Use LiveVideoTrack with mediaStream */
+              isVideoOn && localStream && Platform.OS === 'web' ? (
                 <LiveVideoTrack
                   mediaStream={localStream}
                   mirror={facingMode === 'user'}
                   style={styles.videoTrack}
                 />
-              ) : isVideoOn && Platform.OS !== 'web' ? (
+              ) : isVideoOn ? (
                 <View style={styles.cameraOffOverlay}>
                   <View style={styles.avatarGlow}>
                     <Image source={{ uri: avatarUri }} style={styles.largeAvatar} />
                   </View>
-                  <View style={[styles.cameraOffPill, { borderColor: 'rgba(52, 211, 153, 0.4)', backgroundColor: 'rgba(6, 78, 59, 0.6)' }]}>
-                    <Video size={14} color="#34D399" />
-                    <Text style={[styles.cameraOffText, { color: '#34D399' }]}>
-                      {permissionGranted ? 'Camera Ready (HD)' : 'Grant Permission in Call'}
+                  <TouchableOpacity
+                    style={[
+                      styles.cameraOffPill,
+                      {
+                        borderColor: permissionGranted ? 'rgba(52, 211, 153, 0.4)' : 'rgba(239, 68, 68, 0.4)',
+                        backgroundColor: permissionGranted ? 'rgba(6, 78, 59, 0.6)' : 'rgba(127, 29, 29, 0.6)',
+                      },
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (!permissionGranted) {
+                        void requestCameraAndMicrophonePermissions({ showAlertOnDenial: true }).then((res) => {
+                          const granted = Boolean(res.granted || res.camera || res.microphone);
+                          setPermissionGranted(granted);
+                          setNativeCameraReady(granted);
+                        });
+                      }
+                    }}
+                  >
+                    <Video size={14} color={permissionGranted ? '#34D399' : '#F87171'} />
+                    <Text style={[styles.cameraOffText, { color: permissionGranted ? '#34D399' : '#FCA5A5' }]}>
+                      {isCheckingPermission ? 'Checking permissions...' : permissionGranted ? 'Starting Camera...' : 'Grant Permission in Settings (Tap Here)'}
                     </Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
               ) : (
                 <View style={styles.cameraOffOverlay}>

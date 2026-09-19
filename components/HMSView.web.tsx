@@ -36,11 +36,12 @@ export default function HMSView({
   }, [onLeave]);
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#000', zIndex: 9999 }}>
+    <div style={{ flex: 1, width: '100%', height: '100%', backgroundColor: '#000' }}>
       <iframe
         src={webPrebuiltUrl}
         allow="camera; microphone; fullscreen; speaker; display-capture; autoplay; wake-lock; screen-wake-lock; compute-pressure"
-        style={{ width: '100%', height: '100%', border: 'none' }}
+        allowFullScreen
+        style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
       />
     </div>
   );

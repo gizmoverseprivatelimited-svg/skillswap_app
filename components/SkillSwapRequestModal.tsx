@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View, ScrollView, TouchableOpacity } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CalendarCheck2, Clock, MapPin, Sparkles, X, ArrowRight, Check, AlertTriangle, Coins, GraduationCap, BookOpen, ArrowLeftRight, IndianRupee, CalendarClock } from 'lucide-react-native';
 import { useMutation } from '@tanstack/react-query';
@@ -126,6 +127,42 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
     new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   );
   const [pickerSelectedTime, setPickerSelectedTime] = useState<string>('14:00');
+
+  const [nativePickerState, setNativePickerState] = useState<{ visible: boolean, mode: 'date' | 'time' }>({ visible: false, mode: 'date' });
+
+  const handleNativePickerDismiss = () => {
+    setNativePickerState({ visible: false, mode: 'date' });
+  };
+
+  const handleNativePickerChange = (selectedDate: Date) => {
+    if (!selectedDate || !(selectedDate instanceof Date)) return;
+    
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const hours = String(selectedDate.getHours()).padStart(2, '0');
+    const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
+    
+    if (nativePickerState.mode === 'date') {
+      const dStr = `${year}-${month}-${day}`;
+      const oldTime = customDateTimeStr && customDateTimeStr.includes('T') ? customDateTimeStr.split('T')[1].slice(0, 5) : '14:00';
+      setCustomDateTimeStr(`${dStr}T${oldTime}`);
+      
+      if (Platform.OS === 'android') {
+        setNativePickerState({ visible: false, mode: 'date' });
+        setTimeout(() => {
+          setNativePickerState({ visible: true, mode: 'time' });
+        }, 100);
+      } else {
+        setNativePickerState({ visible: false, mode: 'date' });
+      }
+    } else {
+      const dStr = customDateTimeStr ? customDateTimeStr.split('T')[0] : `${year}-${month}-${day}`;
+      const tStr = `${hours}:${minutes}`;
+      setCustomDateTimeStr(`${dStr}T${tStr}`);
+      setNativePickerState({ visible: false, mode: 'date' });
+    }
+  };
 
   const next14Days = useMemo(() => {
     const days: { dateStr: string; label: string; sublabel: string }[] = [];
@@ -816,13 +853,40 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                     }}
                   />
                 ) : (
-                  <TextInput
-                    style={styles.customDateTimeInput}
-                    placeholder="YYYY-MM-DD HH:MM"
-                    placeholderTextColor="rgba(148, 163, 184, 0.65)"
-                    value={customDateTimeStr}
-                    onChangeText={setCustomDateTimeStr}
-                  />
+                  <>
+                    <TouchableOpacity
+                      style={[styles.customDateTimeInput, { justifyContent: 'center' }]}
+                      onPress={() => setNativePickerState({ visible: true, mode: 'date' })}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={{ color: customDateTimeStr ? '#F8FAFC' : 'rgba(148, 163, 184, 0.65)' }}>
+                        {customDateTimeStr ? new Date(customDateTimeStr).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'Select Date & Time'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    {nativePickerState.visible && (
+                      <DateTimePicker
+                        value={(() => {
+                          if (!customDateTimeStr) return new Date();
+                          const parts = customDateTimeStr.split('T');
+                          if (parts.length < 2) return new Date();
+                          const [y, m, d] = parts[0].split('-').map(Number);
+                          const [hh, min] = parts[1].split(':').map(Number);
+                          return new Date(y, m - 1, d, hh, min);
+                        })()}
+                        mode={nativePickerState.mode}
+                        display="default"
+                        minimumDate={new Date()}
+                        onValueChange={(val: any, maybeDate?: Date) => {
+                          const actualDate = (val instanceof Date) ? val : maybeDate;
+                          if (actualDate) {
+                            handleNativePickerChange(actualDate);
+                          }
+                        }}
+                        onDismiss={handleNativePickerDismiss}
+                      />
+                    )}
+                  </>
                 )}
               </View>
 

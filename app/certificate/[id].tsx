@@ -1,8 +1,10 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useRef } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Share, Platform, Alert, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Download, Share2, Award, Sparkles, Calendar, Tag, User, ShieldCheck } from 'lucide-react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import Colors from '@/constants/colors';
 import { useCurrentUser } from '@/providers/current-user';
 import { useSkillSwaps } from '@/providers/skill-swaps';
@@ -44,23 +46,48 @@ export default function CertificateScreen() {
       const filename = `leteski-certificate-${cert.certificateNumber}.html`;
 
       if (Platform.OS === 'web' && typeof document !== 'undefined') {
-        // Web: create a downloadable HTML file
-        const blob = new Blob([html], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        Alert.alert('Downloaded', `Certificate saved as ${filename}`);
+        // Web: Create a hidden iframe to print ONLY the certificate HTML, bypassing the main React root
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+
+        const htmlContent = generateCertificateHTML(cert, true);
+        
+        if (iframe.contentWindow) {
+          iframe.contentWindow.document.open();
+          iframe.contentWindow.document.write(htmlContent);
+          iframe.contentWindow.document.close();
+
+          iframe.onload = () => {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+            setTimeout(() => {
+              if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+              }
+            }, 1000);
+          };
+        }
       } else {
-        // Mobile: share as HTML via native sharing sheet
-        await Share.share({
-          title: `leteski Certificate - ${cert.skillTitle}`,
-          message: `leteski Certificate of Completion: ${cert.skillTitle}\n\nCertificate No: ${cert.certificateNumber}\nPresented to: ${cert.recipientName}\nDate: ${formatDate(cert.completedAt)}`,
-        });
+        if (Platform.OS === 'android') {
+          // Open the native Print / Save as PDF dialog without screen constraints
+          await Print.printAsync({
+            html: generateCertificateHTML(cert, true),
+            orientation: Print.Orientation.landscape
+          });
+        } else {
+          // iOS: Fallback to Share
+          const { uri } = await Print.printToFileAsync({
+            html: generateCertificateHTML(cert, true),
+            base64: false
+          });
+          await Share.share({ url: uri, title: filename.replace('.html', '.pdf') });
+        }
       }
     } catch (error) {
       console.error('[Certificate] Download failed:', error);
@@ -74,6 +101,7 @@ export default function CertificateScreen() {
     if (!cert) return;
     try {
       const message = `I earned a certificate on leteski!\n\n${getCertificateLabel(cert.type).title}\nSkill: ${cert.skillTitle}\nCompleted: ${formatDate(cert.completedAt)}\nCertificate: ${cert.certificateNumber}\n\nGet yours at leteski.com`;
+      
       if (Platform.OS === 'web') {
         if (typeof navigator !== 'undefined' && navigator.share) {
           await navigator.share({ title: 'leteski Certificate', text: message });
@@ -82,7 +110,22 @@ export default function CertificateScreen() {
           Alert.alert('Copied', 'Certificate details copied to clipboard');
         }
       } else {
-        await Share.share({ message });
+        // Mobile: Generate the PDF file silently and share it natively
+        const { uri } = await Print.printToFileAsync({
+          html: generateCertificateHTML(cert, true),
+          base64: false
+        });
+        
+        const isSharingAvailable = await Sharing.isAvailableAsync();
+        if (isSharingAvailable) {
+          await Sharing.shareAsync(uri, {
+            mimeType: 'application/pdf',
+            dialogTitle: 'Share Certificate',
+            UTI: 'com.adobe.pdf'
+          });
+        } else {
+          await Share.share({ url: uri, message });
+        }
       }
     } catch (error) {
       console.log('[Certificate] Share cancelled:', error);

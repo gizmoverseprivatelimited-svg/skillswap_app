@@ -11,6 +11,7 @@ import { useSocket } from '../../providers/socket';
 import { getSkillsWithUsers } from '../../mocks/data';
 import type { SkillWithUser, SkillSwapStatus, SwapTimeProposal } from '../../types';
 import { addSwapToCalendar, exportSwapToICalendar } from '../../lib/calendar';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 type TimeSuggestion = {
   id: string;
@@ -107,6 +108,7 @@ export default function SwapDetailScreen() {
   const [callModeToStart, setCallModeToStart] = useState<'video' | 'voice'>('video');
 
   const [calendarModalVisible, setCalendarModalVisible] = useState<boolean>(false);
+  const [showNativePicker, setShowNativePicker] = useState<boolean>(false);
   const [customDateTimeStr, setCustomDateTimeStr] = useState<string>(() => {
     const tom = new Date(Date.now() + 24 * 60 * 60 * 1000);
     tom.setHours(14, 0, 0, 0);
@@ -1124,34 +1126,79 @@ export default function SwapDetailScreen() {
             <View style={styles.pickerSection}>
               <Text style={styles.pickerSectionTitle}>Select Date & Time (Calendar)</Text>
               {Platform.OS === 'web' ? (
-                // @ts-ignore - native HTML datetime-local input popover
-                <input
-                  type="datetime-local"
-                  value={customDateTimeStr}
-                  onChange={(e: any) => setCustomDateTimeStr(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '14px 16px',
-                    borderRadius: '14px',
-                    border: '1px solid rgba(56, 189, 248, 0.4)',
-                    backgroundColor: '#0F172A',
-                    color: '#F8FAFC',
-                    colorScheme: 'dark',
-                    fontSize: '15px',
-                    fontFamily: 'inherit',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    cursor: 'pointer',
-                  }}
-                />
+                <>
+                  <style>{`
+                    .full-clickable-datetime::-webkit-calendar-picker-indicator {
+                      position: absolute;
+                      top: 0;
+                      left: 0;
+                      right: 0;
+                      bottom: 0;
+                      width: 100%;
+                      height: 100%;
+                      opacity: 0;
+                      cursor: pointer;
+                    }
+                  `}</style>
+                  {/* @ts-ignore - native HTML datetime-local input popover */}
+                  <input
+                    type="datetime-local"
+                    className="full-clickable-datetime"
+                    value={customDateTimeStr}
+                    onChange={(e: any) => setCustomDateTimeStr(e.target.value)}
+                    onClick={(e: any) => {
+                      try {
+                        if (e.target.showPicker) {
+                          e.target.showPicker();
+                        }
+                      } catch (err) { }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      borderRadius: '14px',
+                      border: '1px solid rgba(56, 189, 248, 0.4)',
+                      backgroundColor: '#0F172A',
+                      color: '#F8FAFC',
+                      colorScheme: 'dark',
+                      fontSize: '15px',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      cursor: 'pointer',
+                      position: 'relative',
+                    }}
+                  />
+                </>
               ) : (
-                <TextInput
-                  style={styles.customDateTimeInput}
-                  placeholder="YYYY-MM-DD HH:MM"
-                  placeholderTextColor="rgba(148, 163, 184, 0.65)"
-                  value={customDateTimeStr}
-                  onChangeText={setCustomDateTimeStr}
-                />
+                <>
+                  <TouchableOpacity onPress={() => setShowNativePicker(true)} activeOpacity={0.8}>
+                    <View pointerEvents="none">
+                      <TextInput
+                        style={styles.customDateTimeInput}
+                        placeholder="YYYY-MM-DD HH:MM"
+                        placeholderTextColor="rgba(148, 163, 184, 0.65)"
+                        value={customDateTimeStr}
+                        editable={false}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                  {showNativePicker && (
+                    <DateTimePicker
+                      value={customDateTimeStr ? new Date(customDateTimeStr) : new Date()}
+                      mode="datetime"
+                      display="default"
+                      onChange={(event, selectedDate) => {
+                        setShowNativePicker(false);
+                        if (selectedDate && event.type !== 'dismissed') {
+                          const pad = (n: number) => n.toString().padStart(2, '0');
+                          const dateStr = `${selectedDate.getFullYear()}-${pad(selectedDate.getMonth() + 1)}-${pad(selectedDate.getDate())} ${pad(selectedDate.getHours())}:${pad(selectedDate.getMinutes())}`;
+                          setCustomDateTimeStr(dateStr);
+                        }
+                      }}
+                    />
+                  )}
+                </>
               )}
             </View>
 

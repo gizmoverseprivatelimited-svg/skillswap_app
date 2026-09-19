@@ -133,25 +133,61 @@ export default function ProfileScreen() {
     return [...swapCerts, ...classCerts];
   }, [swaps, currentUser, allUsers, classes, enrollments]);
 
-  const handleUploadCertificate = async (skillId: string, skillTitle: string) => {
+  const handleUploadCertificate = (skillId: string, skillTitle: string) => {
     if (isDemoUser) {
       handleRequireLogin('upload certificates');
       return;
     }
+    showAlert(
+      'Upload Certificate',
+      'Choose an option',
+      [
+        {
+          text: 'Take Photo',
+          onPress: () => handlePickCertificateSource('camera', skillId, skillTitle),
+        },
+        {
+          text: 'Choose from Library',
+          onPress: () => handlePickCertificateSource('library', skillId, skillTitle),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const handlePickCertificateSource = async (source: 'camera' | 'library', skillId: string, skillTitle: string) => {
     try {
       if (Platform.OS !== 'web') {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          showAlert('Permission needed', 'Please allow access to your photos to upload a certificate document.');
-          return;
+        if (source === 'camera') {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== 'granted') {
+            showAlert('Permission needed', 'Please allow camera access to take a photo.');
+            return;
+          }
+        } else {
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== 'granted') {
+            showAlert('Permission needed', 'Please allow access to your photos to upload a document.');
+            return;
+          }
         }
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.8,
-      });
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            quality: 0.8,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: false,
+            quality: 0.8,
+          });
+
       const asset = result.assets?.[0];
       if (!result.canceled && asset) {
         const formData = new FormData();
@@ -176,17 +212,38 @@ export default function ProfileScreen() {
           ? `${url}/skills/${skillId}/certificate`
           : `${url}/skills/upload-certificate`;
 
-        const uploadRes = await fetch(uploadEndpoint, {
-          method: 'POST',
-          body: formData,
-        });
+        let uploadData;
 
-        if (!uploadRes.ok) {
-          const errorData = await uploadRes.json().catch(() => ({}));
-          throw new Error(errorData.error || errorData.message || 'Failed to upload certificate');
+        if (Platform.OS === 'web') {
+          const uploadRes = await fetch(uploadEndpoint, {
+            method: 'POST',
+            body: formData,
+          });
+          if (!uploadRes.ok) {
+            const errorData = await uploadRes.json().catch(() => ({}));
+            throw new Error(errorData.error || errorData.message || 'Failed to upload certificate');
+          }
+          uploadData = await uploadRes.json();
+        } else {
+          uploadData = await new Promise<any>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', uploadEndpoint);
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                  resolve(JSON.parse(xhr.responseText));
+                } catch(e) {
+                  reject(new Error('Failed to parse response'));
+                }
+              } else {
+                reject(new Error(`Upload failed: ${xhr.status}`));
+              }
+            };
+            xhr.onerror = () => reject(new Error('Network error during upload'));
+            xhr.send(formData);
+          });
         }
 
-        const uploadData = await uploadRes.json();
         const savedUri = uploadData.certificateUri;
 
         if (attachSkillCertificate) attachSkillCertificate(skillId, savedUri);
@@ -711,7 +768,7 @@ export default function ProfileScreen() {
               <Text style={styles.sectionTitle}>Skills I Offer</Text>
               <TouchableOpacity
                 style={styles.addSkillButton}
-                onPress={() => isDemoUser ? handleRequireLogin('add an offer skill') : router.push('/add-skill' as any)}
+                onPress={() => isDemoUser ? handleRequireLogin('add an offer skill') : router.push('/add-skill?mode=teach' as any)}
                 activeOpacity={0.7}
               >
                 <Plus size={16} color="#FFFFFF" />
@@ -886,7 +943,7 @@ export default function ProfileScreen() {
               <Text style={styles.sectionTitle}>Want to Learn</Text>
               <TouchableOpacity
                 style={styles.addWantButton}
-                onPress={() => isDemoUser ? handleRequireLogin('edit learning skills') : router.push('/edit-profile' as any)}
+                onPress={() => isDemoUser ? handleRequireLogin('edit learning skills') : router.push('/add-skill?mode=learn' as any)}
                 activeOpacity={0.7}
               >
                 <Plus size={14} color={Colors.light.primary} />

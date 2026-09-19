@@ -8,6 +8,8 @@ export interface LiveVideoTrackProps {
   facingMode?: 'user' | 'environment';
   scaleType?: 'fill' | 'fit';
   style?: ViewStyle;
+  id?: string;
+  setZOrderMediaOverlay?: boolean;
 }
 
 function LiveVideoTrackComponent({

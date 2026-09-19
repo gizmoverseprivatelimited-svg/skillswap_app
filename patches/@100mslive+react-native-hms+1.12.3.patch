@@ -1,0 +1,574 @@
+diff --git a/node_modules/@100mslive/react-native-hms/android/src/main/java/com/reactnativehmssdk/HMSRNSDK.kt b/node_modules/@100mslive/react-native-hms/android/src/main/java/com/reactnativehmssdk/HMSRNSDK.kt
+index 7729a33..0e8de43 100644
+--- a/node_modules/@100mslive/react-native-hms/android/src/main/java/com/reactnativehmssdk/HMSRNSDK.kt
++++ b/node_modules/@100mslive/react-native-hms/android/src/main/java/com/reactnativehmssdk/HMSRNSDK.kt
+@@ -41,6 +41,7 @@ class HMSRNSDK(
+   var isAudioSharing: Boolean = false
+   var delegate: HMSManager = HmsDelegate
+   var previewForRoleVideoTrack: HMSLocalVideoTrack? = null
++  var previewLocalTracks: Array<HMSTrack>? = null
+   var previewForRoleAudioTrack: HMSLocalAudioTrack? = null
+   private var recentRoleChangeRequest: HMSRoleChangeRequest? = null
+   private var context: ReactApplicationContext = reactApplicationContext
+@@ -250,6 +251,7 @@ class HMSRNSDK(
+             room: HMSRoom,
+             localTracks: Array<HMSTrack>,
+           ) {
++            previewLocalTracks = localTracks
+             previewInProgress = false
+             if (eventsEnableStatus["ON_PREVIEW"] != true) {
+               return
+@@ -778,7 +780,8 @@ class HMSRNSDK(
+ 
+   fun setLocalMute(data: ReadableMap) {
+     val isMute = data.getBoolean("isMute")
+-    val localAudioTrack = hmsSDK?.getLocalPeer()?.audioTrack ?: previewForRoleAudioTrack
++    val previewAudio = previewLocalTracks?.filterIsInstance<HMSLocalAudioTrack>()?.firstOrNull()
++    val localAudioTrack = hmsSDK?.getLocalPeer()?.audioTrack ?: previewForRoleAudioTrack ?: previewAudio
+     localAudioTrack?.let {
+       it.setMute(isMute)
+     }
+@@ -786,17 +789,23 @@ class HMSRNSDK(
+ 
+   fun setLocalVideoMute(data: ReadableMap) {
+     val isMute = data.getBoolean("isMute")
+-    val localVideoTrack = hmsSDK?.getLocalPeer()?.videoTrack ?: previewForRoleVideoTrack
++    val previewVideo = previewLocalTracks?.filterIsInstance<HMSLocalVideoTrack>()?.firstOrNull()
++    val localVideoTrack = hmsSDK?.getLocalPeer()?.videoTrack ?: previewForRoleVideoTrack ?: previewVideo
+     localVideoTrack?.let {
+       it.setMute(isMute)
+     }
+   }
+ 
+   fun switchCamera() {
+-    val localVideoTrack = hmsSDK?.getLocalPeer()?.videoTrack ?: previewForRoleVideoTrack
++    val previewVideo = previewLocalTracks?.filterIsInstance<HMSLocalVideoTrack>()?.firstOrNull()
++    val localVideoTrack = hmsSDK?.getLocalPeer()?.videoTrack ?: previewForRoleVideoTrack ?: previewVideo
+     localVideoTrack?.let {
+-      if (!it.isMute) {
+-        HMSCoroutineScope.launch { it.switchCamera() }
++      HMSCoroutineScope.launch {
++        try {
++          it.switchCamera()
++        } catch (e: Exception) {
++          android.util.Log.w("HMSRNSDK", "switchCamera exception: " + e.message)
++        }
+       }
+     }
+   }
+@@ -1295,6 +1304,7 @@ class HMSRNSDK(
+     hmsSDK?.cancelPreview()
+     previewForRoleAudioTrack = null
+     previewForRoleVideoTrack = null
++    previewLocalTracks = null
+     callback?.resolve(getPromiseResolveData())
+   }
+ 
+@@ -1598,10 +1608,20 @@ class HMSRNSDK(
+     screenshareCallback = callback
+     HMSManager.startingScreenShare = true
+     runOnUiThread {
+-      val intent = Intent(context, HmsScreenshareActivity::class.java)
+-      intent.flags = FLAG_ACTIVITY_NEW_TASK
+-      intent.putExtra("id", id)
+-      context.startActivity(intent)
++      try {
++        val act = context.currentActivity
++        val targetContext = act ?: context
++        val intent = Intent(targetContext, HmsScreenshareActivity::class.java)
++        if (act == null) {
++          intent.flags = FLAG_ACTIVITY_NEW_TASK
++        }
++        intent.putExtra("id", id)
++        targetContext.startActivity(intent)
++      } catch (e: Throwable) {
++        android.util.Log.e("HMSRNSDK", "startScreenshare error", e)
++        HMSManager.startingScreenShare = false
++        callback?.reject("START_SCREENSHARE_FAILED", e.message, e)
++      }
+     }
+   }
+ 
+diff --git a/node_modules/@100mslive/react-native-hms/android/src/main/java/com/reactnativehmssdk/HMSView.kt b/node_modules/@100mslive/react-native-hms/android/src/main/java/com/reactnativehmssdk/HMSView.kt
+index c627aad..c3921c8 100644
+--- a/node_modules/@100mslive/react-native-hms/android/src/main/java/com/reactnativehmssdk/HMSView.kt
++++ b/node_modules/@100mslive/react-native-hms/android/src/main/java/com/reactnativehmssdk/HMSView.kt
+@@ -13,6 +13,7 @@ import com.facebook.react.bridge.ReadableArray
+ import com.facebook.react.bridge.WritableMap
+ import com.facebook.react.uimanager.events.RCTEventEmitter
+ import hms.webrtc.RendererCommon
++import live.hms.video.media.tracks.HMSLocalVideoTrack
+ import live.hms.video.media.tracks.HMSVideoTrack
+ import live.hms.video.utils.HmsUtilities
+ import live.hms.videoview.HMSVideoView
+@@ -27,6 +28,10 @@ class HMSView(
+   private var sdkId: String = "12345"
+   private var disableAutoSimulcastLayerSelect = false
+   private var jsCanApplyStyles = false
++  private var savedTrackId: String? = null
++  private var savedCollection: MutableMap<String, HMSRNSDK>? = null
++  private var savedMirror: Boolean? = null
++  private var savedScaleType: String? = null
+ 
+   init {
+     val inflater = getContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+@@ -47,7 +52,6 @@ class HMSView(
+           super.onResolutionChange(newWidth, newHeight)
+ 
+           videoTrack?.let { nonnullVideoTrack ->
+-            // emit when source is screen or `jsCanApplyStyles` is `false`
+             if (nonnullVideoTrack.source == "screen" || !jsCanApplyStyles) {
+               jsCanApplyStyles = true
+ 
+@@ -67,12 +71,16 @@ class HMSView(
+     eventName: String,
+     data: WritableMap,
+   ) {
+-    val event: WritableMap = Arguments.createMap()
+-    event.putString("event", eventName)
+-    event.putMap("data", data)
++    try {
++      val event: WritableMap = Arguments.createMap()
++      event.putString("event", eventName)
++      event.putMap("data", data)
+ 
+-    val reactContext = context as ReactContext
+-    reactContext.getJSModule(RCTEventEmitter::class.java).receiveEvent(id, "topChange", event)
++      val reactContext = context as? ReactContext
++      reactContext?.getJSModule(RCTEventEmitter::class.java)?.receiveEvent(id, "topChange", event)
++    } catch (e: Exception) {
++      Log.w("HMSView", "sendEventToJS failed: " + e.message)
++    }
+   }
+ 
+   @RequiresApi(Build.VERSION_CODES.N)
+@@ -84,27 +92,32 @@ class HMSView(
+ 
+   override fun onDetachedFromWindow() {
+     super.onDetachedFromWindow()
+-    hmsVideoView?.removeTrack()
++    try {
++      hmsVideoView?.removeTrack()
++    } catch (e: Exception) {
++      Log.w("HMSView", "onDetachedFromWindow removeTrack notice: " + e.message)
++    }
+   }
+ 
+   override fun onAttachedToWindow() {
+     super.onAttachedToWindow()
+-
+     videoTrack?.let {
+-      // Safe Call Operator to check if videoTrack is not null
+-      hmsVideoView?.addTrack(it) // add the videoTrack to the hmsVideoView
++      try {
++        hmsVideoView?.addTrack(it)
++      } catch (e: Exception) {
++        Log.w("HMSView", "onAttachedToWindow addTrack notice: " + e.message)
++      }
+     } ?: run {
+-      // Elvis Operator to handle the case when videoTrack is null
+-      Log.e(
+-        "HMSView",
+-        "HMSView attached to window, but it's videoTrack is null",
+-      ) // log an error message
++      savedTrackId?.let { tId ->
++        savedCollection?.let { col ->
++          setData(sdkId, tId, col, savedMirror, savedScaleType)
++        }
++      }
+     }
+   }
+ 
+   fun updateZOrderMediaOverlay(setZOrderMediaOverlay: Boolean?) {
+     if (setZOrderMediaOverlay != null && setZOrderMediaOverlay) {
+-      // hmsVideoView.setZOrderOnTop(true);
+       hmsVideoView?.setZOrderMediaOverlay(setZOrderMediaOverlay)
+     }
+   }
+@@ -141,30 +154,220 @@ class HMSView(
+     if (id != null) {
+       sdkId = id
+     }
++    savedTrackId = trackId
++    savedCollection = hmsCollection
++    savedMirror = mirror
++    savedScaleType = scaleType
++
++    // Resolve SDK: try exact id, then "12345", then last active instance, then first available
+     val rnSDK = hmsCollection[sdkId]
++      ?: hmsCollection["12345"]
++      ?: hmsCollection.values.lastOrNull()
++      ?: hmsCollection.values.firstOrNull()
++
+     val hms = rnSDK?.hmsSDK
+ 
+-    if (trackId != null && hms != null) {
++    if (trackId != null) {
+       if (mirror != null) {
+         hmsVideoView?.setMirror(mirror)
+       }
+       updateScaleType(scaleType)
+ 
+-      hms.getRoom()?.let { room ->
+-        val regularVideoTrack: HMSVideoTrack? = HmsUtilities.getVideoTrack(trackId, room)
++      var foundTrack: HMSVideoTrack? = null
++
++      // 1. Try room-level lookup (works when joined in a room)
++      if (hms != null) {
++        try {
++          val room = hms.getRoom()
++          if (room != null) {
++            foundTrack = HmsUtilities.getVideoTrack(trackId, room)
++            if (foundTrack == null) {
++              foundTrack = HmsUtilities.getTrack(trackId, room) as? HMSVideoTrack
++            }
++            if (foundTrack == null) {
++              // Explicitly look up in auxiliaryTracks and videoTrack of peers (Screenshare tracks are auxiliaryTracks!)
++              val peers = room.peerList
++              for (i in 0 until peers.size) {
++                val peer = peers[i]
++                if (peer.videoTrack?.trackId == trackId) {
++                  foundTrack = peer.videoTrack
++                  break
++                }
++                val auxTracks = peer.auxiliaryTracks
++                for (j in 0 until auxTracks.size) {
++                  val auxTrack = auxTracks[j]
++                  if (auxTrack is HMSVideoTrack && auxTrack.trackId == trackId) {
++                    foundTrack = auxTrack
++                    break
++                  }
++                }
++                if (foundTrack != null) break
++              }
++            }
++            if (foundTrack == null) {
++              val localPeer = room.localPeer
++              if (localPeer != null) {
++                if (localPeer.videoTrack?.trackId == trackId) {
++                  foundTrack = localPeer.videoTrack
++                } else {
++                  val lAux = localPeer.auxiliaryTracks
++                  for (k in 0 until lAux.size) {
++                    val auxTrack = lAux[k]
++                    if (auxTrack is HMSVideoTrack && auxTrack.trackId == trackId) {
++                      foundTrack = auxTrack
++                      break
++                    }
++                  }
++                }
++              }
++            }
++          }
++        } catch (e: Exception) {
++          Log.w("HMSView", "Room track lookup notice: " + e.message)
++        }
++      }
++
++      // 2. Try previewLocalTracks (populated by onPreview in HMSRNSDK)
++      if (foundTrack == null && rnSDK != null) {
++        try {
++          val pTracks = rnSDK.previewLocalTracks
++          if (pTracks != null) {
++            for (t in pTracks) {
++              if (t is HMSLocalVideoTrack && (t.trackId == trackId || trackId.isEmpty())) {
++                foundTrack = t
++                break
++              }
++            }
++          }
++        } catch (e: Exception) {
++          Log.w("HMSView", "previewLocalTracks lookup notice: " + e.message)
++        }
++      }
++
++      // 3. Try previewForRoleVideoTrack
++      if (foundTrack == null && rnSDK != null) {
++        try {
++          rnSDK.previewForRoleVideoTrack?.let {
++            if (it.trackId == trackId || trackId.isEmpty()) {
++              foundTrack = it
++            }
++          }
++        } catch (e: Exception) {
++          Log.w("HMSView", "PreviewForRole track lookup notice: " + e.message)
++        }
++      }
++
++      // 4. Try local peer's video track
++      if (foundTrack == null && hms != null) {
++        try {
++          val localPeer = hms.getLocalPeer()
++          val localVideo = localPeer?.videoTrack
++          if (localVideo != null && (localVideo.trackId == trackId || trackId.isEmpty())) {
++            foundTrack = localVideo
++          }
++        } catch (e: Exception) {
++          Log.w("HMSView", "Local peer track lookup notice: " + e.message)
++        }
++      }
++
++      // 5. Cross-instance lookup across any other active SDK instances
++      if (foundTrack == null) {
++        try {
++          for ((_, sdk) in hmsCollection) {
++            // Check previewLocalTracks
++            val pTracks = sdk.previewLocalTracks
++            if (pTracks != null) {
++              for (t in pTracks) {
++                if (t is HMSLocalVideoTrack && (t.trackId == trackId || trackId.isEmpty())) {
++                  foundTrack = t
++                  break
++                }
++              }
++            }
++            if (foundTrack != null) break
+ 
+-        regularVideoTrack.let { fetchedTrack ->
+-          if (fetchedTrack == null) {
+-            rnSDK.previewForRoleVideoTrack?.let {
+-              if (it.trackId == trackId) {
+-                videoTrack = it
++            // Check room tracks
++            val sdkHms = sdk.hmsSDK ?: continue
++            val sdkRoom = sdkHms.getRoom()
++            if (sdkRoom != null) {
++              var track = HmsUtilities.getVideoTrack(trackId, sdkRoom)
++              if (track == null) {
++                track = HmsUtilities.getTrack(trackId, sdkRoom) as? HMSVideoTrack
++              }
++              if (track == null) {
++                val peers = sdkRoom.peerList
++                for (i in 0 until peers.size) {
++                  val peer = peers[i]
++                  if (peer.videoTrack?.trackId == trackId) {
++                    track = peer.videoTrack
++                    break
++                  }
++                  val auxTracks = peer.auxiliaryTracks
++                  for (j in 0 until auxTracks.size) {
++                    val auxTrack = auxTracks[j]
++                    if (auxTrack is HMSVideoTrack && auxTrack.trackId == trackId) {
++                      track = auxTrack
++                      break
++                    }
++                  }
++                  if (track != null) break
++                }
+               }
++              if (track == null) {
++                val lPeer = sdkRoom.localPeer
++                if (lPeer != null) {
++                  if (lPeer.videoTrack?.trackId == trackId) {
++                    track = lPeer.videoTrack
++                  } else {
++                    val lAux = lPeer.auxiliaryTracks
++                    for (k in 0 until lAux.size) {
++                      val auxTrack = lAux[k]
++                      if (auxTrack is HMSVideoTrack && auxTrack.trackId == trackId) {
++                        track = auxTrack
++                        break
++                      }
++                    }
++                  }
++                }
++              }
++              if (track != null) {
++                foundTrack = track
++                break
++              }
++            }
++            // Check local peer
++            val lVid = sdkHms.getLocalPeer()?.videoTrack
++            if (lVid != null && (lVid.trackId == trackId || trackId.isEmpty())) {
++              foundTrack = lVid
++              break
+             }
+-          } else {
+-            videoTrack = fetchedTrack
+           }
++        } catch (e: Exception) {
++          Log.w("HMSView", "Cross-instance track lookup notice: " + e.message)
+         }
+       }
++
++      videoTrack = foundTrack
++      if (foundTrack != null && isAttachedToWindow) {
++        try {
++          hmsVideoView?.removeTrack()
++          hmsVideoView?.addTrack(foundTrack)
++        } catch (e: Exception) {
++          Log.w("HMSView", "Failed to addTrack dynamically: " + e.message)
++        }
++      } else if (foundTrack == null) {
++        // Auto-retry if track was not yet ready during initial mount
++        postDelayed({
++          if (videoTrack == null && isAttachedToWindow) {
++            setData(id, trackId, hmsCollection, mirror, scaleType)
++          }
++        }, 350)
++        postDelayed({
++          if (videoTrack == null && isAttachedToWindow) {
++            setData(id, trackId, hmsCollection, mirror, scaleType)
++          }
++        }, 850)
++      }
+     }
+   }
+ 
+diff --git a/node_modules/@100mslive/react-native-hms/android/src/main/java/com/reactnativehmssdk/HmsScreenshareActivity.kt b/node_modules/@100mslive/react-native-hms/android/src/main/java/com/reactnativehmssdk/HmsScreenshareActivity.kt
+index b4c70cd..1be6dd5 100644
+--- a/node_modules/@100mslive/react-native-hms/android/src/main/java/com/reactnativehmssdk/HmsScreenshareActivity.kt
++++ b/node_modules/@100mslive/react-native-hms/android/src/main/java/com/reactnativehmssdk/HmsScreenshareActivity.kt
+@@ -4,7 +4,10 @@ import android.app.Activity
+ import android.content.Context
+ import android.content.Intent
+ import android.media.projection.MediaProjectionManager
++import android.os.Build
+ import android.os.Bundle
++import android.os.Handler
++import android.os.Looper
+ import androidx.activity.ComponentActivity
+ import androidx.activity.result.ActivityResultLauncher
+ import androidx.activity.result.contract.ActivityResultContracts
+@@ -17,22 +20,53 @@ class HmsScreenshareActivity : ComponentActivity() {
+       if (result.resultCode == Activity.RESULT_OK) {
+         val mediaProjectionPermissionResultData: Intent? = result.data
+         val id = intent.getStringExtra("id")
+-        HMSManager.hmsCollection[id]?.hmsSDK?.startScreenshare(
+-          object : HMSActionResultListener {
+-            override fun onError(error: HMSException) {
+-              finish()
+-              HMSManager.hmsCollection[id]?.screenshareCallback?.reject(error)
+-            }
+ 
+-            override fun onSuccess() {
+-              HMSManager.hmsCollection[id]?.screenshareCallback?.resolve(
+-                HMSManager.hmsCollection[id]?.getPromiseResolveData(),
+-              )
+-              finish()
+-            }
+-          },
+-          mediaProjectionPermissionResultData,
+-        )
++        // On Android 14+, do NOT call finish() immediately after startScreenshare.
++        // The media projection token is single-use and tied to this activity being in
++        // the foreground. Finishing the activity too early causes the foreground service
++        // to lose access to the token before startForeground() is called, causing a crash.
++        // Android 14 race condition fix: Delay before calling startScreenshare
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
++          Handler(Looper.getMainLooper()).postDelayed({
++            HMSManager.hmsCollection[id]?.hmsSDK?.startScreenshare(
++              object : HMSActionResultListener {
++                override fun onError(error: HMSException) {
++                  HMSManager.hmsCollection[id]?.screenshareCallback?.reject(error)
++                  finish()
++                }
++
++                override fun onSuccess() {
++                  HMSManager.hmsCollection[id]?.screenshareCallback?.resolve(
++                    HMSManager.hmsCollection[id]?.getPromiseResolveData(),
++                  )
++                  // On Android 14+, delay finish to allow the foreground service to
++                  // fully bind to MediaProjection before this activity is destroyed.
++                  Handler(Looper.getMainLooper()).postDelayed({
++                    finish()
++                  }, 1000)
++                }
++              },
++              mediaProjectionPermissionResultData,
++            )
++          }, 200) // 200ms delay before starting
++        } else {
++          HMSManager.hmsCollection[id]?.hmsSDK?.startScreenshare(
++            object : HMSActionResultListener {
++              override fun onError(error: HMSException) {
++                HMSManager.hmsCollection[id]?.screenshareCallback?.reject(error)
++                finish()
++              }
++
++              override fun onSuccess() {
++                HMSManager.hmsCollection[id]?.screenshareCallback?.resolve(
++                  HMSManager.hmsCollection[id]?.getPromiseResolveData(),
++                )
++                finish()
++              }
++            },
++            mediaProjectionPermissionResultData,
++          )
++        }
+       } else {
+         val id = intent.getStringExtra("id")
+         val error =
+@@ -50,7 +84,15 @@ class HmsScreenshareActivity : ComponentActivity() {
+ 
+   override fun onCreate(savedInstanceState: Bundle?) {
+     super.onCreate(savedInstanceState)
+-    startScreenshare()
++    try {
++      startScreenshare()
++    } catch (e: Throwable) {
++      android.util.Log.e("HmsScreenshareActivity", "onCreate startScreenshare failed", e)
++      val id = intent.getStringExtra("id")
++      HMSManager.startingScreenShare = false
++      HMSManager.hmsCollection[id]?.screenshareCallback?.reject(e)
++      finish()
++    }
+   }
+ 
+   private fun startScreenshare() {
+@@ -61,8 +103,11 @@ class HmsScreenshareActivity : ComponentActivity() {
+         val mediaProjectionManager =
+           getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+         resultLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
+-      } catch (e: Exception) {
+-        println(e)
++      } catch (e: Throwable) {
++        android.util.Log.e("HmsScreenshareActivity", "createScreenCaptureIntent launch failed", e)
++        HMSManager.startingScreenShare = false
++        HMSManager.hmsCollection[id]?.screenshareCallback?.reject(e)
++        finish()
+       }
+       HMSManager.startingScreenShare = false
+     } else {
+diff --git a/node_modules/@100mslive/react-native-hms/lib/commonjs/classes/HMSEncoder.js b/node_modules/@100mslive/react-native-hms/lib/commonjs/classes/HMSEncoder.js
+index 15f4908..39b760c 100644
+--- a/node_modules/@100mslive/react-native-hms/lib/commonjs/classes/HMSEncoder.js
++++ b/node_modules/@100mslive/react-native-hms/lib/commonjs/classes/HMSEncoder.js
+@@ -263,7 +263,7 @@ class HMSEncoder {
+   }
+   static encodeHmsPreviewTracks(previewTracks, id) {
+     return previewTracks === null || previewTracks === void 0 ? void 0 : previewTracks.map(track => {
+-      return this.encodeHmsTrack(track, id);
++      return track.type === _HMSTrackType.HMSTrackType.VIDEO ? this.encodeHmsLocalVideoTrack(track, id) : this.encodeHmsLocalAudioTrack(track, id);
+     });
+   }
+   static encodeHmsPreviewForRoleTracks(previewTracks, id) {
+diff --git a/node_modules/@100mslive/react-native-hms/lib/module/classes/HMSEncoder.js b/node_modules/@100mslive/react-native-hms/lib/module/classes/HMSEncoder.js
+index 34b01fe..e38b2ad 100644
+--- a/node_modules/@100mslive/react-native-hms/lib/module/classes/HMSEncoder.js
++++ b/node_modules/@100mslive/react-native-hms/lib/module/classes/HMSEncoder.js
+@@ -256,7 +256,7 @@ export class HMSEncoder {
+   }
+   static encodeHmsPreviewTracks(previewTracks, id) {
+     return previewTracks === null || previewTracks === void 0 ? void 0 : previewTracks.map(track => {
+-      return this.encodeHmsTrack(track, id);
++      return track.type === HMSTrackType.VIDEO ? this.encodeHmsLocalVideoTrack(track, id) : this.encodeHmsLocalAudioTrack(track, id);
+     });
+   }
+   static encodeHmsPreviewForRoleTracks(previewTracks, id) {
+diff --git a/node_modules/@100mslive/react-native-hms/src/classes/HMSEncoder.ts b/node_modules/@100mslive/react-native-hms/src/classes/HMSEncoder.ts
+index 089b941..0f770da 100644
+--- a/node_modules/@100mslive/react-native-hms/src/classes/HMSEncoder.ts
++++ b/node_modules/@100mslive/react-native-hms/src/classes/HMSEncoder.ts
+@@ -325,7 +325,9 @@ export class HMSEncoder {
+ 
+   static encodeHmsPreviewTracks(previewTracks: any[], id: string) {
+     return previewTracks?.map((track) => {
+-      return this.encodeHmsTrack(track, id);
++      return track.type === HMSTrackType.VIDEO
++        ? this.encodeHmsLocalVideoTrack(track, id)
++        : this.encodeHmsLocalAudioTrack(track, id);
+     });
+   }
+ 

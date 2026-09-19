@@ -104,7 +104,7 @@ const STOCK_IMAGES: Record<string, string> = {
 
 export default function AddSkillScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, mode: initialModeParam } = useLocalSearchParams<{ id?: string, mode?: string }>();
   const { currentUser, loadUser } = useCurrentUser();
   const { showAlert } = useAlert();
 
@@ -114,7 +114,9 @@ export default function AddSkillScreen() {
     return currentUser.skillsOffered.find((s) => String(s.id) === String(id) || String((s as any)._id) === String(id));
   }, [id, currentUser?.skillsOffered]);
 
-  const [mode, setMode] = useState<AddMode | null>(isEditMode ? 'teach' : null);
+  const [mode, setMode] = useState<AddMode | null>(
+    isEditMode ? 'teach' : (initialModeParam as AddMode) || null
+  );
   const [teachTitle, setTeachTitle] = useState<string>('');
   const [teachCategory, setTeachCategory] = useState<string | null>(null);
   const [teachSubcategory, setTeachSubcategory] = useState<string | null>(null);
@@ -454,14 +456,10 @@ export default function AddSkillScreen() {
           headerLeft: () => (
             <TouchableOpacity
               onPress={() => {
-                if (isEditMode) {
-                  if (router.canGoBack()) {
-                    router.back();
-                  } else {
-                    router.replace('/(tabs)/profile');
-                  }
+                if (router.canGoBack()) {
+                  router.back();
                 } else {
-                  resetFields();
+                  router.replace('/(tabs)/profile');
                 }
               }}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}

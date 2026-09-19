@@ -3,7 +3,7 @@ import { Stack, useRouter, useSegments, useRootNavigationState, usePathname } fr
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useMemo } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { StyleSheet, ActivityIndicator, View, Platform } from "react-native";
+import { StyleSheet, ActivityIndicator, View, Platform, PermissionsAndroid } from "react-native";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "../providers/auth";
 import { CurrentUserProvider, useCurrentUser } from "../providers/current-user";
@@ -17,11 +17,7 @@ import { InAppNotificationBanner } from "../components/InAppNotificationBanner";
 import { AdminProvider } from "@/providers/admin";
 import url from '@/constants/backurl';
 
-if (Platform.OS !== 'web') {
-  try {
-    SplashScreen.preventAutoHideAsync().catch(() => {});
-  } catch (e) {}
-}
+
 
 const queryClient = new QueryClient();
 
@@ -340,9 +336,27 @@ import { SocketProvider } from "../providers/socket";
 
 export default function RootLayout() {
   useEffect(() => {
+    if (Platform.OS !== 'web') {
+      try {
+        SplashScreen.preventAutoHideAsync().catch(() => {});
+      } catch (e) {}
+    }
+    
     try {
       SplashScreen.hideAsync().catch(() => {});
     } catch (e) {}
+
+    // Request POST_NOTIFICATIONS permission on Android 13+ (API 33+).
+    // This is required for foreground service notifications (e.g. screen sharing via 100ms).
+    // Without this, the foreground service's startForeground() call silently fails on Android 13+
+    // causing the app to crash when screen sharing is started.
+    if (Platform.OS === 'android') {
+      try {
+        PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+        ).catch(() => {});
+      } catch (e) {}
+    }
   }, []);
 
   return (

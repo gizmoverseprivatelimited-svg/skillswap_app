@@ -785,7 +785,7 @@ export default function ExploreScreen() {
 
       {isFilterOpen && (
         <Pressable style={styles.backdrop} onPress={toggleFilters} testID="filters-backdrop">
-          <Animated.View style={[styles.filtersCard, { transform: [{ translateY }], opacity: backdropOpacity }]}
+          <Animated.View style={[styles.filtersCard, { transform: [{ translateY }], opacity: backdropOpacity, marginTop: insets.top > 0 ? insets.top + 8 : 16 }]}
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.filtersHeader}>

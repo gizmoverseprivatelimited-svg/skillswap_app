@@ -106,7 +106,7 @@ export function usePushNotifications() {
           sound: true,
           channelId: 'default',
         },
-        trigger: trigger ?? { seconds: 1 },
+        trigger: trigger !== undefined ? trigger : null,
       });
       console.log('[PushNotifications] Notification scheduled');
     } catch (error) {
