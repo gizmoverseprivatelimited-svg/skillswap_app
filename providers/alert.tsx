@@ -23,23 +23,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<AlertConfig | null>(null);
 
   const showAlert = useCallback((title: string, message?: string, buttons?: AlertButton[]) => {
-    if (Platform.OS === 'web') {
-      setConfig({ title, message, buttons });
-    } else {
-      const wrappedButtons = buttons?.map(btn => ({
-        ...btn,
-        onPress: btn.onPress ? () => {
-          if (Platform.OS === 'ios') {
-            setTimeout(() => {
-              btn.onPress!();
-            }, 100);
-          } else {
-            btn.onPress!();
-          }
-        } : undefined
-      }));
-      Alert.alert(title, message, wrappedButtons as any);
-    }
+    setConfig({ title, message, buttons });
   }, []);
 
   const handleButtonPress = (onPress?: () => void) => {
@@ -52,7 +36,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   return (
     <AlertContext.Provider value={{ showAlert }}>
       {children}
-      {Platform.OS === 'web' && config && (
+      {config && (
         <Modal
           transparent
           visible={!!config}
