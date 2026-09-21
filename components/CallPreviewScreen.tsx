@@ -101,9 +101,9 @@ export default function CallPreviewScreen({
         localStreamRef.current.getTracks().forEach((track) => {
           try {
             track.stop();
-          } catch (e) {}
+          } catch (e) { }
         });
-      } catch (e) {}
+      } catch (e) { }
       localStreamRef.current = null;
     }
     setLocalStream(null);
@@ -117,7 +117,7 @@ export default function CallPreviewScreen({
         localStreamRef.current.getTracks().forEach((track) => {
           try {
             track.stop();
-          } catch (e) {}
+          } catch (e) { }
         });
         localStreamRef.current = null;
       }
@@ -143,7 +143,7 @@ export default function CallPreviewScreen({
             stream.getTracks().forEach((t) => {
               try {
                 t.stop();
-              } catch (e) {}
+              } catch (e) { }
             });
           }
         } catch (err: any) {
@@ -161,7 +161,7 @@ export default function CallPreviewScreen({
                 fallbackStream.getTracks().forEach((t) => {
                   try {
                     t.stop();
-                  } catch (e) {}
+                  } catch (e) { }
                 });
               }
             } catch (e2) {
@@ -239,7 +239,7 @@ export default function CallPreviewScreen({
           localStreamRef.current.getVideoTracks().forEach((t) => {
             try {
               t.stop();
-            } catch (e) {}
+            } catch (e) { }
           });
           startPreview(false, isMicOn, facingMode);
         } else {
@@ -284,9 +284,9 @@ export default function CallPreviewScreen({
       if (localStreamRef.current) {
         try {
           localStreamRef.current.getTracks().forEach((track) => {
-            try { track.stop(); } catch (e) {}
+            try { track.stop(); } catch (e) { }
           });
-        } catch (e) {}
+        } catch (e) { }
         localStreamRef.current = null;
       }
 
@@ -391,165 +391,165 @@ export default function CallPreviewScreen({
 
             {/* Video Preview Viewport */}
             <View style={[styles.previewCard, { height: dynamicPreviewHeight }]}>
-            <View style={styles.previewContainer}>
-              {/* NATIVE: Use expo-camera CameraView for live preview (avoids HMSSDK crashes) */}
-              {showNativeCameraPreview ? (
-                <View style={styles.videoTrack}>
-                  <CameraViewComponent
-                    style={{ flex: 1, width: '100%', height: '100%' }}
-                    facing={cameraFacing}
-                    mirror={facingMode === 'user'}
-                  />
-                </View>
-              ) : /* WEB: Use LiveVideoTrack with mediaStream */
-              isVideoOn && localStream && Platform.OS === 'web' ? (
-                <LiveVideoTrack
-                  mediaStream={localStream}
-                  mirror={facingMode === 'user'}
-                  style={styles.videoTrack}
-                />
-              ) : isVideoOn ? (
-                <View style={styles.cameraOffOverlay}>
-                  <View style={styles.avatarGlow}>
-                    <Image source={{ uri: avatarUri }} style={styles.largeAvatar} />
+              <View style={styles.previewContainer}>
+                {/* NATIVE: Use expo-camera CameraView for live preview (avoids HMSSDK crashes) */}
+                {showNativeCameraPreview ? (
+                  <View style={styles.videoTrack}>
+                    <CameraViewComponent
+                      style={{ flex: 1, width: '100%', height: '100%' }}
+                      facing={cameraFacing}
+                      mirror={facingMode === 'user'}
+                    />
                   </View>
+                ) : /* WEB: Use LiveVideoTrack with mediaStream */
+                  isVideoOn && localStream && Platform.OS === 'web' ? (
+                    <LiveVideoTrack
+                      mediaStream={localStream}
+                      mirror={facingMode === 'user'}
+                      style={styles.videoTrack}
+                    />
+                  ) : isVideoOn ? (
+                    <View style={styles.cameraOffOverlay}>
+                      <View style={styles.avatarGlow}>
+                        <Image source={{ uri: avatarUri }} style={styles.largeAvatar} />
+                      </View>
+                      <TouchableOpacity
+                        style={[
+                          styles.cameraOffPill,
+                          {
+                            borderColor: permissionGranted ? 'rgba(52, 211, 153, 0.4)' : 'rgba(239, 68, 68, 0.4)',
+                            backgroundColor: permissionGranted ? 'rgba(6, 78, 59, 0.6)' : 'rgba(127, 29, 29, 0.6)',
+                          },
+                        ]}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          if (!permissionGranted) {
+                            void requestCameraAndMicrophonePermissions({ showAlertOnDenial: true }).then((res) => {
+                              const granted = Boolean(res.granted || res.camera || res.microphone);
+                              setPermissionGranted(granted);
+                              setNativeCameraReady(granted);
+                            });
+                          }
+                        }}
+                      >
+                        <Video size={14} color={permissionGranted ? '#34D399' : '#F87171'} />
+                        <Text style={[styles.cameraOffText, { color: permissionGranted ? '#34D399' : '#FCA5A5' }]}>
+                          {isCheckingPermission ? 'Checking permissions...' : permissionGranted ? 'Starting Camera...' : 'Grant Permission in Settings (Tap Here)'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={styles.cameraOffOverlay}>
+                      <View style={styles.avatarGlow}>
+                        <Image source={{ uri: avatarUri }} style={styles.largeAvatar} />
+                      </View>
+                      <View style={styles.cameraOffPill}>
+                        <VideoOff size={14} color="#CBD5E1" />
+                        <Text style={styles.cameraOffText}>Camera is turned off</Text>
+                      </View>
+                    </View>
+                  )}
+
+                {/* Floating Participant Tag */}
+                <View style={styles.previewFloatingTag}>
+                  <View style={[styles.micStatusDot, { backgroundColor: isMicOn ? '#10B981' : '#EF4444' }]} />
+                  <Text style={styles.previewUserName} numberOfLines={1}>
+                    {userName || 'You'} {isTeacher ? '(Host)' : ''}
+                  </Text>
+                </View>
+
+                {/* Quick Floating Camera Switch (Web/Mobile) */}
+                {isVideoOn && (
                   <TouchableOpacity
-                    style={[
-                      styles.cameraOffPill,
-                      {
-                        borderColor: permissionGranted ? 'rgba(52, 211, 153, 0.4)' : 'rgba(239, 68, 68, 0.4)',
-                        backgroundColor: permissionGranted ? 'rgba(6, 78, 59, 0.6)' : 'rgba(127, 29, 29, 0.6)',
-                      },
-                    ]}
+                    style={styles.switchCameraFloatingBtn}
+                    onPress={handleSwitchCamera}
                     activeOpacity={0.7}
-                    onPress={() => {
-                      if (!permissionGranted) {
-                        void requestCameraAndMicrophonePermissions({ showAlertOnDenial: true }).then((res) => {
-                          const granted = Boolean(res.granted || res.camera || res.microphone);
-                          setPermissionGranted(granted);
-                          setNativeCameraReady(granted);
-                        });
-                      }
-                    }}
+                    accessibilityLabel="Switch Camera"
                   >
-                    <Video size={14} color={permissionGranted ? '#34D399' : '#F87171'} />
-                    <Text style={[styles.cameraOffText, { color: permissionGranted ? '#34D399' : '#FCA5A5' }]}>
-                      {isCheckingPermission ? 'Checking permissions...' : permissionGranted ? 'Starting Camera...' : 'Grant Permission in Settings (Tap Here)'}
-                    </Text>
+                    <SwitchCamera size={18} color="#FFFFFF" />
                   </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.cameraOffOverlay}>
-                  <View style={styles.avatarGlow}>
-                    <Image source={{ uri: avatarUri }} style={styles.largeAvatar} />
-                  </View>
-                  <View style={styles.cameraOffPill}>
-                    <VideoOff size={14} color="#CBD5E1" />
-                    <Text style={styles.cameraOffText}>Camera is turned off</Text>
-                  </View>
-                </View>
-              )}
-
-              {/* Floating Participant Tag */}
-              <View style={styles.previewFloatingTag}>
-                <View style={[styles.micStatusDot, { backgroundColor: isMicOn ? '#10B981' : '#EF4444' }]} />
-                <Text style={styles.previewUserName} numberOfLines={1}>
-                  {userName || 'You'} {isTeacher ? '(Host)' : ''}
-                </Text>
-              </View>
-
-              {/* Quick Floating Camera Switch (Web/Mobile) */}
-              {isVideoOn && (
-                <TouchableOpacity
-                  style={styles.switchCameraFloatingBtn}
-                  onPress={handleSwitchCamera}
-                  activeOpacity={0.7}
-                  accessibilityLabel="Switch Camera"
-                >
-                  <SwitchCamera size={18} color="#FFFFFF" />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Quick Preview Media Controls Bar */}
-            <View style={styles.previewControlsRow}>
-              {/* Mic Toggle Button */}
-              <TouchableOpacity
-                style={[
-                  styles.previewControlBtn,
-                  isMicOn ? styles.controlBtnActive : styles.controlBtnMuted,
-                ]}
-                onPress={handleToggleMic}
-                activeOpacity={0.8}
-              >
-                {isMicOn ? <Mic size={20} color="#FFFFFF" /> : <MicOff size={20} color="#FFFFFF" />}
-                <Text style={styles.controlBtnLabel}>{isMicOn ? 'Mute' : 'Unmute'}</Text>
-              </TouchableOpacity>
-
-              {/* Camera Toggle Button */}
-              <TouchableOpacity
-                style={[
-                  styles.previewControlBtn,
-                  isVideoOn ? styles.controlBtnActive : styles.controlBtnMuted,
-                ]}
-                onPress={handleToggleVideo}
-                activeOpacity={0.8}
-              >
-                {isVideoOn ? <Video size={20} color="#FFFFFF" /> : <VideoOff size={20} color="#FFFFFF" />}
-                <Text style={styles.controlBtnLabel}>{isVideoOn ? 'Stop Video' : 'Start Video'}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* User Info Bar & Join Actions */}
-          <View style={styles.actionSection}>
-            <View style={styles.userCardRow}>
-              <Image source={{ uri: avatarUri }} style={styles.userSmallAvatar} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.userCardName} numberOfLines={1}>
-                  {userName || 'You'}
-                </Text>
-                <Text style={styles.userCardRole}>
-                  {isTeacher ? 'Hosting as Teacher' : isGroupCall ? 'Joining as Student' : 'Joining as Participant'}
-                </Text>
-              </View>
-              <View style={styles.statusPill}>
-                <Sparkles size={13} color="#818CF8" />
-                <Text style={styles.statusPillText}>HD Ready</Text>
-              </View>
-            </View>
-
-            {/* Join CTA Button */}
-            <TouchableOpacity
-              style={[styles.joinMeetingButton, isJoining && { opacity: 0.8 }]}
-              onPress={handleJoinPress}
-              disabled={isJoining}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={['#6366F1', '#4F46E5', '#4338CA']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.joinBtnGradient}
-              >
-                {isJoining ? (
-                  <>
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                    <Text style={styles.joinBtnText}>Connecting to room...</Text>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.joinBtnText}>Join Meeting Now</Text>
-                    <ArrowRight size={20} color="#FFFFFF" />
-                  </>
                 )}
-              </LinearGradient>
-            </TouchableOpacity>
+              </View>
+
+              {/* Quick Preview Media Controls Bar */}
+              <View style={styles.previewControlsRow}>
+                {/* Mic Toggle Button */}
+                <TouchableOpacity
+                  style={[
+                    styles.previewControlBtn,
+                    isMicOn ? styles.controlBtnActive : styles.controlBtnMuted,
+                  ]}
+                  onPress={handleToggleMic}
+                  activeOpacity={0.8}
+                >
+                  {isMicOn ? <Mic size={20} color="#FFFFFF" /> : <MicOff size={20} color="#FFFFFF" />}
+                  <Text style={styles.controlBtnLabel}>{isMicOn ? 'Mute' : 'Unmute'}</Text>
+                </TouchableOpacity>
+
+                {/* Camera Toggle Button */}
+                <TouchableOpacity
+                  style={[
+                    styles.previewControlBtn,
+                    isVideoOn ? styles.controlBtnActive : styles.controlBtnMuted,
+                  ]}
+                  onPress={handleToggleVideo}
+                  activeOpacity={0.8}
+                >
+                  {isVideoOn ? <Video size={20} color="#FFFFFF" /> : <VideoOff size={20} color="#FFFFFF" />}
+                  <Text style={styles.controlBtnLabel}>{isVideoOn ? 'Stop Video' : 'Start Video'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* User Info Bar & Join Actions */}
+            <View style={styles.actionSection}>
+              <View style={styles.userCardRow}>
+                <Image source={{ uri: avatarUri }} style={styles.userSmallAvatar} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.userCardName} numberOfLines={1}>
+                    {userName || 'You'}
+                  </Text>
+                  <Text style={styles.userCardRole}>
+                    {isTeacher ? 'Hosting as Teacher' : isGroupCall ? 'Joining as Student' : 'Joining as Participant'}
+                  </Text>
+                </View>
+                <View style={styles.statusPill}>
+                  <Sparkles size={13} color="#818CF8" />
+                  <Text style={styles.statusPillText}>HD Ready</Text>
+                </View>
+              </View>
+
+              {/* Join CTA Button */}
+              <TouchableOpacity
+                style={[styles.joinMeetingButton, isJoining && { opacity: 0.8 }]}
+                onPress={handleJoinPress}
+                disabled={isJoining}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={['#6366F1', '#4F46E5', '#4338CA']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.joinBtnGradient}
+                >
+                  {isJoining ? (
+                    <>
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                      <Text style={styles.joinBtnText}>Connecting to room...</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.joinBtnText}>Join Meeting Now</Text>
+                      <ArrowRight size={20} color="#FFFFFF" />
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </ScrollView>
-    </LinearGradient>
-  </View>
+        </ScrollView>
+      </LinearGradient>
+    </View>
   );
 }
 

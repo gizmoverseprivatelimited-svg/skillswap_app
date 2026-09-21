@@ -136,10 +136,10 @@ export function use100msCall({
             stream = await navigator.mediaDevices.getUserMedia({
               video: enableVideo
                 ? {
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                    facingMode: 'user',
-                  }
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 },
+                  facingMode: 'user',
+                }
                 : false,
               audio: true,
             });
@@ -241,7 +241,7 @@ export function use100msCall({
             if (bc) {
               try {
                 bc.postMessage(signalMsg);
-              } catch (e) {}
+              } catch (e) { }
             }
 
             // 2. Socket.IO signaling
@@ -252,7 +252,7 @@ export function use100msCall({
                 if (partnerId) {
                   socket.emit('call_signal', { ...signalMsg, to: partnerId });
                 }
-              } catch (e) {}
+              } catch (e) { }
             }
           };
 
@@ -316,10 +316,10 @@ export function use100msCall({
                   prev.map(p =>
                     p.id === sId || (!p.isLocal && !prev.some(x => x.id === sId))
                       ? {
-                          ...p,
-                          isVideoOff: signalData.isVideoOff !== undefined ? signalData.isVideoOff : p.isVideoOff,
-                          isMuted: signalData.isMuted !== undefined ? signalData.isMuted : p.isMuted,
-                        }
+                        ...p,
+                        isVideoOff: signalData.isVideoOff !== undefined ? signalData.isVideoOff : p.isVideoOff,
+                        isMuted: signalData.isMuted !== undefined ? signalData.isMuted : p.isMuted,
+                      }
                       : p
                   )
                 );
@@ -329,9 +329,9 @@ export function use100msCall({
                   prev.map(p =>
                     p.id === sId
                       ? {
-                          ...p,
-                          isHandRaised: Boolean(signalData.isHandRaised),
-                        }
+                        ...p,
+                        isHandRaised: Boolean(signalData.isHandRaised),
+                      }
                       : p
                   )
                 );
@@ -343,9 +343,9 @@ export function use100msCall({
                   prev.map(p =>
                     p.id === sId || (!p.isLocal && !prev.some(x => x.id === sId))
                       ? {
-                          ...p,
-                          screenShareStream: isPartnerScreenSharing ? (p.mediaStream || p.screenShareStream) : undefined,
-                        }
+                        ...p,
+                        screenShareStream: isPartnerScreenSharing ? (p.mediaStream || p.screenShareStream) : undefined,
+                      }
                       : p
                   )
                 );
@@ -386,13 +386,13 @@ export function use100msCall({
                 return prev.map(p =>
                   p.id === pId
                     ? {
-                        ...p,
-                        name: peerData.userName || p.name,
-                        avatarUrl: peerData.userAvatar || p.avatarUrl,
-                        status: 'connected' as const,
-                        isMuted: peerData.isMicOn !== undefined ? !peerData.isMicOn : p.isMuted,
-                        isVideoOff: peerData.isVideoOn !== undefined ? !peerData.isVideoOn : p.isVideoOff,
-                      }
+                      ...p,
+                      name: peerData.userName || p.name,
+                      avatarUrl: peerData.userAvatar || p.avatarUrl,
+                      status: 'connected' as const,
+                      isMuted: peerData.isMicOn !== undefined ? !peerData.isMicOn : p.isMuted,
+                      isVideoOff: peerData.isVideoOn !== undefined ? !peerData.isVideoOn : p.isVideoOff,
+                    }
                     : p
                 );
               }
@@ -618,9 +618,9 @@ export function use100msCall({
         if (trackSettings) {
           buildOptions.trackSettings = trackSettings;
         }
-        
+
         const hms = await HMSSDK.build(buildOptions);
-        
+
         if (Platform.OS === 'android') {
           hms.addEventListener(
             HMSUpdateListenerActions.ON_PERMISSIONS_REQUESTED,
@@ -703,12 +703,12 @@ export function use100msCall({
             prev.map(p =>
               p.isLocal
                 ? {
-                    ...p,
-                    videoTrackId: localVideoTrackId || p.videoTrackId,
-                    status: 'connected' as const,
-                    isVideoOff: isVideoMuted,
-                    isMuted: isAudioMuted,
-                  }
+                  ...p,
+                  videoTrackId: localVideoTrackId || p.videoTrackId,
+                  status: 'connected' as const,
+                  isVideoOff: isVideoMuted,
+                  isMuted: isAudioMuted,
+                }
                 : p
             )
           );
@@ -755,15 +755,15 @@ export function use100msCall({
                   return prev.map((p, idx) =>
                     idx === existingIndex
                       ? {
-                          ...p,
-                          id: remotePeer.peerID,
-                          name: remotePeer.name || p.name,
-                          videoTrackId: rVideoTrackId || p.videoTrackId,
-                          screenShareTrackId: rScreenTrackId || p.screenShareTrackId,
-                          isVideoOff: rVideoTrackId ? rIsVideoMuted : p.isVideoOff,
-                          isMuted: rIsAudioMuted,
-                          status: 'connected' as const,
-                        }
+                        ...p,
+                        id: remotePeer.peerID,
+                        name: remotePeer.name || p.name,
+                        videoTrackId: rVideoTrackId || p.videoTrackId,
+                        screenShareTrackId: rScreenTrackId || p.screenShareTrackId,
+                        isVideoOff: rVideoTrackId ? rIsVideoMuted : p.isVideoOff,
+                        isMuted: rIsAudioMuted,
+                        status: 'connected' as const,
+                      }
                       : p
                   );
                 }
@@ -833,15 +833,15 @@ export function use100msCall({
                 return prev.map((p, idx) =>
                   idx === existingIndex
                     ? {
-                        ...p,
-                        id: peer.peerID,
-                        name: peer.name || p.name || 'Partner',
-                        status: 'connected' as const,
-                        videoTrackId: rVideoTrackId || p.videoTrackId,
-                        screenShareTrackId: rScreenTrackId || p.screenShareTrackId,
-                        isVideoOff: rVideoTrackId ? rIsVideoMuted : p.isVideoOff,
-                        isMuted: rIsAudioMuted,
-                      }
+                      ...p,
+                      id: peer.peerID,
+                      name: peer.name || p.name || 'Partner',
+                      status: 'connected' as const,
+                      videoTrackId: rVideoTrackId || p.videoTrackId,
+                      screenShareTrackId: rScreenTrackId || p.screenShareTrackId,
+                      isVideoOff: rVideoTrackId ? rIsVideoMuted : p.isVideoOff,
+                      isMuted: rIsAudioMuted,
+                    }
                     : p
                 );
               }
@@ -886,10 +886,10 @@ export function use100msCall({
             type === 'TRACK_MUTED' || type === 'TRACK_REMOVED'
               ? true
               : type === 'TRACK_UNMUTED'
-              ? false
-              : typeof track.isMute === 'function'
-              ? Boolean(track.isMute())
-              : Boolean(track.mute ?? track.isMute ?? false);
+                ? false
+                : typeof track.isMute === 'function'
+                  ? Boolean(track.isMute())
+                  : Boolean(track.mute ?? track.isMute ?? false);
 
           setParticipants(prev => {
             let updatedAny = false;
@@ -897,14 +897,14 @@ export function use100msCall({
               const isTarget = p.isLocal
                 ? peer.isLocal
                 : (
-                    p.id === peer.peerID ||
-                    (!peer.isLocal && !p.isLocal && (
-                      (p.role === 'teacher' && (peer.role?.name?.includes('teacher') || peer.role?.name?.includes('host'))) ||
-                      (p.name && peer.name && p.name.trim().toLowerCase() === peer.name.trim().toLowerCase()) ||
-                      (!p.videoTrackId && !p.screenShareTrackId) ||
-                      (!updatedAny && prev.filter(x => !x.isLocal).length === 1)
-                    ))
-                  );
+                  p.id === peer.peerID ||
+                  (!peer.isLocal && !p.isLocal && (
+                    (p.role === 'teacher' && (peer.role?.name?.includes('teacher') || peer.role?.name?.includes('host'))) ||
+                    (p.name && peer.name && p.name.trim().toLowerCase() === peer.name.trim().toLowerCase()) ||
+                    (!p.videoTrackId && !p.screenShareTrackId) ||
+                    (!updatedAny && prev.filter(x => !x.isLocal).length === 1)
+                  ))
+                );
               if (!isTarget) return p;
               updatedAny = true;
 
@@ -1058,7 +1058,7 @@ export function use100msCall({
           if (!lPeer && typeof hms.getLocalPeer === 'function') {
             try {
               lPeer = await hms.getLocalPeer();
-            } catch (e) {}
+            } catch (e) { }
           }
           const audioTrack = lPeer?.localAudioTrack?.() || lPeer?.audioTrack;
           const videoTrack = lPeer?.localVideoTrack?.() || lPeer?.videoTrack;
@@ -1075,12 +1075,12 @@ export function use100msCall({
               prev.map(p =>
                 p.isLocal
                   ? {
-                      ...p,
-                      videoTrackId: videoTrack.trackId,
-                      status: 'connected' as const,
-                      isVideoOff: initialVideoOn === false || mode !== 'video',
-                      isMuted: initialMicOn === false,
-                    }
+                    ...p,
+                    videoTrackId: videoTrack.trackId,
+                    status: 'connected' as const,
+                    isVideoOff: initialVideoOn === false || mode !== 'video',
+                    isMuted: initialMicOn === false,
+                  }
                   : p
               )
             );
@@ -1111,7 +1111,7 @@ export function use100msCall({
         try {
           hmsInstanceRef.current.leave();
           hmsInstanceRef.current.destroy();
-        } catch (e) {}
+        } catch (e) { }
         hmsInstanceRef.current = null;
       }
     };
@@ -1124,7 +1124,7 @@ export function use100msCall({
       try {
         const p = await hmsInstanceRef.current.getLocalPeer();
         if (p) return p;
-      } catch (e) {}
+      } catch (e) { }
     }
     return (
       (hmsInstanceRef.current as any).localPeer ||
@@ -1180,7 +1180,7 @@ export function use100msCall({
       if (broadcastChannelRef.current) {
         try {
           broadcastChannelRef.current.postMessage(mediaStateMsg);
-        } catch (e) {}
+        } catch (e) { }
       }
 
       if (socket) {
@@ -1239,7 +1239,7 @@ export function use100msCall({
       if (broadcastChannelRef.current) {
         try {
           broadcastChannelRef.current.postMessage(mediaStateMsg);
-        } catch (e) {}
+        } catch (e) { }
       }
 
       if (socket) {
@@ -1264,9 +1264,9 @@ export function use100msCall({
             prev.map(p =>
               p.isLocal
                 ? {
-                    ...p,
-                    facingMode: p.facingMode === 'environment' ? 'user' : 'environment',
-                  }
+                  ...p,
+                  facingMode: p.facingMode === 'environment' ? 'user' : 'environment',
+                }
                 : p
             )
           );
@@ -1287,9 +1287,9 @@ export function use100msCall({
           prev.map(p =>
             p.isLocal
               ? {
-                  ...p,
-                  facingMode: p.facingMode === 'environment' ? 'user' : 'environment',
-                }
+                ...p,
+                facingMode: p.facingMode === 'environment' ? 'user' : 'environment',
+              }
               : p
           )
         );
@@ -1362,10 +1362,10 @@ export function use100msCall({
             prev.map(p =>
               p.isLocal
                 ? {
-                    ...p,
-                    mediaStream: freshStream,
-                    facingMode: nextFacing,
-                  }
+                  ...p,
+                  mediaStream: freshStream,
+                  facingMode: nextFacing,
+                }
                 : p
             )
           );
@@ -1405,7 +1405,7 @@ export function use100msCall({
         if (broadcastChannelRef.current) {
           try {
             broadcastChannelRef.current.postMessage(screenShareMsg);
-          } catch (e) {}
+          } catch (e) { }
         }
         if (socket) {
           socket.emit('call_signal', screenShareMsg);
@@ -1432,7 +1432,7 @@ export function use100msCall({
         if (broadcastChannelRef.current) {
           try {
             broadcastChannelRef.current.postMessage(screenShareMsg);
-          } catch (e) {}
+          } catch (e) { }
         }
         if (socket) {
           socket.emit('call_signal', screenShareMsg);
@@ -1470,7 +1470,7 @@ export function use100msCall({
           if (broadcastChannelRef.current) {
             try {
               broadcastChannelRef.current.postMessage(screenShareMsg);
-            } catch (e) {}
+            } catch (e) { }
           }
           if (socket) {
             socket.emit('call_signal', screenShareMsg);
@@ -1497,7 +1497,7 @@ export function use100msCall({
             if (broadcastChannelRef.current) {
               try {
                 broadcastChannelRef.current.postMessage(endedMsg);
-              } catch (e) {}
+              } catch (e) { }
             }
             if (socket) {
               socket.emit('call_signal', endedMsg);
@@ -1530,7 +1530,7 @@ export function use100msCall({
             if (broadcastChannelRef.current) {
               try {
                 broadcastChannelRef.current.postMessage(screenShareMsg);
-              } catch (e) {}
+              } catch (e) { }
             }
             if (socket) {
               socket.emit('call_signal', screenShareMsg);
@@ -1581,7 +1581,7 @@ export function use100msCall({
       const nextRaised = !(local?.isHandRaised ?? false);
 
       if (hmsInstanceRef.current) {
-        hmsInstanceRef.current.changeMetadata(JSON.stringify({ isHandRaised: nextRaised })).catch(() => {});
+        hmsInstanceRef.current.changeMetadata(JSON.stringify({ isHandRaised: nextRaised })).catch(() => { });
       }
 
       return prev.map(p => (p.isLocal ? { ...p, isHandRaised: nextRaised } : p));
@@ -1601,12 +1601,12 @@ export function use100msCall({
 
       if (hmsInstanceRef.current) {
         const payload = JSON.stringify({ type: 'reaction', emoji });
-        hmsInstanceRef.current.sendBroadcastMessage(payload).catch(() => {});
+        hmsInstanceRef.current.sendBroadcastMessage(payload).catch(() => { });
       }
       if (broadcastChannelRef.current) {
         try {
           broadcastChannelRef.current.postMessage({ type: 'reaction', room: roomId, senderId: currentUserId, reaction });
-        } catch (e) {}
+        } catch (e) { }
       }
       if (socket) {
         socket.emit('call_reaction', { room: roomId, senderId: currentUserId, partnerId, to: partnerId, reaction });
@@ -1666,7 +1666,7 @@ export function use100msCall({
       if (broadcastChannelRef.current) {
         try {
           broadcastChannelRef.current.postMessage({ type: 'chat', room: roomId, senderId: authorId, message: msg });
-        } catch (e) {}
+        } catch (e) { }
       }
       if (socket) {
         socket.emit('call_chat_message', { room: roomId, senderId: authorId, message: msg });
@@ -1702,7 +1702,7 @@ export function use100msCall({
       });
     }
     if (hmsInstanceRef.current) {
-      hmsInstanceRef.current.leave().catch(() => {});
+      hmsInstanceRef.current.leave().catch(() => { });
     }
     onEndCall();
   }, [onEndCall, socket, roomId, currentUserId, userName]);

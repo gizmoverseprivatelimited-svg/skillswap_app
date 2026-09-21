@@ -29,7 +29,9 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   const handleButtonPress = (onPress?: () => void) => {
     setConfig(null);
     if (onPress) {
-      onPress();
+      setTimeout(() => {
+        onPress();
+      }, 300);
     }
   };
 

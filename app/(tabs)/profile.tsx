@@ -67,6 +67,7 @@ import { useClasses } from '@/providers/classes';
 import { useEarnings } from '@/providers/earnings';
 import { useSafety } from '@/providers/safety';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
+import { requestCameraPermissionsSafely, requestMediaLibraryPermissionsSafely } from '@/lib/imagePickerPermissions';
 import { formatPrice } from '@/constants/locale';
 import url from '@/constants/backurl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -163,7 +164,7 @@ export default function ProfileScreen() {
     try {
       if (Platform.OS !== 'web') {
         if (source === 'camera') {
-          const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync();
+          const { status, canAskAgain } = await requestCameraPermissionsSafely();
           if (status !== 'granted') {
             if (!canAskAgain) {
               showAlert('Permission Required', 'Camera permission is required. Please enable it in your device settings.', [
@@ -176,7 +177,7 @@ export default function ProfileScreen() {
             return;
           }
         } else {
-          const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          const { status, canAskAgain } = await requestMediaLibraryPermissionsSafely();
           if (status !== 'granted') {
             if (!canAskAgain) {
               showAlert('Permission Required', 'Photo library permission is required. Please enable it in your device settings.', [

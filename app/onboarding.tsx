@@ -72,6 +72,7 @@ import {
   findCategoryForSubcategory,
 } from '@/constants/categories';
 import { generateSkillDescription } from '@/lib/ai';
+import { requestCameraPermissionsSafely, requestMediaLibraryPermissionsSafely } from '@/lib/imagePickerPermissions';
 import { formatPrice } from '@/constants/locale';
 import url from '@/constants/backurl';
 
@@ -451,7 +452,7 @@ export default function OnboardingScreen() {
   const pickCertificate = async (certId: string) => {
     try {
       if (Platform.OS !== 'web') {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        const { status } = await requestMediaLibraryPermissionsSafely();
         if (status !== 'granted') {
           Alert.alert('Permission needed', 'Please allow access to your photos to upload a certificate document.');
           return;

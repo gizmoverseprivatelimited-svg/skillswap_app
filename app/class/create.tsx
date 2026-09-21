@@ -14,6 +14,7 @@ import url from '@/constants/backurl';
 import { generateClassDescription } from '@/lib/ai';
 import CategorySubcategoryPicker from '@/components/CategorySubcategoryPicker';
 
+import { requestCameraPermissionsSafely, requestMediaLibraryPermissionsSafely } from '@/lib/imagePickerPermissions';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
 const LEVELS: SkillLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
@@ -246,7 +247,7 @@ export default function CreateClassScreen() {
   const handlePickImage = useCallback(async () => {
     try {
       if (Platform.OS !== 'web') {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        const { status } = await requestMediaLibraryPermissionsSafely();
         if (status !== 'granted') {
           showAlert('Permission required', 'Permission to access media library is required to select cover images.');
           return;
@@ -271,7 +272,7 @@ export default function CreateClassScreen() {
   const handleTakePhoto = useCallback(async () => {
     try {
       if (Platform.OS !== 'web') {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        const { status } = await requestCameraPermissionsSafely();
         if (status !== 'granted') {
           showAlert('Permission required', 'Permission to access camera is required to take cover photos.');
           return;

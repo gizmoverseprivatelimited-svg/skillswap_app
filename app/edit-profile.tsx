@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  PermissionsAndroid,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
@@ -41,6 +42,7 @@ import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatPrice } from '@/constants/locale';
+import { requestCameraPermissionsSafely, requestMediaLibraryPermissionsSafely } from '@/lib/imagePickerPermissions';
 import type { PricingModel, TeacherProfileData, TeacherCertification, CareerEntry } from '@/types';
 
 const languageOptions = [
@@ -169,7 +171,7 @@ export default function EditProfileScreen() {
     try {
       if (Platform.OS !== 'web') {
         if (source === 'camera') {
-          const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync();
+          const { status, canAskAgain } = await requestCameraPermissionsSafely();
           if (status !== 'granted') {
             if (!canAskAgain) {
               showAlert('Permission Required', 'Camera permission is required. Please enable it in your device settings.', [
@@ -182,7 +184,7 @@ export default function EditProfileScreen() {
             return;
           }
         } else {
-          const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          const { status, canAskAgain } = await requestMediaLibraryPermissionsSafely();
           if (status !== 'granted') {
             if (!canAskAgain) {
               showAlert('Permission Required', 'Photo library permission is required. Please enable it in your device settings.', [
@@ -655,31 +657,25 @@ export default function EditProfileScreen() {
   };
 
   const handleTakePhoto = async () => {
+    console.log('[EditProfile] handleTakePhoto clicked');
     try {
-      const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync();
+      console.log('[EditProfile] Requesting camera permissions via helper...');
+      const { status, canAskAgain } = await requestCameraPermissionsSafely();
+      console.log(`[EditProfile] Permission status: ${status}`);
 
       if (status !== 'granted') {
-        if (!canAskAgain) {
-          showAlert(
-            'Permission Required',
-            'Camera permission is required. Please enable it in your device settings.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Open Settings', onPress: () => Linking.openSettings() }
-            ]
-          );
-        } else {
-          showAlert('Permission Required', 'Camera permission is required to take photos.');
-        }
+        showAlert('Permission Required', 'Camera permission is required to take photos.');
         return;
       }
 
+      console.log('[EditProfile] Launching camera...');
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
       });
+      console.log('[EditProfile] Camera result:', result.canceled ? 'canceled' : 'success');
 
       if (!result.canceled && result.assets[0]) {
         console.log('[EditProfile] Photo taken:', result.assets[0].uri);
@@ -693,7 +689,7 @@ export default function EditProfileScreen() {
 
   const handleChooseFromLibrary = async () => {
     try {
-      const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status, canAskAgain } = await requestMediaLibraryPermissionsSafely();
 
       if (status !== 'granted') {
         if (!canAskAgain) {
