@@ -34,6 +34,7 @@ import {
   Users,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { requestCameraPermissions, requestMediaLibraryPermissions } from '../lib/imagePickerPermissions';
 import Colors from '@/constants/colors';
 import { useCurrentUser } from '@/providers/current-user';
 import { useAlert } from '@/providers/alert';
@@ -183,17 +184,11 @@ export default function EditProfileScreen() {
     try {
       if (Platform.OS !== 'web') {
         if (source === 'camera') {
-          const { status } = await ImagePicker.requestCameraPermissionsAsync();
-          if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Camera permission is required.');
-            return;
-          }
+          const granted = await requestCameraPermissions();
+          if (!granted) return;
         } else {
-          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Photo library permission is required.');
-            return;
-          }
+          const granted = await requestMediaLibraryPermissions();
+          if (!granted) return;
         }
       }
 
@@ -668,12 +663,8 @@ export default function EditProfileScreen() {
 
   const handleTakePhoto = async () => {
     try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Camera permission is required to take photos.');
-        return;
-      }
+      const granted = await requestCameraPermissions();
+      if (!granted) return;
 
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -693,12 +684,8 @@ export default function EditProfileScreen() {
 
   const handleChooseFromLibrary = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Photo library permission is required to choose photos.');
-        return;
-      }
+      const granted = await requestMediaLibraryPermissions();
+      if (!granted) return;
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
