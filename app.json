@@ -116,6 +116,7 @@
       "expo-status-bar",
       "expo-web-browser",
       "./plugins/withHmsScreenshare",
+      "./plugins/withCameraIntent.js",
       "@react-native-community/datetimepicker",
       "expo-sharing"
     ],
