@@ -140,17 +140,29 @@ export default function ProfileScreen() {
       handleRequireLogin('upload certificates');
       return;
     }
-    showAlert(
+    Alert.alert(
       'Upload Certificate',
       'Choose an option',
       [
         {
           text: 'Take Photo',
-          onPress: () => handlePickCertificateSource('camera', skillId, skillTitle),
+          onPress: () => {
+            if (Platform.OS === 'android') {
+              setTimeout(() => handlePickCertificateSource('camera', skillId, skillTitle), 500);
+            } else {
+              handlePickCertificateSource('camera', skillId, skillTitle);
+            }
+          },
         },
         {
           text: 'Choose from Library',
-          onPress: () => handlePickCertificateSource('library', skillId, skillTitle),
+          onPress: () => {
+            if (Platform.OS === 'android') {
+              setTimeout(() => handlePickCertificateSource('library', skillId, skillTitle), 500);
+            } else {
+              handlePickCertificateSource('library', skillId, skillTitle);
+            }
+          },
         },
         {
           text: 'Cancel',
@@ -164,29 +176,15 @@ export default function ProfileScreen() {
     try {
       if (Platform.OS !== 'web') {
         if (source === 'camera') {
-          const { status, canAskAgain } = await requestCameraPermissionsSafely();
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
           if (status !== 'granted') {
-            if (!canAskAgain) {
-              showAlert('Permission Required', 'Camera permission is required. Please enable it in your device settings.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Open Settings', onPress: () => Linking.openSettings() }
-              ]);
-            } else {
-              showAlert('Permission needed', 'Please allow camera access to take a photo.');
-            }
+            Alert.alert('Permission Required', 'Camera permission is required.');
             return;
           }
         } else {
-          const { status, canAskAgain } = await requestMediaLibraryPermissionsSafely();
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (status !== 'granted') {
-            if (!canAskAgain) {
-              showAlert('Permission Required', 'Photo library permission is required. Please enable it in your device settings.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Open Settings', onPress: () => Linking.openSettings() }
-              ]);
-            } else {
-              showAlert('Permission needed', 'Please allow access to your photos to upload a document.');
-            }
+            Alert.alert('Permission Required', 'Photo library permission is required.');
             return;
           }
         }
@@ -194,14 +192,14 @@ export default function ProfileScreen() {
 
       const result = source === 'camera'
         ? await ImagePicker.launchCameraAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            quality: 0.8,
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: Platform.OS === 'ios',
+            quality: 0.2,
           })
         : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: false,
-            quality: 0.8,
+            quality: 0.2,
           });
 
       const asset = result.assets?.[0];

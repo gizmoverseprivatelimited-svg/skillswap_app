@@ -66,14 +66,7 @@ export default function LiveVideoTrack({
 }: LiveVideoTrackProps) {
   const HMSView = getNativeHMSView();
 
-  // Don't render if no trackId or no native component available
-  if (!trackId || !HMSView) {
-    return null;
-  }
-
   const [isLayoutReady, setIsLayoutReady] = React.useState(false);
-  const flattenedStyle = StyleSheet.flatten([styles.container, style]);
-  const hmsScaleType = scaleType === 'fit' ? 'ASPECT_FIT' : 'ASPECT_FILL';
 
   // Fallback timer: ensure view mounts even if onLayout is delayed on Android
   React.useEffect(() => {
@@ -82,6 +75,14 @@ export default function LiveVideoTrack({
     }, 50);
     return () => clearTimeout(timer);
   }, []);
+
+  // Don't render if no trackId or no native component available
+  if (!trackId || !HMSView) {
+    return null;
+  }
+
+  const flattenedStyle = StyleSheet.flatten([styles.container, style]);
+  const hmsScaleType = scaleType === 'fit' ? 'ASPECT_FIT' : 'ASPECT_FILL';
 
   // Use unique key combining trackId and zOrder to guarantee clean surface lifecycle on remount
   const viewKey = `hms-track-${trackId}-${Boolean(setZOrderMediaOverlay)}`;

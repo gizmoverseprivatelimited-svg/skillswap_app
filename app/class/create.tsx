@@ -247,17 +247,17 @@ export default function CreateClassScreen() {
   const handlePickImage = useCallback(async () => {
     try {
       if (Platform.OS !== 'web') {
-        const { status } = await requestMediaLibraryPermissionsSafely();
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-          showAlert('Permission required', 'Permission to access media library is required to select cover images.');
+          Alert.alert('Permission required', 'Permission to access media library is required to select cover images.');
           return;
         }
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: Platform.OS !== 'web',
         aspect: [16, 9],
-        quality: 0.8,
+        quality: 0.2,
         base64: true,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -265,24 +265,24 @@ export default function CreateClassScreen() {
       }
     } catch (err) {
       console.error('[ImagePicker] Error picking image:', err);
-      showAlert('Image Picker Error', 'Could not open image library.');
+      Alert.alert('Image Picker Error', 'Could not open image library.');
     }
-  }, [uploadCoverImage, showAlert]);
+  }, [uploadCoverImage]);
 
   const handleTakePhoto = useCallback(async () => {
     try {
       if (Platform.OS !== 'web') {
-        const { status } = await requestCameraPermissionsSafely();
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
-          showAlert('Permission required', 'Permission to access camera is required to take cover photos.');
+          Alert.alert('Permission required', 'Permission to access camera is required to take cover photos.');
           return;
         }
       }
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        allowsEditing: Platform.OS !== 'web',
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: Platform.OS === 'ios',
         aspect: [16, 9],
-        quality: 0.8,
+        quality: 0.2,
         base64: true,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -290,9 +290,9 @@ export default function CreateClassScreen() {
       }
     } catch (err) {
       console.error('[ImagePicker] Error taking photo:', err);
-      showAlert('Camera Error', 'Could not access camera.');
+      Alert.alert('Camera Error', 'Could not access camera.');
     }
-  }, [uploadCoverImage, showAlert]);
+  }, [uploadCoverImage]);
 
   // Pop-up modal visibility states
   const [isDurationPickerOpen, setIsDurationPickerOpen] = useState(false);

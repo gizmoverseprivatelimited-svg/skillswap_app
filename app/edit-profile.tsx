@@ -147,17 +147,29 @@ export default function EditProfileScreen() {
   };
 
   const pickCertificate = (certId: string) => {
-    showAlert(
+    Alert.alert(
       'Upload Certificate',
       'Choose an option',
       [
         {
           text: 'Take Photo',
-          onPress: () => handlePickCertificateSource('camera', certId),
+          onPress: () => {
+            if (Platform.OS === 'android') {
+              setTimeout(() => handlePickCertificateSource('camera', certId), 500);
+            } else {
+              handlePickCertificateSource('camera', certId);
+            }
+          },
         },
         {
           text: 'Choose from Library',
-          onPress: () => handlePickCertificateSource('library', certId),
+          onPress: () => {
+            if (Platform.OS === 'android') {
+              setTimeout(() => handlePickCertificateSource('library', certId), 500);
+            } else {
+              handlePickCertificateSource('library', certId);
+            }
+          },
         },
         {
           text: 'Cancel',
@@ -171,29 +183,15 @@ export default function EditProfileScreen() {
     try {
       if (Platform.OS !== 'web') {
         if (source === 'camera') {
-          const { status, canAskAgain } = await requestCameraPermissionsSafely();
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
           if (status !== 'granted') {
-            if (!canAskAgain) {
-              showAlert('Permission Required', 'Camera permission is required. Please enable it in your device settings.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Open Settings', onPress: () => Linking.openSettings() }
-              ]);
-            } else {
-              showAlert('Permission needed', 'Please allow camera access to take a photo.');
-            }
+            Alert.alert('Permission Required', 'Camera permission is required.');
             return;
           }
         } else {
-          const { status, canAskAgain } = await requestMediaLibraryPermissionsSafely();
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (status !== 'granted') {
-            if (!canAskAgain) {
-              showAlert('Permission Required', 'Photo library permission is required. Please enable it in your device settings.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Open Settings', onPress: () => Linking.openSettings() }
-              ]);
-            } else {
-              showAlert('Permission needed', 'Please allow access to your photos to upload a document.');
-            }
+            Alert.alert('Permission Required', 'Photo library permission is required.');
             return;
           }
         }
@@ -201,13 +199,13 @@ export default function EditProfileScreen() {
 
       const result = source === 'camera'
         ? await ImagePicker.launchCameraAsync({
-            mediaTypes: ['images'],
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             quality: 0.7,
             base64: true,
           })
         : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: false,
             quality: 0.7,
             base64: true,
@@ -626,7 +624,7 @@ export default function EditProfileScreen() {
 
   const handleChangeAvatar = () => {
     if (!currentUser || currentUser.id === '1' || (currentUser as any)?.isDemo) {
-      showAlert(
+      Alert.alert(
         'Login Required 🔒',
         'Please log in or create an account to change your profile picture.',
         [
@@ -636,17 +634,29 @@ export default function EditProfileScreen() {
       );
       return;
     }
-    showAlert(
+    Alert.alert(
       'Change Avatar',
       'Choose an option',
       [
         {
           text: 'Take Photo',
-          onPress: handleTakePhoto,
+          onPress: () => {
+            if (Platform.OS === 'android') {
+              setTimeout(handleTakePhoto, 600);
+            } else {
+              handleTakePhoto();
+            }
+          },
         },
         {
           text: 'Choose from Library',
-          onPress: handleChooseFromLibrary,
+          onPress: () => {
+            if (Platform.OS === 'android') {
+              setTimeout(handleChooseFromLibrary, 600);
+            } else {
+              handleChooseFromLibrary();
+            }
+          },
         },
         {
           text: 'Cancel',
@@ -657,72 +667,52 @@ export default function EditProfileScreen() {
   };
 
   const handleTakePhoto = async () => {
-    console.log('[EditProfile] handleTakePhoto clicked');
     try {
-      console.log('[EditProfile] Requesting camera permissions via helper...');
-      const { status, canAskAgain } = await requestCameraPermissionsSafely();
-      console.log(`[EditProfile] Permission status: ${status}`);
-
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      
       if (status !== 'granted') {
-        showAlert('Permission Required', 'Camera permission is required to take photos.');
+        Alert.alert('Permission Required', 'Camera permission is required to take photos.');
         return;
       }
 
-      console.log('[EditProfile] Launching camera...');
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
+        allowsEditing: Platform.OS === 'ios',
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.2,
       });
-      console.log('[EditProfile] Camera result:', result.canceled ? 'canceled' : 'success');
 
-      if (!result.canceled && result.assets[0]) {
-        console.log('[EditProfile] Photo taken:', result.assets[0].uri);
+      if (!result.canceled && result.assets && result.assets[0]) {
         setAvatarUrl(result.assets[0].uri);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[EditProfile] Camera error:', error);
-      showAlert('Error', 'Failed to take photo. Please try again.');
+      Alert.alert('Camera Error', `Failed to take photo: ${error?.message || error}`);
     }
   };
 
   const handleChooseFromLibrary = async () => {
     try {
-      const { status, canAskAgain } = await requestMediaLibraryPermissionsSafely();
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (status !== 'granted') {
-        if (!canAskAgain) {
-          showAlert(
-            'Permission Required',
-            'Photo library permission is required. Please enable it in your device settings.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Open Settings', onPress: () => Linking.openSettings() }
-            ]
-          );
-        } else {
-          showAlert('Permission Required', 'Photo library permission is required to choose photos.');
-        }
+        Alert.alert('Permission Required', 'Photo library permission is required to choose photos.');
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.2,
       });
 
-
       if (!result.canceled && result.assets[0]) {
-        console.log(result);
-        console.log('[EditProfile] Photo selected:', result.assets[0].uri);
         setAvatarUrl(result.assets[0].uri);
       }
     } catch (error) {
       console.error('[EditProfile] Image picker error:', error);
-      showAlert('Error', 'Failed to select photo. Please try again.');
+      Alert.alert('Error', 'Failed to select photo. Please try again.');
     }
   };
 
