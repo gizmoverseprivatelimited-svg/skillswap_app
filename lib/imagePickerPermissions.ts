@@ -1,7 +1,7 @@
 import { Platform, PermissionsAndroid, Alert, Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
-export const requestCameraPermissions = async (): Promise<boolean> => {
+export const requestCameraPermissionsSafely = async (): Promise<{ status: 'granted' | 'denied' }> => {
   if (Platform.OS === 'android') {
     try {
       const granted = await PermissionsAndroid.request(
@@ -16,7 +16,7 @@ export const requestCameraPermissions = async (): Promise<boolean> => {
       );
       
       if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        return true;
+        return { status: 'granted' };
       }
       
       if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
@@ -32,23 +32,23 @@ export const requestCameraPermissions = async (): Promise<boolean> => {
         Alert.alert('Permission Required', 'Camera permission is required to take photos.');
       }
       
-      return false;
+      return { status: 'denied' };
     } catch (err) {
       console.warn(err);
-      return false;
+      return { status: 'denied' };
     }
   } else {
     // iOS and Web
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission Required', 'Camera permission is required to take photos.');
-      return false;
+      return { status: 'denied' };
     }
-    return true;
+    return { status: 'granted' };
   }
 };
 
-export const requestMediaLibraryPermissions = async (): Promise<boolean> => {
+export const requestMediaLibraryPermissionsSafely = async (): Promise<{ status: 'granted' | 'denied' }> => {
   if (Platform.OS === 'android') {
     try {
       // For Android 13+ we need READ_MEDIA_IMAGES, but for older it's READ_EXTERNAL_STORAGE.
@@ -56,7 +56,7 @@ export const requestMediaLibraryPermissions = async (): Promise<boolean> => {
       const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (status === 'granted') {
-        return true;
+        return { status: 'granted' };
       }
       
       if (!canAskAgain) {
@@ -71,17 +71,17 @@ export const requestMediaLibraryPermissions = async (): Promise<boolean> => {
       } else {
         Alert.alert('Permission Required', 'Photo library permission is required to choose photos.');
       }
-      return false;
+      return { status: 'denied' };
     } catch (err) {
       console.warn(err);
-      return false;
+      return { status: 'denied' };
     }
   } else {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission Required', 'Photo library permission is required to choose photos.');
-      return false;
+      return { status: 'denied' };
     }
-    return true;
+    return { status: 'granted' };
   }
 };

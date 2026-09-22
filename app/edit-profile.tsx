@@ -34,7 +34,6 @@ import {
   Users,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { requestCameraPermissions, requestMediaLibraryPermissions } from '../lib/imagePickerPermissions';
 import Colors from '@/constants/colors';
 import { useCurrentUser } from '@/providers/current-user';
 import { useAlert } from '@/providers/alert';
@@ -184,11 +183,11 @@ export default function EditProfileScreen() {
     try {
       if (Platform.OS !== 'web') {
         if (source === 'camera') {
-          const granted = await requestCameraPermissions();
-          if (!granted) return;
+          const { status } = await requestCameraPermissionsSafely();
+          if (status !== 'granted') return;
         } else {
-          const granted = await requestMediaLibraryPermissions();
-          if (!granted) return;
+          const { status } = await requestMediaLibraryPermissionsSafely();
+          if (status !== 'granted') return;
         }
       }
 
@@ -663,8 +662,8 @@ export default function EditProfileScreen() {
 
   const handleTakePhoto = async () => {
     try {
-      const granted = await requestCameraPermissions();
-      if (!granted) return;
+      const { status } = await requestCameraPermissionsSafely();
+      if (status !== 'granted') return;
 
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -684,8 +683,8 @@ export default function EditProfileScreen() {
 
   const handleChooseFromLibrary = async () => {
     try {
-      const granted = await requestMediaLibraryPermissions();
-      if (!granted) return;
+      const { status } = await requestMediaLibraryPermissionsSafely();
+      if (status !== 'granted') return;
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,

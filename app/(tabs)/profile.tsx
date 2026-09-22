@@ -54,7 +54,7 @@ import {
   XCircle,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { requestCameraPermissions, requestMediaLibraryPermissions } from '../../lib/imagePickerPermissions';
+
 import { useAdmin } from '@/providers/admin';
 import { useAuth } from '@/providers/auth';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -177,11 +177,11 @@ export default function ProfileScreen() {
     try {
       if (Platform.OS !== 'web') {
         if (source === 'camera') {
-          const granted = await requestCameraPermissions();
-          if (!granted) return;
+          const { status } = await requestCameraPermissionsSafely();
+          if (status !== 'granted') return;
         } else {
-          const granted = await requestMediaLibraryPermissions();
-          if (!granted) return;
+          const { status } = await requestMediaLibraryPermissionsSafely();
+          if (status !== 'granted') return;
         }
       }
 

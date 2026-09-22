@@ -5,7 +5,7 @@ import { Calendar as CalendarIcon, Clock as ClockIcon, Users, Coins, Image as Im
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { requestCameraPermissions, requestMediaLibraryPermissions } from '../../lib/imagePickerPermissions';
+
 import Colors from '@/constants/colors';
 import { useClasses } from '@/providers/classes';
 import { useCurrentUser } from '@/providers/current-user';
@@ -248,8 +248,8 @@ export default function CreateClassScreen() {
   const handlePickImage = useCallback(async () => {
     try {
       if (Platform.OS !== 'web') {
-        const granted = await requestMediaLibraryPermissions();
-        if (!granted) {
+        const { status } = await requestMediaLibraryPermissionsSafely();
+        if (status !== 'granted') {
           Alert.alert('Permission required', 'Permission to access media library is required to select cover images.');
           return;
         }
@@ -273,7 +273,7 @@ export default function CreateClassScreen() {
   const handleTakePhoto = useCallback(async () => {
     try {
       if (Platform.OS !== 'web') {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        const { status } = await requestCameraPermissionsSafely();
         if (status !== 'granted') {
           Alert.alert('Permission required', 'Permission to access camera is required to take cover photos.');
           return;

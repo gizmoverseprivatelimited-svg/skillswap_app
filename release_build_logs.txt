@@ -1,0 +1,1064 @@
+> Task :gradle-plugin:settings-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugin:shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-gradle-plugin:expo-autolinking-plugin-shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-gradle-plugin:expo-autolinking-settings-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugin:settings-plugin:pluginDescriptors UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-settings-plugin:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:processResources UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-settings-plugin:processResources UP-TO-DATE
+> Task :gradle-plugin:shared:compileKotlin UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin-shared:compileKotlin UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin-shared:compileJava NO-SOURCE
+> Task :gradle-plugin:shared:compileJava NO-SOURCE
+> Task :gradle-plugin:shared:processResources NO-SOURCE
+> Task :expo-gradle-plugin:expo-autolinking-plugin-shared:processResources NO-SOURCE
+> Task :gradle-plugin:shared:classes UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin-shared:classes UP-TO-DATE
+> Task :gradle-plugin:shared:jar UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin-shared:jar UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-settings-plugin:compileKotlin UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-settings-plugin:compileJava NO-SOURCE
+> Task :expo-gradle-plugin:expo-autolinking-settings-plugin:classes UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-settings-plugin:jar UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:compileKotlin UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:compileJava NO-SOURCE
+> Task :gradle-plugin:settings-plugin:classes UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:jar UP-TO-DATE
+> Task :expo-gradle-plugin:expo-max-sdk-override-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-gradle-plugin:expo-autolinking-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugin:react-native-gradle-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-dev-launcher-gradle-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-module-gradle-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-dev-launcher-gradle-plugin:pluginDescriptors UP-TO-DATE
+> Task :expo-dev-launcher-gradle-plugin:processResources UP-TO-DATE
+> Task :expo-module-gradle-plugin:pluginDescriptors UP-TO-DATE
+> Task :expo-module-gradle-plugin:processResources UP-TO-DATE
+> Task :expo-gradle-plugin:expo-max-sdk-override-plugin:compileKotlin UP-TO-DATE
+> Task :expo-gradle-plugin:expo-max-sdk-override-plugin:compileJava NO-SOURCE
+> Task :expo-gradle-plugin:expo-max-sdk-override-plugin:pluginDescriptors UP-TO-DATE
+> Task :expo-gradle-plugin:expo-max-sdk-override-plugin:processResources UP-TO-DATE
+> Task :expo-gradle-plugin:expo-max-sdk-override-plugin:classes UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin:compileKotlin UP-TO-DATE
+> Task :expo-gradle-plugin:expo-max-sdk-override-plugin:jar UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin:compileJava NO-SOURCE
+> Task :expo-gradle-plugin:expo-autolinking-plugin:pluginDescriptors UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin:processResources UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin:classes UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin:jar UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:compileKotlin UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:compileJava NO-SOURCE
+> Task :gradle-plugin:react-native-gradle-plugin:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:processResources UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:classes UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:jar UP-TO-DATE
+> Task :expo-dev-launcher-gradle-plugin:compileKotlin UP-TO-DATE
+> Task :expo-dev-launcher-gradle-plugin:compileJava NO-SOURCE
+> Task :expo-dev-launcher-gradle-plugin:classes UP-TO-DATE
+> Task :expo-dev-launcher-gradle-plugin:jar UP-TO-DATE
+> Task :expo-module-gradle-plugin:compileKotlin UP-TO-DATE
+> Task :expo-module-gradle-plugin:compileJava NO-SOURCE
+> Task :expo-module-gradle-plugin:classes UP-TO-DATE
+> Task :expo-module-gradle-plugin:jar UP-TO-DATE
+
+> Configure project :
+[ExpoRootProject] Using the following versions:
+  - buildTools:  36.0.0
+  - minSdk:      24
+  - compileSdk:  36
+  - targetSdk:   36
+  - ndk:         27.1.12297006
+  - kotlin:      2.1.20
+  - ksp:         2.1.20-2.0.1
+
+> Configure project :app
+ ??  Applying gradle plugin 'expo-max-sdk-override-plugin'
+  [expo-max-sdk-override-plugin] This plugin will find all permissions declared with `android:maxSdkVersion`. If there exists a declaration with the `android:maxSdkVersion` annotation and another one without, the plugin will remove the annotation from the final merged manifest. In order to see a log with the changes run a clean build of the app.
+ ??  Applying gradle plugin 'expo-dev-launcher-gradle-plugin'
+
+> Configure project :expo
+
+Using expo modules
+  - expo-log-box (56.0.14)
+  - expo-constants (56.0.25)
+  - expo-dev-client (56.0.26)
+  - expo-dev-launcher (56.0.27)
+  - expo-dev-menu (56.0.23)
+  - expo-dev-menu-interface (56.0.1)
+  - expo-json-utils (56.0.0)
+  - expo-manifests (56.0.4)
+
+> Configure project :expo-modules-core
+Linking react-native-worklets native libs into expo-modules-core build tasks
+task ':react-native-worklets:mergeDebugNativeLibs'
+task ':react-native-worklets:mergeReleaseNativeLibs'
+
+> Configure project :expo
+  - expo-modules-core (56.0.25)
+  - expo-updates-interface (56.0.2)
+  - [?] expo-dom-webview (56.0.6)
+  - [?] expo-ui (56.0.26)
+  - [?] expo-application (56.0.3)
+  - [?] expo-asset (56.0.24)
+  - [?] expo-blur (56.0.4)
+  - [?] expo-calendar (56.0.10)
+  - [?] expo-camera (56.0.8)
+  - [?] expo-crypto (56.0.5)
+  - [?] expo-device (56.0.4)
+  - [?] expo-file-system (56.0.11)
+  - [?] expo-font (56.0.7)
+  - [?] expo-haptics (56.0.3)
+  - [?] expo-image (56.0.12)
+  - [?] expo-image-loader (56.0.3)
+  - [?] expo-image-picker (56.0.25)
+  - [?] expo-keep-awake (56.0.3)
+  - [?] expo-linear-gradient (56.0.4)
+  - [?] expo-linking (56.0.17)
+  - [?] expo-location (56.0.25)
+  - [?] expo-notifications (56.0.25)
+  - [?] expo-print (56.0.4)
+  - [?] expo-router (56.2.20)
+  - [?] expo-sharing (56.0.26)
+  - [?] expo-splash-screen (56.0.15)
+  - [?] expo-status-bar (56.0.4)
+  - [?] expo-system-ui (56.0.5)
+  - [?] expo-web-browser (56.0.6)
+
+
+> Task :expo-dev-menu:preBuild UP-TO-DATE
+> Task :expo-manifests:preBuild UP-TO-DATE
+> Task :100mslive_react-native-hms:preBuild UP-TO-DATE
+> Task :100mslive_react-native-hms:preReleaseBuild UP-TO-DATE
+> Task :expo-modules-core:preBuild UP-TO-DATE
+> Task :expo-updates-interface:preBuild UP-TO-DATE
+> Task :expo-log-box:preBuild UP-TO-DATE
+> Task :expo-json-utils:preBuild UP-TO-DATE
+> Task :expo-dev-menu-interface:preBuild UP-TO-DATE
+> Task :expo-dev-client:preBuild UP-TO-DATE
+> Task :expo-dev-launcher:preBuild UP-TO-DATE
+> Task :react-native-masked-view_masked-view:preBuild UP-TO-DATE
+> Task :react-native-linear-gradient:preBuild UP-TO-DATE
+> Task :expo:generatePackagesList UP-TO-DATE
+> Task :expo:preBuild UP-TO-DATE
+> Task :lottie-react-native:generateCodegenSchemaFromJavaScript UP-TO-DATE
+> Task :react-native-community_blur:generateCodegenSchemaFromJavaScript UP-TO-DATE
+> Task :app:generateAutolinkingNewArchitectureFiles UP-TO-DATE
+> Task :react-native-community_datetimepicker:generateCodegenSchemaFromJavaScript UP-TO-DATE
+> Task :react-native-google-signin_google-signin:generateCodegenSchemaFromJavaScript UP-TO-DATE
+> Task :react-native-permissions:generateCodegenSchemaFromJavaScript UP-TO-DATE
+> Task :react-native-gesture-handler:generateCodegenSchemaFromJavaScript UP-TO-DATE
+> Task :react-native-async-storage_async-storage:generateCodegenSchemaFromJavaScript UP-TO-DATE
+> Task :react-native-safe-area-context:generateCodegenSchemaFromJavaScript UP-TO-DATE
+> Task :app:generateAutolinkingPackageList UP-TO-DATE
+> Task :app:generateCodegenSchemaFromJavaScript SKIPPED
+> Task :lottie-react-native:generateCodegenArtifactsFromSchema UP-TO-DATE
+> Task :lottie-react-native:preBuild UP-TO-DATE
+> Task :react-native-community_datetimepicker:generateCodegenArtifactsFromSchema UP-TO-DATE
+> Task :react-native-community_datetimepicker:preBuild UP-TO-DATE
+> Task :react-native-permissions:generateCodegenArtifactsFromSchema UP-TO-DATE
+> Task :react-native-permissions:preBuild UP-TO-DATE
+> Task :app:generateCodegenArtifactsFromSchema SKIPPED
+> Task :react-native-community_blur:generateCodegenArtifactsFromSchema UP-TO-DATE
+> Task :react-native-community_blur:preBuild UP-TO-DATE
+> Task :react-native-gesture-handler:generateCodegenArtifactsFromSchema UP-TO-DATE
+> Task :react-native-gesture-handler:preBuild UP-TO-DATE
+> Task :react-native-async-storage_async-storage:generateCodegenArtifactsFromSchema UP-TO-DATE
+> Task :react-native-view-shot:generateCodegenSchemaFromJavaScript UP-TO-DATE
+> Task :app:generateReactNativeEntryPoint UP-TO-DATE
+> Task :react-native-google-signin_google-signin:generateCodegenArtifactsFromSchema UP-TO-DATE
+> Task :react-native-safe-area-context:generateCodegenArtifactsFromSchema UP-TO-DATE
+> Task :react-native-webview:generateCodegenSchemaFromJavaScript UP-TO-DATE
+> Task :react-native-svg:generateCodegenSchemaFromJavaScript UP-TO-DATE
+> Task :react-native-async-storage_async-storage:preBuild UP-TO-DATE
+> Task :react-native-safe-area-context:preBuild UP-TO-DATE
+> Task :expo:preReleaseBuild UP-TO-DATE
+> Task :react-native-google-signin_google-signin:preBuild UP-TO-DATE
+> Task :expo-dev-client:preReleaseBuild UP-TO-DATE
+> Task :expo-dev-launcher:preReleaseBuild UP-TO-DATE
+> Task :react-native-screens:generateCodegenSchemaFromJavaScript UP-TO-DATE
+> Task :react-native-worklets-core:generateCodegenSchemaFromJavaScript UP-TO-DATE
+> Task :react-native-view-shot:generateCodegenArtifactsFromSchema UP-TO-DATE
+> Task :react-native-webview:generateCodegenArtifactsFromSchema UP-TO-DATE
+> Task :react-native-webview:preBuild UP-TO-DATE
+> Task :react-native-view-shot:preBuild UP-TO-DATE
+> Task :expo-dev-menu:preReleaseBuild UP-TO-DATE
+> Task :expo-dev-menu-interface:preReleaseBuild UP-TO-DATE
+> Task :react-native-worklets-core:generateCodegenArtifactsFromSchema UP-TO-DATE
+> Task :react-native-svg:generateCodegenArtifactsFromSchema UP-TO-DATE
+> Task :react-native-svg:preBuild UP-TO-DATE
+> Task :expo-json-utils:preReleaseBuild UP-TO-DATE
+> Task :react-native-screens:generateCodegenArtifactsFromSchema UP-TO-DATE
+> Task :react-native-screens:preBuild UP-TO-DATE
+> Task :expo-log-box:preReleaseBuild UP-TO-DATE
+> Task :react-native-worklets-core:prepareHeaders UP-TO-DATE
+> Task :react-native-worklets-core:preBuild UP-TO-DATE
+> Task :react-native-worklets-core:preReleaseBuild UP-TO-DATE
+> Task :100mslive_react-native-hms:mergeReleaseJniLibFolders
+> Task :expo-dev-client:mergeReleaseJniLibFolders
+> Task :expo-dev-menu-interface:mergeReleaseJniLibFolders
+> Task :expo-dev-menu-interface:mergeReleaseNativeLibs NO-SOURCE
+> Task :100mslive_react-native-hms:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-dev-client:mergeReleaseNativeLibs NO-SOURCE
+> Task :100mslive_react-native-hms:stripReleaseDebugSymbols NO-SOURCE
+> Task :100mslive_react-native-hms:copyReleaseJniLibsProjectAndLocalJars
+> Task :100mslive_react-native-hms:generateReleaseResValues
+> Task :100mslive_react-native-hms:extractDeepLinksForAarRelease
+> Task :100mslive_react-native-hms:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-dev-launcher:mergeReleaseJniLibFolders
+> Task :expo:mergeReleaseJniLibFolders
+> Task :expo:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-dev-menu-interface:copyReleaseJniLibsProjectOnly
+> Task :expo-manifests:preReleaseBuild UP-TO-DATE
+> Task :expo-json-utils:mergeReleaseJniLibFolders
+> Task :expo-log-box:mergeReleaseJniLibFolders
+> Task :expo:copyReleaseJniLibsProjectOnly
+> Task :expo-modules-core:preReleaseBuild UP-TO-DATE
+> Task :expo-dev-menu:mergeReleaseJniLibFolders
+> Task :expo-json-utils:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-log-box:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-dev-menu:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-manifests:mergeReleaseJniLibFolders
+> Task :expo-dev-client:copyReleaseJniLibsProjectOnly
+> Task :expo-json-utils:copyReleaseJniLibsProjectOnly
+> Task :expo-updates-interface:preReleaseBuild UP-TO-DATE
+> Task :expo-modules-core:mergeReleaseJniLibFolders
+> Task :lottie-react-native:preReleaseBuild UP-TO-DATE
+> Task :react-native-async-storage_async-storage:preReleaseBuild UP-TO-DATE
+> Task :expo-manifests:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-dev-launcher:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-log-box:copyReleaseJniLibsProjectOnly
+> Task :react-native-community_blur:preReleaseBuild UP-TO-DATE
+> Task :expo-dev-menu:copyReleaseJniLibsProjectOnly
+> Task :react-native-community_datetimepicker:preReleaseBuild UP-TO-DATE
+> Task :lottie-react-native:mergeReleaseJniLibFolders
+> Task :expo-manifests:copyReleaseJniLibsProjectOnly
+> Task :react-native-gesture-handler:preReleaseBuild UP-TO-DATE
+> Task :react-native-async-storage_async-storage:mergeReleaseJniLibFolders
+> Task :lottie-react-native:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-updates-interface:mergeReleaseJniLibFolders
+> Task :react-native-community_blur:mergeReleaseJniLibFolders
+> Task :react-native-community_datetimepicker:mergeReleaseJniLibFolders
+> Task :react-native-async-storage_async-storage:mergeReleaseNativeLibs NO-SOURCE
+> Task :100mslive_react-native-hms:generateReleaseBuildConfig
+> Task :expo-dev-launcher:copyReleaseJniLibsProjectOnly
+> Task :react-native-google-signin_google-signin:preReleaseBuild UP-TO-DATE
+> Task :react-native-community_datetimepicker:mergeReleaseNativeLibs NO-SOURCE
+> Task :react-native-community_blur:mergeReleaseNativeLibs NO-SOURCE
+> Task :react-native-gesture-handler:mergeReleaseJniLibFolders
+> Task :react-native-linear-gradient:preReleaseBuild UP-TO-DATE
+> Task :expo-updates-interface:mergeReleaseNativeLibs NO-SOURCE
+> Task :react-native-async-storage_async-storage:copyReleaseJniLibsProjectOnly
+> Task :react-native-masked-view_masked-view:preReleaseBuild UP-TO-DATE
+> Task :lottie-react-native:copyReleaseJniLibsProjectOnly
+> Task :react-native-community_datetimepicker:copyReleaseJniLibsProjectOnly
+> Task :react-native-permissions:preReleaseBuild UP-TO-DATE
+> Task :react-native-safe-area-context:preReleaseBuild UP-TO-DATE
+> Task :react-native-community_blur:copyReleaseJniLibsProjectOnly
+> Task :react-native-screens:preReleaseBuild UP-TO-DATE
+> Task :react-native-linear-gradient:mergeReleaseJniLibFolders
+> Task :react-native-permissions:mergeReleaseJniLibFolders
+> Task :100mslive_react-native-hms:generateReleaseResources
+> Task :react-native-google-signin_google-signin:mergeReleaseJniLibFolders
+> Task :expo-updates-interface:copyReleaseJniLibsProjectOnly
+> Task :react-native-svg:preReleaseBuild UP-TO-DATE
+> Task :react-native-safe-area-context:mergeReleaseJniLibFolders
+> Task :react-native-linear-gradient:mergeReleaseNativeLibs NO-SOURCE
+> Task :react-native-permissions:mergeReleaseNativeLibs NO-SOURCE
+> Task :react-native-safe-area-context:mergeReleaseNativeLibs NO-SOURCE
+> Task :react-native-google-signin_google-signin:mergeReleaseNativeLibs NO-SOURCE
+> Task :react-native-safe-area-context:copyReleaseJniLibsProjectOnly
+> Task :react-native-view-shot:preReleaseBuild UP-TO-DATE
+> Task :react-native-svg:mergeReleaseJniLibFolders
+> Task :react-native-svg:mergeReleaseNativeLibs NO-SOURCE
+> Task :react-native-svg:copyReleaseJniLibsProjectOnly
+> Task :react-native-webview:preReleaseBuild UP-TO-DATE
+> Task :react-native-permissions:copyReleaseJniLibsProjectOnly
+> Task :react-native-community_datetimepicker:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :react-native-linear-gradient:copyReleaseJniLibsProjectOnly
+> Task :react-native-google-signin_google-signin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :react-native-google-signin_google-signin:copyReleaseJniLibsProjectOnly
+> Task :lottie-react-native:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :react-native-view-shot:mergeReleaseJniLibFolders
+> Task :react-native-google-signin_google-signin:generateReleaseBuildConfig
+> Task :react-native-masked-view_masked-view:mergeReleaseJniLibFolders
+> Task :react-native-webview:mergeReleaseJniLibFolders
+> Task :react-native-community_datetimepicker:generateReleaseBuildConfig
+> Task :react-native-view-shot:mergeReleaseNativeLibs NO-SOURCE
+> Task :react-native-google-signin_google-signin:generateReleaseResValues
+> Task :react-native-masked-view_masked-view:mergeReleaseNativeLibs NO-SOURCE
+> Task :react-native-webview:mergeReleaseNativeLibs NO-SOURCE
+> Task :react-native-community_datetimepicker:generateReleaseResValues
+> Task :react-native-view-shot:copyReleaseJniLibsProjectOnly
+> Task :react-native-gesture-handler:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :react-native-masked-view_masked-view:copyReleaseJniLibsProjectOnly
+> Task :lottie-react-native:generateReleaseBuildConfig
+> Task :react-native-webview:copyReleaseJniLibsProjectOnly
+> Task :react-native-permissions:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :react-native-gesture-handler:generateReleaseBuildConfig
+> Task :react-native-google-signin_google-signin:generateReleaseResources
+> Task :react-native-gesture-handler:generateReleaseResValues
+> Task :react-native-svg:generateReleaseBuildConfig
+> Task :lottie-react-native:generateReleaseResValues
+> Task :react-native-community_datetimepicker:generateReleaseResources
+> Task :react-native-svg:generateReleaseResValues
+> Task :react-native-gesture-handler:generateReleaseResources
+> Task :react-native-svg:generateReleaseResources
+> Task :lottie-react-native:generateReleaseResources
+> Task :react-native-permissions:generateReleaseBuildConfig
+> Task :react-native-permissions:generateReleaseResValues
+> Task :react-native-permissions:generateReleaseResources
+> Task :react-native-svg:packageReleaseResources
+> Task :react-native-google-signin_google-signin:packageReleaseResources
+> Task :react-native-gesture-handler:packageReleaseResources
+> Task :react-native-permissions:packageReleaseResources
+> Task :lottie-react-native:packageReleaseResources
+> Task :react-native-google-signin_google-signin:javaPreCompileRelease
+> Task :100mslive_react-native-hms:packageReleaseResources
+> Task :lottie-react-native:javaPreCompileRelease
+> Task :react-native-community_datetimepicker:packageReleaseResources
+> Task :100mslive_react-native-hms:mergeReleaseShaders
+> Task :100mslive_react-native-hms:compileReleaseShaders NO-SOURCE
+> Task :100mslive_react-native-hms:generateReleaseAssets UP-TO-DATE
+> Task :100mslive_react-native-hms:mergeReleaseAssets
+> Task :100mslive_react-native-hms:javaPreCompileRelease
+> Task :100mslive_react-native-hms:prepareLintJarForPublish UP-TO-DATE
+> Task :100mslive_react-native-hms:prepareReleaseArtProfile
+> Task :react-native-gesture-handler:parseReleaseLocalResources
+> Task :lottie-react-native:parseReleaseLocalResources
+> Task :react-native-svg:parseReleaseLocalResources
+> Task :react-native-google-signin_google-signin:parseReleaseLocalResources
+> Task :100mslive_react-native-hms:parseReleaseLocalResources
+> Task :react-native-community_datetimepicker:javaPreCompileRelease
+> Task :react-native-community_datetimepicker:parseReleaseLocalResources
+> Task :react-native-permissions:parseReleaseLocalResources
+> Task :react-native-reanimated:assertMinimalReactNativeVersionTask
+> Task :100mslive_react-native-hms:writeReleaseAarMetadata
+> Task :react-native-worklets:assertMinimalReactNativeVersionTask
+> Task :react-native-reanimated:assertNewArchitectureEnabledTask SKIPPED
+> Task :react-native-gesture-handler:generateReleaseRFile
+> Task :react-native-worklets:assertNewArchitectureEnabledTask SKIPPED
+> Task :100mslive_react-native-hms:generateReleaseRFile
+> Task :lottie-react-native:generateReleaseRFile
+> Task :react-native-community_datetimepicker:generateReleaseRFile
+> Task :react-native-worklets:generateCodegenSchemaFromJavaScript UP-TO-DATE
+> Task :react-native-worklets:generateCodegenArtifactsFromSchema UP-TO-DATE
+> Task :react-native-worklets:prepareWorkletsHeadersForPrefabs UP-TO-DATE
+> Task :react-native-worklets:preBuild
+> Task :react-native-worklets:preReleaseBuild
+
+> Task :100mslive_react-native-hms:processReleaseManifest
+package="com.reactnativehmssdk" found in source AndroidManifest.xml: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\@100mslive\react-native-hms\android\src\main\AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.reactnativehmssdk" from the source AndroidManifest.xml: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\@100mslive\react-native-hms\android\src\main\AndroidManifest.xml.
+
+> Task :react-native-google-signin_google-signin:generateReleaseRFile
+> Task :react-native-svg:javaPreCompileRelease
+> Task :react-native-gesture-handler:javaPreCompileRelease
+> Task :react-native-permissions:generateReleaseRFile
+> Task :react-native-reanimated:assertWorkletsVersionTask
+> Task :react-native-reanimated:generateCodegenSchemaFromJavaScript UP-TO-DATE
+> Task :react-native-reanimated:generateCodegenArtifactsFromSchema UP-TO-DATE
+> Task :react-native-permissions:javaPreCompileRelease
+> Task :react-native-safe-area-context:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :react-native-safe-area-context:generateReleaseBuildConfig
+> Task :react-native-safe-area-context:generateReleaseResValues
+> Task :react-native-svg:generateReleaseRFile
+> Task :react-native-safe-area-context:generateReleaseResources
+> Task :react-native-reanimated:prepareReanimatedHeadersForPrefabs UP-TO-DATE
+> Task :react-native-reanimated:preBuild
+> Task :react-native-reanimated:preReleaseBuild
+> Task :react-native-reanimated:mergeReleaseJniLibFolders
+> Task :react-native-safe-area-context:packageReleaseResources
+> Task :react-native-reanimated:generateReleaseBuildConfig
+> Task :react-native-reanimated:generateReleaseResValues
+> Task :react-native-safe-area-context:parseReleaseLocalResources
+> Task :react-native-reanimated:generateReleaseResources
+> Task :react-native-safe-area-context:generateReleaseRFile
+> Task :react-native-reanimated:packageReleaseResources
+> Task :react-native-reanimated:parseReleaseLocalResources
+> Task :react-native-reanimated:generateReleaseRFile
+> Task :react-native-reanimated:javaPreCompileRelease
+> Task :react-native-webview:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :react-native-webview:generateReleaseBuildConfig
+> Task :react-native-webview:generateReleaseResValues
+> Task :react-native-webview:generateReleaseResources
+> Task :react-native-webview:packageReleaseResources
+> Task :react-native-webview:parseReleaseLocalResources
+> Task :react-native-webview:generateReleaseRFile
+
+> Task :expo-constants:createExpoConfig
+The NODE_ENV environment variable is required but was not specified. Ensure the project is bundled with Expo CLI or NODE_ENV is set. Using only .env.local and .env
+env: load .env
+env: export EXPO_PUBLIC_API_URL EXPO_PUBLIC_GEMINI_API_KEY EXPO_PUBLIC_GOOGLE_ANDROID_ID EXPO_PUBLIC_GOOGLE_ANDROID_ID_2 EXPO_PUBLIC_GOOGLE_IOS_ID EXPO_PUBLIC_GOOGLE_WEB_ID EXPO_PUBLIC_RORK_API_BASE_URL
+
+> Task :expo-constants:preBuild
+> Task :app:preBuild
+> Task :app:preReleaseBuild
+> Task :app:mergeReleaseJniLibFolders
+> Task :expo-constants:preReleaseBuild
+> Task :expo-constants:mergeReleaseJniLibFolders
+> Task :expo-constants:mergeReleaseNativeLibs NO-SOURCE
+> Task :expo-constants:copyReleaseJniLibsProjectOnly
+> Task :expo:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo:generateReleaseBuildConfig
+> Task :expo:generateReleaseResValues
+> Task :expo:generateReleaseResources
+> Task :expo:packageReleaseResources
+> Task :expo:parseReleaseLocalResources
+> Task :expo:generateReleaseRFile
+> Task :expo-constants:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-constants:generateReleaseBuildConfig
+> Task :expo-constants:generateReleaseResValues
+> Task :expo-constants:generateReleaseResources
+> Task :expo-constants:packageReleaseResources
+> Task :expo-constants:parseReleaseLocalResources
+> Task :expo-constants:generateReleaseRFile
+> Task :expo-modules-core:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-modules-core:generateReleaseBuildConfig
+> Task :expo-modules-core:generateReleaseResValues
+> Task :expo-modules-core:generateReleaseResources
+> Task :expo-modules-core:packageReleaseResources
+> Task :expo-modules-core:parseReleaseLocalResources
+> Task :expo-modules-core:generateReleaseRFile
+> Task :expo-modules-core:javaPreCompileRelease
+> Task :expo-constants:javaPreCompileRelease
+> Task :expo-dev-client:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-dev-client:dataBindingMergeDependencyArtifactsRelease
+> Task :expo-dev-client:generateReleaseResValues
+> Task :expo-dev-client:generateReleaseResources
+> Task :expo-dev-client:packageReleaseResources
+> Task :expo-dev-client:parseReleaseLocalResources
+> Task :expo-dev-client:dataBindingGenBaseClassesRelease
+> Task :expo-dev-client:generateReleaseBuildConfig
+> Task :expo-dev-client:generateReleaseRFile
+> Task :expo-dev-client:javaPreCompileRelease
+> Task :expo-dev-launcher:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :react-native-worklets-core:configureCMakeRelWithDebInfo[arm64-v8a]
+> Task :react-native-screens:configureCMakeRelWithDebInfo[arm64-v8a]
+> Task :100mslive_react-native-hms:mapReleaseSourceSetPaths
+> Task :react-native-community_datetimepicker:compileReleaseKotlin
+> Task :lottie-react-native:compileReleaseKotlin
+> Task :react-native-worklets:configureCMakeRelWithDebInfo[arm64-v8a]
+> Task :react-native-google-signin_google-signin:compileReleaseKotlin
+> Task :react-native-permissions:compileReleaseKotlin
+> Task :react-native-svg:compileReleaseJavaWithJavac
+> Task :react-native-safe-area-context:compileReleaseKotlin
+> Task :react-native-webview:compileReleaseKotlin
+> Task :expo-dev-launcher:dataBindingMergeDependencyArtifactsRelease
+
+> Task :react-native-permissions:compileReleaseKotlin
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-permissions/android/src/main/java/com/zoontek/rnpermissions/RNPermissionsPackage.kt:3:8 'class TurboReactPackage : BaseReactPackage' is deprecated. Use BaseReactPackage instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-permissions/android/src/main/java/com/zoontek/rnpermissions/RNPermissionsPackage.kt:9:30 'class TurboReactPackage : BaseReactPackage' is deprecated. Use BaseReactPackage instead.
+
+> Task :react-native-webview:compileReleaseKotlin
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:22:8 'object MapBuilder : Any' is deprecated. Use Kotlin's built-in collections extensions.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:82:18 'var allowFileAccessFromFileURLs: Boolean' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:83:18 'var allowUniversalAccessFromFileURLs: Boolean' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:124:21 'fun allowScanningByMediaScanner(): Unit' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:161:36 'var systemUiVisibility: Int' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:300:14 'object MapBuilder : Any' is deprecated. Use Kotlin's built-in collections extensions.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:350:34 Condition is always 'true'.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:369:38 'var allowUniversalAccessFromFileURLs: Boolean' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:430:51 Unchecked cast of 'Any?' to 'HashMap<String, String>'.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:486:23 'var savePassword: Boolean' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:487:23 'var saveFormData: Boolean' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:557:23 'var allowFileAccessFromFileURLs: Boolean' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:602:52 'static field FORCE_DARK_ON: Int' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:602:89 'static field FORCE_DARK_OFF: Int' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:603:35 'static fun setForceDark(p0: @NonNull() WebSettings, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:612:35 'static fun setForceDarkStrategy(p0: @NonNull() WebSettings, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:614:39 'static field DARK_STRATEGY_PREFER_WEB_THEME_OVER_USER_AGENT_DARKENING: Int' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:658:65 Unchecked cast of 'ArrayList<Any?>' to 'List<Map<String, String>>'.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt:679:23 'var saveFormData: Boolean' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/SubResourceErrorEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/SubResourceErrorEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/SubResourceErrorEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/SubResourceErrorEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/SubResourceErrorEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopCustomMenuSelectionEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopCustomMenuSelectionEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopCustomMenuSelectionEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopCustomMenuSelectionEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopCustomMenuSelectionEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopHttpErrorEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopHttpErrorEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopHttpErrorEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopHttpErrorEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopHttpErrorEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingErrorEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingErrorEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingErrorEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingErrorEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingErrorEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingFinishEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingFinishEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingFinishEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingFinishEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingFinishEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingProgressEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingProgressEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingProgressEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingProgressEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingProgressEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingStartEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingStartEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingStartEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingStartEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopLoadingStartEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopMessageEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopMessageEvent.kt:10:75 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopMessageEvent.kt:21:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopMessageEvent.kt:21:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopMessageEvent.kt:22:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopNewWindowEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopNewWindowEvent.kt:11:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopNewWindowEvent.kt:22:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopNewWindowEvent.kt:22:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopNewWindowEvent.kt:23:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopRenderProcessGoneEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopRenderProcessGoneEvent.kt:12:3 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopRenderProcessGoneEvent.kt:23:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopRenderProcessGoneEvent.kt:23:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopRenderProcessGoneEvent.kt:24:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopShouldStartLoadWithRequestEvent.kt:5:8 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopShouldStartLoadWithRequestEvent.kt:10:89 'constructor<T : Event<T>>(viewTag: Int): Event<T>' is deprecated. Use constructor with explicit surfaceId instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopShouldStartLoadWithRequestEvent.kt:27:16 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopShouldStartLoadWithRequestEvent.kt:27:42 'interface RCTEventEmitter : JavaScriptModule' is deprecated. Use [RCTModernEventEmitter] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/events/TopShouldStartLoadWithRequestEvent.kt:28:21 'fun receiveEvent(targetTag: Int, eventName: String, params: WritableMap?): Unit' is deprecated. Use [RCTModernEventEmitter.receiveEvent] instead.
+
+> Task :lottie-react-native:compileReleaseKotlin
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewManagerImpl.kt:12:8 'object MapBuilder : Any' is deprecated. Use Kotlin's built-in collections extensions.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewManagerImpl.kt:21:17 'object MapBuilder : Any' is deprecated. Use Kotlin's built-in collections extensions.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewManagerImpl.kt:35:47 'fun getEventDispatcherForReactTag(context: ReactContext, reactTag: Int): EventDispatcher?' is deprecated. reactTag is no longer needed.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewManagerImpl.kt:48:47 'fun getEventDispatcherForReactTag(context: ReactContext, reactTag: Int): EventDispatcher?' is deprecated. reactTag is no longer needed.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewManagerImpl.kt:61:47 'fun getEventDispatcherForReactTag(context: ReactContext, reactTag: Int): EventDispatcher?' is deprecated. reactTag is no longer needed.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewManagerImpl.kt:72:16 'object MapBuilder : Any' is deprecated. Use Kotlin's built-in collections extensions.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewManagerImpl.kt:74:13 'object MapBuilder : Any' is deprecated. Use Kotlin's built-in collections extensions.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewManagerImpl.kt:76:13 'object MapBuilder : Any' is deprecated. Use Kotlin's built-in collections extensions.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewManagerImpl.kt:78:13 'object MapBuilder : Any' is deprecated. Use Kotlin's built-in collections extensions.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewManagerImpl.kt:108:28 'static fun isAttachedToWindow(p0: View): Boolean' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewManagerImpl.kt:138:28 'static fun isAttachedToWindow(p0: View): Boolean' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewManagerImpl.kt:148:28 'static fun isAttachedToWindow(p0: View): Boolean' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewManagerImpl.kt:157:28 'static fun isAttachedToWindow(p0: View): Boolean' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewPropertyManager.kt:22:8 'class ReactFontManager : Any' is deprecated. This class is deprecated and will be deleted in the near future. Please use [com.facebook.react.common.assets.ReactFontManager] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewPropertyManager.kt:76:24 'class ReactFontManager : Any' is deprecated. This class is deprecated and will be deleted in the near future. Please use [com.facebook.react.common.assets.ReactFontManager] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottieAnimationViewPropertyManager.kt:90:24 'class ReactFontManager : Any' is deprecated. This class is deprecated and will be deleted in the near future. Please use [com.facebook.react.common.assets.ReactFontManager] instead.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/main/java/com/airbnb/android/react/lottie/LottiePackage.kt:11:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/lottie-react-native/android/src/newarch/com/airbnb/android/react/lottie/LottieAnimationViewManager.kt:107:18 'fun receiveCommand(view: LottieAnimationView, commandName: String, args: ReadableArray?): Unit' is deprecated. args is not nullable, please update your method signature.
+
+> Task :react-native-safe-area-context:javaPreCompileRelease
+
+> Task :react-native-google-signin_google-signin:compileReleaseKotlin
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/@react-native-google-signin/google-signin/android/src/main/java/com/reactnativegooglesignin/ErrorDto.kt:3:8 'class GoogleSignInStatusCodes : CommonStatusCodes' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/@react-native-google-signin/google-signin/android/src/main/java/com/reactnativegooglesignin/ErrorDto.kt:23:31 Condition is always 'true'.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/@react-native-google-signin/google-signin/android/src/main/java/com/reactnativegooglesignin/ErrorDto.kt:24:16 'class GoogleSignInStatusCodes : CommonStatusCodes' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/@react-native-google-signin/google-signin/android/src/main/java/com/reactnativegooglesignin/ErrorDto.kt:29:33 'class GoogleSignInStatusCodes : CommonStatusCodes' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/@react-native-google-signin/google-signin/android/src/main/java/com/reactnativegooglesignin/ErrorDto.kt:30:38 'class GoogleSignInStatusCodes : CommonStatusCodes' is deprecated. Deprecated in Java.
+
+> Task :react-native-svg:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
+> Task :react-native-webview:javaPreCompileRelease
+
+> Task :react-native-safe-area-context:compileReleaseKotlin
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaProviderManager.kt:39:19 'fun getEventDispatcherForReactTag(context: ReactContext, reactTag: Int): EventDispatcher?' is deprecated. reactTag is no longer needed.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt:9:8 'class UIManagerModule : ReactContextBaseJavaModule, LifecycleEventListener, UIManager' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt:50:54 'class UIManagerModule : ReactContextBaseJavaModule, LifecycleEventListener, UIManager' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt:59:23 'val uiImplementation: UIImplementation!' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaViewShadowNode.kt:9:32 'class LayoutShadowNode : ReactShadowNodeImpl' is deprecated. This class is part of Legacy Architecture and will be removed in a future release.
+w: file:///C:/Users/Asus/OneDrive/Desktop/skill%20change/skill%20change/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaViewShadowNode.kt:110:61 'class NativeViewHierarchyOptimizer : Any' is deprecated. This class is part of Legacy Architecture and will be removed in a future release.
+
+> Task :react-native-community_datetimepicker:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :react-native-permissions:compileReleaseJavaWithJavac
+
+> Task :react-native-google-signin_google-signin:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\@react-native-google-signin\google-signin\android\src\main\java\com\reactnativegooglesignin\RNGoogleSigninModule.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
+> Task :lottie-react-native:compileReleaseJavaWithJavac
+> Task :react-native-permissions:bundleLibRuntimeToDirRelease
+> Task :lottie-react-native:bundleLibRuntimeToDirRelease
+> Task :react-native-community_datetimepicker:bundleLibRuntimeToDirRelease
+> Task :react-native-svg:bundleLibCompileToJarRelease
+> Task :expo-dev-menu:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :react-native-google-signin_google-signin:bundleLibRuntimeToDirRelease
+> Task :expo-dev-menu:generateReleaseBuildConfig
+> Task :expo-dev-menu:generateReleaseResValues
+> Task :expo-dev-menu:generateReleaseResources
+> Task :expo-dev-menu:packageReleaseResources
+> Task :expo-dev-menu:parseReleaseLocalResources
+> Task :expo-dev-menu:generateReleaseRFile
+> Task :expo-dev-menu:javaPreCompileRelease
+> Task :expo-dev-menu-interface:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-dev-menu-interface:generateReleaseBuildConfig
+> Task :expo-dev-menu-interface:generateReleaseResValues
+> Task :expo-dev-menu-interface:generateReleaseResources
+> Task :expo-dev-menu-interface:packageReleaseResources
+> Task :expo-dev-menu-interface:parseReleaseLocalResources
+> Task :expo-dev-menu-interface:generateReleaseRFile
+> Task :expo-dev-menu-interface:javaPreCompileRelease
+> Task :expo-json-utils:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-json-utils:generateReleaseBuildConfig
+> Task :expo-json-utils:generateReleaseResValues
+> Task :expo-json-utils:generateReleaseResources
+> Task :expo-json-utils:packageReleaseResources
+> Task :expo-json-utils:parseReleaseLocalResources
+> Task :expo-json-utils:generateReleaseRFile
+> Task :expo-json-utils:javaPreCompileRelease
+> Task :expo-log-box:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-log-box:generateReleaseBuildConfig
+> Task :expo-log-box:generateReleaseResValues
+> Task :expo-log-box:generateReleaseResources
+> Task :expo-log-box:packageReleaseResources
+> Task :expo-log-box:parseReleaseLocalResources
+> Task :expo-log-box:generateReleaseRFile
+> Task :expo-log-box:javaPreCompileRelease
+> Task :expo-manifests:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-manifests:generateReleaseBuildConfig
+> Task :expo-manifests:generateReleaseResValues
+> Task :expo-manifests:generateReleaseResources
+> Task :expo-manifests:packageReleaseResources
+> Task :expo-manifests:parseReleaseLocalResources
+> Task :expo-manifests:generateReleaseRFile
+> Task :expo-manifests:javaPreCompileRelease
+> Task :expo-updates-interface:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-updates-interface:generateReleaseBuildConfig
+> Task :expo-updates-interface:generateReleaseResValues
+> Task :expo-updates-interface:generateReleaseResources
+> Task :expo-updates-interface:packageReleaseResources
+> Task :expo-updates-interface:parseReleaseLocalResources
+> Task :expo-updates-interface:generateReleaseRFile
+> Task :expo-updates-interface:javaPreCompileRelease
+> Task :expo:javaPreCompileRelease
+> Task :react-native-async-storage_async-storage:generateReleaseBuildConfig
+> Task :react-native-async-storage_async-storage:generateReleaseResValues
+> Task :react-native-async-storage_async-storage:generateReleaseResources
+> Task :react-native-async-storage_async-storage:packageReleaseResources
+> Task :react-native-async-storage_async-storage:parseReleaseLocalResources
+> Task :react-native-async-storage_async-storage:generateReleaseRFile
+> Task :react-native-async-storage_async-storage:javaPreCompileRelease
+> Task :react-native-safe-area-context:compileReleaseJavaWithJavac
+> Task :react-native-safe-area-context:bundleLibRuntimeToDirRelease
+
+> Task :react-native-webview:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :react-native-async-storage_async-storage:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\@react-native-async-storage\async-storage\android\src\javaPackage\java\com\reactnativecommunity\asyncstorage\AsyncStoragePackage.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
+> Task :react-native-async-storage_async-storage:bundleLibRuntimeToDirRelease
+> Task :react-native-webview:bundleLibRuntimeToDirRelease
+> Task :react-native-community_blur:generateReleaseBuildConfig
+> Task :react-native-community_blur:generateReleaseResValues
+> Task :react-native-masked-view_masked-view:generateReleaseBuildConfig
+> Task :react-native-linear-gradient:generateReleaseBuildConfig
+> Task :react-native-masked-view_masked-view:generateReleaseResValues
+> Task :react-native-linear-gradient:generateReleaseResValues
+> Task :react-native-masked-view_masked-view:generateReleaseResources
+> Task :react-native-community_blur:generateReleaseResources
+> Task :react-native-linear-gradient:generateReleaseResources
+> Task :react-native-masked-view_masked-view:packageReleaseResources
+> Task :react-native-linear-gradient:packageReleaseResources
+> Task :react-native-masked-view_masked-view:parseReleaseLocalResources
+> Task :react-native-linear-gradient:parseReleaseLocalResources
+> Task :react-native-community_blur:packageReleaseResources
+> Task :react-native-community_blur:parseReleaseLocalResources
+> Task :react-native-view-shot:generateReleaseBuildConfig
+> Task :react-native-masked-view_masked-view:generateReleaseRFile
+> Task :react-native-linear-gradient:javaPreCompileRelease
+> Task :react-native-masked-view_masked-view:javaPreCompileRelease
+> Task :react-native-linear-gradient:generateReleaseRFile
+> Task :react-native-community_blur:javaPreCompileRelease
+> Task :react-native-view-shot:generateReleaseResValues
+> Task :react-native-view-shot:generateReleaseResources
+> Task :react-native-community_blur:generateReleaseRFile
+> Task :react-native-view-shot:packageReleaseResources
+> Task :react-native-view-shot:parseReleaseLocalResources
+> Task :react-native-view-shot:generateReleaseRFile
+> Task :react-native-view-shot:javaPreCompileRelease
+
+> Task :react-native-community_blur:compileReleaseJavaWithJavac
+Note: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\@react-native-community\blur\android\src\main\java\com\reactnativecommunity\blurview\BlurViewPackage.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :react-native-community_blur:bundleLibRuntimeToDirRelease
+> Task :expo-constants:writeReleaseAarMetadata
+
+> Task :react-native-view-shot:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :expo-dev-client:writeReleaseAarMetadata
+> Task :expo:writeReleaseAarMetadata
+> Task :expo-dev-menu:writeReleaseAarMetadata
+> Task :react-native-svg:bundleLibRuntimeToDirRelease
+
+> Task :react-native-linear-gradient:compileReleaseJavaWithJavac
+Note: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\react-native-linear-gradient\android\src\main\java\com\BV\LinearGradient\LinearGradientPackage.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :expo-json-utils:writeReleaseAarMetadata
+> Task :expo-dev-menu-interface:writeReleaseAarMetadata
+> Task :react-native-view-shot:bundleLibRuntimeToDirRelease
+> Task :expo-log-box:writeReleaseAarMetadata
+> Task :expo-modules-core:writeReleaseAarMetadata
+> Task :react-native-linear-gradient:bundleLibRuntimeToDirRelease
+> Task :expo-updates-interface:writeReleaseAarMetadata
+> Task :lottie-react-native:writeReleaseAarMetadata
+> Task :react-native-async-storage_async-storage:writeReleaseAarMetadata
+> Task :expo-manifests:writeReleaseAarMetadata
+> Task :react-native-community_blur:writeReleaseAarMetadata
+
+> Task :react-native-masked-view_masked-view:compileReleaseJavaWithJavac
+Note: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\@react-native-masked-view\masked-view\android\src\main\java\org\reactnative\maskedview\RNCMaskedViewPackage.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :react-native-community_datetimepicker:writeReleaseAarMetadata
+> Task :react-native-gesture-handler:writeReleaseAarMetadata
+> Task :react-native-linear-gradient:writeReleaseAarMetadata
+> Task :react-native-masked-view_masked-view:bundleLibRuntimeToDirRelease
+> Task :react-native-masked-view_masked-view:writeReleaseAarMetadata
+> Task :react-native-google-signin_google-signin:writeReleaseAarMetadata
+> Task :react-native-permissions:writeReleaseAarMetadata
+> Task :react-native-safe-area-context:writeReleaseAarMetadata
+> Task :react-native-reanimated:writeReleaseAarMetadata
+> Task :react-native-svg:writeReleaseAarMetadata
+> Task :react-native-view-shot:writeReleaseAarMetadata
+> Task :react-native-webview:writeReleaseAarMetadata
+> Task :expo-constants:extractDeepLinksRelease
+> Task :expo:extractDeepLinksRelease
+> Task :expo-dev-client:extractDeepLinksRelease
+> Task :expo-constants:processReleaseManifest
+> Task :expo-dev-client:processReleaseManifest
+> Task :expo-dev-menu:extractDeepLinksRelease
+> Task :expo-dev-menu-interface:extractDeepLinksRelease
+> Task :expo-dev-menu:processReleaseManifest
+> Task :expo-dev-menu-interface:processReleaseManifest
+> Task :expo:processReleaseManifest
+> Task :expo-log-box:extractDeepLinksRelease
+> Task :expo-json-utils:extractDeepLinksRelease
+> Task :expo-manifests:extractDeepLinksRelease
+> Task :expo-log-box:processReleaseManifest
+> Task :expo-json-utils:processReleaseManifest
+> Task :expo-updates-interface:extractDeepLinksRelease
+> Task :lottie-react-native:extractDeepLinksRelease
+> Task :expo-modules-core:extractDeepLinksRelease
+> Task :expo-manifests:processReleaseManifest
+> Task :react-native-async-storage_async-storage:extractDeepLinksRelease
+> Task :expo-updates-interface:processReleaseManifest
+> Task :lottie-react-native:processReleaseManifest
+> Task :react-native-community_blur:extractDeepLinksRelease
+> Task :react-native-community_datetimepicker:extractDeepLinksRelease
+
+> Task :expo-modules-core:processReleaseManifest
+C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\expo-modules-core\android\src\main\AndroidManifest.xml:8:9-11:45 Warning:
+	meta-data#com.facebook.soloader.enabled@android:value was tagged at AndroidManifest.xml:8 to replace other declarations but no other declaration present
+
+> Task :react-native-gesture-handler:extractDeepLinksRelease
+
+> Task :react-native-async-storage_async-storage:processReleaseManifest
+package="com.reactnativecommunity.asyncstorage" found in source AndroidManifest.xml: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\@react-native-async-storage\async-storage\android\src\main\AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.reactnativecommunity.asyncstorage" from the source AndroidManifest.xml: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\@react-native-async-storage\async-storage\android\src\main\AndroidManifest.xml.
+
+> Task :react-native-community_datetimepicker:processReleaseManifest
+
+> Task :react-native-community_blur:processReleaseManifest
+package="com.reactnativecommunity.blurview" found in source AndroidManifest.xml: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\@react-native-community\blur\android\src\main\AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.reactnativecommunity.blurview" from the source AndroidManifest.xml: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\@react-native-community\blur\android\src\main\AndroidManifest.xml.
+
+> Task :react-native-gesture-handler:processReleaseManifest
+> Task :react-native-linear-gradient:extractDeepLinksRelease
+> Task :react-native-permissions:extractDeepLinksRelease
+> Task :react-native-masked-view_masked-view:extractDeepLinksRelease
+
+> Task :react-native-linear-gradient:processReleaseManifest
+package="com.BV.LinearGradient" found in source AndroidManifest.xml: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\react-native-linear-gradient\android\src\main\AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.BV.LinearGradient" from the source AndroidManifest.xml: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\react-native-linear-gradient\android\src\main\AndroidManifest.xml.
+
+> Task :react-native-permissions:processReleaseManifest
+> Task :react-native-masked-view_masked-view:processReleaseManifest
+> Task :app:buildKotlinToolingMetadata
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :react-native-google-signin_google-signin:extractDeepLinksRelease
+> Task :app:generateReleaseBuildConfig
+> Task :react-native-reanimated:extractDeepLinksRelease
+> Task :react-native-safe-area-context:extractDeepLinksRelease
+> Task :react-native-svg:extractDeepLinksRelease
+> Task :react-native-svg:processReleaseManifest
+
+> Task :react-native-safe-area-context:processReleaseManifest
+package="com.th3rdwave.safeareacontext" found in source AndroidManifest.xml: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\react-native-safe-area-context\android\src\main\AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.th3rdwave.safeareacontext" from the source AndroidManifest.xml: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\react-native-safe-area-context\android\src\main\AndroidManifest.xml.
+
+> Task :react-native-reanimated:processReleaseManifest
+
+> Task :react-native-google-signin_google-signin:processReleaseManifest
+package="com.reactnativegooglesignin" found in source AndroidManifest.xml: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\@react-native-google-signin\google-signin\android\src\main\AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.reactnativegooglesignin" from the source AndroidManifest.xml: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\@react-native-google-signin\google-signin\android\src\main\AndroidManifest.xml.
+
+> Task :react-native-view-shot:extractDeepLinksRelease
+> Task :react-native-webview:extractDeepLinksRelease
+
+> Task :react-native-view-shot:processReleaseManifest
+package="fr.greweb.reactnativeviewshot" found in source AndroidManifest.xml: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\react-native-view-shot\android\src\main\AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="fr.greweb.reactnativeviewshot" from the source AndroidManifest.xml: C:\Users\Asus\OneDrive\Desktop\skill change\skill change\node_modules\react-native-view-shot\android\src\main\AndroidManifest.xml.
+
+> Task :react-native-webview:processReleaseManifest
+> Task :expo:compileReleaseLibraryResources
+> Task :expo-dev-menu:compileReleaseLibraryResources
+> Task :expo-dev-client:compileReleaseLibraryResources
+> Task :expo-constants:compileReleaseLibraryResources
+> Task :expo-dev-menu-interface:compileReleaseLibraryResources
+> Task :expo-log-box:compileReleaseLibraryResources
+> Task :expo-json-utils:compileReleaseLibraryResources
+> Task :expo-manifests:compileReleaseLibraryResources
+> Task :expo-updates-interface:compileReleaseLibraryResources
+> Task :expo-modules-core:compileReleaseLibraryResources
+> Task :lottie-react-native:compileReleaseLibraryResources
+> Task :react-native-community_datetimepicker:compileReleaseLibraryResources
+> Task :react-native-community_blur:compileReleaseLibraryResources
+> Task :react-native-gesture-handler:compileReleaseLibraryResources
+> Task :react-native-async-storage_async-storage:compileReleaseLibraryResources
+> Task :react-native-google-signin_google-signin:compileReleaseLibraryResources
+> Task :react-native-linear-gradient:compileReleaseLibraryResources
+> Task :react-native-masked-view_masked-view:compileReleaseLibraryResources
+> Task :react-native-reanimated:compileReleaseLibraryResources
+> Task :react-native-safe-area-context:compileReleaseLibraryResources
+> Task :react-native-svg:compileReleaseLibraryResources
+> Task :react-native-view-shot:compileReleaseLibraryResources
+> Task :react-native-async-storage_async-storage:bundleLibCompileToJarRelease
+> Task :lottie-react-native:bundleLibCompileToJarRelease
+> Task :react-native-community_blur:bundleLibCompileToJarRelease
+> Task :react-native-community_datetimepicker:bundleLibCompileToJarRelease
+> Task :react-native-google-signin_google-signin:bundleLibCompileToJarRelease
+> Task :react-native-linear-gradient:bundleLibCompileToJarRelease
+> Task :react-native-safe-area-context:bundleLibCompileToJarRelease
+> Task :react-native-masked-view_masked-view:bundleLibCompileToJarRelease
+> Task :react-native-view-shot:bundleLibCompileToJarRelease
+> Task :expo:prepareReleaseArtProfile
+> Task :react-native-webview:bundleLibCompileToJarRelease
+> Task :react-native-webview:compileReleaseLibraryResources
+> Task :expo-dev-menu:prepareReleaseArtProfile
+> Task :expo-dev-menu-interface:prepareReleaseArtProfile
+> Task :expo-json-utils:prepareReleaseArtProfile
+> Task :expo-log-box:prepareReleaseArtProfile
+> Task :expo-manifests:prepareReleaseArtProfile
+> Task :expo-modules-core:prepareReleaseArtProfile
+> Task :expo-updates-interface:prepareReleaseArtProfile
+> Task :lottie-react-native:prepareReleaseArtProfile
+> Task :react-native-async-storage_async-storage:prepareReleaseArtProfile
+> Task :react-native-community_blur:prepareReleaseArtProfile
+> Task :expo-dev-client:prepareReleaseArtProfile
+> Task :react-native-community_datetimepicker:prepareReleaseArtProfile
+> Task :react-native-gesture-handler:prepareReleaseArtProfile
+> Task :react-native-google-signin_google-signin:prepareReleaseArtProfile
+> Task :react-native-linear-gradient:prepareReleaseArtProfile
+> Task :react-native-masked-view_masked-view:prepareReleaseArtProfile
+> Task :react-native-safe-area-context:prepareReleaseArtProfile
+> Task :react-native-reanimated:prepareReleaseArtProfile
+> Task :react-native-view-shot:prepareReleaseArtProfile
+> Task :react-native-svg:prepareReleaseArtProfile
+> Task :react-native-webview:prepareReleaseArtProfile
+> Task :react-native-community_datetimepicker:bundleLibRuntimeToJarRelease
+> Task :react-native-google-signin_google-signin:bundleLibRuntimeToJarRelease
+> Task :lottie-react-native:bundleLibRuntimeToJarRelease
+> Task :react-native-safe-area-context:bundleLibRuntimeToJarRelease
+> Task :app:checkReleaseDuplicateClasses
+> Task :react-native-async-storage_async-storage:bundleLibRuntimeToJarRelease
+> Task :react-native-community_blur:bundleLibRuntimeToJarRelease
+> Task :react-native-masked-view_masked-view:bundleLibRuntimeToJarRelease
+> Task :react-native-linear-gradient:bundleLibRuntimeToJarRelease
+> Task :react-native-svg:bundleLibRuntimeToJarRelease
+> Task :react-native-view-shot:bundleLibRuntimeToJarRelease
+
+> Task :app:createBundleReleaseJsAndAssets
+env: load .env
+env: export EXPO_PUBLIC_API_URL EXPO_PUBLIC_GEMINI_API_KEY EXPO_PUBLIC_GOOGLE_ANDROID_ID EXPO_PUBLIC_GOOGLE_ANDROID_ID_2 EXPO_PUBLIC_GOOGLE_IOS_ID EXPO_PUBLIC_GOOGLE_WEB_ID EXPO_PUBLIC_RORK_API_BASE_URL
+
+> Task :expo:mergeReleaseShaders
+> Task :expo:compileReleaseShaders NO-SOURCE
+> Task :expo:generateReleaseAssets UP-TO-DATE
+> Task :expo:mergeReleaseAssets
+> Task :expo-dev-client:mergeReleaseShaders
+> Task :expo-dev-client:compileReleaseShaders NO-SOURCE
+> Task :expo-dev-client:generateReleaseAssets UP-TO-DATE
+> Task :expo-dev-client:mergeReleaseAssets
+> Task :expo-dev-menu:mergeReleaseShaders
+> Task :expo-dev-menu:compileReleaseShaders NO-SOURCE
+> Task :expo-dev-menu:generateReleaseAssets UP-TO-DATE
+> Task :expo-dev-menu:mergeReleaseAssets
+> Task :expo-dev-menu-interface:mergeReleaseShaders
+> Task :expo-dev-menu-interface:compileReleaseShaders NO-SOURCE
+> Task :expo-dev-menu-interface:generateReleaseAssets UP-TO-DATE
+> Task :expo-dev-menu-interface:mergeReleaseAssets
+> Task :expo-json-utils:mergeReleaseShaders
+> Task :expo-json-utils:compileReleaseShaders NO-SOURCE
+> Task :expo-json-utils:generateReleaseAssets UP-TO-DATE
+> Task :expo-json-utils:mergeReleaseAssets
+> Task :expo-log-box:mergeReleaseShaders
+> Task :expo-log-box:compileReleaseShaders NO-SOURCE
+> Task :expo-log-box:generateReleaseAssets UP-TO-DATE
+> Task :expo-log-box:mergeReleaseAssets
+> Task :expo-manifests:mergeReleaseShaders
+> Task :expo-manifests:compileReleaseShaders NO-SOURCE
+> Task :expo-manifests:generateReleaseAssets UP-TO-DATE
+> Task :expo-manifests:mergeReleaseAssets
+> Task :expo-modules-core:mergeReleaseShaders
+> Task :expo-modules-core:compileReleaseShaders NO-SOURCE
+> Task :expo-modules-core:generateReleaseAssets UP-TO-DATE
+> Task :expo-modules-core:mergeReleaseAssets
+> Task :expo-updates-interface:mergeReleaseShaders
+> Task :expo-updates-interface:compileReleaseShaders NO-SOURCE
+> Task :expo-updates-interface:generateReleaseAssets UP-TO-DATE
+> Task :expo-updates-interface:mergeReleaseAssets
+> Task :lottie-react-native:mergeReleaseShaders
+> Task :lottie-react-native:compileReleaseShaders NO-SOURCE
+> Task :lottie-react-native:generateReleaseAssets UP-TO-DATE
+> Task :lottie-react-native:mergeReleaseAssets
+> Task :react-native-async-storage_async-storage:mergeReleaseShaders
+> Task :react-native-async-storage_async-storage:compileReleaseShaders NO-SOURCE
+> Task :react-native-async-storage_async-storage:generateReleaseAssets UP-TO-DATE
+> Task :react-native-async-storage_async-storage:mergeReleaseAssets
+> Task :react-native-community_blur:mergeReleaseShaders
+> Task :react-native-community_blur:compileReleaseShaders NO-SOURCE
+> Task :react-native-community_blur:generateReleaseAssets UP-TO-DATE
+> Task :react-native-community_blur:mergeReleaseAssets
+> Task :react-native-community_datetimepicker:mergeReleaseShaders
+> Task :react-native-community_datetimepicker:compileReleaseShaders NO-SOURCE
+> Task :react-native-community_datetimepicker:generateReleaseAssets UP-TO-DATE
+> Task :react-native-community_datetimepicker:mergeReleaseAssets
+> Task :react-native-gesture-handler:mergeReleaseShaders
+> Task :react-native-gesture-handler:compileReleaseShaders NO-SOURCE
+> Task :react-native-gesture-handler:generateReleaseAssets UP-TO-DATE
+> Task :react-native-gesture-handler:mergeReleaseAssets
+> Task :react-native-google-signin_google-signin:mergeReleaseShaders
+> Task :react-native-google-signin_google-signin:compileReleaseShaders NO-SOURCE
+> Task :react-native-google-signin_google-signin:generateReleaseAssets UP-TO-DATE
+> Task :react-native-google-signin_google-signin:mergeReleaseAssets
+> Task :react-native-linear-gradient:mergeReleaseShaders
+> Task :react-native-linear-gradient:compileReleaseShaders NO-SOURCE
+> Task :react-native-linear-gradient:generateReleaseAssets UP-TO-DATE
+> Task :react-native-linear-gradient:mergeReleaseAssets
+> Task :react-native-masked-view_masked-view:mergeReleaseShaders
+> Task :react-native-masked-view_masked-view:compileReleaseShaders NO-SOURCE
+> Task :react-native-masked-view_masked-view:generateReleaseAssets UP-TO-DATE
+> Task :react-native-masked-view_masked-view:mergeReleaseAssets
+> Task :react-native-reanimated:mergeReleaseShaders
+> Task :react-native-reanimated:compileReleaseShaders NO-SOURCE
+> Task :react-native-reanimated:generateReleaseAssets UP-TO-DATE
+> Task :react-native-reanimated:mergeReleaseAssets
+> Task :react-native-safe-area-context:mergeReleaseShaders
+> Task :react-native-safe-area-context:compileReleaseShaders NO-SOURCE
+> Task :react-native-safe-area-context:generateReleaseAssets UP-TO-DATE
+> Task :react-native-safe-area-context:mergeReleaseAssets
+> Task :react-native-svg:mergeReleaseShaders
+> Task :react-native-svg:compileReleaseShaders NO-SOURCE
+> Task :react-native-svg:generateReleaseAssets UP-TO-DATE
+> Task :react-native-svg:mergeReleaseAssets
+> Task :expo:extractProguardFiles
+> Task :expo-modules-core:extractProguardFiles
+> Task :expo-modules-core:prepareLintJarForPublish UP-TO-DATE
+> Task :expo-dev-client:extractProguardFiles
+> Task :expo-dev-client:prepareLintJarForPublish UP-TO-DATE
+> Task :expo-dev-menu:extractProguardFiles
+> Task :expo-dev-menu:prepareLintJarForPublish UP-TO-DATE
+> Task :expo-dev-menu-interface:extractProguardFiles
+> Task :expo-dev-menu-interface:prepareLintJarForPublish UP-TO-DATE
+> Task :expo-json-utils:extractProguardFiles
+> Task :expo-json-utils:prepareLintJarForPublish UP-TO-DATE
+> Task :expo-log-box:extractProguardFiles
+> Task :expo-log-box:prepareLintJarForPublish UP-TO-DATE
+> Task :expo-manifests:extractProguardFiles
+> Task :expo-manifests:prepareLintJarForPublish UP-TO-DATE
+> Task :expo-updates-interface:extractProguardFiles
+> Task :expo-updates-interface:prepareLintJarForPublish UP-TO-DATE
+> Task :expo:prepareLintJarForPublish UP-TO-DATE
+> Task :lottie-react-native:processReleaseJavaRes
+> Task :lottie-react-native:createFullJarRelease
+> Task :lottie-react-native:extractProguardFiles
+
+> Task :app:createBundleReleaseJsAndAssets
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+
+> Task :expo-constants:prepareReleaseArtProfile
+> Task :react-native-permissions:compileReleaseLibraryResources
+> Task :expo-constants:mergeReleaseShaders
+> Task :react-native-view-shot:mergeReleaseShaders
+> Task :expo-constants:compileReleaseShaders NO-SOURCE
+> Task :expo-constants:generateReleaseAssets UP-TO-DATE
+> Task :react-native-view-shot:compileReleaseShaders NO-SOURCE
+> Task :react-native-view-shot:generateReleaseAssets UP-TO-DATE
+> Task :react-native-view-shot:mergeReleaseAssets
+> Task :react-native-permissions:prepareReleaseArtProfile
+> Task :react-native-permissions:bundleLibCompileToJarRelease
+> Task :react-native-webview:mergeReleaseShaders
+> Task :react-native-permissions:bundleLibRuntimeToJarRelease
+> Task :react-native-webview:compileReleaseShaders NO-SOURCE
+> Task :react-native-webview:generateReleaseAssets UP-TO-DATE
+> Task :react-native-webview:mergeReleaseAssets
+> Task :react-native-async-storage_async-storage:processReleaseJavaRes NO-SOURCE
+> Task :react-native-async-storage_async-storage:createFullJarRelease
+> Task :expo-constants:mergeReleaseAssets
+> Task :react-native-permissions:mergeReleaseShaders
+> Task :expo-constants:extractProguardFiles
+> Task :react-native-permissions:compileReleaseShaders NO-SOURCE
+> Task :react-native-permissions:generateReleaseAssets UP-TO-DATE
+> Task :react-native-async-storage_async-storage:extractProguardFiles
+> Task :expo-constants:prepareLintJarForPublish UP-TO-DATE
+> Task :react-native-permissions:mergeReleaseAssets
+> Task :react-native-community_blur:processReleaseJavaRes NO-SOURCE
+> Task :react-native-community_blur:createFullJarRelease
+> Task :react-native-webview:bundleLibRuntimeToJarRelease
+> Task :react-native-community_blur:extractProguardFiles
+> Task :react-native-community_datetimepicker:processReleaseJavaRes
+> Task :react-native-community_datetimepicker:createFullJarRelease
+> Task :react-native-community_datetimepicker:extractProguardFiles
+> Task :expo-dev-launcher:generateReleaseResValues
+> Task :react-native-gesture-handler:extractProguardFiles
+> Task :react-native-reanimated:processReleaseJavaRes NO-SOURCE
+> Task :expo-dev-launcher:generateReleaseResources
+> Task :react-native-reanimated:extractProguardFiles
+> Task :react-native-reanimated:prepareLintJarForPublish UP-TO-DATE
+> Task :react-native-svg:processReleaseJavaRes NO-SOURCE
+> Task :expo-dev-launcher:packageReleaseResources
+> Task :react-native-svg:createFullJarRelease
+> Task :expo-dev-launcher:parseReleaseLocalResources
+> Task :react-native-svg:extractProguardFiles
+> Task :expo-dev-launcher:dataBindingGenBaseClassesRelease
+> Task :expo-dev-launcher:generateReleaseBuildConfig
+> Task :expo-dev-launcher:generateReleaseRFile
+> Task :expo-dev-launcher:javaPreCompileRelease
+> Task :expo-dev-launcher:writeReleaseAarMetadata
+> Task :expo-dev-launcher:extractDeepLinksRelease
+> Task :expo-dev-launcher:processReleaseManifest
+> Task :expo-dev-launcher:compileReleaseLibraryResources
+> Task :expo-dev-launcher:prepareReleaseArtProfile
+> Task :expo-dev-launcher:mergeReleaseShaders
+> Task :expo-dev-launcher:compileReleaseShaders NO-SOURCE
+> Task :expo-dev-launcher:generateReleaseAssets UP-TO-DATE
+> Task :expo-dev-launcher:mergeReleaseAssets
+> Task :expo-dev-launcher:extractProguardFiles
+> Task :expo-dev-launcher:prepareLintJarForPublish UP-TO-DATE
+> Task :react-native-gesture-handler:prepareLintJarForPublish UP-TO-DATE
+> Task :react-native-google-signin_google-signin:processReleaseJavaRes
+> Task :react-native-google-signin_google-signin:createFullJarRelease
+> Task :react-native-google-signin_google-signin:extractProguardFiles
