@@ -281,9 +281,9 @@ export default function CreateClassScreen() {
       }
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: Platform.OS === 'ios',
+        allowsEditing: true,
         aspect: [16, 9],
-        quality: 0.2,
+        quality: 0.5,
         base64: true,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {

@@ -667,9 +667,9 @@ export default function EditProfileScreen() {
 
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: Platform.OS === 'ios',
+        allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.2,
+        quality: 0.5,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {

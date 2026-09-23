@@ -188,8 +188,9 @@ export default function ProfileScreen() {
       const result = source === 'camera'
         ? await ImagePicker.launchCameraAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: Platform.OS === 'ios',
-            quality: 0.2,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.5,
           })
         : await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,

@@ -305,7 +305,11 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     }
 
     const isExplicitRuntime = input.skipPopup === false;
-    const isStartup = Date.now() - mountTimestampRef.current < 4000;
+
+    // Skip notifications during the first 10 seconds of app load to prevent a flood of 
+    // past/offline notifications from blowing up the user's screen all at once.
+    // After 10 seconds, real-time incoming notifications will show normally.
+    const isStartup = Date.now() - mountTimestampRef.current < 10000;
     const shouldSkip = isLiveCall || isExplicitRuntime ? false : (input.skipPopup === true || isStartup || !isAuthUser);
 
     const payload: NotificationItem = {
@@ -839,9 +843,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
         const isEnrolled = data.enrolledStudentIds && Array.isArray(data.enrolledStudentIds)
           ? data.enrolledStudentIds.some((id) => {
-              const idStr = String(id);
-              return idStr === currentUserId || (currentMongoId && idStr === currentMongoId);
-            })
+            const idStr = String(id);
+            return idStr === currentUserId || (currentMongoId && idStr === currentMongoId);
+          })
           : true;
 
         if (isEnrolled) {

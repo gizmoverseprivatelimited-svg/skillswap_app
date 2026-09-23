@@ -49,26 +49,7 @@ export default function LoginScreen() {
 
   const isEmail = useMemo(() => /@/.test(identifier), [identifier]);
 
-  // const onSendCode = useCallback(async () => {
-  //   console.log('[Login] Sending OTP for', identifier);
-  //   setError(null);
-  //   if (!identifier || identifier.trim().length < 5) {
-  //     setError('Enter a valid email or phone number');
-  //     return;
-  //   }
-  //   try {
-  //     const result = await sendOtpMutation.mutateAsync({ identifier });
-  //     setStep('verify');
-  //     if (result.devCode) {
-  //       Alert.alert('Code sent', `Development code: ${result.devCode}`);
-  //     } else {
-  //       Alert.alert('Code sent', result.message);
-  //     }
-  //   } catch (e) {
-  //     console.error('[Login] send code error', e);
-  //     setError('Could not send the code. Try again.');
-  //   }
-  // }, [identifier, sendOtpMutation]);
+
 
   const onSendCode = useCallback(async () => {
     console.log('[Login] Sending OTP for', identifier);
@@ -231,57 +212,7 @@ export default function LoginScreen() {
     }
   }, [router, auth, showAlert]);
 
-  // const signInWithGoogle = useCallback(async () => {
-  //   try {
-  //     console.log('[Login] Google sign-in start');
-  //     const redirectUri = Platform.select({ web: window.location.origin, default: 'myapp://' }) as string;
-  //     const clientId = Platform.select<string | undefined>({
-  //       ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_ID,
-  //       android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_ID,
-  //       web: process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
-  //       default: undefined,
-  //     });
-  //     if (!clientId) {
-  //       console.warn('[Login] Missing Google client id envs');
-  //       Alert.alert('Configuration Error', 'Google OAuth is not configured');
-  //       return;
-  //     }
-  //     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
-  //       clientId ?? ''
-  //     )}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent('profile email')}`;
 
-  //     const res = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-  //     if (res.type === 'success' && res.url) {
-  //       const hash = res.url.split('#')[1] ?? '';
-  //       const params = new URLSearchParams(hash);
-  //       const token = params.get('access_token');
-  //       console.log('[Login] Google token received');
-
-  //       if (token) {
-  //         const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-  //           headers: { Authorization: `Bearer ${token}` },
-  //         });
-  //         const userInfo = await userInfoResponse.json();
-
-  //         await auth.signInWithOAuth('google', {
-  //           providerId: userInfo.id,
-  //           email: userInfo.email,
-  //           name: userInfo.name,
-  //           avatar: userInfo.picture,
-  //         });
-
-  //         router.replace('/home');
-  //       }
-  //     } else if (res.type === 'cancel') {
-  //       console.log('[Login] Google canceled');
-  //     } else {
-  //       console.warn('[Login] Google result', res.type);
-  //     }
-  //   } catch (e) {
-  //     console.error('[Login] Google error', e);
-  //     Alert.alert('Google Sign in failed');
-  //   }
-  // }, [router, auth]);
 
   const signInWithGoogle = useCallback(async () => {
     try {
@@ -347,10 +278,6 @@ export default function LoginScreen() {
         return;
       } else {
         // Mobile platform: use native GoogleSignin exclusively
-        GoogleSignin.configure({
-          webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
-          iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_ID,
-        });
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
         const response = await GoogleSignin.signIn();
         const user = response.data?.user;

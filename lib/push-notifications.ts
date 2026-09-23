@@ -38,12 +38,9 @@ export function usePushNotifications() {
       return;
     }
 
-    registerForPushNotificationsAsync().then((token) => {
-      if (token) {
-        setExpoPushToken(token);
-        console.log('[PushNotifications] Token registered:', token);
-      }
-    });
+    // We intentionally do NOT call registerForPushNotificationsAsync() here on app load
+    // to prevent the system permission dialog from colliding with early user interactions
+    // like opening the camera. 
 
     notificationListener.current = Notifications.addNotificationReceivedListener((notification: any) => {
       setNotification(notification);
@@ -137,10 +134,12 @@ async function registerForPushNotificationsAsync() {
   // Request notifications permission on both simulators/emulators and physical devices
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync({});
-    finalStatus = status;
-  }
+  
+  // Do not automatically prompt for permissions if they haven't been granted yet
+  // if (existingStatus !== 'granted') {
+  //   const { status } = await Notifications.requestPermissionsAsync({});
+  //   finalStatus = status;
+  // }
   if (finalStatus !== 'granted') {
     console.log('[PushNotifications] Permission not granted');
     return;
