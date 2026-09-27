@@ -12,7 +12,6 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.leteski.community",
       "usesAppleSignIn": true,
-      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCalendarsUsageDescription": "Allow $(PRODUCT_NAME) to access your calendar",
         "NSRemindersUsageDescription": "Allow $(PRODUCT_NAME) to access your reminders",
