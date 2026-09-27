@@ -18,7 +18,10 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.leteski.com",
         "EXPO_ROUTER_DISABLE_RN_NAVIGATION_CHECK": "1",
-        "EXPO_NO_DOCTOR": "true"
+        "EXPO_NO_DOCTOR": "true",
+        "EXPO_PUBLIC_GOOGLE_WEB_ID": "948203436875-0p118l9pii77im7f6tippdf5ttidprr2.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_ID": "948203436875-ptftgkjlag106vhv4ct3kfu58amjm3cs.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_ID": "948203436875-jgv8jfosff39m8afoohi602p91gm2b9k.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -32,7 +35,10 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.leteski.com",
         "EXPO_ROUTER_DISABLE_RN_NAVIGATION_CHECK": "1",
-        "EXPO_NO_DOCTOR": "true"
+        "EXPO_NO_DOCTOR": "true",
+        "EXPO_PUBLIC_GOOGLE_WEB_ID": "948203436875-0p118l9pii77im7f6tippdf5ttidprr2.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_ID": "948203436875-ptftgkjlag106vhv4ct3kfu58amjm3cs.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_ID": "948203436875-jgv8jfosff39m8afoohi602p91gm2b9k.apps.googleusercontent.com"
       }
     }
   },

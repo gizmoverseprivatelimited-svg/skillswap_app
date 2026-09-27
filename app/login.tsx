@@ -13,16 +13,7 @@ import url from '@/constants/backurl';
 import * as Linking from 'expo-linking';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
-if (Platform.OS !== 'web') {
-  try {
-    GoogleSignin.configure({
-      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
-      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_ID,
-    });
-  } catch (e) {
-    console.warn('[Login] GoogleSignin configure initial error:', e);
-  }
-}
+// Configuration moved to signIn function to ensure env vars are loaded
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -49,7 +40,21 @@ export default function LoginScreen() {
 
   const isEmail = useMemo(() => /@/.test(identifier), [identifier]);
 
-
+  // Configure Google Sign-In exactly once when the component mounts
+  React.useEffect(() => {
+    if (Platform.OS !== 'web') {
+      try {
+        GoogleSignin.configure({
+          webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
+          iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_ID,
+          offlineAccess: false,
+        });
+        console.log('[Login] GoogleSignin configured successfully');
+      } catch (e) {
+        console.warn('[Login] GoogleSignin configure error:', e);
+      }
+    }
+  }, []);
 
   const onSendCode = useCallback(async () => {
     console.log('[Login] Sending OTP for', identifier);
@@ -279,6 +284,14 @@ export default function LoginScreen() {
       } else {
         // Mobile platform: use native GoogleSignin exclusively
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+        // Force sign out first to clear any stale cached auth state
+        try {
+          await GoogleSignin.signOut();
+        } catch (e) {
+          // Ignore
+        }
+
         const response = await GoogleSignin.signIn();
         const user = response.data?.user;
 
