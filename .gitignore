@@ -42,4 +42,8 @@ android/
 .env
 rork-eslint.config.js
 server/
-expo/
+expo/
+scratch/
+node_modules/
+*.zip
+*.txt
