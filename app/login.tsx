@@ -12,7 +12,8 @@ import { useAuth } from '@/providers/auth';
 import url from '@/constants/backurl';
 import * as Linking from 'expo-linking';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-import authFirebase from '@react-native-firebase/auth';
+// @ts-ignore: React Native Firebase exports a default in Metro, but TS sometimes misses it depending on tsconfig
+import firebaseAuth from '@react-native-firebase/auth';
 // Configuration moved to signIn function to ensure env vars are loaded
 
 WebBrowser.maybeCompleteAuthSession();
@@ -301,8 +302,8 @@ export default function LoginScreen() {
         }
 
         // 1. Sign in to Firebase Auth using the Google idToken
-        const googleCredential = authFirebase.GoogleAuthProvider.credential(idToken);
-        await authFirebase().signInWithCredential(googleCredential);
+        const googleCredential = firebaseAuth.GoogleAuthProvider.credential(idToken);
+        await firebaseAuth().signInWithCredential(googleCredential);
 
         // 2. Continue to authenticate with your custom backend
         await auth.signInWithOAuth('google', {
