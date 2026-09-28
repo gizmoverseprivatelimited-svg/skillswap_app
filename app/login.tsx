@@ -12,7 +12,7 @@ import { useAuth } from '@/providers/auth';
 import url from '@/constants/backurl';
 import * as Linking from 'expo-linking';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-
+import authFirebase from '@react-native-firebase/auth';
 // Configuration moved to signIn function to ensure env vars are loaded
 
 WebBrowser.maybeCompleteAuthSession();
@@ -293,12 +293,18 @@ export default function LoginScreen() {
         }
 
         const response = await GoogleSignin.signIn();
+        const idToken = response.data?.idToken;
         const user = response.data?.user;
 
-        if (!user) {
+        if (!idToken || !user) {
           throw new Error('Could not retrieve user details from Google Sign-In');
         }
 
+        // 1. Sign in to Firebase Auth using the Google idToken
+        const googleCredential = authFirebase.GoogleAuthProvider.credential(idToken);
+        await authFirebase().signInWithCredential(googleCredential);
+
+        // 2. Continue to authenticate with your custom backend
         await auth.signInWithOAuth('google', {
           providerId: user.id,
           email: user.email,

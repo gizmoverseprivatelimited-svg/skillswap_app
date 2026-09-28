@@ -25,6 +25,7 @@
     },
     "android": {
       "versionCode": 21,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -68,6 +69,8 @@
           }
         }
       ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
       "@react-native-google-signin/google-signin",
       [
         "expo-router",
