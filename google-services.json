@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "190453508837",
+    "project_id": "leteski",
+    "storage_bucket": "leteski.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:190453508837:android:8241529c75d1b03356820c",
+        "android_client_info": {
+          "package_name": "com.leteski_community"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "190453508837-bg52dtlspq98e4l346fq1b6bntp8tq3g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.leteski_community",
+            "certificate_hash": "69f8a5338902e35a8a4a7cc68dfd3f6d45d78e6b"
+          }
+        },
+        {
+          "client_id": "190453508837-0un2m2drq70qd0jeds9i43h2rmarhtma.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKG2EBtqk0GF96E2-fUGORB9GQFfw1UyM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "190453508837-0un2m2drq70qd0jeds9i43h2rmarhtma.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "190453508837-g6qtr90qhg36fd5i77k6rmdknegs380r.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.leteski.community"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

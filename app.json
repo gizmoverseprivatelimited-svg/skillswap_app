@@ -2,7 +2,7 @@
   "expo": {
     "name": "Leteski",
     "slug": "leteski-app",
-    "owner": "sher7417",
+    "owner": "sher741730",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -129,7 +129,7 @@
         "origin": "https://rork.com/"
       },
       "eas": {
-        "projectId": "0012945c-502c-49ae-ba79-201c139e918f"
+        "projectId": "b0801e26-3816-4a7b-824c-a767cee5424e"
       }
     }
   }
