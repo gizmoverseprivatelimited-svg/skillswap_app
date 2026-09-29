@@ -41,21 +41,8 @@ export default function LoginScreen() {
 
   const isEmail = useMemo(() => /@/.test(identifier), [identifier]);
 
-  // Configure Google Sign-In exactly once when the component mounts
-  React.useEffect(() => {
-    if (Platform.OS !== 'web') {
-      try {
-        GoogleSignin.configure({
-          webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
-          iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_ID,
-          offlineAccess: false,
-        });
-        console.log('[Login] GoogleSignin configured successfully');
-      } catch (e) {
-        console.warn('[Login] GoogleSignin configure error:', e);
-      }
-    }
-  }, []);
+// GoogleSignin.configure() is now called once in the AuthProvider (providers/auth.tsx)
+// so it's ready even before the login screen mounts.
 
   const onSendCode = useCallback(async () => {
     console.log('[Login] Sending OTP for', identifier);
@@ -316,12 +303,41 @@ export default function LoginScreen() {
         router.replace('/');
       }
     } catch (error: any) {
+      console.error('[Login] Google sign-in error', JSON.stringify(error, null, 2));
+
       if (error?.code === statusCodes.SIGN_IN_CANCELLED) {
-        console.log('[Login] Google sign-in cancelled');
-      } else {
-        console.error('[Login] Google sign-in error', error);
-        showAlert('Google Sign in failed', error.message || 'Please try again.');
+        console.log('[Login] Google sign-in cancelled by user');
+        return;
       }
+
+      if (error?.code === statusCodes.IN_PROGRESS) {
+        console.log('[Login] Google sign-in already in progress');
+        return;
+      }
+
+      if (error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        showAlert('Google Play Services', 'Google Play Services is not available or needs to be updated on your device.');
+        return;
+      }
+
+      // DEVELOPER_ERROR (error code 10) — SHA-1 mismatch or wrong webClientId
+      const errorMessage = error?.message || '';
+      if (
+        error?.code === '10' ||
+        error?.code === 10 ||
+        errorMessage.includes('DEVELOPER_ERROR') ||
+        errorMessage.includes('10') ||
+        errorMessage.includes('not recoverable')
+      ) {
+        console.error('[Login] DEVELOPER_ERROR — SHA-1 fingerprint or webClientId mismatch');
+        showAlert(
+          'Google Sign-In Configuration Error',
+          'There is a configuration issue with Google Sign-In. Please contact support if this persists.'
+        );
+        return;
+      }
+
+      showAlert('Google Sign In failed', error?.message || 'An unexpected error occurred. Please try again.');
     }
   }, [router, auth, showAlert]);
 

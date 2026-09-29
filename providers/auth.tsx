@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import url from '@/constants/backurl';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+// @ts-ignore: React Native Firebase exports a default in Metro, but TS sometimes misses it depending on tsconfig
+import firebaseAuth from '@react-native-firebase/auth';
 
 import { useSocket } from '@/providers/socket';
 
@@ -67,6 +71,22 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   let URL = `${url}/api/auth`
+
+  // Configure Google Sign-In once at provider level so it's ready before the login screen mounts
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      try {
+        GoogleSignin.configure({
+          webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_ID,
+          iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_ID,
+          offlineAccess: false,
+        });
+        console.log('[Auth] GoogleSignin configured successfully');
+      } catch (e) {
+        console.warn('[Auth] GoogleSignin configure error:', e);
+      }
+    }
+  }, []);
 
   const normalizeUser = (u: any): AuthUser | null => {
     if (!u) return null;
@@ -235,6 +255,28 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
 
   const signOut = useCallback(async () => {
     console.log('[Auth] Signing out');
+
+    // Sign out from Firebase Auth
+    try {
+      const currentFirebaseUser = firebaseAuth().currentUser;
+      if (currentFirebaseUser) {
+        await firebaseAuth().signOut();
+        console.log('[Auth] Firebase Auth signed out');
+      }
+    } catch (e) {
+      console.warn('[Auth] Firebase sign-out error (non-fatal):', e);
+    }
+
+    // Sign out from Google Sign-In (clears cached account so the picker shows next time)
+    if (Platform.OS !== 'web') {
+      try {
+        await GoogleSignin.signOut();
+        console.log('[Auth] Google Sign-In signed out');
+      } catch (e) {
+        console.warn('[Auth] Google sign-out error (non-fatal):', e);
+      }
+    }
+
     await clearToken();
   }, [clearToken]);
 
