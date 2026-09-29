@@ -22,14 +22,6 @@
           }
         },
         {
-          "client_id": "190453508837-android-new-sha.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.leteski_community",
-            "certificate_hash": "91e302b969ebda78e1958d0a1c74d4c9f24e0f9b"
-          }
-        },
-        {
           "client_id": "190453508837-0un2m2drq70qd0jeds9i43h2rmarhtma.apps.googleusercontent.com",
           "client_type": 3
         }
