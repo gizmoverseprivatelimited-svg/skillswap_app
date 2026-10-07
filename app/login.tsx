@@ -12,8 +12,7 @@ import { useAuth } from '@/providers/auth';
 import url from '@/constants/backurl';
 import * as Linking from 'expo-linking';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-// @ts-ignore: React Native Firebase exports a default in Metro, but TS sometimes misses it depending on tsconfig
-import firebaseAuth from '@react-native-firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithCredential } from '@react-native-firebase/auth';
 // Configuration moved to signIn function to ensure env vars are loaded
 
 WebBrowser.maybeCompleteAuthSession();
@@ -208,7 +207,9 @@ export default function LoginScreen() {
 
 
   const signInWithGoogle = useCallback(async () => {
+    if (isPending) return;
     try {
+      setIsPending(true);
       console.log('[Login] Google sign-in start');
 
       if (Platform.OS === 'web') {
@@ -289,8 +290,9 @@ export default function LoginScreen() {
         }
 
         // 1. Sign in to Firebase Auth using the Google idToken
-        const googleCredential = firebaseAuth.GoogleAuthProvider.credential(idToken);
-        await firebaseAuth().signInWithCredential(googleCredential);
+        const authInstance = getAuth();
+        const googleCredential = GoogleAuthProvider.credential(idToken);
+        await signInWithCredential(authInstance, googleCredential);
 
         // 2. Continue to authenticate with your custom backend
         await auth.signInWithOAuth('google', {
@@ -338,8 +340,10 @@ export default function LoginScreen() {
       }
 
       showAlert('Google Sign In failed', error?.message || 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsPending(false);
     }
-  }, [router, auth, showAlert]);
+  }, [router, auth, showAlert, isPending]);
 
 
   const isLoading = isPending;
@@ -423,9 +427,21 @@ export default function LoginScreen() {
                     </LinearGradient>
                   </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.googleBtn} onPress={signInWithGoogle} testID="google-sign-in" activeOpacity={0.85}>
-                    <Chrome size={22} color="#fff" />
-                    <Text style={styles.googleText}>Continue with Google</Text>
+                  <TouchableOpacity 
+                    style={[styles.googleBtn, isLoading && { opacity: 0.7 }]} 
+                    onPress={signInWithGoogle} 
+                    testID="google-sign-in" 
+                    activeOpacity={0.85}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Chrome size={22} color="#fff" />
+                    )}
+                    <Text style={styles.googleText}>
+                      {isLoading ? 'Signing in...' : 'Continue with Google'}
+                    </Text>
                   </TouchableOpacity>
 
                   <View style={styles.linkRow}>

@@ -1083,6 +1083,47 @@ export default function SwapDetailScreen() {
             )}
           </View>
         )}
+        
+        {swap.recordings && swap.recordings.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeading}>Session Recordings</Text>
+              <Video size={18} color={Colors.light.primary} />
+            </View>
+            <View style={{ gap: 12 }}>
+              {swap.recordings.map((recording, idx) => {
+                 const recDate = new Date(recording.recordedAt).toLocaleString(undefined, { 
+                    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' 
+                 });
+                 const durationMin = Math.round((recording.duration || 0) / 60);
+                 
+                 return (
+                   <TouchableOpacity
+                     key={idx}
+                     style={styles.recordingCard}
+                     onPress={() => {
+                        if (Platform.OS === 'web') {
+                           window.open(recording.url, '_blank');
+                        } else {
+                           // open in browser
+                           // router.push could be used if there's a webview, but let's just log or alert
+                        }
+                     }}
+                     activeOpacity={0.8}
+                   >
+                      <View style={styles.recordingIconBox}>
+                        <Video size={20} color="#8B5CF6" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.recordingTitle}>Recording {idx + 1}</Text>
+                        <Text style={styles.recordingMeta}>{recDate} • {durationMin} min</Text>
+                      </View>
+                   </TouchableOpacity>
+                 );
+              })}
+            </View>
+          </View>
+        )}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -2353,5 +2394,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700' as const,
     color: '#8B5CF6',
+  },
+  recordingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: Colors.light.background,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    padding: 14,
+    borderRadius: 16,
+  },
+  recordingIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recordingTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    marginBottom: 2,
+  },
+  recordingMeta: {
+    fontSize: 13,
+    color: Colors.light.textSecondary,
   },
 });

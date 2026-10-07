@@ -219,6 +219,7 @@ export interface SkillSwapRequest {
   recipientPaid?: boolean;
   requesterPaid?: boolean;
   lastAutoDebitedAt?: string;
+  recordings?: any[];
 }
 
 export type VerificationStatus = 'none' | 'pending' | 'verified' | 'rejected';
@@ -413,6 +414,9 @@ export interface GroupClass {
   startedAt?: string;
   hmsRoomId?: string;
   createdAt: string;
+  announcements?: any[];
+  assignments?: any[];
+  recordings?: any[];
 }
 
 export interface ClassEnrollment {

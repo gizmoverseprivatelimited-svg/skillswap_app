@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, Linking, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Calendar, Clock, Users, Coins, Star, Sparkles, CheckCircle2, XCircle, ArrowLeft, Video, Repeat, CreditCard, Crown } from 'lucide-react-native';
+import { Calendar, Clock, Users, Coins, Star, Sparkles, CheckCircle2, XCircle, ArrowLeft, Video, Repeat, CreditCard, Crown, Megaphone, FileText, UploadCloud } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
@@ -14,6 +14,8 @@ import { useSkillSwaps } from '@/providers/skill-swaps';
 import { useSocket } from '@/providers/socket';
 import { useSafety } from '@/providers/safety';
 import url from '@/constants/backurl';
+import * as DocumentPicker from 'expo-document-picker';
+import { TextInput } from 'react-native-gesture-handler';
 
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800';
 const DEFAULT_AVATAR = 'https://i.pravatar.cc/150?img=1';
@@ -43,6 +45,11 @@ export default function ClassDetailScreen() {
   const { allSwaps } = useSkillSwaps();
   const { socket } = useSocket();
   const [isBlockedRelation, setIsBlockedRelation] = useState(false);
+
+  const [announcementText, setAnnouncementText] = useState('');
+  const [assignmentTitle, setAssignmentTitle] = useState('');
+  const [assignmentDesc, setAssignmentDesc] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (refreshClasses) {
@@ -251,6 +258,166 @@ export default function ClassDetailScreen() {
       router.push(`/call/${cls.id}?mode=video` as any);
     }
   }, [cls, router, showAlert]);
+
+  const handleAddAnnouncement = useCallback(async () => {
+    if (!cls || !currentUser || !announcementText.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${url}/classes/${cls.id}/announcements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: announcementText, teacherId: currentUser.id })
+      });
+      if (res.ok) {
+        setAnnouncementText('');
+        refreshClasses();
+        showAlert('Success', 'Announcement posted.');
+      } else {
+        const errorData = await res.json();
+        showAlert('Error', errorData.error || 'Failed to post announcement.');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [cls, currentUser, announcementText, refreshClasses, showAlert]);
+
+  const handleAddAssignment = useCallback(async () => {
+    if (!cls || !currentUser || !assignmentTitle.trim()) return;
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/*'],
+      });
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+      
+      setSubmitting(true);
+      const file = result.assets[0];
+      const formData = new FormData();
+      if (file.file) {
+        formData.append('file', file.file);
+      } else {
+        formData.append('file', {
+          uri: file.uri,
+          name: file.name,
+          type: file.mimeType || 'application/octet-stream',
+        } as any);
+      }
+
+      const uploadRes = await fetch(`${url}/classes/upload-attachment`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('File upload failed');
+      }
+
+      const uploadData = await uploadRes.json();
+      const fileUrl = uploadData.fileUrl;
+
+      const res = await fetch(`${url}/classes/${cls.id}/assignments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: assignmentTitle, description: assignmentDesc, fileUrl, teacherId: currentUser.id })
+      });
+      if (res.ok) {
+        setAssignmentTitle('');
+        setAssignmentDesc('');
+        refreshClasses();
+        showAlert('Success', 'Assignment posted.');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [cls, currentUser, assignmentTitle, assignmentDesc, refreshClasses, showAlert]);
+
+  const handleSubmitAssignment = useCallback(async (assignmentId: string) => {
+    if (!cls || !currentUser) return;
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/*'],
+      });
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+      
+      setSubmitting(true);
+      const file = result.assets[0];
+      const formData = new FormData();
+      if (file.file) {
+        formData.append('file', file.file);
+      } else {
+        formData.append('file', {
+          uri: file.uri,
+          name: file.name,
+          type: file.mimeType || 'application/octet-stream',
+        } as any);
+      }
+
+      const uploadRes = await fetch(`${url}/classes/upload-attachment`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('File upload failed');
+      }
+
+      const uploadData = await uploadRes.json();
+      const fileUrl = uploadData.fileUrl;
+
+      const res = await fetch(`${url}/classes/${cls.id}/assignments/${assignmentId}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: currentUser.id, fileUrl })
+      });
+      if (res.ok) {
+        refreshClasses();
+        showAlert('Success', 'Assignment submitted.');
+      } else {
+        const errorData = await res.json();
+        showAlert('Error', errorData.error || 'Failed to submit assignment.');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [cls, currentUser, refreshClasses, showAlert]);
+
+  const handleDownloadFile = useCallback(async (fileUrl: string) => {
+    const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${url}${fileUrl}`;
+    if (Platform.OS === 'web') {
+      try {
+        const response = await fetch(fullUrl);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        
+        const filename = fullUrl.substring(fullUrl.lastIndexOf('/') + 1) || 'download';
+        link.setAttribute('download', filename);
+        
+        document.body.appendChild(link);
+        link.click();
+        
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      } catch (err) {
+        console.error('Download error:', err);
+        showAlert('Error', 'Failed to download file');
+      }
+    } else {
+      Linking.openURL(fullUrl).catch(e => showAlert('Error', 'Could not open file URL'));
+    }
+  }, [showAlert]);
 
   const isTeacher = String(cls?.teacherId) === String(currentUser?.id);
   const isFree = cls?.seatPriceCredits === 0;
@@ -463,6 +630,127 @@ export default function ClassDetailScreen() {
           </View>
         )}
 
+        {/* Announcements Section */}
+        {(enrolled || isTeacher) && (
+          <>
+            <View style={s.cardSection}>
+              <View style={s.sectionHeader}>
+                <Megaphone size={20} color={Colors.light.primary} />
+                <Text style={s.sectionTitle}>Announcements</Text>
+              </View>
+              {cls.announcements?.map((ann: any, idx: number) => (
+                <View key={idx} style={s.announcementItem}>
+                  <Text style={s.announcementText}>{ann.text}</Text>
+                  <Text style={s.announcementDate}>{new Date(ann.createdAt).toLocaleDateString()} {new Date(ann.createdAt).toLocaleTimeString()}</Text>
+                </View>
+              ))}
+              {(!cls.announcements || cls.announcements.length === 0) && (
+                <Text style={s.emptyText}>No announcements yet.</Text>
+              )}
+              {isTeacher && (
+                <View style={s.inputContainer}>
+                  <TextInput
+                    style={s.textInput}
+                    placeholder="Write an announcement..."
+                    value={announcementText}
+                    onChangeText={setAnnouncementText}
+                    multiline
+                  />
+                  <TouchableOpacity style={s.actionBtn} onPress={handleAddAnnouncement} disabled={submitting}>
+                    <Text style={s.actionBtnText}>Post</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* Assignments Section */}
+            <View style={s.cardSection}>
+              <View style={s.sectionHeader}>
+                <FileText size={20} color={Colors.light.primary} />
+                <Text style={s.sectionTitle}>Assignments</Text>
+              </View>
+              {cls.assignments?.map((ass: any, idx: number) => (
+                <View key={idx} style={s.assignmentItem}>
+                  <Text style={s.assignmentTitle}>{ass.title}</Text>
+                  {ass.description ? <Text style={s.assignmentDesc}>{ass.description}</Text> : null}
+                  <TouchableOpacity onPress={() => handleDownloadFile(ass.fileUrl)}>
+                    <Text style={s.downloadLink}>Download Attachment</Text>
+                  </TouchableOpacity>
+                  
+                  {isTeacher ? (
+                    <View style={s.submissionsContainer}>
+                      <Text style={s.submissionsTitle}>Submissions:</Text>
+                      {ass.submissions?.length > 0 ? ass.submissions.map((sub: any, sIdx: number) => {
+                        const student = allUsers.find(u => String(u.id || (u as any)._id) === String(sub.studentId));
+                        return (
+                          <View key={sIdx} style={s.submissionItem}>
+                            <Text style={s.submissionStudent}>{student?.name || 'Unknown'}</Text>
+                            <Text style={s.submissionDate}>{new Date(sub.submittedAt).toLocaleString()}</Text>
+                            <TouchableOpacity onPress={() => handleDownloadFile(sub.fileUrl)}>
+                              <Text style={s.downloadLink}>View File</Text>
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      }) : <Text style={s.emptyText}>No submissions yet.</Text>}
+                    </View>
+                  ) : (enrolled ? (
+                    <View style={s.studentSubmitContainer}>
+                      {ass.submissions?.some((sub: any) => String(sub.studentId) === String(currentUser?.id)) ? (
+                        <Text style={s.submittedText}>✓ Submitted</Text>
+                      ) : (
+                        <TouchableOpacity style={s.uploadBtn} onPress={() => handleSubmitAssignment(ass._id || ass.id)} disabled={submitting}>
+                          <UploadCloud size={16} color="#FFFFFF" />
+                          <Text style={s.uploadBtnText}>Upload Submission</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ) : null)}
+                </View>
+              ))}
+              {(!cls.assignments || cls.assignments.length === 0) && (
+                <Text style={s.emptyText}>No assignments yet.</Text>
+              )}
+              {isTeacher && (
+                <View style={s.inputContainer}>
+                  <TextInput
+                    style={s.textInput}
+                    placeholder="Assignment Title"
+                    value={assignmentTitle}
+                    onChangeText={setAssignmentTitle}
+                  />
+                  <TextInput
+                    style={s.textInput}
+                    placeholder="Description (Optional)"
+                    value={assignmentDesc}
+                    onChangeText={setAssignmentDesc}
+                    multiline
+                  />
+                  <TouchableOpacity style={s.actionBtn} onPress={handleAddAssignment} disabled={submitting}>
+                    <Text style={s.actionBtnText}>Attach File & Post</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </>
+        )}
+
+        {/* Recordings Section */}
+        {cls.recordings && cls.recordings.length > 0 && (
+          <View style={s.cardSection}>
+            <View style={s.sectionHeader}>
+              <Video size={20} color={Colors.light.primary} />
+              <Text style={s.sectionTitle}>Class Recordings</Text>
+            </View>
+            {cls.recordings.map((rec: any, idx: number) => (
+              <TouchableOpacity key={idx} style={s.assignmentItem} onPress={() => Linking.openURL(rec.url)}>
+                <Text style={s.assignmentTitle}>Recording {idx + 1}</Text>
+                <Text style={s.assignmentDesc}>{new Date(rec.recordedAt).toLocaleString()}</Text>
+                <Text style={s.downloadLink}>Watch Recording</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {/* Pricing + Action */}
         <View style={s.pricingCard}>
           <View style={s.priceRow}>
@@ -669,4 +957,27 @@ const s = StyleSheet.create({
   notFound: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
   notFoundText: { fontSize: 18, fontWeight: '600' as const, color: Colors.light.textSecondary },
   backBtnText: { fontSize: 15, fontWeight: '700' as const, color: Colors.light.primary },
+  cardSection: { backgroundColor: Colors.light.backgroundTertiary, borderRadius: 16, padding: 16, marginBottom: 20 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  announcementItem: { backgroundColor: Colors.light.card, padding: 12, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: Colors.light.borderLight },
+  announcementText: { fontSize: 15, color: Colors.light.text, marginBottom: 4 },
+  announcementDate: { fontSize: 12, color: Colors.light.textTertiary },
+  emptyText: { fontSize: 14, color: Colors.light.textTertiary, fontStyle: 'italic', marginBottom: 8 },
+  inputContainer: { marginTop: 12, gap: 8 },
+  textInput: { backgroundColor: Colors.light.card, borderWidth: 1, borderColor: Colors.light.border, borderRadius: 12, padding: 12, fontSize: 15, color: Colors.light.text, minHeight: 44 },
+  actionBtn: { backgroundColor: Colors.light.primary, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
+  actionBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
+  assignmentItem: { backgroundColor: Colors.light.card, padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: Colors.light.borderLight },
+  assignmentTitle: { fontSize: 16, fontWeight: '700', color: Colors.light.text, marginBottom: 4 },
+  assignmentDesc: { fontSize: 14, color: Colors.light.textSecondary, marginBottom: 8 },
+  downloadLink: { fontSize: 14, color: Colors.light.primary, fontWeight: '600', marginBottom: 12 },
+  submissionsContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.light.borderLight },
+  submissionsTitle: { fontSize: 14, fontWeight: '600', color: Colors.light.text, marginBottom: 8 },
+  submissionItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: Colors.light.backgroundTertiary, padding: 10, borderRadius: 8, marginBottom: 6 },
+  submissionStudent: { fontSize: 14, fontWeight: '600', color: Colors.light.text },
+  submissionDate: { fontSize: 12, color: Colors.light.textTertiary },
+  studentSubmitContainer: { marginTop: 12 },
+  uploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.light.primary, paddingVertical: 10, borderRadius: 12 },
+  uploadBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
+  submittedText: { color: '#10B981', fontSize: 15, fontWeight: '600' },
 });

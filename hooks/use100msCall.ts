@@ -64,6 +64,7 @@ export function use100msCall({
   const [selectedAudioDevice, setSelectedAudioDevice] = useState<AudioDevice>('SPEAKER_PHONE');
   const [availableAudioDevices, setAvailableAudioDevices] = useState<string[]>(['SPEAKER_PHONE', 'EARPIECE']);
   const [sdkId, setSdkId] = useState<string>('12345');
+  const [isRecording, setIsRecording] = useState(false);
 
   const hmsInstanceRef = useRef<any>(null);
   const webStreamRef = useRef<MediaStream | null>(null);
@@ -1707,6 +1708,34 @@ export function use100msCall({
     onEndCall();
   }, [onEndCall, socket, roomId, currentUserId, userName]);
 
+  const stopRecording = useCallback(async () => {
+    if (hmsInstanceRef.current && isTeacher) {
+      try {
+        await hmsInstanceRef.current.stopRTMPAndRecording();
+        setIsRecording(false);
+      } catch (error) {
+        console.error('Failed to stop recording', error);
+      }
+    }
+  }, [isTeacher]);
+
+  const startRecording = useCallback(async () => {
+    if (hmsInstanceRef.current && isTeacher) {
+      try {
+        const { HMSRTMPConfig } = await import('@100mslive/react-native-hms');
+        // Let 100ms use the default meeting URL defined in the template by leaving meetingURL empty if not strictly needed
+        const rtmpConfig = new HMSRTMPConfig({
+          record: true,
+          rtmpURLs: [], // No RTMP URLs needed for just recording
+        });
+        await hmsInstanceRef.current.startRTMPOrRecording(rtmpConfig);
+        setIsRecording(true);
+      } catch (error) {
+        console.error('Failed to start recording', error);
+      }
+    }
+  }, [isTeacher]);
+
   return {
     participants,
     setParticipants,
@@ -1729,5 +1758,8 @@ export function use100msCall({
     sendMessage,
     leaveCall,
     sdkId,
+    startRecording,
+    stopRecording,
+    isRecording,
   };
 }
