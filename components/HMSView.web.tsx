@@ -1,22 +1,22 @@
 import React, { useEffect } from 'react';
 import { View } from 'react-native';
 
-export default function HMSView({ 
-  roomCode, 
-  userName, 
+export default function HMSView({
+  roomCode,
+  userName,
   onLeave,
   authToken,
   isTeacher
-}: { 
-  roomCode: string; 
-  userName: string; 
+}: {
+  roomCode: string;
+  userName: string;
   onLeave: () => void;
   authToken?: string;
   isTeacher?: boolean;
 }) {
   const tokenParam = authToken ? `&token=${encodeURIComponent(authToken)}` : '';
   const webPrebuiltUrl = `https://gizmoverse-videoconf-1656.app.100ms.live/meeting/${roomCode}?name=${encodeURIComponent(userName)}${tokenParam}`;
-  
+
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       // 100ms iframe sends a postMessage when the user leaves the room

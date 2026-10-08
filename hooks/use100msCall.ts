@@ -1708,6 +1708,19 @@ export function use100msCall({
     onEndCall();
   }, [onEndCall, socket, roomId, currentUserId, userName]);
 
+  // End Room for everyone (Teacher only)
+  const endRoomCall = useCallback(async () => {
+    if (hmsInstanceRef.current && isTeacher) {
+      try {
+        await hmsInstanceRef.current.endRoom('Class ended by teacher', false);
+      } catch (error) {
+        console.error('Failed to end room', error);
+      }
+    }
+    // Also run standard leave cleanups
+    leaveCall();
+  }, [isTeacher, leaveCall]);
+
   const stopRecording = useCallback(async () => {
     if (hmsInstanceRef.current && isTeacher) {
       try {
@@ -1757,6 +1770,7 @@ export function use100msCall({
     removeParticipant,
     sendMessage,
     leaveCall,
+    endRoomCall,
     sdkId,
     startRecording,
     stopRecording,

@@ -283,6 +283,38 @@ export default function ClassDetailScreen() {
     }
   }, [cls, currentUser, announcementText, refreshClasses, showAlert]);
 
+  const handleDeleteAnnouncement = useCallback((announcementId: string) => {
+    if (!cls || !currentUser) return;
+    showAlert(
+      'Delete Announcement?',
+      'Are you sure you want to delete this announcement?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await fetch(`${url}/classes/${cls.id}/announcements/${announcementId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ teacherId: currentUser.id })
+              });
+              if (res.ok) {
+                refreshClasses();
+              } else {
+                const errorData = await res.json();
+                showAlert('Error', errorData.error || 'Failed to delete announcement.');
+              }
+            } catch (err) {
+              console.error(err);
+            }
+          }
+        }
+      ]
+    );
+  }, [cls, currentUser, refreshClasses, showAlert]);
+
   const handleAddAssignment = useCallback(async () => {
     if (!cls || !currentUser || !assignmentTitle.trim()) return;
     try {
@@ -640,7 +672,14 @@ export default function ClassDetailScreen() {
               </View>
               {cls.announcements?.map((ann: any, idx: number) => (
                 <View key={idx} style={s.announcementItem}>
-                  <Text style={s.announcementText}>{ann.text}</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Text style={[s.announcementText, { flex: 1 }]}>{ann.text}</Text>
+                    {isTeacher && (
+                      <TouchableOpacity onPress={() => handleDeleteAnnouncement(ann._id)}>
+                        <Text style={{ color: 'red', fontSize: 12, marginLeft: 8 }}>Delete</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                   <Text style={s.announcementDate}>{new Date(ann.createdAt).toLocaleDateString()} {new Date(ann.createdAt).toLocaleTimeString()}</Text>
                 </View>
               ))}
