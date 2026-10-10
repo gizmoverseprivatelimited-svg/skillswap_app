@@ -333,11 +333,15 @@ export default function ClassDetailScreen() {
         const match = /\.(\w+)$/.exec(fallbackName);
         const fallbackType = match ? (match[1].toLowerCase() === 'pdf' ? 'application/pdf' : `image/${match[1]}`) : 'application/octet-stream';
         
-        formData.append('file', {
-          uri: Platform.OS === 'android' ? file.uri : file.uri.replace('file://', ''),
-          name: file.name || fallbackName,
-          type: file.mimeType || fallbackType,
-        } as any);
+        // Use JSON.parse(JSON.stringify) to strip any native Proxy or hidden getters from DocumentPicker
+        const fileObj = JSON.parse(JSON.stringify({
+          uri: String(Platform.OS === 'android' ? file.uri : file.uri.replace('file://', '')),
+          name: String(file.name || fallbackName),
+          type: String(file.mimeType || fallbackType),
+        }));
+        
+        // @ts-ignore
+        formData.append('file', fileObj);
       }
 
       const uploadRes = await fetch(`${url}/classes/upload-attachment`, {
@@ -395,11 +399,15 @@ export default function ClassDetailScreen() {
         const match = /\.(\w+)$/.exec(fallbackName);
         const fallbackType = match ? (match[1].toLowerCase() === 'pdf' ? 'application/pdf' : `image/${match[1]}`) : 'application/octet-stream';
         
-        formData.append('file', {
-          uri: Platform.OS === 'android' ? file.uri : file.uri.replace('file://', ''),
-          name: file.name || fallbackName,
-          type: file.mimeType || fallbackType,
-        } as any);
+        // Use JSON.parse(JSON.stringify) to strip any native Proxy or hidden getters from DocumentPicker
+        const fileObj = JSON.parse(JSON.stringify({
+          uri: String(Platform.OS === 'android' ? file.uri : file.uri.replace('file://', '')),
+          name: String(file.name || fallbackName),
+          type: String(file.mimeType || fallbackType),
+        }));
+        
+        // @ts-ignore
+        formData.append('file', fileObj);
       }
 
       const uploadRes = await fetch(`${url}/classes/upload-attachment`, {
