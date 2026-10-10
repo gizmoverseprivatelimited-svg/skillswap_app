@@ -339,16 +339,10 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
         id: swap._id || swap.id,
       }));
 
-      const hasCompleted = normalizeSwap.some((s: any) => s.status === 'completed');
-      if (!hasCompleted) {
-        const seedCompleted = buildSeedCompletedSwaps();
-        setSwaps([...normalizeSwap, ...seedCompleted]);
-      } else {
-        setSwaps(normalizeSwap);
-      }
+      setSwaps(normalizeSwap);
     } catch (err) {
       console.error('[SkillSwaps] fetch failed', err);
-      setSwaps(buildSeedCompletedSwaps());
+      setSwaps([]);
     } finally {
       if (!silent) {
         setLoading(false);
@@ -360,7 +354,7 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
     fetchAllSwaps(allSwaps.length > 0);
 
     if (!currentUser?.id || currentUser.id.length < 4) {
-      setSwaps(buildSeedCompletedSwaps());
+      setSwaps([]);
       setLoading(false);
     } else {
       fetchSwaps(swaps.length > 0);

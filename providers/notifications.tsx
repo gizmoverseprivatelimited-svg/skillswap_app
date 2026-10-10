@@ -514,11 +514,11 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       const eventKey = `swap:${swap.id}:${swap.status}`;
       const previousStatus = swapSeenStateRef.current.get(swap.id);
 
-      // On initial app load/startup, index all existing historical swaps as seen so they never alert
+      // On initial app load/startup, we let the notifications be processed.
+      // Because we removed skipPopup: false, they will be caught by the isStartup
+      // check in addNotification, meaning they will be added to the list silently.
       if (isFirstRun) {
-        seenKeysRef.current.add(eventKey);
         swapSeenStateRef.current.set(swap.id, swap.status);
-        return;
       }
 
       if (previousStatus === swap.status || dismissedKeysRef.current.has(eventKey) || seenKeysRef.current.has(eventKey)) {
@@ -535,7 +535,6 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
-          skipPopup: false,
           eventKey,
         });
         return;
@@ -550,7 +549,6 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
-          skipPopup: false,
           eventKey,
         });
         return;
@@ -565,7 +563,6 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
-          skipPopup: false,
           eventKey,
         });
         return;
@@ -580,7 +577,6 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             swapId: swap.id,
           },
-          skipPopup: false,
           eventKey,
         });
       }
@@ -624,11 +620,8 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           if (diffHours <= threshold && diffHours >= 0) {
             const eventKey = `reminder:${swap.id}:${threshold}`;
 
-            // On first run/startup, index existing reminders as seen so they don't alert
-            if (isFirstRun) {
-              seenKeysRef.current.add(eventKey);
-              return;
-            }
+            // On first run/startup, we let the reminders be processed.
+            // addNotification handles adding to seenKeysRef automatically.
 
             if (dismissedKeysRef.current.has(eventKey) || seenKeysRef.current.has(eventKey)) {
               return;
@@ -685,12 +678,8 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             return;
           }
 
-          seenKeysRef.current.add(eventKey);
-
-          // On initial app load/startup, index all existing historical messages as seen so they never alert
-          if (isFirstRun) {
-            return;
-          }
+          // On initial app load/startup, let historical messages process
+          // without popping up (caught by isStartup in addNotification).
 
           const isVideoCallAlert = typeof msg.body === 'string' && msg.body.includes("started the video call");
           if (
@@ -705,7 +694,6 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
               metadata: {
                 swapId: swap.id,
               },
-              skipPopup: false,
               eventKey,
             });
           }
@@ -744,10 +732,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
               return;
             }
 
-            if (isFirstRun) {
-              seenKeysRef.current.add(eventKey);
-              return;
-            }
+            // On startup, we let it flow to addNotification so it appears in the list.
 
             if (rev.reviewer?.id && String(rev.reviewer.id) !== currentUserId) {
               addNotification({
@@ -757,7 +742,6 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
                 metadata: {
                   rating: rev.rating,
                 },
-                skipPopup: false,
                 eventKey,
               });
             } else {
