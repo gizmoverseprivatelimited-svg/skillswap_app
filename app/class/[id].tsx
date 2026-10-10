@@ -15,6 +15,7 @@ import { useSocket } from '@/providers/socket';
 import { useSafety } from '@/providers/safety';
 import url from '@/constants/backurl';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { TextInput } from 'react-native-gesture-handler';
 
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800';
@@ -333,15 +334,18 @@ export default function ClassDetailScreen() {
         const match = /\.(\w+)$/.exec(fallbackName);
         const fallbackType = match ? (match[1].toLowerCase() === 'pdf' ? 'application/pdf' : `image/${match[1]}`) : 'application/octet-stream';
         
-        // Use JSON.parse(JSON.stringify) to strip any native Proxy or hidden getters from DocumentPicker
-        const fileObj = JSON.parse(JSON.stringify({
-          uri: String(Platform.OS === 'android' ? file.uri : file.uri.replace('file://', '')),
+        let uploadUri = file.uri;
+        if (Platform.OS === 'android' && uploadUri.startsWith('content://')) {
+          const cachePath = FileSystem.cacheDirectory + 'upload-' + Date.now() + '-' + (file.name || fallbackName).replace(/[^a-zA-Z0-9.-]/g, '_');
+          await FileSystem.copyAsync({ from: uploadUri, to: cachePath });
+          uploadUri = 'file://' + cachePath;
+        }
+
+        formData.append('file', {
+          uri: Platform.OS === 'android' ? uploadUri : uploadUri.replace('file://', ''),
           name: String(file.name || fallbackName),
           type: String(file.mimeType || fallbackType),
-        }));
-        
-        // @ts-ignore
-        formData.append('file', fileObj);
+        } as any);
       }
 
       const uploadRes = await fetch(`${url}/classes/upload-attachment`, {
@@ -399,15 +403,18 @@ export default function ClassDetailScreen() {
         const match = /\.(\w+)$/.exec(fallbackName);
         const fallbackType = match ? (match[1].toLowerCase() === 'pdf' ? 'application/pdf' : `image/${match[1]}`) : 'application/octet-stream';
         
-        // Use JSON.parse(JSON.stringify) to strip any native Proxy or hidden getters from DocumentPicker
-        const fileObj = JSON.parse(JSON.stringify({
-          uri: String(Platform.OS === 'android' ? file.uri : file.uri.replace('file://', '')),
+        let uploadUri = file.uri;
+        if (Platform.OS === 'android' && uploadUri.startsWith('content://')) {
+          const cachePath = FileSystem.cacheDirectory + 'upload-' + Date.now() + '-' + (file.name || fallbackName).replace(/[^a-zA-Z0-9.-]/g, '_');
+          await FileSystem.copyAsync({ from: uploadUri, to: cachePath });
+          uploadUri = 'file://' + cachePath;
+        }
+
+        formData.append('file', {
+          uri: Platform.OS === 'android' ? uploadUri : uploadUri.replace('file://', ''),
           name: String(file.name || fallbackName),
           type: String(file.mimeType || fallbackType),
-        }));
-        
-        // @ts-ignore
-        formData.append('file', fileObj);
+        } as any);
       }
 
       const uploadRes = await fetch(`${url}/classes/upload-attachment`, {
