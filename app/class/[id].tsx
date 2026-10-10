@@ -326,13 +326,17 @@ export default function ClassDetailScreen() {
       setSubmitting(true);
       const file = result.assets[0];
       const formData = new FormData();
-      if (file.file) {
+      if (Platform.OS === 'web' && file.file) {
         formData.append('file', file.file);
       } else {
+        const fallbackName = file.uri.split('/').pop() || 'upload.bin';
+        const match = /\.(\w+)$/.exec(fallbackName);
+        const fallbackType = match ? (match[1].toLowerCase() === 'pdf' ? 'application/pdf' : `image/${match[1]}`) : 'application/octet-stream';
+        
         formData.append('file', {
-          uri: file.uri,
-          name: file.name,
-          type: file.mimeType || 'application/octet-stream',
+          uri: Platform.OS === 'android' ? file.uri : file.uri.replace('file://', ''),
+          name: file.name || fallbackName,
+          type: file.mimeType || fallbackType,
         } as any);
       }
 
@@ -361,9 +365,13 @@ export default function ClassDetailScreen() {
         setAssignmentDesc('');
         refreshClasses();
         showAlert('Success', 'Assignment posted.');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        showAlert('Error', errorData.error || 'Failed to post assignment.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      showAlert('Error', err.message || 'An error occurred during upload.');
     } finally {
       setSubmitting(false);
     }
@@ -380,13 +388,17 @@ export default function ClassDetailScreen() {
       setSubmitting(true);
       const file = result.assets[0];
       const formData = new FormData();
-      if (file.file) {
+      if (Platform.OS === 'web' && file.file) {
         formData.append('file', file.file);
       } else {
+        const fallbackName = file.uri.split('/').pop() || 'upload.bin';
+        const match = /\.(\w+)$/.exec(fallbackName);
+        const fallbackType = match ? (match[1].toLowerCase() === 'pdf' ? 'application/pdf' : `image/${match[1]}`) : 'application/octet-stream';
+        
         formData.append('file', {
-          uri: file.uri,
-          name: file.name,
-          type: file.mimeType || 'application/octet-stream',
+          uri: Platform.OS === 'android' ? file.uri : file.uri.replace('file://', ''),
+          name: file.name || fallbackName,
+          type: file.mimeType || fallbackType,
         } as any);
       }
 
@@ -417,8 +429,9 @@ export default function ClassDetailScreen() {
         const errorData = await res.json();
         showAlert('Error', errorData.error || 'Failed to submit assignment.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      showAlert('Error', err.message || 'An error occurred during upload.');
     } finally {
       setSubmitting(false);
     }
