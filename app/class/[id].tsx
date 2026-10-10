@@ -334,33 +334,38 @@ export default function ClassDetailScreen() {
         const match = /\.(\w+)$/.exec(fallbackName);
         const fallbackType = match ? (match[1].toLowerCase() === 'pdf' ? 'application/pdf' : `image/${match[1]}`) : 'application/octet-stream';
         
-        let uploadUri = file.uri;
-        if (Platform.OS === 'android' && uploadUri.startsWith('content://')) {
-          const cachePath = FileSystem.cacheDirectory + 'upload-' + Date.now() + '-' + (file.name || fallbackName).replace(/[^a-zA-Z0-9.-]/g, '_');
-          await FileSystem.copyAsync({ from: uploadUri, to: cachePath });
-          uploadUri = 'file://' + cachePath;
-        }
-
         formData.append('file', {
-          uri: Platform.OS === 'android' ? uploadUri : uploadUri.replace('file://', ''),
-          name: String(file.name || fallbackName),
-          type: String(file.mimeType || fallbackType),
+          uri: file.uri,
+          name: file.name || fallbackName,
+          type: file.mimeType || fallbackType,
         } as any);
       }
 
-      const uploadRes = await fetch(`${url}/classes/upload-attachment`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error('File upload failed');
+      let uploadData: any;
+      if (Platform.OS === 'web') {
+        const uploadRes = await fetch(`${url}/classes/upload-attachment`, {
+          method: 'POST',
+          body: formData,
+          headers: { 'Accept': 'application/json' },
+        });
+        if (!uploadRes.ok) throw new Error('File upload failed');
+        uploadData = await uploadRes.json();
+      } else {
+        uploadData = await new Promise<any>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', `${url}/classes/upload-attachment`);
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try { resolve(JSON.parse(xhr.responseText)); }
+              catch (e) { reject(new Error('Failed to parse upload response')); }
+            } else {
+              reject(new Error(`Upload failed with status: ${xhr.status}`));
+            }
+          };
+          xhr.onerror = () => reject(new Error('Network error during upload'));
+          xhr.send(formData);
+        });
       }
-
-      const uploadData = await uploadRes.json();
       const fileUrl = uploadData.fileUrl;
 
       const res = await fetch(`${url}/classes/${cls.id}/assignments`, {
@@ -403,33 +408,38 @@ export default function ClassDetailScreen() {
         const match = /\.(\w+)$/.exec(fallbackName);
         const fallbackType = match ? (match[1].toLowerCase() === 'pdf' ? 'application/pdf' : `image/${match[1]}`) : 'application/octet-stream';
         
-        let uploadUri = file.uri;
-        if (Platform.OS === 'android' && uploadUri.startsWith('content://')) {
-          const cachePath = FileSystem.cacheDirectory + 'upload-' + Date.now() + '-' + (file.name || fallbackName).replace(/[^a-zA-Z0-9.-]/g, '_');
-          await FileSystem.copyAsync({ from: uploadUri, to: cachePath });
-          uploadUri = 'file://' + cachePath;
-        }
-
         formData.append('file', {
-          uri: Platform.OS === 'android' ? uploadUri : uploadUri.replace('file://', ''),
-          name: String(file.name || fallbackName),
-          type: String(file.mimeType || fallbackType),
+          uri: file.uri,
+          name: file.name || fallbackName,
+          type: file.mimeType || fallbackType,
         } as any);
       }
 
-      const uploadRes = await fetch(`${url}/classes/upload-attachment`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error('File upload failed');
+      let uploadData: any;
+      if (Platform.OS === 'web') {
+        const uploadRes = await fetch(`${url}/classes/upload-attachment`, {
+          method: 'POST',
+          body: formData,
+          headers: { 'Accept': 'application/json' },
+        });
+        if (!uploadRes.ok) throw new Error('File upload failed');
+        uploadData = await uploadRes.json();
+      } else {
+        uploadData = await new Promise<any>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', `${url}/classes/upload-attachment`);
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try { resolve(JSON.parse(xhr.responseText)); }
+              catch (e) { reject(new Error('Failed to parse upload response')); }
+            } else {
+              reject(new Error(`Upload failed with status: ${xhr.status}`));
+            }
+          };
+          xhr.onerror = () => reject(new Error('Network error during upload'));
+          xhr.send(formData);
+        });
       }
-
-      const uploadData = await uploadRes.json();
       const fileUrl = uploadData.fileUrl;
 
       const res = await fetch(`${url}/classes/${cls.id}/assignments/${assignmentId}/submit`, {
