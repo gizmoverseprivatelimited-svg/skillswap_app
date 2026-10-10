@@ -40,8 +40,8 @@ export default function LoginScreen() {
 
   const isEmail = useMemo(() => /@/.test(identifier), [identifier]);
 
-// GoogleSignin.configure() is now called once in the AuthProvider (providers/auth.tsx)
-// so it's ready even before the login screen mounts.
+  // GoogleSignin.configure() is now called once in the AuthProvider (providers/auth.tsx)
+  // so it's ready even before the login screen mounts.
 
   const onSendCode = useCallback(async () => {
     console.log('[Login] Sending OTP for', identifier);
@@ -427,10 +427,10 @@ export default function LoginScreen() {
                     </LinearGradient>
                   </TouchableOpacity>
 
-                  <TouchableOpacity 
-                    style={[styles.googleBtn, isLoading && { opacity: 0.7 }]} 
-                    onPress={signInWithGoogle} 
-                    testID="google-sign-in" 
+                  <TouchableOpacity
+                    style={[styles.googleBtn, isLoading && { opacity: 0.7 }]}
+                    onPress={signInWithGoogle}
+                    testID="google-sign-in"
                     activeOpacity={0.85}
                     disabled={isLoading}
                   >
