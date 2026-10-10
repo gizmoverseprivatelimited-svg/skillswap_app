@@ -691,6 +691,7 @@ export default function ClassDetailScreen() {
                   <TextInput
                     style={s.textInput}
                     placeholder="Write an announcement..."
+                    placeholderTextColor={Colors.light.textTertiary}
                     value={announcementText}
                     onChangeText={setAnnouncementText}
                     multiline
@@ -754,12 +755,14 @@ export default function ClassDetailScreen() {
                   <TextInput
                     style={s.textInput}
                     placeholder="Assignment Title"
+                    placeholderTextColor={Colors.light.textTertiary}
                     value={assignmentTitle}
                     onChangeText={setAssignmentTitle}
                   />
                   <TextInput
                     style={s.textInput}
                     placeholder="Description (Optional)"
+                    placeholderTextColor={Colors.light.textTertiary}
                     value={assignmentDesc}
                     onChangeText={setAssignmentDesc}
                     multiline
