@@ -323,7 +323,7 @@ export default function ClassDetailScreen() {
         type: ['application/pdf', 'image/*'],
       });
       if (result.canceled || !result.assets || result.assets.length === 0) return;
-      
+
       setSubmitting(true);
       const file = result.assets[0];
       const formData = new FormData();
@@ -333,7 +333,7 @@ export default function ClassDetailScreen() {
         const fallbackName = file.uri.split('/').pop() || 'upload.bin';
         const match = /\.(\w+)$/.exec(fallbackName);
         const fallbackType = match ? (match[1].toLowerCase() === 'pdf' ? 'application/pdf' : `image/${match[1]}`) : 'application/octet-stream';
-        
+
         formData.append('file', {
           uri: file.uri,
           name: file.name || fallbackName,
@@ -397,7 +397,7 @@ export default function ClassDetailScreen() {
         type: ['application/pdf', 'image/*'],
       });
       if (result.canceled || !result.assets || result.assets.length === 0) return;
-      
+
       setSubmitting(true);
       const file = result.assets[0];
       const formData = new FormData();
@@ -407,7 +407,7 @@ export default function ClassDetailScreen() {
         const fallbackName = file.uri.split('/').pop() || 'upload.bin';
         const match = /\.(\w+)$/.exec(fallbackName);
         const fallbackType = match ? (match[1].toLowerCase() === 'pdf' ? 'application/pdf' : `image/${match[1]}`) : 'application/octet-stream';
-        
+
         formData.append('file', {
           uri: file.uri,
           name: file.name || fallbackName,
@@ -471,13 +471,13 @@ export default function ClassDetailScreen() {
         const blobUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = blobUrl;
-        
+
         const filename = fullUrl.substring(fullUrl.lastIndexOf('/') + 1) || 'download';
         link.setAttribute('download', filename);
-        
+
         document.body.appendChild(link);
         link.click();
-        
+
         document.body.removeChild(link);
         window.URL.revokeObjectURL(blobUrl);
       } catch (err) {
@@ -754,7 +754,7 @@ export default function ClassDetailScreen() {
                   <TouchableOpacity onPress={() => handleDownloadFile(ass.fileUrl)}>
                     <Text style={s.downloadLink}>Download Attachment</Text>
                   </TouchableOpacity>
-                  
+
                   {isTeacher ? (
                     <View style={s.submissionsContainer}>
                       <Text style={s.submissionsTitle}>Submissions:</Text>
@@ -815,7 +815,7 @@ export default function ClassDetailScreen() {
         )}
 
         {/* Recordings Section */}
-        {cls.recordings && cls.recordings.length > 0 && (
+        {(isTeacher || enrolled) && cls.recordings && cls.recordings.length > 0 && (
           <View style={s.cardSection}>
             <View style={s.sectionHeader}>
               <Video size={20} color={Colors.light.primary} />
@@ -843,15 +843,17 @@ export default function ClassDetailScreen() {
               <View style={{ flex: 1 }}>
                 <View style={s.priceTag}>
                   <Coins size={20} color="#F59E0B" />
-                  <Text style={s.priceText}>{formatCredits(getClassEnrollmentCost(cls.seatPriceCredits, currentUser))}</Text>
-                  {getClassDiscountPercent(currentUser) > 0 && (
+                  <Text style={s.priceText}>
+                    {formatCredits(!isTeacher ? getClassEnrollmentCost(cls.seatPriceCredits, currentUser) : cls.seatPriceCredits)}
+                  </Text>
+                  {!isTeacher && getClassDiscountPercent(currentUser) > 0 && (
                     <Text style={{ fontSize: 13, textDecorationLine: 'line-through', color: '#94A3B8', marginLeft: 6 }}>
                       {cls.seatPriceCredits}
                     </Text>
                   )}
                   <Text style={s.pricePerText}>per seat · {cls.billingCycle === 'monthly' ? 'monthly' : 'one-time'}</Text>
                 </View>
-                {getClassDiscountPercent(currentUser) > 0 && (
+                {!isTeacher && getClassDiscountPercent(currentUser) > 0 && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 }}>
                     <Crown size={13} color="#6366F1" />
                     <Text style={{ fontSize: 12, fontWeight: '600', color: '#6366F1' }}>
