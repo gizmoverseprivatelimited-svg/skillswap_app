@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "Leteski",
-    "slug": "leteski-app",
-    "owner": "sher741730",
+    "slug": "leteski",
+    "owner": "gizmoverse-private-limited",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -25,7 +25,7 @@
       }
     },
     "android": {
-      "versionCode": 28,
+      "versionCode": 27,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -130,7 +130,7 @@
         "origin": "https://rork.com/"
       },
       "eas": {
-        "projectId": "b0801e26-3816-4a7b-824c-a767cee5424e"
+        "projectId": "12bc0eb4-291f-47fc-ba97-652860687620"
       }
     }
   }
