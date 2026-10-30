@@ -56,7 +56,7 @@ function RootLayoutNav() {
     const isBannedRoute = segment0 === 'banned' || currentPath === '/banned' || currentPath.startsWith('/banned');
     const isLogin = segment0 === 'login' || currentPath === '/login' || currentPath.startsWith('/login');
     const isOnboarding = segment0 === 'onboarding' || currentPath === '/onboarding' || currentPath.startsWith('/onboarding');
-    const publicRoutes = ['login', 'terms', 'privacy', 'about', 'contact', 'help', 'admin', 'banned'];
+    const publicRoutes = ['login', 'terms', 'privacy', 'about', 'contact', 'help', 'admin', 'banned', 'reset-password'];
     const isPublic = publicRoutes.includes(segment0) || isLogin || currentPath.startsWith('/admin');
 
     const isDemo = authUser?.isDemo === true || authUser?.email === 'guest@skillswap.com' || user?.isDemo === true || user?.id === '1';
@@ -94,6 +94,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
       <Stack.Screen name="banned" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="reset-password" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen

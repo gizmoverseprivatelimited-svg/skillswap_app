@@ -43,8 +43,8 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string, username: string) => Promise<void>;
-  signInWithOtp: (identifier: string, code: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string, username: string, extra?: { phone?: string; phoneToken?: string }) => Promise<any>;
+  signInWithOtp: (identifier: string, code: string) => Promise<any>;
   signInWithOAuth: (provider: 'google' | 'apple', data: {
     providerId: string;
     email: string;
@@ -188,11 +188,17 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
   }, [saveToken]);
 
 
-  const signUp = useCallback(async (email: string, password: string, name: string, username: string) => {
+  const signUp = useCallback(async (
+    email: string,
+    password: string,
+    name: string,
+    username: string,
+    extra?: { phone?: string; phoneToken?: string }
+  ) => {
     const res = await fetch(`${URL}/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name, username }),
+      body: JSON.stringify({ email, password, name, username, ...(extra || {}) }),
     });
 
     if (!res.ok) {
@@ -204,6 +210,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
     console.log(result);
 
     await saveToken(result.token, result.user);
+    return result;
   }, [saveToken]);
 
 
@@ -227,10 +234,14 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
       const result = await res.json();
       console.log(result);
 
+      if (result.isNewUser) {
+        return result;
+      }
 
       await saveToken(result.token, result.user);
 
       console.log('[Auth] OTP sign in successful');
+      return result;
     },
     [saveToken]
   );
