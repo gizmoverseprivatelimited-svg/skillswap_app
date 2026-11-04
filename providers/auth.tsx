@@ -43,7 +43,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string, username: string, extra?: { phone?: string; phoneToken?: string }) => Promise<any>;
+  signUp: (email: string, password: string, name: string, username: string, extra?: { phone?: string; phoneToken?: string; otpCode?: string }) => Promise<any>;
   signInWithOtp: (identifier: string, code: string) => Promise<any>;
   signInWithOAuth: (provider: 'google' | 'apple', data: {
     providerId: string;
@@ -193,7 +193,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
     password: string,
     name: string,
     username: string,
-    extra?: { phone?: string; phoneToken?: string }
+    extra?: { phone?: string; phoneToken?: string; otpCode?: string }
   ) => {
     const res = await fetch(`${URL}/signup`, {
       method: 'POST',

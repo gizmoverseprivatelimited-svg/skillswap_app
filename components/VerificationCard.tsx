@@ -11,6 +11,7 @@ interface VerificationCardProps {
   icon: React.ReactNode;
   onPress: () => void;
   trustPoints?: number;
+  hideActionWhenVerified?: boolean;
 }
 
 export function VerificationCard({
@@ -20,6 +21,7 @@ export function VerificationCard({
   icon,
   onPress,
   trustPoints,
+  hideActionWhenVerified,
 }: VerificationCardProps) {
   const getStatusConfig = () => {
     switch (status) {
@@ -67,7 +69,8 @@ export function VerificationCard({
         status === 'verified' && styles.verifiedCard,
       ]}
       onPress={onPress}
-      activeOpacity={0.7}
+      disabled={hideActionWhenVerified && status === 'verified'}
+      activeOpacity={hideActionWhenVerified && status === 'verified' ? 1 : 0.7}
     >
       <View style={styles.cardHeader}>
         <View
@@ -96,7 +99,9 @@ export function VerificationCard({
             {statusConfig.text}
           </Text>
         </View>
-        <Text style={styles.actionText}>{statusConfig.actionText}</Text>
+        {(!hideActionWhenVerified || status !== 'verified') && (
+          <Text style={styles.actionText}>{statusConfig.actionText}</Text>
+        )}
       </View>
     </TouchableOpacity>
   );

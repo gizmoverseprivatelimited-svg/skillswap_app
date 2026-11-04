@@ -33,6 +33,7 @@ import { useAlert } from '@/providers/alert';
 import type { VerificationStatus } from '@/types';
 import url from '@/constants/backurl';
 import Colors from '@/constants/colors';
+import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
 type VFilter = 'all' | 'pending' | 'verified' | 'rejected';
 
@@ -44,6 +45,7 @@ export default function VerificationApprovals() {
   const [rejectModalVisible, setRejectModalVisible] = useState<boolean>(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState<string>('');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const filteredRequests = useMemo(() => {
     if (filter === 'all') return verificationRequests;
@@ -224,13 +226,21 @@ export default function VerificationApprovals() {
               <View style={styles.detailsWrap}>
                 <Text style={styles.detailsText}>{vr.details}</Text>
                 {vr.documentUrl && (
-                  <View style={styles.docPreview}>
-                    <Image source={{ uri: vr.documentUrl }} style={styles.docImage} />
+                  <TouchableOpacity
+                    style={styles.docPreview}
+                    onPress={() => setPreviewImage(resolveImageUrl(vr.documentUrl) || null)}
+                    activeOpacity={0.85}
+                  >
+                    <Image
+                      source={{ uri: resolveImageUrl(vr.documentUrl) }}
+                      style={styles.docImage}
+                      resizeMode="cover"
+                    />
                     <View style={styles.docOverlay}>
                       <ExternalLink size={16} color="#FFFFFF" />
-                      <Text style={styles.docOverlayText}>Document</Text>
+                      <Text style={styles.docOverlayText}>Tap to View Full Document</Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 )}
               </View>
 
@@ -268,6 +278,29 @@ export default function VerificationApprovals() {
           </View>
         )}
       </ScrollView>
+
+      <Modal visible={!!previewImage} transparent animationType="fade" onRequestClose={() => setPreviewImage(null)}>
+        <View style={styles.previewModalOverlay}>
+          <View style={styles.previewModalCard}>
+            <View style={styles.previewModalHeader}>
+              <Text style={styles.previewModalTitle}>Submitted Document ID</Text>
+              <TouchableOpacity onPress={() => setPreviewImage(null)} style={styles.previewCloseBtn}>
+                <XCircle size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            {previewImage && (
+              <Image
+                source={{ uri: previewImage }}
+                style={styles.previewFullImage}
+                resizeMode="contain"
+              />
+            )}
+            <TouchableOpacity style={styles.modalCancel} onPress={() => setPreviewImage(null)}>
+              <Text style={styles.modalCancelText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={rejectModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -552,5 +585,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#0F172A',
+  },
+  previewModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  previewModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '85%',
+    alignItems: 'center',
+  },
+  previewModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 12,
+  },
+  previewModalTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#0F172A',
+  },
+  previewCloseBtn: {
+    padding: 4,
+  },
+  previewFullImage: {
+    width: '100%',
+    height: 360,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    marginBottom: 12,
   },
 });

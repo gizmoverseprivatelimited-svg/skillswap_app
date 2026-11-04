@@ -38,6 +38,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
   const [skillsWithUsers, setSkillsWithUsers] = useState<any[]>([]);
@@ -386,7 +387,7 @@ export default function HomeScreen() {
                 <View style={styles.carouselNavRow}>
                   <TouchableOpacity
                     style={[styles.carouselNavBtn, !promotedNav.canLeft && styles.carouselNavBtnDisabled]}
-                    onPress={() => handleScrollCarouselStep(promotedScrollRef, promotedPosRef, setPromotedNav, 'left', 300)}
+                    onPress={() => handleScrollCarouselStep(promotedScrollRef, promotedPosRef, setPromotedNav, 'left', isSmallScreen ? 232 : 300)}
                     activeOpacity={0.7}
                     disabled={!promotedNav.canLeft}
                   >
@@ -394,7 +395,7 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.carouselNavBtn, !promotedNav.canRight && styles.carouselNavBtnDisabled]}
-                    onPress={() => handleScrollCarouselStep(promotedScrollRef, promotedPosRef, setPromotedNav, 'right', 300)}
+                    onPress={() => handleScrollCarouselStep(promotedScrollRef, promotedPosRef, setPromotedNav, 'right', isSmallScreen ? 232 : 300)}
                     activeOpacity={0.7}
                     disabled={!promotedNav.canRight}
                   >
@@ -421,31 +422,31 @@ export default function HomeScreen() {
                 {promotedSkills.map((skill) => (
                   <TouchableOpacity
                     key={`promo-${skill.id}`}
-                    style={styles.promotedCard}
+                    style={[styles.promotedCard, isSmallScreen && styles.promotedCardSmall]}
                     onPress={() => router.push(`/skill/${skill.id}` as any)}
                     activeOpacity={0.85}
                   >
                     <Image source={{ uri: resolveImageUrl(skill.imageUrl, DEFAULT_SKILL_IMAGE) }} style={styles.promotedImage} defaultSource={{ uri: DEFAULT_SKILL_IMAGE }} />
                     <LinearGradient
                       colors={['transparent', 'rgba(0,0,0,0.8)']}
-                      style={styles.promotedGradient}
+                      style={[styles.promotedGradient, isSmallScreen && styles.promotedGradientSmall]}
                     >
                       <View style={styles.promotedBadgeRow}>
                         <View style={styles.promotedBadgesGroup}>
-                          <View style={styles.promotedBadge}>
-                            <Sparkles size={10} color="#FFFFFF" />
-                            <Text style={styles.promotedBadgeText}>PROMOTED</Text>
+                          <View style={[styles.promotedBadge, isSmallScreen && styles.promotedBadgeSmall]}>
+                            <Sparkles size={isSmallScreen ? 8 : 10} color="#FFFFFF" />
+                            <Text style={[styles.promotedBadgeText, isSmallScreen && styles.promotedBadgeTextSmall]}>PROMOTED</Text>
                           </View>
                           {skill.certificateStatus === 'approved' && (
-                            <View style={styles.promotedCertBadge}>
-                              <BadgeCheck size={11} color="#FFFFFF" />
-                              <Text style={styles.promotedCertBadgeText}>CERTIFIED</Text>
+                            <View style={[styles.promotedCertBadge, isSmallScreen && styles.promotedCertBadgeSmall]}>
+                              <BadgeCheck size={isSmallScreen ? 9 : 11} color="#FFFFFF" />
+                              <Text style={[styles.promotedCertBadgeText, isSmallScreen && styles.promotedCertBadgeTextSmall]}>CERTIFIED</Text>
                             </View>
                           )}
                         </View>
                         {skill.pricingModel !== 'free' && (
-                          <View style={styles.promotedPriceBadge}>
-                            <Text style={styles.promotedPriceText}>
+                          <View style={[styles.promotedPriceBadge, isSmallScreen && styles.promotedPriceBadgeSmall]}>
+                            <Text style={[styles.promotedPriceText, isSmallScreen && styles.promotedPriceTextSmall]}>
                               {skill.pricingModel === 'per_session'
                                 ? `${formatPrice(skill.pricePerSession ?? 0)}/session`
                                 : `${formatPrice(skill.monthlyPrice ?? 0)}/mo`}
@@ -453,15 +454,15 @@ export default function HomeScreen() {
                           </View>
                         )}
                       </View>
-                      <View style={styles.promotedContent}>
-                        <Text style={styles.promotedSkillTitle} numberOfLines={1}>{skill.title}</Text>
-                        <Text style={styles.promotedTagline} numberOfLines={2}>{skill.promoTagline}</Text>
-                        <View style={styles.promotedTeacherRow}>
-                          <Image source={{ uri: resolveImageUrl(skill.user?.avatarUrl, DEFAULT_AVATAR) }} style={styles.promotedAvatar} defaultSource={{ uri: DEFAULT_AVATAR }} />
-                          <Text style={styles.promotedTeacherName} numberOfLines={1}>{skill.user?.name}</Text>
+                      <View style={[styles.promotedContent, isSmallScreen && styles.promotedContentSmall]}>
+                        <Text style={[styles.promotedSkillTitle, isSmallScreen && styles.promotedSkillTitleSmall]} numberOfLines={1}>{skill.title}</Text>
+                        <Text style={[styles.promotedTagline, isSmallScreen && styles.promotedTaglineSmall]} numberOfLines={2}>{skill.promoTagline}</Text>
+                        <View style={[styles.promotedTeacherRow, isSmallScreen && styles.promotedTeacherRowSmall]}>
+                          <Image source={{ uri: resolveImageUrl(skill.user?.avatarUrl, DEFAULT_AVATAR) }} style={[styles.promotedAvatar, isSmallScreen && styles.promotedAvatarSmall]} defaultSource={{ uri: DEFAULT_AVATAR }} />
+                          <Text style={[styles.promotedTeacherName, isSmallScreen && styles.promotedTeacherNameSmall]} numberOfLines={1}>{skill.user?.name}</Text>
                           <View style={styles.promotedRating}>
-                            <Star size={10} fill={Colors.light.accent} color={Colors.light.accent} />
-                            <Text style={styles.promotedRatingText}>{skill.user?.rating}</Text>
+                            <Star size={isSmallScreen ? 9 : 10} fill={Colors.light.accent} color={Colors.light.accent} />
+                            <Text style={[styles.promotedRatingText, isSmallScreen && styles.promotedRatingTextSmall]}>{skill.user?.rating}</Text>
                           </View>
                         </View>
                       </View>
@@ -498,7 +499,7 @@ export default function HomeScreen() {
                   <View style={styles.carouselNavRow}>
                     <TouchableOpacity
                       style={[styles.carouselNavBtn, !matchesNav.canLeft && styles.carouselNavBtnDisabled]}
-                      onPress={() => handleScrollCarouselStep(matchesScrollRef, matchesPosRef, setMatchesNav, 'left', 300)}
+                      onPress={() => handleScrollCarouselStep(matchesScrollRef, matchesPosRef, setMatchesNav, 'left', isSmallScreen ? 242 : 300)}
                       activeOpacity={0.7}
                       disabled={!matchesNav.canLeft}
                     >
@@ -506,7 +507,7 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.carouselNavBtn, !matchesNav.canRight && styles.carouselNavBtnDisabled]}
-                      onPress={() => handleScrollCarouselStep(matchesScrollRef, matchesPosRef, setMatchesNav, 'right', 300)}
+                      onPress={() => handleScrollCarouselStep(matchesScrollRef, matchesPosRef, setMatchesNav, 'right', isSmallScreen ? 242 : 300)}
                       activeOpacity={0.7}
                       disabled={!matchesNav.canRight}
                     >
@@ -608,7 +609,7 @@ export default function HomeScreen() {
               <View style={styles.carouselNavRow}>
                 <TouchableOpacity
                   style={[styles.carouselNavBtn, !featuredNav.canLeft && styles.carouselNavBtnDisabled]}
-                  onPress={() => handleScrollCarouselStep(featuredScrollRef, featuredPosRef, setFeaturedNav, 'left', 320)}
+                  onPress={() => handleScrollCarouselStep(featuredScrollRef, featuredPosRef, setFeaturedNav, 'left', isSmallScreen ? 242 : 320)}
                   activeOpacity={0.7}
                   disabled={!featuredNav.canLeft}
                 >
@@ -616,7 +617,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.carouselNavBtn, !featuredNav.canRight && styles.carouselNavBtnDisabled]}
-                  onPress={() => handleScrollCarouselStep(featuredScrollRef, featuredPosRef, setFeaturedNav, 'right', 320)}
+                  onPress={() => handleScrollCarouselStep(featuredScrollRef, featuredPosRef, setFeaturedNav, 'right', isSmallScreen ? 242 : 320)}
                   activeOpacity={0.7}
                   disabled={!featuredNav.canRight}
                 >
@@ -643,7 +644,7 @@ export default function HomeScreen() {
               {featuredSkills.map((skill) => (
                 <TouchableOpacity
                   key={skill.id}
-                  style={styles.featuredCard}
+                  style={[styles.featuredCard, isSmallScreen && styles.featuredCardSmall]}
                   onPress={() => router.push(`/skill/${skill.id}` as any)}
                 >
                   <Image
@@ -653,41 +654,41 @@ export default function HomeScreen() {
                   />
                   <LinearGradient
                     colors={['transparent', 'rgba(0,0,0,0.85)']}
-                    style={styles.featuredOverlay}
+                    style={[styles.featuredOverlay, isSmallScreen && styles.featuredOverlaySmall]}
                   >
                     <View style={styles.featuredBadgeRow}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <View style={styles.levelBadge}>
-                          <Text style={styles.levelBadgeText}>{skill.level}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: isSmallScreen ? 4 : 6 }}>
+                        <View style={[styles.levelBadge, isSmallScreen && styles.levelBadgeSmall]}>
+                          <Text style={[styles.levelBadgeText, isSmallScreen && styles.levelBadgeTextSmall]}>{skill.level}</Text>
                         </View>
                         {skill.certificateStatus === 'approved' && (
-                          <View style={styles.featuredCertBadge}>
-                            <BadgeCheck size={11} color="#34D399" />
-                            <Text style={styles.featuredCertBadgeText}>Certified</Text>
+                          <View style={[styles.featuredCertBadge, isSmallScreen && styles.featuredCertBadgeSmall]}>
+                            <BadgeCheck size={isSmallScreen ? 9 : 11} color="#34D399" />
+                            <Text style={[styles.featuredCertBadgeText, isSmallScreen && styles.featuredCertBadgeTextSmall]}>Certified</Text>
                           </View>
                         )}
                       </View>
-                      <View style={styles.trendingBadge}>
-                        <TrendingUp size={12} color="#FFFFFF" />
+                      <View style={[styles.trendingBadge, isSmallScreen && styles.trendingBadgeSmall]}>
+                        <TrendingUp size={isSmallScreen ? 10 : 12} color="#FFFFFF" />
                       </View>
                     </View>
-                    <View style={styles.featuredContent}>
-                      <Text style={styles.featuredCategory}>{skill.category}</Text>
-                      <Text style={styles.featuredTitle} numberOfLines={2}>
+                    <View style={[styles.featuredContent, isSmallScreen && styles.featuredContentSmall]}>
+                      <Text style={[styles.featuredCategory, isSmallScreen && styles.featuredCategorySmall]}>{skill.category}</Text>
+                      <Text style={[styles.featuredTitle, isSmallScreen && styles.featuredTitleSmall]} numberOfLines={2}>
                         {skill.title}
                       </Text>
-                      <View style={styles.featuredUser}>
+                      <View style={[styles.featuredUser, isSmallScreen && styles.featuredUserSmall]}>
                         <Image
                           source={{ uri: resolveImageUrl(skill.user.avatarUrl, DEFAULT_AVATAR) }}
-                          style={styles.featuredAvatar}
+                          style={[styles.featuredAvatar, isSmallScreen && styles.featuredAvatarSmall]}
                         />
                         <View style={styles.featuredUserInfo}>
-                          <Text style={styles.featuredUserName} numberOfLines={1}>
+                          <Text style={[styles.featuredUserName, isSmallScreen && styles.featuredUserNameSmall]} numberOfLines={1}>
                             {skill.user.username ? (skill.user.username.startsWith('@') ? skill.user.username : `@${skill.user.username}`) : `@${skill.user.name.toLowerCase().replace(/\s+/g, '')}`}
                           </Text>
                           <View style={styles.featuredRating}>
-                            <Star size={10} fill={Colors.light.accent} color={Colors.light.accent} />
-                            <Text style={styles.featuredRatingText}>{skill.user.rating}</Text>
+                            <Star size={isSmallScreen ? 9 : 10} fill={Colors.light.accent} color={Colors.light.accent} />
+                            <Text style={[styles.featuredRatingText, isSmallScreen && styles.featuredRatingTextSmall]}>{skill.user.rating}</Text>
                           </View>
                         </View>
                       </View>
@@ -1684,5 +1685,121 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     maxWidth: 280,
     lineHeight: 20,
+  },
+  promotedCardSmall: {
+    width: 220,
+    height: 250,
+    marginRight: 12,
+    borderRadius: 18,
+  },
+  promotedGradientSmall: {
+    padding: 12,
+  },
+  promotedBadgeSmall: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  promotedBadgeTextSmall: {
+    fontSize: 9,
+  },
+  promotedCertBadgeSmall: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  promotedCertBadgeTextSmall: {
+    fontSize: 9,
+  },
+  promotedPriceBadgeSmall: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  promotedPriceTextSmall: {
+    fontSize: 10,
+  },
+  promotedContentSmall: {
+    gap: 4,
+  },
+  promotedSkillTitleSmall: {
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  promotedTaglineSmall: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  promotedTeacherRowSmall: {
+    gap: 6,
+    marginTop: 2,
+  },
+  promotedAvatarSmall: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  promotedTeacherNameSmall: {
+    fontSize: 11,
+  },
+  promotedRatingTextSmall: {
+    fontSize: 11,
+  },
+
+  featuredCardSmall: {
+    width: 230,
+    height: 290,
+    marginRight: 12,
+    borderRadius: 18,
+  },
+  featuredOverlaySmall: {
+    padding: 14,
+  },
+  levelBadgeSmall: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  levelBadgeTextSmall: {
+    fontSize: 11,
+  },
+  featuredCertBadgeSmall: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  featuredCertBadgeTextSmall: {
+    fontSize: 9,
+  },
+  trendingBadgeSmall: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  featuredContentSmall: {
+    gap: 6,
+  },
+  featuredCategorySmall: {
+    fontSize: 10,
+    letterSpacing: 0.8,
+  },
+  featuredTitleSmall: {
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  featuredUserSmall: {
+    gap: 8,
+    marginTop: 2,
+  },
+  featuredAvatarSmall: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+  },
+  featuredUserNameSmall: {
+    fontSize: 12,
+  },
+  featuredRatingTextSmall: {
+    fontSize: 11,
   },
 });

@@ -54,6 +54,19 @@ export default function LoginScreen() {
   const [verifiedPhone, setVerifiedPhone] = useState<string>('');
   const [phoneToken, setPhoneToken] = useState<string>('');
 
+  // Signup OTP state
+  const [signupStep, setSignupStep] = useState<'form' | 'verify'>('form');
+  const [signupOtp, setSignupOtp] = useState<string>('');
+  const [signupCooldown, setSignupCooldown] = useState<number>(0);
+
+  useEffect(() => {
+    if (signupCooldown <= 0) return;
+    const timer = setTimeout(() => {
+      setSignupCooldown((prev) => prev - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [signupCooldown]);
+
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const timer = setTimeout(() => {
@@ -239,7 +252,7 @@ export default function LoginScreen() {
   }, [identifier, password, auth, router]);
 
   const onEmailSignUp = useCallback(async () => {
-    console.log('[Login] Email sign up');
+    console.log('[Login] Email sign up - sending verification code');
     setError(null);
     if (!identifier || !password || !name || !username) {
       setError('Fill in all fields');
@@ -249,6 +262,11 @@ export default function LoginScreen() {
       setError('Password must be at least 8 characters');
       return;
     }
+    const cleanEmail = identifier.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('Please enter a valid email address');
+      return;
+    }
     // Username regex validation: letters, numbers, dots, hyphens, underscores
     const usernameRegex = /^[a-z0-9_.-]{3,30}$/;
     if (!usernameRegex.test(username)) {
@@ -256,16 +274,96 @@ export default function LoginScreen() {
       return;
     }
     try {
-      await auth.signUp(identifier, password, name, username, {
+      setIsPending(true);
+      const res = await fetch(`${url}/api/auth/send-signup-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, username }),
+      });
+      const rawText = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(rawText);
+      } catch (e) {
+        console.error('[send-signup-otp] Non-JSON response received:', rawText.slice(0, 200));
+        throw new Error(
+          res.status === 404
+            ? 'Endpoint not found (404). Please restart your backend server.'
+            : `Server returned unexpected response (${res.status})`
+        );
+      }
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to send verification email');
+      }
+
+      setSignupStep('verify');
+      setSignupCooldown(30);
+      showAlert(
+        'Code Sent ✉️',
+        `A 6-digit verification code has been sent to ${cleanEmail}. Enter the code to complete registration.`
+      );
+    } catch (e: any) {
+      console.error('[Login] send signup otp error', e);
+      setError(e.message || 'Could not send verification email');
+    } finally {
+      setIsPending(false);
+    }
+  }, [identifier, password, name, username, showAlert]);
+
+  const onVerifySignupOtp = useCallback(async () => {
+    console.log('[Login] Verifying signup OTP');
+    setError(null);
+    const cleanOtp = signupOtp.trim();
+    if (cleanOtp.length < 6) {
+      setError('Please enter the 6-digit verification code');
+      return;
+    }
+
+    try {
+      setIsPending(true);
+      await auth.signUp(identifier.trim().toLowerCase(), password, name, username, {
         phone: verifiedPhone || undefined,
         phoneToken: phoneToken || undefined,
+        otpCode: cleanOtp,
       });
+      showAlert('Welcome 🎉', 'Your account has been created and your email is verified!');
       router.replace('/');
     } catch (e: any) {
-      console.error('[Login] sign up error', e);
-      setError(e.message || 'Could not create account');
+      console.error('[Login] verify signup otp error', e);
+      setError(e.message || 'Invalid or expired verification code');
+    } finally {
+      setIsPending(false);
     }
-  }, [identifier, password, name, username, verifiedPhone, phoneToken, auth, router]);
+  }, [signupOtp, identifier, password, name, username, verifiedPhone, phoneToken, auth, router, showAlert]);
+
+  const onResendSignupOtp = useCallback(async () => {
+    if (signupCooldown > 0) return;
+    setError(null);
+    try {
+      setIsPending(true);
+      const res = await fetch(`${url}/api/auth/send-signup-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: identifier.trim().toLowerCase(), username }),
+      });
+      const rawText = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(rawText);
+      } catch (e) {
+        throw new Error('Failed to parse server response. Please restart backend.');
+      }
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to resend verification email');
+      }
+      setSignupCooldown(30);
+      showAlert('Code Resent ✉️', 'A new 6-digit verification code has been sent to your email.');
+    } catch (e: any) {
+      setError(e.message || 'Failed to resend verification code');
+    } finally {
+      setIsPending(false);
+    }
+  }, [identifier, username, signupCooldown, showAlert]);
 
   const onSendResetOtp = useCallback(async () => {
     console.log('[Login] Requesting password reset OTP for', identifier);
@@ -694,7 +792,7 @@ export default function LoginScreen() {
                   </TouchableOpacity>
 
                   <View style={styles.linkRow}>
-                    <TouchableOpacity testID="signup-link" onPress={() => setFlow('signup')}>
+                    <TouchableOpacity testID="signup-link" onPress={() => { setFlow('signup'); setSignupStep('form'); setSignupOtp(''); setError(null); }}>
                       <Text style={styles.linkText}>Create account</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -713,115 +811,199 @@ export default function LoginScreen() {
 
               {flow === 'signup' && (
                 <>
-                  <TouchableOpacity
-                    style={styles.backBtn}
-                    onPress={() => {
-                      setFlow('signin');
-                      setVerifiedPhone('');
-                      setPhoneToken('');
-                      setError(null);
-                    }}
-                    testID="back-to-signin"
-                  >
-                    <ArrowLeft size={20} color={Colors.light.primary} />
-                    <Text style={styles.backText}>Back to sign in</Text>
-                  </TouchableOpacity>
+                  {signupStep === 'form' ? (
+                    <>
+                      <TouchableOpacity
+                        style={styles.backBtn}
+                        onPress={() => {
+                          setFlow('signin');
+                          setSignupStep('form');
+                          setSignupOtp('');
+                          setVerifiedPhone('');
+                          setPhoneToken('');
+                          setError(null);
+                        }}
+                        testID="back-to-signin"
+                      >
+                        <ArrowLeft size={20} color={Colors.light.primary} />
+                        <Text style={styles.backText}>Back to sign in</Text>
+                      </TouchableOpacity>
 
-                  <Text style={styles.forgotTitle}>Create Account</Text>
-                  <Text style={styles.forgotSubtitle}>
-                    {verifiedPhone
-                      ? 'Complete your profile to finish creating your account'
-                      : 'Join Leteski to barter skills and learn with others'}
-                  </Text>
+                      <Text style={styles.forgotTitle}>Create Account</Text>
+                      <Text style={styles.forgotSubtitle}>
+                        {verifiedPhone
+                          ? 'Complete your profile to finish creating your account'
+                          : 'Join Leteski to barter skills and learn with others'}
+                      </Text>
 
-                  {!!verifiedPhone && (
-                    <View style={styles.verifiedPhoneBadge}>
-                      <CheckCircle2 size={18} color="#059669" />
-                      <Text style={styles.verifiedPhoneText}>Verified Mobile: {verifiedPhone}</Text>
-                    </View>
+                      {!!verifiedPhone && (
+                        <View style={styles.verifiedPhoneBadge}>
+                          <CheckCircle2 size={18} color="#059669" />
+                          <Text style={styles.verifiedPhoneText}>Verified Mobile: {verifiedPhone}</Text>
+                        </View>
+                      )}
+
+                      <Text style={styles.label}>Name</Text>
+                      <View style={styles.inputRow}>
+                        <View style={styles.inputIcon}>
+                          <User size={18} color={Colors.light.textSecondary} />
+                        </View>
+                        <TextInput
+                          testID="name-input"
+                          placeholder="Your name"
+                          placeholderTextColor={Colors.light.textTertiary}
+                          style={styles.input}
+                          value={name}
+                          onChangeText={setName}
+                        />
+                      </View>
+
+                      <Text style={[styles.label, styles.labelSpaced]}>Username</Text>
+                      <View style={styles.inputRow}>
+                        <View style={styles.inputIcon}>
+                          <Sparkles size={18} color={Colors.light.textSecondary} />
+                        </View>
+                        <TextInput
+                          testID="username-input"
+                          placeholder="Choose a unique username"
+                          placeholderTextColor={Colors.light.textTertiary}
+                          style={styles.input}
+                          autoCapitalize="none"
+                          value={username}
+                          onChangeText={(val) => setUsername(val.toLowerCase().replace(/[^a-z0-9_.-]/g, ''))}
+                        />
+                      </View>
+
+                      <Text style={[styles.label, styles.labelSpaced]}>Email</Text>
+                      <View style={styles.inputRow}>
+                        <View style={styles.inputIcon}>
+                          <Mail size={18} color={Colors.light.textSecondary} />
+                        </View>
+                        <TextInput
+                          testID="email-input"
+                          placeholder="you@example.com"
+                          placeholderTextColor={Colors.light.textTertiary}
+                          style={styles.input}
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                          value={identifier}
+                          onChangeText={setIdentifier}
+                        />
+                      </View>
+
+                      <Text style={[styles.label, styles.labelSpaced]}>Password</Text>
+                      <View style={styles.inputRow}>
+                        <View style={styles.inputIcon}>
+                          <Lock size={18} color={Colors.light.textSecondary} />
+                        </View>
+                        <TextInput
+                          testID="password-input"
+                          placeholder="At least 8 characters"
+                          placeholderTextColor={Colors.light.textTertiary}
+                          style={styles.input}
+                          secureTextEntry
+                          value={password}
+                          onChangeText={setPassword}
+                        />
+                      </View>
+
+                      {!!error && <Text style={styles.errorText}>{error}</Text>}
+
+                      <TouchableOpacity
+                        testID="signup-btn"
+                        style={[styles.primaryBtn, isPending && styles.primaryBtnDisabled]}
+                        onPress={onEmailSignUp}
+                        disabled={isPending}
+                        activeOpacity={0.8}
+                      >
+                        <LinearGradient
+                          colors={[Colors.light.primary, Colors.light.primaryLight]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.buttonGradient}
+                        >
+                          {isPending ? (
+                            <ActivityIndicator color="#fff" />
+                          ) : (
+                            <Text style={styles.primaryBtnText}>Continue to Verification</Text>
+                          )}
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <TouchableOpacity
+                        style={styles.backBtn}
+                        onPress={() => {
+                          setSignupStep('form');
+                          setError(null);
+                        }}
+                        testID="back-to-signup-form"
+                      >
+                        <ArrowLeft size={20} color={Colors.light.primary} />
+                        <Text style={styles.backText}>Back to details</Text>
+                      </TouchableOpacity>
+
+                      <Text style={styles.forgotTitle}>Verify Your Email</Text>
+                      <Text style={styles.forgotSubtitle}>
+                        Enter the 6-digit code sent to {identifier}
+                      </Text>
+
+                      <Text style={styles.label}>6-Digit Verification Code</Text>
+                      <View style={styles.inputRow}>
+                        <View style={styles.inputIcon}>
+                          <KeyRound size={18} color={Colors.light.textSecondary} />
+                        </View>
+                        <TextInput
+                          testID="signup-otp-input"
+                          placeholder="123456"
+                          placeholderTextColor={Colors.light.textTertiary}
+                          style={[styles.input, styles.otpInput]}
+                          keyboardType="number-pad"
+                          maxLength={6}
+                          value={signupOtp}
+                          onChangeText={setSignupOtp}
+                        />
+                      </View>
+
+                      <View style={styles.resendRow}>
+                        <TouchableOpacity onPress={() => setSignupStep('form')}>
+                          <Text style={styles.changeEmailText}>Change email</Text>
+                        </TouchableOpacity>
+
+                        {signupCooldown > 0 ? (
+                          <Text style={styles.resendCooldownText}>Resend code in {signupCooldown}s</Text>
+                        ) : (
+                          <TouchableOpacity onPress={onResendSignupOtp} disabled={isPending}>
+                            <Text style={styles.resendLinkText}>Resend Code</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      {!!error && <Text style={styles.errorText}>{error}</Text>}
+
+                      <TouchableOpacity
+                        testID="verify-signup-otp-btn"
+                        style={[styles.primaryBtn, (isPending || signupOtp.length < 6) && styles.primaryBtnDisabled]}
+                        onPress={onVerifySignupOtp}
+                        disabled={isPending || signupOtp.length < 6}
+                        activeOpacity={0.8}
+                      >
+                        <LinearGradient
+                          colors={[Colors.light.primary, Colors.light.primaryLight]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.buttonGradient}
+                        >
+                          {isPending ? (
+                            <ActivityIndicator color="#fff" />
+                          ) : (
+                            <Text style={styles.primaryBtnText}>Verify & Create Account</Text>
+                          )}
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </>
                   )}
-
-                  <Text style={styles.label}>Name</Text>
-                  <View style={styles.inputRow}>
-                    <View style={styles.inputIcon}>
-                      <User size={18} color={Colors.light.textSecondary} />
-                    </View>
-                    <TextInput
-                      testID="name-input"
-                      placeholder="Your name"
-                      placeholderTextColor={Colors.light.textTertiary}
-                      style={styles.input}
-                      value={name}
-                      onChangeText={setName}
-                    />
-                  </View>
-
-                  <Text style={[styles.label, styles.labelSpaced]}>Username</Text>
-                  <View style={styles.inputRow}>
-                    <View style={styles.inputIcon}>
-                      <Sparkles size={18} color={Colors.light.textSecondary} />
-                    </View>
-                    <TextInput
-                      testID="username-input"
-                      placeholder="Choose a unique username"
-                      placeholderTextColor={Colors.light.textTertiary}
-                      style={styles.input}
-                      autoCapitalize="none"
-                      value={username}
-                      onChangeText={(val) => setUsername(val.toLowerCase().replace(/[^a-z0-9_.-]/g, ''))}
-                    />
-                  </View>
-
-                  <Text style={[styles.label, styles.labelSpaced]}>Email</Text>
-                  <View style={styles.inputRow}>
-                    <View style={styles.inputIcon}>
-                      <Mail size={18} color={Colors.light.textSecondary} />
-                    </View>
-                    <TextInput
-                      testID="email-input"
-                      placeholder="you@example.com"
-                      placeholderTextColor={Colors.light.textTertiary}
-                      style={styles.input}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      value={identifier}
-                      onChangeText={setIdentifier}
-                    />
-                  </View>
-
-                  <Text style={[styles.label, styles.labelSpaced]}>Password</Text>
-                  <View style={styles.inputRow}>
-                    <View style={styles.inputIcon}>
-                      <Lock size={18} color={Colors.light.textSecondary} />
-                    </View>
-                    <TextInput
-                      testID="password-input"
-                      placeholder="At least 8 characters"
-                      placeholderTextColor={Colors.light.textTertiary}
-                      style={styles.input}
-                      secureTextEntry
-                      value={password}
-                      onChangeText={setPassword}
-                    />
-                  </View>
-
-                  {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-                  <TouchableOpacity
-                    testID="signup-btn"
-                    style={styles.primaryBtn}
-                    onPress={onEmailSignUp}
-                    activeOpacity={0.8}
-                  >
-                    <LinearGradient
-                      colors={[Colors.light.primary, Colors.light.primaryLight]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.buttonGradient}
-                    >
-                      <Text style={styles.primaryBtnText}>Create Account</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
                 </>
               )}
 

@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -200,6 +201,8 @@ ResourceCardItem.displayName = 'ResourceCardItem';
 const FeaturedResourceCard = memo(({ resource, onOpen }: { resource: ResourceMeta; onOpen: () => void }) => {
   const coverErrorRef = useRef(false);
   const [coverError, setCoverError] = useState(false);
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmall = windowWidth < 600;
 
   const handleCoverError = useCallback(() => {
     if (!coverErrorRef.current) {
@@ -214,25 +217,29 @@ const FeaturedResourceCard = memo(({ resource, onOpen }: { resource: ResourceMet
   }, [resource.coverImageUrl, coverError]);
 
   return (
-    <Pressable style={styles.featuredCard} onPress={onOpen} testID={`featured-${resource._id}`}>
+    <Pressable
+      style={[styles.featuredCard, isSmall && styles.featuredCardSmall]}
+      onPress={onOpen}
+      testID={`featured-${resource._id}`}
+    >
       <ImageBackground
         source={{ uri: coverUri }}
         style={styles.featuredImage}
-        imageStyle={styles.featuredImageRadius}
+        imageStyle={[styles.featuredImageRadius, isSmall && styles.featuredImageRadiusSmall]}
         onError={coverError ? undefined : handleCoverError}
       >
-        <LinearGradient colors={overlayGradient} style={styles.featuredOverlay}>
+        <LinearGradient colors={overlayGradient} style={[styles.featuredOverlay, isSmall && styles.featuredOverlaySmall]}>
           <View style={styles.featuredBadgeRow}>
-            <View style={styles.badgePill}>
-              <Layers size={13} color="#E0E7FF" />
-              <Text style={styles.badgeText}>{resource.type}</Text>
+            <View style={[styles.badgePill, isSmall && styles.badgePillSmall]}>
+              <Layers size={isSmall ? 11 : 13} color="#E0E7FF" />
+              <Text style={[styles.badgeText, isSmall && styles.badgeTextSmall]}>{resource.type}</Text>
             </View>
-            <View style={styles.badgeAccent}>
-              <Text style={styles.badgeAccentText}>{resource.difficulty}</Text>
+            <View style={[styles.badgeAccent, isSmall && styles.badgeAccentSmall]}>
+              <Text style={[styles.badgeAccentText, isSmall && styles.badgeAccentTextSmall]}>{resource.difficulty}</Text>
             </View>
           </View>
-          <Text style={styles.featuredTitle} numberOfLines={3}>{resource.title}</Text>
-          <Text style={styles.featuredCaption} numberOfLines={2}>{resource.description}</Text>
+          <Text style={[styles.featuredTitle, isSmall && styles.featuredTitleSmall]} numberOfLines={3}>{resource.title}</Text>
+          <Text style={[styles.featuredCaption, isSmall && styles.featuredCaptionSmall]} numberOfLines={2}>{resource.description}</Text>
         </LinearGradient>
       </ImageBackground>
     </Pressable>
@@ -1339,5 +1346,42 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.light.background,
+  },
+  featuredCardSmall: {
+    width: 215,
+    height: 250,
+    borderRadius: 18,
+    marginRight: 12,
+  },
+  featuredImageRadiusSmall: {
+    borderRadius: 18,
+  },
+  featuredOverlaySmall: {
+    padding: 14,
+  },
+  badgePillSmall: {
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 10,
+    gap: 4,
+  },
+  badgeTextSmall: {
+    fontSize: 10,
+  },
+  badgeAccentSmall: {
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  badgeAccentTextSmall: {
+    fontSize: 10,
+  },
+  featuredTitleSmall: {
+    fontSize: 17,
+    lineHeight: 22,
+  },
+  featuredCaptionSmall: {
+    fontSize: 11,
+    lineHeight: 16,
   },
 });

@@ -54,7 +54,7 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'What is the Trust Score?',
     answer:
-      'Your Trust Score reflects how reliable and verified you are on the platform. It\'s based on completed verifications (identity, email, phone, LinkedIn, portfolio), positive reviews from exchange partners, and your exchange completion rate. A higher score helps you get more exchange requests.',
+      'Your Trust Score reflects how reliable and verified you are on the platform. It\'s based on completed verifications (identity, email, phone, LinkedIn), positive reviews from exchange partners, and your exchange completion rate. A higher score helps you get more exchange requests.',
     icon: <Shield size={20} color={Colors.light.primary} />,
   },
   {
@@ -66,7 +66,7 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'How do I verify my account?',
     answer:
-      'Go to your Profile tab, tap "Account Verification", and follow the steps to verify your identity, email, phone, LinkedIn profile, or portfolio. Each verification boosts your Trust Score and makes your profile more trustworthy to other users.',
+      'Go to your Profile tab, tap "Account Verification", and follow the steps to verify your identity, email, phone, or LinkedIn profile. Each verification boosts your Trust Score and makes your profile more trustworthy to other users.',
     icon: <Shield size={20} color={Colors.light.secondary} />,
   },
   {

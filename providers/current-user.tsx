@@ -163,6 +163,14 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
         }
 
         if (loadedUser) {
+          // Merge authUser email/phone if missing on directUser
+          if (!loadedUser.email && activeUser?.email) {
+            loadedUser.email = activeUser.email;
+          }
+          if (!loadedUser.phone && (activeUser as any)?.phone) {
+            loadedUser.phone = (activeUser as any).phone;
+          }
+
           // If teacherProfile is not populated on DB user, check AsyncStorage
           if (!loadedUser.teacherProfile) {
             try {

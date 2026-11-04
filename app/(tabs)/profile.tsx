@@ -268,7 +268,7 @@ export default function ProfileScreen() {
             documentUri: savedUri,
           });
         }
-        showAlert('Certificate submitted', `Your certificate for "${skillTitle}" has been uploaded and submitted for admin verification.`);
+        showAlert('Certificate submitted', `Your certificate for "${skillTitle}" has been uploaded and submitted. We will verify it shortly.`);
       }
     } catch (error: any) {
       console.warn('[Profile] Certificate upload failed:', error);
@@ -379,7 +379,9 @@ export default function ProfileScreen() {
   const fetchVerifications = useCallback(async () => {
     if (!currentUser?.id) return;
     try {
-      const response = await fetch(`${url}/verifications/my/${currentUser?.id}`);
+      const targetId = currentUser?.id || (currentUser as any)?._id;
+      if (!targetId || targetId === '1') return;
+      const response = await fetch(`${url}/verifications/my/${targetId}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -653,8 +655,7 @@ export default function ProfileScreen() {
                     verifications.email,
                     verifications.phone,
                     verifications.linkedIn,
-                    verifications.portfolio,
-                  ].filter((v) => v.status === 'verified').length}/5 verifications completed` :
+                  ].filter((v) => v?.status === 'verified').length}/4 verifications completed` :
                   'Build your trust score'}
               </Text>
             </View>
@@ -730,7 +731,7 @@ export default function ProfileScreen() {
                           {isApproved ? (
                             <>
                               <BadgeCheck size={11} color="#059669" />
-                              <Text style={[styles.docBadgeText, { color: '#059669', fontWeight: '700' as const }]}>Verified by Admin ✓</Text>
+                              <Text style={[styles.docBadgeText, { color: '#059669', fontWeight: '700' as const }]}>Verified ✓</Text>
                             </>
                           ) : isRejected ? (
                             <>

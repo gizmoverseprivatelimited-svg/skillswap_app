@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import { Animated, Image, Pressable, StyleSheet, Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Animated, Image, Pressable, StyleSheet, Text, View, ActivityIndicator, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles, ArrowRight, BookOpen, GraduationCap, Bot } from 'lucide-react-native';
 import Colors from '../constants/colors';
@@ -19,6 +19,80 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
   const scale = useRef(new Animated.Value(1)).current;
   const avatarErrorRef = useRef(false);
   const [avatarError, setAvatarError] = useState(false);
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmall = windowWidth < 600;
+
+  const dynamicCardStyle = useMemo(() => ({
+    card: {
+      width: isSmall ? 230 : 280,
+      marginRight: isSmall ? 12 : 18,
+      borderRadius: isSmall ? 18 : 24,
+    },
+    pressable: {
+      borderRadius: isSmall ? 18 : 24,
+    },
+    gradient: {
+      padding: isSmall ? 14 : 20,
+      gap: isSmall ? 12 : 18,
+      borderRadius: isSmall ? 18 : 24,
+    },
+    badge: {
+      paddingHorizontal: isSmall ? 9 : 12,
+      paddingVertical: isSmall ? 5 : 8,
+      borderRadius: isSmall ? 10 : 14,
+      gap: isSmall ? 5 : 8,
+    },
+    badgeText: {
+      fontSize: isSmall ? 11 : 13,
+    },
+    scoreBadge: {
+      paddingHorizontal: isSmall ? 10 : 16,
+      paddingVertical: isSmall ? 6 : 10,
+      minWidth: isSmall ? 54 : 68,
+      borderRadius: isSmall ? 12 : 16,
+    },
+    scoreValue: {
+      fontSize: isSmall ? 18 : 22,
+    },
+    scoreLabel: {
+      fontSize: isSmall ? 9 : 11,
+    },
+    avatar: {
+      width: isSmall ? 44 : 58,
+      height: isSmall ? 44 : 58,
+      borderRadius: isSmall ? 22 : 29,
+    },
+    userName: {
+      fontSize: isSmall ? 15 : 18,
+    },
+    spotlightText: {
+      fontSize: isSmall ? 11 : 13,
+    },
+    skillHeaderText: {
+      fontSize: isSmall ? 11 : 14,
+    },
+    chip: {
+      paddingHorizontal: isSmall ? 9 : 12,
+      paddingVertical: isSmall ? 5 : 8,
+      borderRadius: isSmall ? 9 : 12,
+    },
+    chipText: {
+      fontSize: isSmall ? 11 : 13,
+    },
+    ctaIcon: {
+      width: isSmall ? 32 : 38,
+      height: isSmall ? 32 : 38,
+      borderRadius: isSmall ? 16 : 19,
+    },
+    aiInsightBtn: {
+      paddingHorizontal: isSmall ? 9 : 12,
+      paddingVertical: isSmall ? 5 : 8,
+      borderRadius: isSmall ? 9 : 12,
+    },
+    aiInsightText: {
+      fontSize: isSmall ? 10 : 12,
+    },
+  }), [isSmall]);
   const [insight, setInsight] = useState<string | null>(null);
   const [loadingInsight, setLoadingInsight] = useState(false);
 
@@ -88,47 +162,47 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
   }, [insight, loadingInsight, recommendation]);
 
   return (
-    <Animated.View style={[styles.card, { transform: [{ scale }] }]}
+    <Animated.View style={[styles.card, dynamicCardStyle.card, { transform: [{ scale }] }]}
       testID={testID ? `${testID}-container` : undefined}
     >
       <Pressable
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        style={styles.pressable}
+        style={[styles.pressable, dynamicCardStyle.pressable]}
         testID={testID}
       >
         <LinearGradient
           colors={["#1E293B", Colors.light.primaryDark, "#0F172A"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.gradient}
+          style={[styles.gradient, dynamicCardStyle.gradient]}
         >
           <View style={styles.headerRow}>
-            <View style={styles.badge}>
+            <View style={[styles.badge, dynamicCardStyle.badge]}>
               <Sparkles size={16} color="#F8FAFC" />
-              <Text style={styles.badgeText}>Smart Match</Text>
+              <Text style={[styles.badgeText, dynamicCardStyle.badgeText]}>Smart Match</Text>
             </View>
-            <View style={styles.scoreBadge}>
-              <Text style={styles.scoreValue}>{recommendation.compatibility}</Text>
-              <Text style={styles.scoreLabel}>Match</Text>
+            <View style={[styles.scoreBadge, dynamicCardStyle.scoreBadge]}>
+              <Text style={[styles.scoreValue, dynamicCardStyle.scoreValue]}>{recommendation.compatibility}</Text>
+              <Text style={[styles.scoreLabel, dynamicCardStyle.scoreLabel]}>Match</Text>
             </View>
           </View>
 
           <View style={styles.userRow}>
             <Image
               source={{ uri: avatarUri }}
-              style={styles.avatar}
+              style={[styles.avatar, dynamicCardStyle.avatar]}
               onError={avatarError ? undefined : handleAvatarError}
             />
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>
+              <Text style={[styles.userName, dynamicCardStyle.userName]}>
                 {recommendation.user.username ? `@${recommendation.user.username}` : recommendation.user.name}
               </Text>
               {spotlightSkill && (
                 <View style={styles.spotlightRow}>
                   <GraduationCap size={14} color="rgba(148, 163, 184, 0.9)" />
-                  <Text style={styles.spotlightText}>{spotlightSkill}</Text>
+                  <Text style={[styles.spotlightText, dynamicCardStyle.spotlightText]}>{spotlightSkill}</Text>
                 </View>
               )}
             </View>
@@ -137,12 +211,12 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
           <View style={styles.skillBlock}>
             <View style={styles.skillHeader}>
               <BookOpen size={16} color="#F8FAFC" />
-              <Text style={styles.skillHeaderText}>You can learn</Text>
+              <Text style={[styles.skillHeaderText, dynamicCardStyle.skillHeaderText]}>You can learn</Text>
             </View>
             <View style={styles.chipRow}>
               {youCanLearn.map((skill) => (
-                <View key={skill} style={styles.chip}>
-                  <Text style={styles.chipText}>{skill}</Text>
+                <View key={skill} style={[styles.chip, dynamicCardStyle.chip]}>
+                  <Text style={[styles.chipText, dynamicCardStyle.chipText]}>{skill}</Text>
                 </View>
               ))}
               {youCanLearn.length === 0 && (
@@ -155,12 +229,12 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
             <View style={styles.skillBlock}>
               <View style={styles.skillHeader}>
                 <Sparkles size={16} color="#F472B6" />
-                <Text style={styles.skillHeaderText}>They want from you</Text>
+                <Text style={[styles.skillHeaderText, dynamicCardStyle.skillHeaderText]}>They want from you</Text>
               </View>
               <View style={styles.chipRow}>
                 {theyCanLearn.map((skill) => (
-                  <View key={skill} style={styles.inverseChip}>
-                    <Text style={styles.inverseChipText}>{skill}</Text>
+                  <View key={skill} style={[styles.inverseChip, dynamicCardStyle.chip]}>
+                    <Text style={[styles.inverseChipText, dynamicCardStyle.chipText]}>{skill}</Text>
                   </View>
                 ))}
               </View>
@@ -175,7 +249,7 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
                 </View>
               ))}
             </View>
-            <View style={styles.ctaIcon}>
+            <View style={[styles.ctaIcon, dynamicCardStyle.ctaIcon]}>
               <ArrowRight size={20} color="#F8FAFC" />
             </View>
           </View>
@@ -192,7 +266,7 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
           ) : (
             <View onStartShouldSetResponder={() => true}>
               <TouchableOpacity
-                style={styles.aiInsightBtn}
+                style={[styles.aiInsightBtn, dynamicCardStyle.aiInsightBtn]}
                 onPress={(e) => {
                   e.stopPropagation();
                   handleGenerateInsight();
@@ -205,7 +279,7 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
                 ) : (
                   <Bot size={12} color="#A5B4FC" />
                 )}
-                <Text style={styles.aiInsightText}>
+                <Text style={[styles.aiInsightText, dynamicCardStyle.aiInsightText]}>
                   {loadingInsight ? 'Analyzing match...' : 'Why this match?'}
                 </Text>
               </TouchableOpacity>
