@@ -9,21 +9,16 @@ workflows:
       groups:
         - app_store_credentials
     scripts:
-      - name: Install npm dependencies
+      - name: Install dependencies & generate iOS folder
         script: |
           npm install
+          npx expo prebuild --platform ios
+          # Podfile ke shuru me modular headers enable karne ke liye command
+          sed -i '' '1i use_modular_headers!' ios/Podfile
       - name: Install CocoaPods
         script: |
-          if [ -d "ios" ]; then
-            cd ios && pod install
-          elif [ -f "app.json" ]; then
-            npx expo prebuild --platform ios
-            cd ios && pod install
-          else
-            echo "Error: ios directory not found in root"
-            exit 1
-          fi
-      - name: Build ipa for distribution
+          cd ios && pod install
+      - name: Build IPA
         script: |
           xcode-project build-ipa --workspace ios/*.xcworkspace --scheme Leteski
     artifacts:
