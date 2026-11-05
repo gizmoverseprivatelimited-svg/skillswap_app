@@ -8,6 +8,8 @@ workflows:
       cocoapods: default
       groups:
         - app_store_credentials
+      vars:
+        BUNDLE_ID: "com.gizmoverseprivatelimited.leteski"
     scripts:
       - name: Clean install & generate iOS folder
         script: |
@@ -30,26 +32,15 @@ workflows:
       - name: Install CocoaPods
         script: |
           cd ios && pod install
-      - name: Build Archive & IPA for App Store
+      - name: Set up provisioning profiles & code signing
         script: |
-          cd ios
-          xcodebuild -workspace Leteski.xcworkspace \
-            -scheme Leteski \
-            -configuration Release \
-            -sdk iphoneos \
-            -derivedDataPath build \
-            clean archive -archivePath build/Leteski.xcarchive
-          
-          xcodebuild -exportArchive \
-            -archivePath build/Leteski.xcarchive \
-            -exportOptionsPlist ExportOptions.plist \
-            -exportPath build/ipa || \
-          xcodebuild -exportArchive \
-            -archivePath build/Leteski.xcarchive \
-            -exportPath build/ipa \
-            -exportOptionsPlist <(echo '{"method": "app-store"}')
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_DISTRIBUTION --create
+          xcode-project use-profiles
+      - name: Build IPA for App Store
+        script: |
+          xcode-project build-ipa --workspace ios/*.xcworkspace --scheme Leteski
     artifacts:
-      - ios/build/ipa/*.ipa
+      - build/ios/ipa/*.ipa
     publishing:
       app_store_connect:
         api_key: $APP_STORE_CONNECT_PRIVATE_KEY
