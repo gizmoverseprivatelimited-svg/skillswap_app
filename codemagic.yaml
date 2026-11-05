@@ -15,9 +15,17 @@ workflows:
           npx expo prebuild --platform ios --clean
       - name: Patch Podfile for modular headers
         script: |
-          if [ -f "ios/Podfile" ]; then
-            sed -i '' '1i use_modular_headers!' ios/Podfile
-          fi
+          node -e '
+            const fs = require("fs");
+            const file = "ios/Podfile";
+            if (fs.existsSync(file)) {
+              let content = fs.readFileSync(file, "utf8");
+              if (!content.includes("use_modular_headers!")) {
+                fs.writeFileSync(file, "use_modular_headers!\n" + content);
+                console.log("Added use_modular_headers! to Podfile");
+              }
+            }
+          '
       - name: Install CocoaPods
         script: |
           cd ios && pod install
