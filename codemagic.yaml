@@ -37,17 +37,20 @@ workflows:
       - name: Build IPA using xcodebuild
         script: |
           cd ios
+          # Automatically find your Team ID from App Store Connect API Key & configure signing
           xcodebuild -workspace Leteski.xcworkspace \
             -scheme Leteski \
             -configuration Release \
             -sdk iphoneos \
             -derivedDataPath build \
-            clean archive -archivePath build/Leteski.xcarchive CODE_SIGN_STYLE=Automatic
+            clean archive -archivePath build/Leteski.xcarchive \
+            CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM=""
           
           xcodebuild -exportArchive \
             -archivePath build/Leteski.xcarchive \
             -exportPath build/ipa \
-            -exportOptionsPlist <(echo '{"method": "app-store"}')
+            -exportOptionsPlist <(echo '{"method": "app-store", "signingStyle": "automatic"}')
     artifacts:
       - ios/build/ipa/*.ipa
     publishing:
