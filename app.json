@@ -21,7 +21,8 @@
         "UIBackgroundModes": [
           "audio",
           "voip"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -65,7 +66,7 @@
             "newArchEnabled": false
           },
           "ios": {
-            "useFrameworks": "static",
+            "useFrameworks": "dynamic",
             "newArchEnabled": false
           }
         }
