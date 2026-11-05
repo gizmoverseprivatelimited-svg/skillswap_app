@@ -1,0 +1,51 @@
+# Operating System files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Build artifacts
+build/
+dist/
+target/
+assets/uploads/
+assets/upload/
+# src/controllers/notifications/serviceAccountKey.json
+*.o
+*.a
+*.so
+*.dll
+*.class
+
+# Node.js specific
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Python specific
+__pycache__/
+*.pyc
+*.pyd
+.Python
+venv/
+env/
+
+# Editor/IDE specific
+.vscode/
+.idea/
+*.swp
+*.bak
+*.swo
+
+# Log files
+*.log
+log/
+
+# Temporary files
+*.tmp
+temp/
+
+# Environment variables
+.env
+.env.*

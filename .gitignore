@@ -41,7 +41,12 @@ android/
 .rork
 .env
 rork-eslint.config.js
-server/
+# server
+server/node_modules/
+server/.env
+server/assets/uploads/
+server/.git_standalone_backup/
+
 expo/
 scratch/
 node_modules/
