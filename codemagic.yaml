@@ -9,11 +9,11 @@ workflows:
       groups:
         - app_store_credentials
     scripts:
-      - name: Install dependencies & generate iOS folder
+      - name: Clean install & generate iOS folder
         script: |
           npm install
           npx expo prebuild --platform ios --clean
-      - name: Patch Podfile for modular headers
+      - name: Robust Podfile Patching
         script: |
           node -e '
             const fs = require("fs");
@@ -21,15 +21,19 @@ workflows:
             if (fs.existsSync(file)) {
               let content = fs.readFileSync(file, "utf8");
               if (!content.includes("use_modular_headers!")) {
-                fs.writeFileSync(file, "use_modular_headers!\n" + content);
-                console.log("Added use_modular_headers! to Podfile");
+                content = "use_modular_headers!\n" + content;
+                fs.writeFileSync(file, content, "utf8");
+                console.log("Successfully injected use_modular_headers!");
               }
+            } else {
+              console.error("Podfile not found!");
+              process.exit(1);
             }
           '
       - name: Install CocoaPods
         script: |
           cd ios && pod install
-      - name: Build IPA
+      - name: Build IPA for App Store Connect
         script: |
           xcode-project build-ipa --workspace ios/*.xcworkspace --scheme Leteski
     artifacts:
