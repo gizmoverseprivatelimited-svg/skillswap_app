@@ -8,8 +8,6 @@ workflows:
       cocoapods: default
       groups:
         - app_store_credentials
-      vars:
-        BUNDLE_ID: "com.gizmoverseprivatelimited.leteski"
     scripts:
       - name: Clean install & generate iOS folder
         script: |
@@ -32,14 +30,9 @@ workflows:
       - name: Install CocoaPods
         script: |
           cd ios && pod install
-      - name: Set up code signing
-        script: |
-          # Codemagic automatic profile setup using API Key
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
-          xcode-project use-profiles
       - name: Build IPA for App Store
         script: |
-          xcode-project build-ipa --workspace ios/*.xcworkspace --scheme Leteski
+          xcode-project build-ipa --workspace ios/*.xcworkspace --scheme Leteski --codesign
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
