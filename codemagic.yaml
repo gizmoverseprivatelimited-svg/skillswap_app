@@ -3,7 +3,7 @@ workflows:
     name: iOS Release
     max_build_duration: 60
     environment:
-      node: latest
+      node: 18
       xcode: latest
       cocoapods: default
       groups:
@@ -12,9 +12,12 @@ workflows:
       - name: Install dependencies & generate iOS folder
         script: |
           npm install
-          npx expo prebuild --platform ios
-          # Podfile ke shuru me modular headers enable karne ke liye command
-          sed -i '' '1i use_modular_headers!' ios/Podfile
+          npx expo prebuild --platform ios --clean
+      - name: Patch Podfile for modular headers
+        script: |
+          if [ -f "ios/Podfile" ]; then
+            sed -i '' '1i use_modular_headers!' ios/Podfile
+          fi
       - name: Install CocoaPods
         script: |
           cd ios && pod install
