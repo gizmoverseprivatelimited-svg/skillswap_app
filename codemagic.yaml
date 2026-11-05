@@ -32,9 +32,10 @@ workflows:
       - name: Install CocoaPods
         script: |
           cd ios && pod install
-      - name: Set up provisioning profiles & code signing
+      - name: Set up code signing
         script: |
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_DISTRIBUTION --create
+          # Codemagic automatic profile setup using API Key
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
           xcode-project use-profiles
       - name: Build IPA for App Store
         script: |
