@@ -6,8 +6,8 @@ workflows:
       flutter: stable
       xcode: latest
       cocoapods: default
-      integrations:
-        app_store_connect: AppStoreKey
+    integrations:
+      app_store_connect: AppStoreKey
     scripts:
       - name: Build ipa for distribution
         script: |
