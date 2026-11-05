@@ -9,8 +9,8 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal",
       "android": {
+        "distribution": "internal",
         "buildType": "apk",
         "image": "latest",
         "credentialsSource": "local"
