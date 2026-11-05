@@ -2,22 +2,24 @@ workflows:
   ios-release:
     name: iOS Release
     max_build_duration: 60
-    working_directory: my_app   # <-- Yahan apne subfolder ka naam likhein jahan pubspec.yaml hai
     environment:
-      flutter: stable
+      node: latest
       xcode: latest
       cocoapods: default
       groups:
         - app_store_credentials
     scripts:
-      - name: Set up code signing
+      - name: Install npm dependencies
         script: |
-          xcode-project use-profiles
+          npm install
+      - name: Install CocoaPods
+        script: |
+          cd ios && pod install
       - name: Build ipa for distribution
         script: |
-          flutter build ipa --release
+          xcode-project build-ipa --workspace ios/*.xcworkspace --scheme Leteski
     artifacts:
-      - '**/build/ios/ipa/*.ipa'
+      - build/ios/ipa/*.ipa
     publishing:
       app_store_connect:
         api_key: $APP_STORE_CONNECT_PRIVATE_KEY
