@@ -15,6 +15,9 @@
         "image": "latest",
         "credentialsSource": "local"
       },
+      "ios": {
+        "simulator": true
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.leteski.com",
         "EXPO_ROUTER_DISABLE_RN_NAVIGATION_CHECK": "1",
