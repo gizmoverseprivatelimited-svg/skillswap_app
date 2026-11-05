@@ -9,6 +9,9 @@ workflows:
       groups:
         - app_store_credentials
     scripts:
+      - name: Set up code signing
+        script: |
+          xcode-project use-profiles
       - name: Build ipa for distribution
         script: |
           flutter build ipa --release
@@ -16,4 +19,7 @@ workflows:
       - build/ios/ipa/*.ipa
     publishing:
       app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_app_store: false
