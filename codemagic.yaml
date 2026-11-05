@@ -14,7 +14,15 @@ workflows:
           npm install
       - name: Install CocoaPods
         script: |
-          cd ios && pod install
+          if [ -d "ios" ]; then
+            cd ios && pod install
+          elif [ -f "app.json" ]; then
+            npx expo prebuild --platform ios
+            cd ios && pod install
+          else
+            echo "Error: ios directory not found in root"
+            exit 1
+          fi
       - name: Build ipa for distribution
         script: |
           xcode-project build-ipa --workspace ios/*.xcworkspace --scheme Leteski
