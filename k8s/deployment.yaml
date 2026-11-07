@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skillswap-backend-deployment
+  labels:
+    app: skillswap-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skillswap-backend
+  template:
+    metadata:
+      labels:
+        app: skillswap-backend
+    spec:
+      containers:
+      - name: skillswap-backend
+        image: ghcr.io/gizmoverseprivatelimited-svg/skillswap_app/skillswap-backend:latest
+        ports:
+        - containerPort: 3200
+        imagePullPolicy: Always
