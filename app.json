@@ -23,7 +23,8 @@
           "voip"
         ],
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "2"
     },
     "android": {
       "versionCode": 29,

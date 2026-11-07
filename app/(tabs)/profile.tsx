@@ -464,6 +464,47 @@ export default function ProfileScreen() {
     router.replace('/login');
   };
 
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  const handleDeleteAccount = () => {
+    showAlert(
+      'Delete Account',
+      'Are you sure you want to delete your account? All of your skills, profile data, and history will be permanently deleted. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsDeletingAccount(true);
+              const userId = currentUser?.id || currentUser?._id;
+              if (userId) {
+                await fetch(`${url}/users/me`, {
+                  method: 'DELETE',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'x-user-id': String(userId),
+                  },
+                  body: JSON.stringify({ userId }),
+                });
+              }
+              await auth.signOut();
+              showAlert('Account Deleted', 'Your account and data have been permanently deleted.');
+              router.replace('/login');
+            } catch (err) {
+              console.error('[Delete Account Error]', err);
+              await auth.signOut();
+              router.replace('/login');
+            } finally {
+              setIsDeletingAccount(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -1137,15 +1178,30 @@ export default function ProfileScreen() {
                 <Text style={styles.loginButtonText}>Log In to Your Account</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity
-                style={styles.signOutButton}
-                onPress={handleSignOut}
-                activeOpacity={0.8}
-                testID="sign-out-button"
-              >
-                <LogOut size={18} color={Colors.light.error} />
-                <Text style={styles.signOutButtonText}>Sign Out</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={styles.signOutButton}
+                  onPress={handleSignOut}
+                  activeOpacity={0.8}
+                  testID="sign-out-button"
+                >
+                  <LogOut size={18} color={Colors.light.error} />
+                  <Text style={styles.signOutButtonText}>Sign Out</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.deleteAccountButton}
+                  onPress={handleDeleteAccount}
+                  disabled={isDeletingAccount}
+                  activeOpacity={0.8}
+                  testID="delete-account-button"
+                >
+                  <Trash2 size={16} color="#DC2626" />
+                  <Text style={styles.deleteAccountButtonText}>
+                    {isDeletingAccount ? 'Deleting Account...' : 'Delete Account'}
+                  </Text>
+                </TouchableOpacity>
+              </>
             )}
           </View>
 
@@ -1550,6 +1606,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700' as const,
     color: '#FFFFFF',
+  },
+  deleteAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(220, 38, 38, 0.3)',
+    backgroundColor: 'rgba(220, 38, 38, 0.05)',
+  },
+  deleteAccountButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#DC2626',
   },
   adminButton: {
     flexDirection: 'row',
