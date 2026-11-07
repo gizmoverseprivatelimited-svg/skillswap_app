@@ -994,27 +994,6 @@ router.get('/:userId/block-status/:targetUserId', async (req, res) => {
     }
 });
 
-/**
- * DELETE /users/me
- * Delete user account and associated data (App Store Guideline 5.1.1(v))
- */
-router.delete('/me', async (req, res) => {
-    try {
-        const userId = req.body?.userId || req.query?.userId || req.headers['x-user-id'];
-        if (!userId) {
-            return res.status(400).json({ error: 'User ID is required' });
-        }
-
-        await User.findByIdAndDelete(userId);
-        await Skill.deleteMany({ userId });
-
-        res.json({ success: true, message: 'Account deleted successfully' });
-    } catch (err) {
-        console.error('[DELETE /users/me error]', err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
 module.exports = router;
 module.exports.isBlockedBetween = isBlockedBetween;
 
