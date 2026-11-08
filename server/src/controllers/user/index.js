@@ -13,9 +13,7 @@ const multer = require('multer');
 const path = require('path');
 
 const storage = multer.memoryStorage();
-const uploadAvatar = multer({ 
-    storage: storage 
-});
+const uploadAvatar = multer({ storage: storage });
     
 
 const fileFilter = (req, file, cb) => {
