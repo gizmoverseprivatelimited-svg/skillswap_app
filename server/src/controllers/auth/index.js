@@ -438,7 +438,7 @@ router.post('/oauth', async (req, res) => {
     }
 
     user = await verifyAndNormalizeBanStatus(user);
-
+    user = await User.findById(user._id).populate('skillsOffered');
     const token = generateToken(user._id);
     res.json({ token, user });
   } catch (err) {
