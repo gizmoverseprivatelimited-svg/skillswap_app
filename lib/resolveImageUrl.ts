@@ -17,7 +17,8 @@ export function resolveImageUrl(
   }
 
   const cleanPath = path.trim().replace(/\\/g, '/');
-
+  console.log('🖼️ [resolveImageUrl] Input path:', cleanPath);
+  console.log('🖼️ [resolveImageUrl] Base url:', url);
   // Already a full URL, data URI, blob, or file URI
   if (
     cleanPath.startsWith('http://') ||
@@ -29,20 +30,11 @@ export function resolveImageUrl(
   ) {
     return cleanPath;
   }
+ const baseUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+  const formattedPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
 
-  // Prepend API base URL for server uploads or relative paths
-  if (cleanPath.startsWith('/uploads')) {
-    return `${url}${cleanPath}`;
-  }
+  const finalUrl = `${baseUrl}${formattedPath}`;
+  console.log('🖼️ [resolveImageUrl] Final Result URL:', finalUrl);
 
-  if (cleanPath.startsWith('uploads/')) {
-    return `${url}/${cleanPath}`;
-  }
-
-  if (cleanPath.startsWith('/')) {
-    return `${url}${cleanPath}`;
-  }
-
-  return `${url}/${cleanPath}`;
+  return finalUrl;
 }
-
