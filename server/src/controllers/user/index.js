@@ -284,7 +284,18 @@ router.put(
             if (name !== undefined) updateData.name = String(name).trim();
             if (bio !== undefined) updateData.bio = String(bio).trim();
             if (location !== undefined) updateData.location = String(location).trim();
-
+            if (req.file) {
+                const fs = require('fs');
+                const path = require('path');
+                const uploadsDir = path.join(__dirname, '../../uploads');
+                if (!fs.existsSync(uploadsDir)) {
+                    fs.mkdirSync(uploadsDir, { recursive: true });
+                }
+                const filename = `avatar-${userId}-${Date.now()}.jpg`;
+                const filepath = path.join(uploadsDir, filename);
+                fs.writeFileSync(filepath, req.file.buffer);
+                updateData.avatarUrl = `/uploads/${filename}`;
+            }
             if (teacherProfile !== undefined) {
                 let parsedTeacher = null;
                 if (typeof teacherProfile === 'string') {
