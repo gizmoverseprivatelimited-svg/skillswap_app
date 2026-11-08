@@ -12,16 +12,11 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, './assets/uploads/avatars');
-    },
-    filename: function (req, file, cb) {
-        const uniqueName =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, uniqueName + path.extname(file.originalname));
-    },
+const storage = multer.memoryStorage();
+const uploadAvatar = multer({ 
+    storage: storage 
 });
+    
 
 const fileFilter = (req, file, cb) => {
     // if (file.mimetype.startsWith('image/')) {
