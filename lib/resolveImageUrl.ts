@@ -24,7 +24,8 @@ export function resolveImageUrl(
     cleanPath.startsWith('https://') ||
     cleanPath.startsWith('data:') ||
     cleanPath.startsWith('file://') ||
-    cleanPath.startsWith('blob:')
+    cleanPath.startsWith('blob:') ||
+    cleanPath.startsWith('content://')
   ) {
     return cleanPath;
   }
