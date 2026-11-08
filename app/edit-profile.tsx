@@ -616,7 +616,7 @@ export default function EditProfileScreen() {
   };
 
 
-  const handleChangeAvatar = () => {
+  const handleChangeAvatar = async () => {
     if (!currentUser || currentUser.id === '1' || (currentUser as any)?.isDemo) {
       Alert.alert(
         'Login Required 🔒',
@@ -626,6 +626,10 @@ export default function EditProfileScreen() {
           { text: 'Log In', onPress: () => router.push('/login' as any) },
         ]
       );
+      return;
+    }
+    if (Platform.OS === 'web') {
+      await handleChooseFromLibrary();
       return;
     }
     Alert.alert(
