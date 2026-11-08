@@ -12,7 +12,17 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 
-const storage = multer.memoryStorage();
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, path.join(__dirname, '../../uploads')); // Aapka uploads folder path
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, `avatar-${uniqueSuffix}${path.extname(file.originalname)}`);
+    }
+});
+
 const uploadAvatar = multer({ storage: storage });
     
 
@@ -285,16 +295,7 @@ router.put(
             if (bio !== undefined) updateData.bio = String(bio).trim();
             if (location !== undefined) updateData.location = String(location).trim();
             if (req.file) {
-                const fs = require('fs');
-                const path = require('path');
-                const uploadsDir = path.join(__dirname, '../../uploads');
-                if (!fs.existsSync(uploadsDir)) {
-                    fs.mkdirSync(uploadsDir, { recursive: true });
-                }
-                const filename = `avatar-${userId}-${Date.now()}.jpg`;
-                const filepath = path.join(uploadsDir, filename);
-                fs.writeFileSync(filepath, req.file.buffer);
-                updateData.avatarUrl = `/uploads/${filename}`;
+                updateData.avatarUrl = `/uploads/${req.file.filename}`;
             }
             if (teacherProfile !== undefined) {
                 let parsedTeacher = null;
