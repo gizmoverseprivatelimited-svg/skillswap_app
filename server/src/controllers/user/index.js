@@ -11,15 +11,24 @@ const { emitToUser, broadcastEvent } = require('../../socket');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
+const avatarsUploadDir = path.resolve(__dirname, '../../../assets/uploads/avatars');
+if (!fs.existsSync(avatarsUploadDir)) {
+    fs.mkdirSync(avatarsUploadDir, { recursive: true });
+}
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, path.join(__dirname, '../../uploads')); // Aapka uploads folder path
+        if (!fs.existsSync(avatarsUploadDir)) {
+            fs.mkdirSync(avatarsUploadDir, { recursive: true });
+        }
+        cb(null, avatarsUploadDir);
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, `avatar-${uniqueSuffix}${path.extname(file.originalname)}`);
+        const ext = file.originalname ? path.extname(file.originalname) : '.jpg';
+        cb(null, `avatar-${uniqueSuffix}${ext || '.jpg'}`);
     }
 });
 
@@ -295,7 +304,7 @@ router.put(
             if (bio !== undefined) updateData.bio = String(bio).trim();
             if (location !== undefined) updateData.location = String(location).trim();
             if (req.file) {
-                updateData.avatarUrl = `/uploads/${req.file.filename}`;
+                updateData.avatarUrl = `/uploads/avatars/${req.file.filename}`;
             }
             if (teacherProfile !== undefined) {
                 let parsedTeacher = null;
@@ -400,7 +409,7 @@ router.put(
             const updatedUser = await User.findByIdAndUpdate(
                 userId,
                 { $set: updateData },
-                { new: true, runValidators: true }
+                { returnDocument: 'after', new: true, runValidators: true }
             ).populate('skillsOffered');
 
             if (!updatedUser) {
