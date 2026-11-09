@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 let express = require('express')
 let app = express()
@@ -23,6 +24,15 @@ const Review = require('./models/Review');
 
 // database connection
 db()
+
+// Ensure all upload directories exist
+const uploadsBaseDir = path.resolve(__dirname, '../assets/uploads');
+['avatars', 'certificates', 'classes', 'attachments', 'verifications'].forEach(sub => {
+    const dir = path.join(uploadsBaseDir, sub);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+});
 
 // middlewares
 app.use(express.json({ limit: '50mb' }))

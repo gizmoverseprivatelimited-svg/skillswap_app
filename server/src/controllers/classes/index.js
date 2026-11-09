@@ -12,14 +12,23 @@ const SkillSwap = require('../../models/SkillSwap');
 const { broadcastEvent, emitToUser } = require('../../socket');
 const { isBlockedBetween } = require('../user');
 
+const classesUploadDir = path.resolve(__dirname, '../../../assets/uploads/classes');
+if (!fs.existsSync(classesUploadDir)) {
+  fs.mkdirSync(classesUploadDir, { recursive: true });
+}
+
+const attachmentsUploadDir = path.resolve(__dirname, '../../../assets/uploads/attachments');
+if (!fs.existsSync(attachmentsUploadDir)) {
+  fs.mkdirSync(attachmentsUploadDir, { recursive: true });
+}
+
 // Multer storage for class cover images
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const dir = './assets/uploads/classes';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(classesUploadDir)) {
+      fs.mkdirSync(classesUploadDir, { recursive: true });
     }
-    cb(null, dir);
+    cb(null, classesUploadDir);
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -36,11 +45,10 @@ const uploadCover = multer({
 // Multer storage for class attachments (assignments/submissions)
 const attachmentStorage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const dir = './assets/uploads/attachments';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(attachmentsUploadDir)) {
+      fs.mkdirSync(attachmentsUploadDir, { recursive: true });
     }
-    cb(null, dir);
+    cb(null, attachmentsUploadDir);
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);

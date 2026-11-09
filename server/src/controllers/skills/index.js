@@ -11,14 +11,18 @@ const router = express.Router();
 
 const { broadcastEvent } = require('../../socket');
 
+const certificatesUploadDir = path.resolve(__dirname, '../../../assets/uploads/certificates');
+if (!fs.existsSync(certificatesUploadDir)) {
+    fs.mkdirSync(certificatesUploadDir, { recursive: true });
+}
+
 // Multer storage for skill certificates
 const certStorage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const dir = './assets/uploads/certificates';
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
+        if (!fs.existsSync(certificatesUploadDir)) {
+            fs.mkdirSync(certificatesUploadDir, { recursive: true });
         }
-        cb(null, dir);
+        cb(null, certificatesUploadDir);
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
