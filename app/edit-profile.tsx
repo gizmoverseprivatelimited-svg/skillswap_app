@@ -147,7 +147,12 @@ export default function EditProfileScreen() {
   };
 
   const pickCertificate = (certId: string) => {
-    Alert.alert(
+    if (Platform.OS === 'web') {
+      handlePickCertificateSource('library', certId);
+      return;
+    }
+
+    showAlert(
       'Upload Certificate',
       'Choose an option',
       [
@@ -155,7 +160,7 @@ export default function EditProfileScreen() {
           text: 'Take Photo',
           onPress: () => {
             if (Platform.OS === 'android') {
-              setTimeout(() => handlePickCertificateSource('camera', certId), 500);
+              setTimeout(() => handlePickCertificateSource('camera', certId), 400);
             } else {
               handlePickCertificateSource('camera', certId);
             }
@@ -165,7 +170,7 @@ export default function EditProfileScreen() {
           text: 'Choose from Library',
           onPress: () => {
             if (Platform.OS === 'android') {
-              setTimeout(() => handlePickCertificateSource('library', certId), 500);
+              setTimeout(() => handlePickCertificateSource('library', certId), 400);
             } else {
               handlePickCertificateSource('library', certId);
             }
@@ -618,7 +623,7 @@ export default function EditProfileScreen() {
 
   const handleChangeAvatar = async () => {
     if (!currentUser || currentUser.id === '1' || (currentUser as any)?.isDemo) {
-      Alert.alert(
+      showAlert(
         'Login Required 🔒',
         'Please log in or create an account to change your profile picture.',
         [
@@ -628,11 +633,13 @@ export default function EditProfileScreen() {
       );
       return;
     }
+
     if (Platform.OS === 'web') {
       await handleChooseFromLibrary();
       return;
     }
-    Alert.alert(
+
+    showAlert(
       'Change Avatar',
       'Choose an option',
       [
@@ -640,7 +647,7 @@ export default function EditProfileScreen() {
           text: 'Take Photo',
           onPress: () => {
             if (Platform.OS === 'android') {
-              setTimeout(handleTakePhoto, 600);
+              setTimeout(handleTakePhoto, 400);
             } else {
               handleTakePhoto();
             }
@@ -650,7 +657,7 @@ export default function EditProfileScreen() {
           text: 'Choose from Library',
           onPress: () => {
             if (Platform.OS === 'android') {
-              setTimeout(handleChooseFromLibrary, 600);
+              setTimeout(handleChooseFromLibrary, 400);
             } else {
               handleChooseFromLibrary();
             }
@@ -673,7 +680,7 @@ export default function EditProfileScreen() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.5,
+        quality: 0.7,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
@@ -681,7 +688,7 @@ export default function EditProfileScreen() {
       }
     } catch (error: any) {
       console.error('[EditProfile] Camera error:', error);
-      Alert.alert('Camera Error', `Failed to take photo: ${error?.message || error}`);
+      showAlert('Camera Error', `Failed to take photo: ${error?.message || error}`);
     }
   };
 
@@ -694,15 +701,15 @@ export default function EditProfileScreen() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.2,
+        quality: 0.7,
       });
 
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled && result.assets && result.assets[0]) {
         setAvatarUrl(result.assets[0].uri);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[EditProfile] Image picker error:', error);
-      Alert.alert('Error', 'Failed to select photo. Please try again.');
+      showAlert('Error', 'Failed to select photo. Please try again.');
     }
   };
 

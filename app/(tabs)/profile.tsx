@@ -141,7 +141,13 @@ export default function ProfileScreen() {
       handleRequireLogin('upload certificates');
       return;
     }
-    Alert.alert(
+
+    if (Platform.OS === 'web') {
+      handlePickCertificateSource('library', skillId, skillTitle);
+      return;
+    }
+
+    showAlert(
       'Upload Certificate',
       'Choose an option',
       [
@@ -149,7 +155,7 @@ export default function ProfileScreen() {
           text: 'Take Photo',
           onPress: () => {
             if (Platform.OS === 'android') {
-              setTimeout(() => handlePickCertificateSource('camera', skillId, skillTitle), 500);
+              setTimeout(() => handlePickCertificateSource('camera', skillId, skillTitle), 400);
             } else {
               handlePickCertificateSource('camera', skillId, skillTitle);
             }
@@ -159,7 +165,7 @@ export default function ProfileScreen() {
           text: 'Choose from Library',
           onPress: () => {
             if (Platform.OS === 'android') {
-              setTimeout(() => handlePickCertificateSource('library', skillId, skillTitle), 500);
+              setTimeout(() => handlePickCertificateSource('library', skillId, skillTitle), 400);
             } else {
               handlePickCertificateSource('library', skillId, skillTitle);
             }

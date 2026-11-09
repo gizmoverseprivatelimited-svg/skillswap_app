@@ -127,24 +127,25 @@ export default function VerificationScreen() {
   };
 
   const fetchVerifications = async () => {
+    const defaultStructured: StructuredVerifications = {
+      identity: { status: 'none' },
+      email: { status: 'none' },
+      phone: { status: 'none' },
+      linkedin: { status: 'none' },
+      portfolio: { status: 'none' },
+      trustScore: 0,
+      skillBadges: [],
+    };
+
     if (currentUser?.id === '1') {
-      const structured: StructuredVerifications = {
-        identity: { status: 'none' },
-        email: { status: 'none' },
-        phone: { status: 'none' },
-        linkedin: { status: 'none' },
-        portfolio: { status: 'none' },
-        trustScore: 0,
-        skillBadges: [],
-      };
-      setVerifications(structured);
+      setVerifications(defaultStructured);
       setLoading(false);
       return;
     }
     try {
       const targetId = currentUser?.id || (currentUser as any)?._id || authUser?.id || (authUser as any)?._id;
       if (!targetId || targetId === '1') {
-        setVerifications(structured);
+        setVerifications(defaultStructured);
         setLoading(false);
         return;
       }
@@ -210,11 +211,11 @@ export default function VerificationScreen() {
     if (userEmail) {
       setEmail((prev) => prev || userEmail);
     }
-    const userPhone = currentUser?.phone || (authUser as any)?.phone || serverUser?.phone;
+    const userPhone = (currentUser as any)?.phone || (authUser as any)?.phone || serverUser?.phone;
     if (userPhone) {
       setPhone((prev) => prev || userPhone);
     }
-  }, [currentUser?.email, currentUser?.phone, authUser?.email, (authUser as any)?.phone, serverUser?.email, serverUser?.phone]);
+  }, [currentUser?.email, (currentUser as any)?.phone, authUser?.email, (authUser as any)?.phone, serverUser?.email, serverUser?.phone]);
 
   // Real-time socket listener for verification status changes by admin
   useEffect(() => {
@@ -320,10 +321,12 @@ export default function VerificationScreen() {
 
   const handlePickDocumentImage = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        showAlert('Permission Required', 'We need photo library permission to select your document.');
-        return;
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          showAlert('Permission Required', 'We need photo library permission to select your document.');
+          return;
+        }
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -341,10 +344,12 @@ export default function VerificationScreen() {
 
   const handleTakeDocumentPhoto = async () => {
     try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        showAlert('Permission Required', 'We need camera permission to photograph your ID document.');
-        return;
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          showAlert('Permission Required', 'We need camera permission to photograph your ID document.');
+          return;
+        }
       }
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -1209,15 +1214,15 @@ export default function VerificationScreen() {
             <VerificationCard
               title="Phone Number"
               description={
-                currentUser?.phone || (authUser as any)?.phone || serverUser?.phone
-                  ? `Verify your phone: ${currentUser?.phone || (authUser as any)?.phone || serverUser?.phone}`
+                (currentUser as any)?.phone || (authUser as any)?.phone || serverUser?.phone
+                  ? `Verify your phone: ${(currentUser as any)?.phone || (authUser as any)?.phone || serverUser?.phone}`
                   : 'Add and verify your phone number'
               }
               status={verifications?.phone?.status ?? 'none'}
               icon={<Smartphone size={24} color="#F59E0B" />}
               onPress={() =>
                 checkGuestAndAction(() => {
-                  const targetPhone = currentUser?.phone || (authUser as any)?.phone || serverUser?.phone || phone || '';
+                  const targetPhone = (currentUser as any)?.phone || (authUser as any)?.phone || serverUser?.phone || phone || '';
                   if (targetPhone) {
                     setPhone(targetPhone);
                   }

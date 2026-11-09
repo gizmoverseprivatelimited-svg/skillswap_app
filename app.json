@@ -18,6 +18,7 @@
         "NSRemindersUsageDescription": "Allow $(PRODUCT_NAME) to access your reminders",
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to use your camera for video calls and profile pictures",
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use your microphone for voice and video calls",
+        "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos for profile pictures and certificates",
         "UIBackgroundModes": [
           "audio",
           "voip"

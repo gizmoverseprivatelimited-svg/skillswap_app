@@ -2,6 +2,9 @@ import { Platform, PermissionsAndroid, Alert, Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 export const requestCameraPermissionsSafely = async (): Promise<{ status: 'granted' | 'denied' }> => {
+  if (Platform.OS === 'web') {
+    return { status: 'granted' };
+  }
   try {
     const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync();
     
@@ -29,6 +32,9 @@ export const requestCameraPermissionsSafely = async (): Promise<{ status: 'grant
 };
 
 export const requestMediaLibraryPermissionsSafely = async (): Promise<{ status: 'granted' | 'denied' }> => {
+  if (Platform.OS === 'web') {
+    return { status: 'granted' };
+  }
   try {
     const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
