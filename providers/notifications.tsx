@@ -108,7 +108,41 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   const router = useRouter();
   const pathname = usePathname();
   const mountTimestampRef = useRef<number>(Date.now());
+  const loginTimestampRef = useRef<number>(Date.now());
+  const bannerReadyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastCallPopupTimeRef = useRef<Map<string, number>>(new Map());
+
+  // Initialization and gate refs
+  const isInitialSwapsLoadRef = useRef<boolean>(true);
+  const isInitialRemindersLoadRef = useRef<boolean>(true);
+  const isInitialChatLoadRef = useRef<boolean>(true);
+  const isInitialReviewsLoadRef = useRef<boolean>(true);
+  const swapSeenStateRef = useRef<Map<string, string>>(new Map());
+  const bannerReadyRef = useRef<boolean>(false);
+
+  const checkAndSetBannerReady = useCallback(() => {
+    if (
+      !isInitialSwapsLoadRef.current &&
+      !isInitialRemindersLoadRef.current &&
+      !isInitialChatLoadRef.current &&
+      !isInitialReviewsLoadRef.current
+    ) {
+      if (bannerReadyTimeoutRef.current) {
+        clearTimeout(bannerReadyTimeoutRef.current);
+      }
+      bannerReadyTimeoutRef.current = setTimeout(() => {
+        bannerReadyRef.current = true;
+      }, 3000);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (bannerReadyTimeoutRef.current) {
+        clearTimeout(bannerReadyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Handle both string and numeric/mongo IDs safely
   const currentUserId = currentUser ? String(currentUser.id || (currentUser as any)._id) : undefined;
@@ -155,8 +189,38 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   useEffect(() => {
     if (!currentUserId) {
       setIsStorageLoaded(false);
+      setNotifications([]);
+      setBannerNotification(null);
+      bannerReadyRef.current = false;
+      if (bannerReadyTimeoutRef.current) {
+        clearTimeout(bannerReadyTimeoutRef.current);
+        bannerReadyTimeoutRef.current = null;
+      }
+      isInitialSwapsLoadRef.current = true;
+      isInitialRemindersLoadRef.current = true;
+      isInitialChatLoadRef.current = true;
+      isInitialReviewsLoadRef.current = true;
+      swapSeenStateRef.current.clear();
+      seenKeysRef.current.clear();
+      dismissedKeysRef.current.clear();
+      lastCallPopupTimeRef.current.clear();
+      loadedUserRef.current = undefined;
       return;
     }
+
+    // User logged in or switched account: reset gate flags and set login timestamp
+    loginTimestampRef.current = Date.now();
+    bannerReadyRef.current = false;
+    if (bannerReadyTimeoutRef.current) {
+      clearTimeout(bannerReadyTimeoutRef.current);
+      bannerReadyTimeoutRef.current = null;
+    }
+    isInitialSwapsLoadRef.current = true;
+    isInitialRemindersLoadRef.current = true;
+    isInitialChatLoadRef.current = true;
+    isInitialReviewsLoadRef.current = true;
+    swapSeenStateRef.current.clear();
+    setBannerNotification(null);
 
     let isMounted = true;
 
@@ -306,11 +370,13 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
     const isExplicitRuntime = input.skipPopup === false;
 
-    // Skip notifications during the first 10 seconds of app load to prevent a flood of 
+    // Suppress popups during initial startup (15s) and right after login (15s) to prevent
     // past/offline notifications from blowing up the user's screen all at once.
-    // After 10 seconds, real-time incoming notifications will show normally.
-    const isStartup = Date.now() - mountTimestampRef.current < 10000;
-    const shouldSkip = isLiveCall || isExplicitRuntime ? false : (input.skipPopup === true || isStartup || !isAuthUser);
+    // Genuine real-time socket events after this window or live calls will show normally.
+    const isStartup = Date.now() - mountTimestampRef.current < 15000;
+    const isRecentLogin = Date.now() - loginTimestampRef.current < 15000;
+    const isSilencedPeriod = isStartup || isRecentLogin;
+    const shouldSkip = isLiveCall ? false : (input.skipPopup === true || (!isExplicitRuntime && isSilencedPeriod) || !isAuthUser);
 
     const payload: NotificationItem = {
       id: generateNotificationId(),
@@ -326,7 +392,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       createdAt: shouldSkip
         ? new Date(Date.now() - 60 * 1000).toISOString()
         : new Date().toISOString(),
-      // Mark as runtime notification only if it's not a startup/skip notification
+      // Mark as runtime notification only if it's not a startup/login/skipped notification
       // This flag is the single source of truth for InAppNotificationBanner
       _receivedAtRuntime: !shouldSkip,
     };
@@ -361,7 +427,13 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
     console.log('[Notifications] Added notification', payload);
 
-    if (!shouldSkip && (bannerReadyRef.current || isExplicitRuntime)) {
+    const canShowBanner = !shouldSkip && (
+      isLiveCall ||
+      (bannerReadyRef.current && !isSilencedPeriod) ||
+      (isExplicitRuntime && !isSilencedPeriod)
+    );
+
+    if (canShowBanner) {
       // Push to the dedicated banner queue to display in-app banner immediately
       setBannerNotification(payload);
 
@@ -418,7 +490,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         );
       }
     }
-  }, [currentUserId, isAuthUser, schedulePushNotification, persistNotifications, persistSeenKeys, showAlert, router]);
+  }, [currentUserId, isAuthUser, schedulePushNotification, persistNotifications, persistSeenKeys, showAlert, router, pathname]);
 
   const markAsRead = useCallback((id: string) => {
     setNotifications((prev) => {
@@ -477,29 +549,6 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     });
   }, [persistDismissedKeys, persistSeenKeys, persistNotifications]);
 
-  const isInitialSwapsLoadRef = useRef<boolean>(true);
-  const isInitialRemindersLoadRef = useRef<boolean>(true);
-  const isInitialChatLoadRef = useRef<boolean>(true);
-  const isInitialReviewsLoadRef = useRef<boolean>(true);
-  const swapSeenStateRef = useRef<Map<string, string>>(new Map());
-
-  // Banner readiness gate: only allow setBannerNotification after ALL initial
-  // data processing effects have completed their first pass. This prevents the
-  // banner from showing for any notification generated during the initial
-  // backend data load, no matter how long the API takes.
-  const bannerReadyRef = useRef<boolean>(false);
-
-  const checkAndSetBannerReady = useCallback(() => {
-    if (
-      !isInitialSwapsLoadRef.current &&
-      !isInitialRemindersLoadRef.current &&
-      !isInitialChatLoadRef.current &&
-      !isInitialReviewsLoadRef.current
-    ) {
-      bannerReadyRef.current = true;
-    }
-  }, []);
-
   // Handle Swaps Status Changes
   useEffect(() => {
     if (!isAuthUser || !hasCompletedOnboarding || !isStorageLoaded || !currentUserId) return;
@@ -514,9 +563,8 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       const eventKey = `swap:${swap.id}:${swap.status}`;
       const previousStatus = swapSeenStateRef.current.get(swap.id);
 
-      // On initial app load/startup, we let the notifications be processed.
-      // Because we removed skipPopup: false, they will be caught by the isStartup
-      // check in addNotification, meaning they will be added to the list silently.
+      // On initial app load/startup or re-login, we populate swapSeenStateRef
+      // and skip any pop-up banners.
       if (isFirstRun) {
         swapSeenStateRef.current.set(swap.id, swap.status);
       }
@@ -536,6 +584,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             swapId: swap.id,
           },
           eventKey,
+          skipPopup: isFirstRun,
         });
         return;
       }
@@ -550,6 +599,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             swapId: swap.id,
           },
           eventKey,
+          skipPopup: isFirstRun,
         });
         return;
       }
@@ -564,6 +614,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             swapId: swap.id,
           },
           eventKey,
+          skipPopup: isFirstRun,
         });
         return;
       }
@@ -578,16 +629,17 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             swapId: swap.id,
           },
           eventKey,
+          skipPopup: isFirstRun,
         });
       }
     });
 
-    if (isFirstRun && swaps.length > 0) {
+    if (isFirstRun) {
       isInitialSwapsLoadRef.current = false;
       checkAndSetBannerReady();
       persistSeenKeys();
     }
-  }, [addNotification, allUsers, currentUserId, isAuthUser, swaps, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys]);
+  }, [addNotification, allUsers, currentUserId, isAuthUser, swaps, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys, checkAndSetBannerReady]);
 
   // Handle Swap Reminders
   useEffect(() => {
@@ -642,7 +694,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         });
       });
 
-      if (isFirstRun && scheduledSwaps.length > 0) {
+      if (isFirstRun) {
         isInitialRemindersLoadRef.current = false;
         checkAndSetBannerReady();
         persistSeenKeys();
@@ -650,11 +702,11 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     };
 
     createReminderNotifications();
-  }, [addNotification, allUsers, currentUserId, isAuthUser, scheduledSwaps, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys]);
+  }, [addNotification, allUsers, currentUserId, isAuthUser, scheduledSwaps, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys, checkAndSetBannerReady]);
 
   // Monitor incoming chat messages and alert the user
   useEffect(() => {
-    if (!isAuthUser || !hasCompletedOnboarding || !isStorageLoaded || !currentUserId || swaps.length === 0) {
+    if (!isAuthUser || !hasCompletedOnboarding || !isStorageLoaded || !currentUserId) {
       return;
     }
 
@@ -679,8 +731,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           }
 
           // On initial app load/startup, let historical messages process
-          // without popping up (caught by isStartup in addNotification).
-
+          // without popping up (caught by isFirstRun/isSilencedPeriod).
           const isVideoCallAlert = typeof msg.body === 'string' && msg.body.includes("started the video call");
           if (
             String(msg.authorId) !== currentUserId &&
@@ -695,18 +746,19 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
                 swapId: swap.id,
               },
               eventKey,
+              skipPopup: isFirstRun,
             });
           }
         });
       }
     });
 
-    if (isFirstRun && swaps.length > 0) {
+    if (isFirstRun) {
       isInitialChatLoadRef.current = false;
       checkAndSetBannerReady();
       persistSeenKeys();
     }
-  }, [swaps, currentUserId, isAuthUser, allUsers, addNotification, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys]);
+  }, [swaps, currentUserId, isAuthUser, allUsers, addNotification, hasCompletedOnboarding, isStorageLoaded, persistSeenKeys, checkAndSetBannerReady]);
 
   // Monitor incoming reviews and alert the user
   useEffect(() => {
@@ -717,12 +769,17 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     const checkNewReviews = async () => {
       try {
         const response = await fetch(`${url}/reviews?revieweeId=${currentUserId}`);
-        if (!response.ok) return;
+        const isFirstRun = isInitialReviewsLoadRef.current;
+        if (!response.ok) {
+          if (isFirstRun) {
+            isInitialReviewsLoadRef.current = false;
+            checkAndSetBannerReady();
+          }
+          return;
+        }
         const data = await response.json();
 
         if (data && Array.isArray(data.reviews)) {
-          const isFirstRun = isInitialReviewsLoadRef.current;
-
           data.reviews.forEach((rev: any) => {
             const revId = rev.id || rev._id || '';
             if (!revId) return;
@@ -732,8 +789,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
               return;
             }
 
-            // On startup, we let it flow to addNotification so it appears in the list.
-
+            // On startup or re-login, historical reviews are loaded into the list silently.
             if (rev.reviewer?.id && String(rev.reviewer.id) !== currentUserId) {
               addNotification({
                 category: 'system',
@@ -743,20 +799,25 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
                   rating: rev.rating,
                 },
                 eventKey,
+                skipPopup: isFirstRun,
               });
             } else {
               seenKeysRef.current.add(eventKey);
             }
           });
+        }
 
-          if (isFirstRun) {
-            isInitialReviewsLoadRef.current = false;
-            checkAndSetBannerReady();
-            persistSeenKeys();
-          }
+        if (isFirstRun) {
+          isInitialReviewsLoadRef.current = false;
+          checkAndSetBannerReady();
+          persistSeenKeys();
         }
       } catch (err) {
         console.error('[Notifications] Failed to check reviews:', err);
+        if (isInitialReviewsLoadRef.current) {
+          isInitialReviewsLoadRef.current = false;
+          checkAndSetBannerReady();
+        }
       }
     };
 
@@ -772,7 +833,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
         socket.off('review_created', handleNewReview);
       };
     }
-  }, [currentUserId, isAuthUser, addNotification, hasCompletedOnboarding, isStorageLoaded, socket, persistSeenKeys]);
+  }, [currentUserId, isAuthUser, addNotification, hasCompletedOnboarding, isStorageLoaded, socket, persistSeenKeys, checkAndSetBannerReady]);
 
   // Real-time socket notification for class enrollment alerts to class teacher
   useEffect(() => {
