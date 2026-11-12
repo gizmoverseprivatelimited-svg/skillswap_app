@@ -148,29 +148,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   const currentUserId = currentUser ? String(currentUser.id || (currentUser as any)._id) : undefined;
   const currentMongoId = (currentUser as any)?._id ? String((currentUser as any)._id) : undefined;
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
-    if (currentUserId) {
-      const storedJson = getWebItem(getStorageKey(currentUserId, 'items'));
-      const dismissedJson = getWebItem(getStorageKey(currentUserId, 'dismissed'));
-      if (storedJson) {
-        try {
-          const items: NotificationItem[] = JSON.parse(storedJson);
-          const dismissed: string[] = dismissedJson ? JSON.parse(dismissedJson) : [];
-          const dismissedSet = new Set(dismissed);
-          return sortNotifications(
-            items
-              .filter((i) => {
-                const eventKey = getEventKey(i);
-                return !dismissedSet.has(i.id) && !dismissedSet.has(eventKey) && !dismissedSet.has(i.title);
-              })
-              // Strip runtime flag — loaded-from-storage notifications must never trigger the banner
-              .map((i) => ({ ...i, _receivedAtRuntime: false }))
-          );
-        } catch { }
-      }
-    }
-    return [];
-  });
+  // Start with an empty notifications list — only genuine real-time notifications
+  // received during the active session will appear in the notifications tab.
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   const [isStorageLoaded, setIsStorageLoaded] = useState<boolean>(false);
   const { expoPushToken, schedulePushNotification } = usePushNotifications();
@@ -185,7 +165,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   const dismissedKeysRef = useRef<Set<string>>(new Set<string>());
   const loadedUserRef = useRef<string | undefined>(undefined);
 
-  // Load persisted notifications and dismissed/seen keys for current user
+  // Load persisted dismissed/seen keys for current user on login
   useEffect(() => {
     if (!currentUserId) {
       setIsStorageLoaded(false);
@@ -221,17 +201,20 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     isInitialReviewsLoadRef.current = true;
     swapSeenStateRef.current.clear();
     setBannerNotification(null);
+    setNotifications([]); // Fresh clean start: no old notifications in tab on login!
 
     let isMounted = true;
 
     const loadPersistedData = async () => {
       try {
-        const webItems = getWebItem(getStorageKey(currentUserId, 'items'));
+        // Clear any old stored notification items so old notifications never appear in the tab
+        setWebItem(getStorageKey(currentUserId, 'items'), '[]');
+        AsyncStorage.removeItem(getStorageKey(currentUserId, 'items')).catch(() => {});
+
         const webDismissed = getWebItem(getStorageKey(currentUserId, 'dismissed'));
         const webSeen = getWebItem(getStorageKey(currentUserId, 'seen'));
 
-        const [storedItemsJson, storedDismissedJson, storedSeenJson] = await Promise.all([
-          AsyncStorage.getItem(getStorageKey(currentUserId, 'items')),
+        const [storedDismissedJson, storedSeenJson] = await Promise.all([
           AsyncStorage.getItem(getStorageKey(currentUserId, 'dismissed')),
           AsyncStorage.getItem(getStorageKey(currentUserId, 'seen')),
         ]);
@@ -240,42 +223,22 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
         const dismissedRaw = webDismissed || storedDismissedJson;
         const seenRaw = webSeen || storedSeenJson;
-        const itemsRaw = webItems || storedItemsJson;
 
         const storedDismissed: string[] = dismissedRaw ? JSON.parse(dismissedRaw) : [];
         const storedSeen: string[] = seenRaw ? JSON.parse(seenRaw) : [];
-        const storedItems: NotificationItem[] = itemsRaw ? JSON.parse(itemsRaw) : [];
 
         const dismissedSet = new Set<string>(storedDismissed);
         const seenSet = new Set<string>([...storedSeen, ...storedDismissed]);
 
-        // Index all existing items and their event keys into seenSet so they are NEVER re-added as duplicates
-        storedItems.forEach((item) => {
-          seenSet.add(item.id);
-          const eKey = getEventKey(item);
-          seenSet.add(eKey);
-          if (item.title) seenSet.add(item.title);
-        });
-
         dismissedKeysRef.current = dismissedSet;
         seenKeysRef.current = seenSet;
 
-        // Filter out any dismissed notifications from the active list
-        // Also strip _receivedAtRuntime — loaded-from-storage notifications must never trigger the banner
-        const activeItems = storedItems
-          .filter((item) => {
-            const eKey = getEventKey(item);
-            return !dismissedSet.has(item.id) && !dismissedSet.has(eKey) && !dismissedSet.has(item.title);
-          })
-          .map((item) => ({ ...item, _receivedAtRuntime: false }));
-
-        const sorted = sortNotifications(activeItems);
-        setNotifications(sorted);
+        // Keep notifications empty on login — only real-time incoming events will populate
+        setNotifications([]);
         setIsStorageLoaded(true);
         loadedUserRef.current = currentUserId;
 
         // Sync web storage immediately
-        setWebItem(getStorageKey(currentUserId, 'items'), JSON.stringify(sorted));
         setWebItem(getStorageKey(currentUserId, 'dismissed'), JSON.stringify(Array.from(dismissedSet)));
         setWebItem(getStorageKey(currentUserId, 'seen'), JSON.stringify(Array.from(seenSet)));
       } catch (err) {
@@ -563,10 +526,12 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       const eventKey = `swap:${swap.id}:${swap.status}`;
       const previousStatus = swapSeenStateRef.current.get(swap.id);
 
-      // On initial app load/startup or re-login, we populate swapSeenStateRef
-      // and skip any pop-up banners.
+      // On initial app load/startup or re-login:
+      // Record existing status and mark as seen, but DO NOT create old notifications!
       if (isFirstRun) {
         swapSeenStateRef.current.set(swap.id, swap.status);
+        seenKeysRef.current.add(eventKey);
+        return;
       }
 
       if (previousStatus === swap.status || dismissedKeysRef.current.has(eventKey) || seenKeysRef.current.has(eventKey)) {
@@ -584,7 +549,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             swapId: swap.id,
           },
           eventKey,
-          skipPopup: isFirstRun,
+          skipPopup: false,
         });
         return;
       }
@@ -599,7 +564,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             swapId: swap.id,
           },
           eventKey,
-          skipPopup: isFirstRun,
+          skipPopup: false,
         });
         return;
       }
@@ -614,7 +579,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             swapId: swap.id,
           },
           eventKey,
-          skipPopup: isFirstRun,
+          skipPopup: false,
         });
         return;
       }
@@ -629,7 +594,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             swapId: swap.id,
           },
           eventKey,
-          skipPopup: isFirstRun,
+          skipPopup: false,
         });
       }
     });
@@ -672,8 +637,11 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           if (diffHours <= threshold && diffHours >= 0) {
             const eventKey = `reminder:${swap.id}:${threshold}`;
 
-            // On first run/startup, we let the reminders be processed.
-            // addNotification handles adding to seenKeysRef automatically.
+            // On initial load or re-login: mark threshold as seen and DO NOT create old notifications!
+            if (isFirstRun) {
+              seenKeysRef.current.add(eventKey);
+              return;
+            }
 
             if (dismissedKeysRef.current.has(eventKey) || seenKeysRef.current.has(eventKey)) {
               return;
@@ -687,7 +655,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
                 swapId: swap.id,
                 startsAt: acceptedSlot.startISO,
               },
-              skipPopup: true,
+              skipPopup: false,
               eventKey,
             });
           }
@@ -726,12 +694,17 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           if (!msgId) return;
 
           const eventKey = `msg:${msgId}`;
+
+          // On initial load or re-login: mark existing message as seen and DO NOT create old notifications!
+          if (isFirstRun) {
+            seenKeysRef.current.add(eventKey);
+            return;
+          }
+
           if (dismissedKeysRef.current.has(eventKey) || seenKeysRef.current.has(eventKey)) {
             return;
           }
 
-          // On initial app load/startup, let historical messages process
-          // without popping up (caught by isFirstRun/isSilencedPeriod).
           const isVideoCallAlert = typeof msg.body === 'string' && msg.body.includes("started the video call");
           if (
             String(msg.authorId) !== currentUserId &&
@@ -746,7 +719,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
                 swapId: swap.id,
               },
               eventKey,
-              skipPopup: isFirstRun,
+              skipPopup: false,
             });
           }
         });
@@ -785,11 +758,17 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             if (!revId) return;
 
             const eventKey = `review:${revId}`;
+
+            // On initial load or re-login: mark existing review as seen and DO NOT create old notifications!
+            if (isFirstRun) {
+              seenKeysRef.current.add(eventKey);
+              return;
+            }
+
             if (dismissedKeysRef.current.has(eventKey) || seenKeysRef.current.has(eventKey)) {
               return;
             }
 
-            // On startup or re-login, historical reviews are loaded into the list silently.
             if (rev.reviewer?.id && String(rev.reviewer.id) !== currentUserId) {
               addNotification({
                 category: 'system',
@@ -799,7 +778,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
                   rating: rev.rating,
                 },
                 eventKey,
-                skipPopup: isFirstRun,
+                skipPopup: false,
               });
             } else {
               seenKeysRef.current.add(eventKey);
