@@ -117,6 +117,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   const isInitialRemindersLoadRef = useRef<boolean>(true);
   const isInitialChatLoadRef = useRef<boolean>(true);
   const isInitialReviewsLoadRef = useRef<boolean>(true);
+  const seededSwapsUserRef = useRef<string | null>(null);
+  const seededChatUserRef = useRef<string | null>(null);
+  const seededReviewsUserRef = useRef<string | null>(null);
   const swapSeenStateRef = useRef<Map<string, string>>(new Map());
   const bannerReadyRef = useRef<boolean>(false);
 
@@ -180,6 +183,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       isInitialRemindersLoadRef.current = true;
       isInitialChatLoadRef.current = true;
       isInitialReviewsLoadRef.current = true;
+      seededSwapsUserRef.current = null;
+      seededChatUserRef.current = null;
+      seededReviewsUserRef.current = null;
       swapSeenStateRef.current.clear();
       seenKeysRef.current.clear();
       dismissedKeysRef.current.clear();
@@ -199,6 +205,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     isInitialRemindersLoadRef.current = true;
     isInitialChatLoadRef.current = true;
     isInitialReviewsLoadRef.current = true;
+    seededSwapsUserRef.current = null;
+    seededChatUserRef.current = null;
+    seededReviewsUserRef.current = null;
     swapSeenStateRef.current.clear();
     setBannerNotification(null);
     setNotifications([]); // Fresh clean start: no old notifications in tab on login!
@@ -339,7 +348,20 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     const isStartup = Date.now() - mountTimestampRef.current < 15000;
     const isRecentLogin = Date.now() - loginTimestampRef.current < 15000;
     const isSilencedPeriod = isStartup || isRecentLogin;
-    const shouldSkip = isLiveCall ? false : (input.skipPopup === true || (!isExplicitRuntime && isSilencedPeriod) || !isAuthUser);
+    const isSocketEvent = meta.isSocketEvent === true || isLiveCall;
+
+    // Strictly discard any historical or background notification during login synchronization
+    if (isSilencedPeriod && !isSocketEvent && !isExplicitRuntime) {
+      console.log('[Notifications] Dropped historical/offline notification during login sync period:', input.title);
+      return;
+    }
+
+    // Never add notifications marked with skipPopup: true into the notifications tab
+    if (input.skipPopup === true) {
+      return;
+    }
+
+    const shouldSkip = isLiveCall ? false : ((!isExplicitRuntime && isSilencedPeriod) || !isAuthUser);
 
     const payload: NotificationItem = {
       id: generateNotificationId(),
@@ -516,7 +538,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
   useEffect(() => {
     if (!isAuthUser || !hasCompletedOnboarding || !isStorageLoaded || !currentUserId) return;
 
-    const isFirstRun = isInitialSwapsLoadRef.current;
+    const isFirstRun = isInitialSwapsLoadRef.current || seededSwapsUserRef.current !== currentUserId;
 
     swaps.forEach((swap) => {
       if (String(swap.requesterId) !== currentUserId && String(swap.recipientId) !== currentUserId) {
@@ -526,9 +548,12 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       const eventKey = `swap:${swap.id}:${swap.status}`;
       const previousStatus = swapSeenStateRef.current.get(swap.id);
 
-      // On initial app load/startup or re-login:
-      // Record existing status and mark as seen, but DO NOT create old notifications!
-      if (isFirstRun) {
+      const swapTime = swap.updatedAt ? new Date(swap.updatedAt).getTime() : (swap.createdAt ? new Date(swap.createdAt).getTime() : 0);
+      const isHistoricalSwap = isFirstRun || (swapTime > 0 && swapTime < loginTimestampRef.current);
+
+      // On initial app load/startup, re-login, user switch, or for any swap updated before login:
+      // Record existing status and mark as seen, but NEVER create old notifications!
+      if (isHistoricalSwap) {
         swapSeenStateRef.current.set(swap.id, swap.status);
         seenKeysRef.current.add(eventKey);
         return;
@@ -547,6 +572,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           body: `${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'A community member')} sent you a new skill exchange request. Review their proposal now.`,
           metadata: {
             swapId: swap.id,
+            isSocketEvent: true,
           },
           eventKey,
           skipPopup: false,
@@ -562,6 +588,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           body: `${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'Your partner')} shared new time options for your exchange.`,
           metadata: {
             swapId: swap.id,
+            isSocketEvent: true,
           },
           eventKey,
           skipPopup: false,
@@ -577,6 +604,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           body: `Your session with ${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'your partner')} is confirmed. Add it to your calendar and get ready!`,
           metadata: {
             swapId: swap.id,
+            isSocketEvent: true,
           },
           eventKey,
           skipPopup: false,
@@ -592,6 +620,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           body: `Nice work! Your exchange with ${counterpart?.username ? `@${counterpart.username}` : (counterpart?.name ?? 'your partner')} is done. Leave a review to help the community.`,
           metadata: {
             swapId: swap.id,
+            isSocketEvent: true,
           },
           eventKey,
           skipPopup: false,
@@ -599,7 +628,10 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       }
     });
 
-    if (isFirstRun) {
+    if (swaps.length > 0 || isFirstRun) {
+      if (swaps.length > 0) {
+        seededSwapsUserRef.current = currentUserId;
+      }
       isInitialSwapsLoadRef.current = false;
       checkAndSetBannerReady();
       persistSeenKeys();
@@ -637,8 +669,8 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           if (diffHours <= threshold && diffHours >= 0) {
             const eventKey = `reminder:${swap.id}:${threshold}`;
 
-            // On initial load or re-login: mark threshold as seen and DO NOT create old notifications!
-            if (isFirstRun) {
+            // On initial load, re-login, or right after login: mark as seen and NEVER create old notifications!
+            if (isFirstRun || Date.now() - loginTimestampRef.current < 20000) {
               seenKeysRef.current.add(eventKey);
               return;
             }
@@ -654,6 +686,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
               metadata: {
                 swapId: swap.id,
                 startsAt: acceptedSlot.startISO,
+                isSocketEvent: true,
               },
               skipPopup: false,
               eventKey,
@@ -678,7 +711,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       return;
     }
 
-    const isFirstRun = isInitialChatLoadRef.current;
+    const isFirstRun = isInitialChatLoadRef.current || seededChatUserRef.current !== currentUserId;
 
     swaps.forEach((swap) => {
       if (String(swap.requesterId) !== currentUserId && String(swap.recipientId) !== currentUserId) {
@@ -695,8 +728,12 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
           const eventKey = `msg:${msgId}`;
 
-          // On initial load or re-login: mark existing message as seen and DO NOT create old notifications!
-          if (isFirstRun) {
+          const msgTime = msg.createdAt ? new Date(msg.createdAt).getTime() : 0;
+          const isHistoricalMsg = isFirstRun || (msgTime > 0 && msgTime < loginTimestampRef.current);
+
+          // On initial load, user switch, or for any message sent before login:
+          // Mark existing message as seen and NEVER create old notifications!
+          if (isHistoricalMsg) {
             seenKeysRef.current.add(eventKey);
             return;
           }
@@ -717,6 +754,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
               body: msg.body,
               metadata: {
                 swapId: swap.id,
+                isSocketEvent: true,
               },
               eventKey,
               skipPopup: false,
@@ -726,7 +764,10 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
       }
     });
 
-    if (isFirstRun) {
+    if (swaps.length > 0 || isFirstRun) {
+      if (swaps.length > 0) {
+        seededChatUserRef.current = currentUserId;
+      }
       isInitialChatLoadRef.current = false;
       checkAndSetBannerReady();
       persistSeenKeys();
@@ -742,10 +783,11 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
     const checkNewReviews = async () => {
       try {
         const response = await fetch(`${url}/reviews?revieweeId=${currentUserId}`);
-        const isFirstRun = isInitialReviewsLoadRef.current;
+        const isFirstRun = isInitialReviewsLoadRef.current || seededReviewsUserRef.current !== currentUserId;
         if (!response.ok) {
           if (isFirstRun) {
             isInitialReviewsLoadRef.current = false;
+            seededReviewsUserRef.current = currentUserId;
             checkAndSetBannerReady();
           }
           return;
@@ -759,8 +801,12 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
 
             const eventKey = `review:${revId}`;
 
-            // On initial load or re-login: mark existing review as seen and DO NOT create old notifications!
-            if (isFirstRun) {
+            const revTime = rev.createdAt ? new Date(rev.createdAt).getTime() : 0;
+            const isHistoricalRev = isFirstRun || (revTime > 0 && revTime < loginTimestampRef.current);
+
+            // On initial load, user switch, or for any review created before login:
+            // Mark existing review as seen and NEVER create old notifications!
+            if (isHistoricalRev) {
               seenKeysRef.current.add(eventKey);
               return;
             }
@@ -776,6 +822,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
                 body: `${rev.reviewer?.name || 'A user'} gave you a ${rev.rating}-star review: "${rev.comment || ''}"`,
                 metadata: {
                   rating: rev.rating,
+                  isSocketEvent: true,
                 },
                 eventKey,
                 skipPopup: false,
@@ -786,11 +833,10 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           });
         }
 
-        if (isFirstRun) {
-          isInitialReviewsLoadRef.current = false;
-          checkAndSetBannerReady();
-          persistSeenKeys();
-        }
+        seededReviewsUserRef.current = currentUserId;
+        isInitialReviewsLoadRef.current = false;
+        checkAndSetBannerReady();
+        persistSeenKeys();
       } catch (err) {
         console.error('[Notifications] Failed to check reviews:', err);
         if (isInitialReviewsLoadRef.current) {
@@ -836,6 +882,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             category: 'class',
             title: 'New Student Enrolled! 🎓',
             body: `${studentName} enrolled in your class "${titleName}"`,
+            metadata: { isSocketEvent: true },
             skipPopup: false,
             eventKey,
           });
@@ -889,6 +936,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
               action: 'join_class',
               callerName: teacher,
               isClass: true,
+              isSocketEvent: true,
             },
             skipPopup: false,
             eventKey,
@@ -956,6 +1004,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
             callerName: caller,
             mode,
             isClass,
+            isSocketEvent: true,
           },
           eventKey,
           skipPopup: false,
@@ -976,7 +1025,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           category: (data.category as any) || 'swap',
           title: data.title,
           body: data.body,
-          metadata: data.metadata,
+          metadata: { ...(data.metadata || {}), isSocketEvent: true },
           eventKey: uniqueKey,
           skipPopup: false,
         });
@@ -1024,6 +1073,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           metadata: {
             action: 'store_topup',
             link: '/store',
+            isSocketEvent: true,
           },
           eventKey,
           skipPopup: false,
@@ -1040,6 +1090,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           category: 'system',
           title: '⚠️ Student Payment Failed',
           body: `${studentLabel} has insufficient credits for their monthly ${typeLabel} "${data.title}".`,
+          metadata: { isSocketEvent: true },
           eventKey,
           skipPopup: false,
         });
@@ -1070,6 +1121,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           category: 'system',
           title: '💳 Monthly Subscription Renewed',
           body: `${data.amount} credits were debited for your monthly ${typeLabel} "${data.title}".`,
+          metadata: { isSocketEvent: true },
           eventKey,
           skipPopup: false,
         });
@@ -1080,6 +1132,7 @@ export const [NotificationsProvider, useNotifications] = createContextHook<Notif
           category: 'system',
           title: '💰 Monthly Subscription Received',
           body: `Received ${earned} credits from ${studentLabel} for monthly ${typeLabel} "${data.title}".`,
+          metadata: { isSocketEvent: true },
           eventKey,
           skipPopup: false,
         });
