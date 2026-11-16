@@ -110,17 +110,18 @@ export default function HomeScreen() {
   const numSkillColumns = useMemo(() => {
     if (windowWidth >= 840) return 4;
     if (windowWidth >= 600) return 3;
-    if (windowWidth >= 400) return 2;
-    return 1;
+    return 2; // In mobile devices, always show 2 cards in a row
   }, [windowWidth]);
 
+  const skillGridPadding = isSmallScreen ? (windowWidth < 360 ? 12 : 16) : 20;
+  const skillGridGap = isSmallScreen ? (windowWidth < 360 ? 8 : 12) : 16;
+
   const skillCardWidth = useMemo(() => {
-    if (numSkillColumns === 1) return '100%';
-    const totalPadding = 40;
-    const totalGap = (numSkillColumns - 1) * 16;
+    const totalPadding = skillGridPadding * 2;
+    const totalGap = (numSkillColumns - 1) * skillGridGap;
     const availableWidth = windowWidth - totalPadding - totalGap;
-    return Math.max(160, Math.floor(availableWidth / numSkillColumns));
-  }, [windowWidth, numSkillColumns]);
+    return Math.floor(availableWidth / numSkillColumns);
+  }, [windowWidth, numSkillColumns, skillGridPadding, skillGridGap]);
 
   const { unreadCount } = useNotifications();
   const { currentUser, topRecommendations, teachMatches, learnMatches, swapMatches, userRole, refreshRecommendations, isLoading: isUserLoading } = useCurrentUser();
@@ -780,7 +781,7 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.section}>
-            <View style={styles.skillsSectionHeader}>
+            <View style={[styles.skillsSectionHeader, isSmallScreen && { paddingHorizontal: skillGridPadding }]}>
               <Text style={styles.sectionTitleWithoutPadding}>
                 {selectedCategory === 'All'
                   ? 'All Skills'
@@ -796,10 +797,11 @@ export default function HomeScreen() {
             </View>
             <View style={[
               styles.skillsGrid,
-              numSkillColumns > 1 && {
+              {
+                paddingHorizontal: skillGridPadding,
+                gap: skillGridGap,
                 flexDirection: 'row',
                 flexWrap: 'wrap',
-                gap: 16,
               }
             ]}>
               {filteredSkills.map((skill) => (
@@ -807,7 +809,8 @@ export default function HomeScreen() {
                   key={skill.id}
                   style={[
                     styles.skillCard,
-                    numSkillColumns > 1 && {
+                    isSmallScreen && styles.skillCardMobile,
+                    {
                       width: skillCardWidth,
                     },
                   ]}
@@ -818,41 +821,49 @@ export default function HomeScreen() {
                     source={{ uri: resolveImageUrl(skill.imageUrl, getCategoryImageUrl(skill.category || skill.title)) }}
                     style={[
                       styles.skillImage,
-                      numSkillColumns >= 4 ? { height: 145 } : numSkillColumns >= 3 ? { height: 160 } : numSkillColumns >= 2 ? { height: 180 } : { height: 200 }
+                      isSmallScreen
+                        ? { height: 125 }
+                        : numSkillColumns >= 4
+                          ? { height: 145 }
+                          : numSkillColumns >= 3
+                            ? { height: 160 }
+                            : { height: 180 }
                     ]}
                     defaultSource={{ uri: DEFAULT_SKILL_IMAGE }}
                   />
-                  <View style={styles.skillContent}>
+                  <View style={[styles.skillContent, isSmallScreen && styles.skillContentMobile]}>
                     <View style={styles.skillHeader}>
-                      <Text style={styles.categoryLabel}>{skill.category}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[styles.categoryLabel, isSmallScreen && styles.categoryLabelMobile]} numberOfLines={1} ellipsizeMode="tail">
+                        {skill.category}
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: isSmallScreen ? 4 : 6, flexShrink: 0 }}>
                         {skill.certificateStatus === 'approved' && (
-                          <View style={styles.skillCertifiedBadge}>
-                            <BadgeCheck size={11} color="#10B981" />
-                            <Text style={styles.skillCertifiedBadgeText}>Certified</Text>
+                          <View style={[styles.skillCertifiedBadge, isSmallScreen && styles.skillCertifiedBadgeMobile]}>
+                            <BadgeCheck size={isSmallScreen ? 9.5 : 11} color="#10B981" />
+                            <Text style={[styles.skillCertifiedBadgeText, isSmallScreen && styles.skillCertifiedBadgeTextMobile]}>Certified</Text>
                           </View>
                         )}
-                        <View style={styles.skillLevelBadge}>
-                          <Text style={styles.skillLevelText}>{skill.level}</Text>
+                        <View style={[styles.skillLevelBadge, isSmallScreen && styles.skillLevelBadgeMobile]}>
+                          <Text style={[styles.skillLevelText, isSmallScreen && styles.skillLevelTextMobile]}>{skill.level}</Text>
                         </View>
                       </View>
                     </View>
-                    <Text style={styles.skillTitle} numberOfLines={2}>
+                    <Text style={[styles.skillTitle, isSmallScreen && styles.skillTitleMobile]} numberOfLines={2}>
                       {skill.title}
                     </Text>
                     <View style={styles.skillFooter}>
-                      <View style={styles.userInfo}>
+                      <View style={[styles.userInfo, isSmallScreen && styles.userInfoMobile]}>
                         <Image
                           source={{ uri: resolveImageUrl(skill.user?.avatarUrl, DEFAULT_AVATAR) }}
-                          style={styles.userAvatar}
+                          style={[styles.userAvatar, isSmallScreen && styles.userAvatarMobile]}
                         />
-                        <Text style={styles.userName} numberOfLines={1}>
+                        <Text style={[styles.userName, isSmallScreen && styles.userNameMobile]} numberOfLines={1}>
                           {skill.user?.username ? (skill.user.username.startsWith('@') ? skill.user.username : `@${skill.user.username}`) : `@${(skill.user?.name || 'user').toLowerCase().replace(/\s+/g, '')}`}
                         </Text>
                       </View>
-                      <View style={styles.ratingContainer}>
-                        <Star size={12} fill={Colors.light.accent} color={Colors.light.accent} />
-                        <Text style={styles.ratingText}>{skill.user?.rating ?? 5.0}</Text>
+                      <View style={[styles.ratingContainer, isSmallScreen && styles.ratingContainerMobile]}>
+                        <Star size={isSmallScreen ? 10 : 12} fill={Colors.light.accent} color={Colors.light.accent} />
+                        <Text style={[styles.ratingText, isSmallScreen && styles.ratingTextMobile]}>{skill.user?.rating ?? 5.0}</Text>
                       </View>
                     </View>
                   </View>
@@ -1582,6 +1593,59 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700' as const,
     color: Colors.light.text,
+  },
+  skillCardMobile: {
+    borderRadius: 14,
+  },
+  skillContentMobile: {
+    padding: 10,
+  },
+  categoryLabelMobile: {
+    fontSize: 9.5,
+    letterSpacing: 0.4,
+  },
+  skillCertifiedBadgeMobile: {
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 2,
+  },
+  skillCertifiedBadgeTextMobile: {
+    fontSize: 8.5,
+  },
+  skillLevelBadgeMobile: {
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  skillLevelTextMobile: {
+    fontSize: 9,
+  },
+  skillTitleMobile: {
+    fontSize: 13.5,
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  userInfoMobile: {
+    gap: 6,
+    marginRight: 4,
+  },
+  userAvatarMobile: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  userNameMobile: {
+    fontSize: 11,
+  },
+  ratingContainerMobile: {
+    paddingHorizontal: 5,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    gap: 2.5,
+  },
+  ratingTextMobile: {
+    fontSize: 10.5,
   },
   bottomSpacer: {
     height: 40,
