@@ -73,20 +73,23 @@ export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
 
+  const isSmallScreen = windowWidth < 600;
+
   const numColumns = useMemo(() => {
     if (windowWidth >= 1024) return 4;
     if (windowWidth >= 768) return 3;
-    if (windowWidth >= 540) return 2;
-    return 1;
+    return 2; // In mobile devices, always show 2 cards in a row
   }, [windowWidth]);
 
+  const gridPadding = isSmallScreen ? (windowWidth < 360 ? 12 : 16) : 20;
+  const gridGap = isSmallScreen ? (windowWidth < 360 ? 8 : 12) : 16;
+
   const cardWidth = useMemo(() => {
-    if (numColumns === 1) return '100%';
-    const totalPadding = 40;
-    const totalGap = (numColumns - 1) * 16;
+    const totalPadding = gridPadding * 2;
+    const totalGap = (numColumns - 1) * gridGap;
     const availableWidth = windowWidth - totalPadding - totalGap;
-    return Math.max(160, Math.floor(availableWidth / numColumns));
-  }, [windowWidth, numColumns]);
+    return Math.floor(availableWidth / numColumns);
+  }, [windowWidth, numColumns, gridPadding, gridGap]);
 
   const [activeTab, setActiveTab] = useState<RoleTab>('teachers');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -395,6 +398,7 @@ export default function ExploreScreen() {
       <TouchableOpacity
         style={[
           styles.skillCard,
+          isSmallScreen && styles.skillCardMobile,
           isMultiCol && { width: cardWidth },
         ]}
         onPress={() => router.push(`/skill/${item.id}` as any)}
@@ -404,10 +408,16 @@ export default function ExploreScreen() {
           source={{ uri: resolveImageUrl(item.imageUrl, DEFAULT_SKILL_IMAGE) }}
           style={[
             styles.skillImage,
-            numColumns >= 4 ? { height: 135 } : numColumns >= 3 ? { height: 150 } : numColumns >= 2 ? { height: 170 } : { height: 200 }
+            isSmallScreen
+              ? { height: 125 }
+              : numColumns >= 4
+                ? { height: 135 }
+                : numColumns >= 3
+                  ? { height: 150 }
+                  : { height: 170 }
           ]}
         />
-        <View style={[styles.skillContent, isMultiCol && styles.skillContentCompact]}>
+        <View style={[styles.skillContent, isMultiCol && styles.skillContentCompact, isSmallScreen && styles.skillContentMobile]}>
           <View style={styles.skillHeader}>
             <Text style={[styles.categoryLabel, isMultiCol && styles.categoryLabelCompact]} numberOfLines={1} ellipsizeMode="tail">
               {item.category}
@@ -444,20 +454,21 @@ export default function ExploreScreen() {
         </View>
       </TouchableOpacity>
     );
-  }, [router, numColumns, cardWidth, isMultiCol]);
+  }, [router, numColumns, cardWidth, isMultiCol, isSmallScreen]);
 
   const renderLearnerCard = useCallback(({ item }: { item: User }) => {
     const rawRating = item.rating;
     const ratingVal = typeof rawRating === 'number' ? rawRating.toFixed(1) : (rawRating ? Number(rawRating).toFixed(1) : '5.0');
     const swapsVal = item.totalSwaps ?? 0;
     const exchangesText = `${swapsVal} ${swapsVal === 1 ? 'exchange' : 'exchanges'} completed`;
-    const maxChips = isMultiCol ? 3 : 6;
+    const maxChips = isMultiCol ? (isSmallScreen ? 2 : 3) : 6;
     const wants = item.skillsWanted || [];
 
     return (
       <TouchableOpacity
         style={[
           styles.personCard,
+          isSmallScreen && styles.personCardMobile,
           isMultiCol ? styles.personCardGrid : styles.personCardRow,
           isMultiCol && { width: cardWidth },
         ]}
@@ -465,33 +476,33 @@ export default function ExploreScreen() {
         activeOpacity={0.85}
       >
         {isMultiCol ? (
-          <View style={styles.personCardGridInner}>
+          <View style={[styles.personCardGridInner, isSmallScreen && styles.personCardGridInnerMobile]}>
             <View style={styles.personHeaderGrid}>
-              <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatarCompact} />
+              <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={[styles.personAvatarCompact, isSmallScreen && styles.personAvatarMobile]} />
               <View style={styles.personInfoCompact}>
-                <Text style={styles.personNameCompact} numberOfLines={1}>
+                <Text style={[styles.personNameCompact, isSmallScreen && styles.personNameMobile]} numberOfLines={1}>
                   {item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}
                 </Text>
                 <View style={styles.personLocationRowCompact}>
-                  <MapPin size={10} color={Colors.light.textTertiary} />
-                  <Text style={styles.personLocationCompact} numberOfLines={1}>{item.location}</Text>
+                  <MapPin size={isSmallScreen ? 9 : 10} color={Colors.light.textTertiary} />
+                  <Text style={[styles.personLocationCompact, isSmallScreen && styles.personLocationMobile]} numberOfLines={1}>{item.location}</Text>
                 </View>
               </View>
-              <View style={styles.ratingPillCompact}>
-                <Star size={10} fill={Colors.light.accent} color={Colors.light.accent} />
-                <Text style={styles.ratingPillTextCompact}>{ratingVal}</Text>
+              <View style={[styles.ratingPillCompact, isSmallScreen && styles.ratingPillMobile]}>
+                <Star size={isSmallScreen ? 9 : 10} fill={Colors.light.accent} color={Colors.light.accent} />
+                <Text style={[styles.ratingPillTextCompact, isSmallScreen && styles.ratingPillTextMobile]}>{ratingVal}</Text>
               </View>
             </View>
             <View style={styles.personGridBody}>
-              <Text style={styles.wantsLabelCompact}>Wants to learn</Text>
+              <Text style={[styles.wantsLabelCompact, isSmallScreen && styles.wantsLabelMobile]}>Wants to learn</Text>
               <View style={styles.chipRowCompact}>
                 {wants.slice(0, maxChips).map((s) => (
-                  <View key={s} style={styles.wantChipCompact}>
-                    <Text style={styles.wantChipTextCompact} numberOfLines={1} ellipsizeMode="tail">{s}</Text>
+                  <View key={s} style={[styles.wantChipCompact, isSmallScreen && styles.wantChipMobile]}>
+                    <Text style={[styles.wantChipTextCompact, isSmallScreen && styles.wantChipTextMobile]} numberOfLines={1} ellipsizeMode="tail">{s}</Text>
                   </View>
                 ))}
               </View>
-              <Text style={styles.personSwapsCompact} numberOfLines={1}>{exchangesText}</Text>
+              <Text style={[styles.personSwapsCompact, isSmallScreen && styles.personSwapsMobile]} numberOfLines={1}>{exchangesText}</Text>
             </View>
           </View>
         ) : (
@@ -531,7 +542,7 @@ export default function ExploreScreen() {
         )}
       </TouchableOpacity>
     );
-  }, [router, numColumns, cardWidth, isMultiCol]);
+  }, [router, numColumns, cardWidth, isMultiCol, isSmallScreen]);
 
   const renderSwapperCard = useCallback(({ item }: { item: User }) => {
     const rawRating = item.rating;
@@ -545,6 +556,7 @@ export default function ExploreScreen() {
       <TouchableOpacity
         style={[
           styles.personCard,
+          isSmallScreen && styles.personCardMobile,
           isMultiCol ? styles.personCardGrid : styles.personCardRow,
           isMultiCol && { width: cardWidth },
         ]}
@@ -552,55 +564,55 @@ export default function ExploreScreen() {
         activeOpacity={0.85}
       >
         {isMultiCol ? (
-          <View style={styles.personCardGridInner}>
+          <View style={[styles.personCardGridInner, isSmallScreen && styles.personCardGridInnerMobile]}>
             <View style={styles.personHeaderGrid}>
-              <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatarCompact} />
+              <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={[styles.personAvatarCompact, isSmallScreen && styles.personAvatarMobile]} />
               <View style={styles.personInfoCompact}>
-                <Text style={styles.personNameCompact} numberOfLines={1}>
+                <Text style={[styles.personNameCompact, isSmallScreen && styles.personNameMobile]} numberOfLines={1}>
                   {item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}
                 </Text>
                 <View style={styles.personLocationRowCompact}>
-                  <MapPin size={10} color={Colors.light.textTertiary} />
-                  <Text style={styles.personLocationCompact} numberOfLines={1}>{item.location}</Text>
+                  <MapPin size={isSmallScreen ? 9 : 10} color={Colors.light.textTertiary} />
+                  <Text style={[styles.personLocationCompact, isSmallScreen && styles.personLocationMobile]} numberOfLines={1}>{item.location}</Text>
                 </View>
               </View>
-              <View style={styles.ratingPillCompact}>
-                <Star size={10} fill={Colors.light.accent} color={Colors.light.accent} />
-                <Text style={styles.ratingPillTextCompact}>{ratingVal}</Text>
+              <View style={[styles.ratingPillCompact, isSmallScreen && styles.ratingPillMobile]}>
+                <Star size={isSmallScreen ? 9 : 10} fill={Colors.light.accent} color={Colors.light.accent} />
+                <Text style={[styles.ratingPillTextCompact, isSmallScreen && styles.ratingPillTextMobile]}>{ratingVal}</Text>
               </View>
             </View>
 
             <View style={styles.personGridBody}>
               <View style={styles.swapSectionVertical}>
                 <View style={styles.swapHalfVertical}>
-                  <Text style={styles.swapHalfLabelCompact}>Teaches</Text>
+                  <Text style={[styles.swapHalfLabelCompact, isSmallScreen && styles.swapHalfLabelMobile]}>Teaches</Text>
                   <View style={styles.chipRowCompact}>
-                    {offers.slice(0, 2).map((s, idx) => {
+                    {offers.slice(0, isSmallScreen ? 1 : 2).map((s, idx) => {
                       const title = typeof s === 'string' ? s : s.title || String(s);
                       const key = typeof s === 'string' ? s : (s.id || s._id || `teach-${idx}`);
                       return (
-                        <View key={key} style={styles.teachChipCompact}>
-                          <Text style={styles.teachChipTextCompact} numberOfLines={1} ellipsizeMode="tail">{title}</Text>
+                        <View key={key} style={[styles.teachChipCompact, isSmallScreen && styles.teachChipMobile]}>
+                          <Text style={[styles.teachChipTextCompact, isSmallScreen && styles.teachChipTextMobile]} numberOfLines={1} ellipsizeMode="tail">{title}</Text>
                         </View>
                       );
                     })}
                   </View>
                 </View>
                 <View style={styles.swapHalfVertical}>
-                  <Text style={styles.swapHalfLabelCompact}>Learns</Text>
+                  <Text style={[styles.swapHalfLabelCompact, isSmallScreen && styles.swapHalfLabelMobile]}>Learns</Text>
                   <View style={styles.chipRowCompact}>
-                    {wants.slice(0, 2).map((s, idx) => {
+                    {wants.slice(0, isSmallScreen ? 1 : 2).map((s, idx) => {
                       const text = typeof s === 'string' ? s : String(s);
                       return (
-                        <View key={`want-${idx}-${text}`} style={styles.wantChipCompact}>
-                          <Text style={styles.wantChipTextCompact} numberOfLines={1} ellipsizeMode="tail">{text}</Text>
+                        <View key={`want-${idx}-${text}`} style={[styles.wantChipCompact, isSmallScreen && styles.wantChipMobile]}>
+                          <Text style={[styles.wantChipTextCompact, isSmallScreen && styles.wantChipTextMobile]} numberOfLines={1} ellipsizeMode="tail">{text}</Text>
                         </View>
                       );
                     })}
                   </View>
                 </View>
               </View>
-              <Text style={styles.personSwapsCompact} numberOfLines={1}>{exchangesText}</Text>
+              <Text style={[styles.personSwapsCompact, isSmallScreen && styles.personSwapsMobile]} numberOfLines={1}>{exchangesText}</Text>
             </View>
           </View>
         ) : (
@@ -658,7 +670,7 @@ export default function ExploreScreen() {
         )}
       </TouchableOpacity>
     );
-  }, [router, numColumns, cardWidth, isMultiCol]);
+  }, [router, numColumns, cardWidth, isMultiCol, isSmallScreen]);
 
   return (
     <View style={styles.container}>
@@ -912,7 +924,7 @@ export default function ExploreScreen() {
         </Pressable>
       )}
 
-      <View style={styles.resultsHeader}>
+      <View style={[styles.resultsHeader, isSmallScreen && { paddingHorizontal: gridPadding }]}>
         <Text style={styles.resultsText} testID="results-count">
           {resultsCount} {resultsCount === 1 ? 'result' : 'results'}
         </Text>
@@ -922,12 +934,11 @@ export default function ExploreScreen() {
         <FlatList
           key={`explore-teachers-${numColumns}`}
           numColumns={numColumns}
-          columnWrapperStyle={numColumns > 1 ? { gap: 16, marginBottom: 16 } : undefined}
+          columnWrapperStyle={numColumns > 1 ? { gap: gridGap, marginBottom: gridGap } : undefined}
           data={filteredSkills}
           keyExtractor={(item) => item.id}
           renderItem={renderSkillCard}
-          ItemSeparatorComponent={numColumns === 1 ? () => <View style={{ height: 16 }} /> : undefined}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingHorizontal: gridPadding }]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={<EmptyState text="No teachers match your filters." />}
@@ -938,12 +949,11 @@ export default function ExploreScreen() {
         <FlatList
           key={`explore-learners-${numColumns}`}
           numColumns={numColumns}
-          columnWrapperStyle={numColumns > 1 ? { gap: 16, marginBottom: 16 } : undefined}
+          columnWrapperStyle={numColumns > 1 ? { gap: gridGap, marginBottom: gridGap } : undefined}
           data={filteredLearners}
           keyExtractor={(item) => item.id}
           renderItem={renderLearnerCard}
-          ItemSeparatorComponent={numColumns === 1 ? () => <View style={{ height: 16 }} /> : undefined}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingHorizontal: gridPadding }]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={<EmptyState text="No learners match your filters." />}
@@ -954,12 +964,11 @@ export default function ExploreScreen() {
         <FlatList
           key={`explore-swappers-${numColumns}`}
           numColumns={numColumns}
-          columnWrapperStyle={numColumns > 1 ? { gap: 16, marginBottom: 16 } : undefined}
+          columnWrapperStyle={numColumns > 1 ? { gap: gridGap, marginBottom: gridGap } : undefined}
           data={filteredSwappers}
           keyExtractor={(item) => item.id}
           renderItem={renderSwapperCard}
-          ItemSeparatorComponent={numColumns === 1 ? () => <View style={{ height: 16 }} /> : undefined}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingHorizontal: gridPadding }]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={<EmptyState text="No swappers match your filters." />}
@@ -1669,5 +1678,62 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.light.textTertiary,
     fontWeight: '500' as const,
+  },
+  skillCardMobile: {
+    borderRadius: 14,
+  },
+  skillContentMobile: {
+    padding: 10,
+  },
+  personCardMobile: {
+    borderRadius: 14,
+    padding: 10,
+  },
+  personCardGridInnerMobile: {
+    gap: 8,
+  },
+  personAvatarMobile: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+  },
+  personNameMobile: {
+    fontSize: 12.5,
+  },
+  personLocationMobile: {
+    fontSize: 10,
+  },
+  ratingPillMobile: {
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    gap: 2,
+  },
+  ratingPillTextMobile: {
+    fontSize: 9.5,
+  },
+  wantsLabelMobile: {
+    fontSize: 9,
+  },
+  wantChipMobile: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  wantChipTextMobile: {
+    fontSize: 9.5,
+  },
+  teachChipMobile: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  teachChipTextMobile: {
+    fontSize: 9.5,
+  },
+  swapHalfLabelMobile: {
+    fontSize: 9,
+  },
+  personSwapsMobile: {
+    fontSize: 10,
   },
 });
