@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,9 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeTopInset } from '@/lib/safeArea';
 import {
   Sparkles,
   Send,
@@ -52,6 +54,10 @@ const SYSTEM_PROMPT: ChatMessage[] = [
 export default function AIAssistantScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const safeTop = useSafeTopInset(12);
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const { currentUser } = useCurrentUser();
   const scrollRef = useRef<ScrollView>(null);
 
@@ -147,7 +153,7 @@ export default function AIAssistantScreen() {
         colors={['#6366F1', '#818CF8']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + 12 }]}
+        style={[styles.header, { paddingTop: safeTop }]}
       >
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -271,33 +277,33 @@ export default function AIAssistantScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
   flex: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingBottom: 16 },
+  header: { paddingHorizontal: isSmallScreen ? 12 : 16, paddingBottom: isSmallScreen ? 10 : 16 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  backBtn: { width: isSmallScreen ? 34 : 40, height: isSmallScreen ? 34 : 40, borderRadius: isSmallScreen ? 17 : 20, alignItems: 'center', justifyContent: 'center' },
+  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: isSmallScreen ? 8 : 10 },
   botIconWrap: {
-    width: 40, height: 40, borderRadius: 20,
+    width: isSmallScreen ? 32 : 40, height: isSmallScreen ? 32 : 40, borderRadius: isSmallScreen ? 16 : 20,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontSize: 17, fontWeight: '800' as const, color: '#FFF' },
-  headerSubtitle: { fontSize: 12, fontWeight: '500' as const, color: 'rgba(255,255,255,0.8)' },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
-  messageRow: { flexDirection: 'row', marginBottom: 14, gap: 8, alignItems: 'flex-end' },
+  headerTitle: { fontSize: isSmallScreen ? 15 : 17, fontWeight: '800' as const, color: '#FFF' },
+  headerSubtitle: { fontSize: isSmallScreen ? 10.5 : 12, fontWeight: '500' as const, color: 'rgba(255,255,255,0.8)' },
+  scrollContent: { paddingHorizontal: isSmallScreen ? 12 : 16, paddingTop: isSmallScreen ? 10 : 16 },
+  messageRow: { flexDirection: 'row', marginBottom: isSmallScreen ? 10 : 14, gap: isSmallScreen ? 6 : 8, alignItems: 'flex-end' },
   messageRowUser: { justifyContent: 'flex-end' },
   messageRowAI: { justifyContent: 'flex-start' },
   avatarAI: {
-    width: 28, height: 28, borderRadius: 14,
+    width: isSmallScreen ? 24 : 28, height: isSmallScreen ? 24 : 28, borderRadius: isSmallScreen ? 12 : 14,
     backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center',
   },
   avatarUser: {
-    width: 28, height: 28, borderRadius: 14,
+    width: isSmallScreen ? 24 : 28, height: isSmallScreen ? 24 : 28, borderRadius: isSmallScreen ? 12 : 14,
     backgroundColor: Colors.light.primary, alignItems: 'center', justifyContent: 'center',
   },
-  bubble: { maxWidth: '78%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18 },
+  bubble: { maxWidth: '82%', paddingHorizontal: isSmallScreen ? 11 : 14, paddingVertical: isSmallScreen ? 8 : 10, borderRadius: isSmallScreen ? 14 : 18 },
   bubbleUser: {
     backgroundColor: Colors.light.primary,
     borderBottomRightRadius: 4,
@@ -308,37 +314,37 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.borderLight,
     borderBottomLeftRadius: 4,
   },
-  messageText: { fontSize: 15, lineHeight: 21 },
+  messageText: { fontSize: isSmallScreen ? 12.5 : 15, lineHeight: isSmallScreen ? 17 : 21 },
   messageTextUser: { color: '#FFF', fontWeight: '500' as const },
   messageTextAI: { color: Colors.light.text },
-  suggestionsWrap: { marginTop: 8, gap: 10 },
-  suggestionsTitle: { fontSize: 14, fontWeight: '600' as const, color: Colors.light.textSecondary, marginBottom: 4 },
+  suggestionsWrap: { marginTop: 8, gap: isSmallScreen ? 8 : 10 },
+  suggestionsTitle: { fontSize: isSmallScreen ? 12.5 : 14, fontWeight: '600' as const, color: Colors.light.textSecondary, marginBottom: 4 },
   suggestionCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
+    flexDirection: 'row', alignItems: 'center', gap: isSmallScreen ? 8 : 12,
     backgroundColor: Colors.light.card,
-    paddingHorizontal: 14, paddingVertical: 14,
-    borderRadius: 16, borderWidth: 1, borderColor: Colors.light.borderLight,
+    paddingHorizontal: isSmallScreen ? 10 : 14, paddingVertical: isSmallScreen ? 10 : 14,
+    borderRadius: isSmallScreen ? 12 : 16, borderWidth: 1, borderColor: Colors.light.borderLight,
   },
   suggestionIcon: {
-    width: 36, height: 36, borderRadius: 18,
+    width: isSmallScreen ? 28 : 36, height: isSmallScreen ? 28 : 36, borderRadius: isSmallScreen ? 14 : 18,
     backgroundColor: '#EEF2FF',
     alignItems: 'center', justifyContent: 'center',
   },
-  suggestionLabel: { fontSize: 15, fontWeight: '600' as const, color: Colors.light.text, flex: 1 },
+  suggestionLabel: { fontSize: isSmallScreen ? 12.5 : 15, fontWeight: '600' as const, color: Colors.light.text, flex: 1 },
   inputWrap: {
     backgroundColor: Colors.light.background,
     borderTopWidth: 1, borderTopColor: Colors.light.borderLight,
-    paddingHorizontal: 12, paddingTop: 10,
+    paddingHorizontal: isSmallScreen ? 10 : 12, paddingTop: 8,
   },
   inputRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-end' },
   input: {
-    flex: 1, minHeight: 40, maxHeight: 100,
+    flex: 1, minHeight: 36, maxHeight: 90,
     backgroundColor: Colors.light.backgroundTertiary,
-    borderRadius: 20, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10,
-    fontSize: 15, color: Colors.light.text,
+    borderRadius: isSmallScreen ? 16 : 20, paddingHorizontal: isSmallScreen ? 12 : 16, paddingTop: 8, paddingBottom: 8,
+    fontSize: isSmallScreen ? 13 : 15, color: Colors.light.text,
   },
   sendBtn: {
-    width: 44, height: 44, borderRadius: 22,
+    width: isSmallScreen ? 36 : 44, height: isSmallScreen ? 36 : 44, borderRadius: isSmallScreen ? 18 : 22,
     backgroundColor: Colors.light.primary,
     alignItems: 'center', justifyContent: 'center',
   },

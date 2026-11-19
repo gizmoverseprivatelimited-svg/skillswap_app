@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, TextInput, Modal, ActivityIndicator, RefreshControl } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, TextInput, Modal, ActivityIndicator, RefreshControl, useWindowDimensions } from 'react-native';
 import { Stack } from 'expo-router';
 import { BadgeCheck, ShieldX, Clock, CheckCircle, XCircle, Award, FileCheck2, Filter, X, Eye } from 'lucide-react-native';
-import { useAdmin, CertificationRequest, CertificationStatus } from '@/providers/admin';
+import { useAdmin, CertificationStatus } from '@/providers/admin';
 import { useAlert } from '@/providers/alert';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
@@ -12,6 +12,9 @@ const DEFAULT_CERT_IMAGE = 'https://images.unsplash.com/photo-1589330694653-ded6
 type CFilter = 'all' | CertificationStatus;
 
 function CertificateDocImage({ uri, onPress }: { uri?: string; onPress: () => void }) {
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const s = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const resolved = resolveImageUrl(uri, DEFAULT_CERT_IMAGE) || DEFAULT_CERT_IMAGE;
   const [imgSrc, setImgSrc] = useState<string>(resolved);
   const [loading, setLoading] = useState<boolean>(true);
@@ -49,6 +52,9 @@ function CertificateDocImage({ uri, onPress }: { uri?: string; onPress: () => vo
 }
 
 export default function CertificationApprovals() {
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const s = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const { certificationRequests, approveCertification, rejectCertification, refreshCertifications } = useAdmin();
   const { showAlert } = useAlert();
   const [filter, setFilter] = useState<CFilter>('pending');
@@ -151,7 +157,7 @@ export default function CertificationApprovals() {
               <View style={{ marginTop: 12, marginBottom: 10 }}>
                 <View style={s.skillBadge}>
                   <Award size={16} color="#0EA5E9" />
-                  <Text style={{ fontSize: 13, fontWeight: '700' as const, color: '#0EA5E9', flexShrink: 1 }} numberOfLines={1}>{cr.skillTitle}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '700' as const, color: '#0EA5E9', flexShrink: 1 }}>{cr.skillTitle}</Text>
                 </View>
               </View>
               <View style={{ backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12 }}>
@@ -245,13 +251,13 @@ export default function CertificationApprovals() {
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F5F9' },
   filterWrap: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingHorizontal: isSmallScreen ? 12 : 16,
+    paddingTop: isSmallScreen ? 8 : 12,
+    paddingBottom: isSmallScreen ? 6 : 8,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
@@ -260,27 +266,27 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   filterContent: {
-    gap: 8,
+    gap: isSmallScreen ? 6 : 8,
   },
-  chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#F1F5F9' },
+  chip: { paddingHorizontal: isSmallScreen ? 10 : 14, paddingVertical: isSmallScreen ? 4 : 6, borderRadius: 20, backgroundColor: '#F1F5F9' },
   chipActive: { backgroundColor: '#0F172A' },
-  chipText: { fontSize: 13, fontWeight: '600' as const, color: '#64748B' },
+  chipText: { fontSize: isSmallScreen ? 11.5 : 13, fontWeight: '600' as const, color: '#64748B' },
   chipTextActive: { color: '#FFF' },
-  card: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
-  avatar: { width: 44, height: 44, borderRadius: 13, marginRight: 12, backgroundColor: '#E2E8F0' },
+  card: { backgroundColor: '#FFF', borderRadius: isSmallScreen ? 12 : 16, padding: isSmallScreen ? 12 : 16, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+  avatar: { width: isSmallScreen ? 36 : 44, height: isSmallScreen ? 36 : 44, borderRadius: 13, marginRight: isSmallScreen ? 10 : 12, backgroundColor: '#E2E8F0' },
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  skillBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, alignSelf: 'flex-start', backgroundColor: '#E0F2FE' },
-  docPreviewWrap: { borderRadius: 12, overflow: 'hidden', height: 180, backgroundColor: '#F8FAFC', position: 'relative', borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
-  docImage: { width: '100%', height: 180, borderRadius: 12 },
+  skillBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: isSmallScreen ? 10 : 12, paddingVertical: isSmallScreen ? 4 : 6, borderRadius: 10, alignSelf: 'flex-start', backgroundColor: '#E0F2FE' },
+  docPreviewWrap: { borderRadius: 12, overflow: 'hidden', height: isSmallScreen ? 140 : 180, backgroundColor: '#F8FAFC', position: 'relative', borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
+  docImage: { width: '100%', height: isSmallScreen ? 140 : 180, borderRadius: 12 },
   docLoader: { ...StyleSheet.absoluteFill, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
   docOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(15,23,42,0.75)', paddingHorizontal: 12, paddingVertical: 8 },
-  docOverlayText: { color: '#FFF', fontSize: 12, fontWeight: '600' as const },
-  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 12 },
-  actionText: { color: '#FFF', fontSize: 14, fontWeight: '700' as const },
+  docOverlayText: { color: '#FFF', fontSize: isSmallScreen ? 11 : 12, fontWeight: '600' as const },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: isSmallScreen ? 8 : 10, borderRadius: 12 },
+  actionText: { color: '#FFF', fontSize: isSmallScreen ? 12.5 : 14, fontWeight: '700' as const },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  modalCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 },
-  modalInput: { backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#0F172A', marginBottom: 16, minHeight: 80, textAlignVertical: 'top' as const },
-  rejectBtn: { alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: '#EF4444', marginBottom: 12 },
+  modalCard: { backgroundColor: '#FFF', borderRadius: 20, padding: isSmallScreen ? 16 : 24, width: '100%', maxWidth: 400 },
+  modalInput: { backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: isSmallScreen ? 13.5 : 15, color: '#0F172A', marginBottom: 16, minHeight: 80, textAlignVertical: 'top' as const },
+  rejectBtn: { alignItems: 'center', justifyContent: 'center', paddingVertical: isSmallScreen ? 10 : 12, borderRadius: 12, backgroundColor: '#EF4444', marginBottom: 12 },
   previewModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center', padding: 16 },
   closePreviewBtn: { position: 'absolute', top: 48, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center', zIndex: 20 },
   fullPreviewContainer: { width: '100%', height: '85%', justifyContent: 'center', alignItems: 'center' },

@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { useState, useEffect, useMemo } from 'react';
@@ -107,6 +108,8 @@ export default function AddSkillScreen() {
   const { id, mode: initialModeParam } = useLocalSearchParams<{ id?: string, mode?: string }>();
   const { currentUser, loadUser } = useCurrentUser();
   const { showAlert } = useAlert();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
 
   const isEditMode = Boolean(id);
   const editingSkill = useMemo(() => {
@@ -400,11 +403,11 @@ export default function AddSkillScreen() {
         />
         <View style={styles.container}>
           <ScrollView
-            contentContainerStyle={styles.modeScrollContent}
+            contentContainerStyle={[styles.modeScrollContent, isSmallScreen && styles.modeScrollContentMobile]}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.modeHeading}>What would you like to do?</Text>
-            <Text style={styles.modeSubheading}>
+            <Text style={[styles.modeHeading, isSmallScreen && styles.modeHeadingMobile]}>What would you like to do?</Text>
+            <Text style={[styles.modeSubheading, isSmallScreen && styles.modeSubheadingMobile]}>
               Choose one option to get started. You can add more anytime.
             </Text>
 
@@ -414,20 +417,20 @@ export default function AddSkillScreen() {
                 return (
                   <TouchableOpacity
                     key={opt.key}
-                    style={styles.modeCard}
+                    style={[styles.modeCard, isSmallScreen && styles.modeCardMobile]}
                     onPress={() => setMode(opt.key)}
                     activeOpacity={0.75}
                   >
-                    <View style={[styles.modeIconWrap, { backgroundColor: opt.bg }]}>
-                      <Icon size={28} color={opt.color} />
+                    <View style={[styles.modeIconWrap, isSmallScreen && styles.modeIconWrapMobile, { backgroundColor: opt.bg }]}>
+                      <Icon size={isSmallScreen ? 22 : 28} color={opt.color} />
                     </View>
                     <View style={styles.modeCardContent}>
-                      <Text style={styles.modeCardTitle}>{opt.title}</Text>
-                      <Text style={styles.modeCardSubtitle}>{opt.subtitle}</Text>
+                      <Text style={[styles.modeCardTitle, isSmallScreen && styles.modeCardTitleMobile]}>{opt.title}</Text>
+                      <Text style={[styles.modeCardSubtitle, isSmallScreen && styles.modeCardSubtitleMobile]}>{opt.subtitle}</Text>
                     </View>
                     <View style={styles.modeArrow}>
                       <ChevronDown
-                        size={20}
+                        size={isSmallScreen ? 16 : 20}
                         color={Colors.light.textTertiary}
                         style={{ transform: [{ rotate: '-90deg' }] }}
                       />
@@ -475,13 +478,13 @@ export default function AddSkillScreen() {
       >
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, isSmallScreen && styles.scrollContentMobile]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {/* Mode badge */}
           <View style={[styles.modeBadge, { backgroundColor: activeMode.bg }]}>
-            <activeMode.icon size={16} color={activeMode.color} />
+            <activeMode.icon size={isSmallScreen ? 14 : 16} color={activeMode.color} />
             <Text style={[styles.modeBadgeText, { color: activeMode.color }]}>
               {activeMode.title}
             </Text>
@@ -489,14 +492,14 @@ export default function AddSkillScreen() {
 
           {/* TEACH FIELDS */}
           {showTeachFields && (
-            <View style={styles.fieldGroup}>
-              <Text style={styles.groupTitle}>
-                <GraduationCap size={16} color={Colors.light.primary} /> Skill I Can Teach
+            <View style={[styles.fieldGroup, isSmallScreen && styles.fieldGroupMobile]}>
+              <Text style={[styles.groupTitle, isSmallScreen && styles.groupTitleMobile]}>
+                <GraduationCap size={isSmallScreen ? 14 : 16} color={Colors.light.primary} /> Skill I Can Teach
                 <Text style={styles.required}> *</Text>
               </Text>
 
               {teachImageUrl && (
-                <View style={styles.previewContainer}>
+                <View style={[styles.previewContainer, isSmallScreen && styles.previewContainerMobile]}>
                   <Image source={{ uri: teachImageUrl }} style={styles.previewImage} />
                   <View style={styles.previewOverlay}>
                     <Text style={styles.previewLabel}>Preview</Text>
@@ -504,10 +507,10 @@ export default function AddSkillScreen() {
                 </View>
               )}
 
-              <View style={styles.section}>
-                <Text style={styles.label}>Skill Title <Text style={styles.required}>*</Text></Text>
+              <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+                <Text style={[styles.label, isSmallScreen && styles.labelMobile]}>Skill Title <Text style={styles.required}>*</Text></Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, isSmallScreen && styles.inputMobile]}
                   value={teachTitle}
                   onChangeText={setTeachTitle}
                   placeholder="e.g. Portrait Photography, Guitar Basics"
@@ -535,16 +538,16 @@ export default function AddSkillScreen() {
                 modalTitle="Select Skill Category"
               />
 
-              <View style={styles.section}>
-                <Text style={styles.label}>Proficiency Level <Text style={styles.required}>*</Text></Text>
+              <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+                <Text style={[styles.label, isSmallScreen && styles.labelMobile]}>Proficiency Level <Text style={styles.required}>*</Text></Text>
                 <View style={styles.levelRow}>
                   {LEVELS.map((lvl) => (
                     <TouchableOpacity
                       key={lvl}
-                      style={[styles.levelChip, teachLevel === lvl && styles.levelChipSelected]}
+                      style={[styles.levelChip, isSmallScreen && styles.levelChipMobile, teachLevel === lvl && styles.levelChipSelected]}
                       onPress={() => setTeachLevel(lvl)}
                     >
-                      <Text style={[styles.levelChipText, teachLevel === lvl && styles.levelChipTextSelected]}>
+                      <Text style={[styles.levelChipText, isSmallScreen && styles.levelChipTextMobile, teachLevel === lvl && styles.levelChipTextSelected]}>
                         {lvl}
                       </Text>
                     </TouchableOpacity>
@@ -552,9 +555,9 @@ export default function AddSkillScreen() {
                 </View>
               </View>
 
-              <View style={styles.section}>
+              <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
                 <View style={styles.labelWithAiRow}>
-                  <Text style={styles.label}>Description (Optional)</Text>
+                  <Text style={[styles.label, isSmallScreen && styles.labelMobile]}>Description (Optional)</Text>
                   <TouchableOpacity
                     style={styles.aiGenBtn}
                     onPress={handleAiGenerateTeachDesc}
@@ -572,7 +575,7 @@ export default function AddSkillScreen() {
                   </TouchableOpacity>
                 </View>
                 <TextInput
-                  style={[styles.input, styles.textArea]}
+                  style={[styles.input, styles.textArea, isSmallScreen && styles.inputMobile, isSmallScreen && styles.textAreaMobile]}
                   value={teachDescription}
                   onChangeText={setTeachDescription}
                   placeholder="Describe what you can teach, your experience, and what learners can expect..."
@@ -586,23 +589,23 @@ export default function AddSkillScreen() {
               </View>
 
               {/* PRICING SECTION */}
-              <View style={[styles.section, styles.pricingSection]}>
+              <View style={[styles.section, styles.pricingSection, isSmallScreen && styles.sectionMobile]}>
                 <View style={styles.pricingHeader}>
-                  <IndianRupee size={16} color="#10B981" />
-                  <Text style={styles.pricingTitle}>Class Pricing</Text>
+                  <IndianRupee size={isSmallScreen ? 13 : 16} color="#10B981" />
+                  <Text style={[styles.pricingTitle, isSmallScreen && styles.pricingTitleMobile]}>Class Pricing</Text>
                 </View>
-                <Text style={styles.pricingHint}>Choose how you want to charge for your classes</Text>
+                <Text style={[styles.pricingHint, isSmallScreen && styles.pricingHintMobile]}>Choose how you want to charge for your classes</Text>
                 <View style={styles.pricingOptions}>
                   {PRICING_MODELS.map((pm) => (
                     <TouchableOpacity
                       key={pm.key}
-                      style={[styles.pricingChip, pricingModel === pm.key && styles.pricingChipSelected]}
+                      style={[styles.pricingChip, isSmallScreen && styles.pricingChipMobile, pricingModel === pm.key && styles.pricingChipSelected]}
                       onPress={() => setPricingModel(pm.key)}
                     >
-                      <Text style={[styles.pricingChipLabel, pricingModel === pm.key && styles.pricingChipLabelSelected]}>
+                      <Text style={[styles.pricingChipLabel, isSmallScreen && styles.pricingChipLabelMobile, pricingModel === pm.key && styles.pricingChipLabelSelected]}>
                         {pm.label}
                       </Text>
-                      <Text style={[styles.pricingChipDesc, pricingModel === pm.key && styles.pricingChipDescSelected]}>
+                      <Text style={[styles.pricingChipDesc, isSmallScreen && styles.pricingChipDescMobile, pricingModel === pm.key && styles.pricingChipDescSelected]}>
                         {pm.desc}
                       </Text>
                     </TouchableOpacity>
@@ -610,10 +613,10 @@ export default function AddSkillScreen() {
                 </View>
 
                 {pricingModel === 'per_session' && (
-                  <View style={styles.priceInputWrap}>
-                    <Text style={styles.pricePrefix}>{formatPrice(0).replace('0', '')}</Text>
+                  <View style={[styles.priceInputWrap, isSmallScreen && styles.priceInputWrapMobile]}>
+                    <Text style={[styles.pricePrefix, isSmallScreen && styles.pricePrefixMobile]}>{formatPrice(0).replace('0', '')}</Text>
                     <TextInput
-                      style={styles.priceInput}
+                      style={[styles.priceInput, isSmallScreen && styles.priceInputMobile]}
                       value={pricePerSession}
                       onChangeText={setPricePerSession}
                       placeholder="500"
@@ -626,10 +629,10 @@ export default function AddSkillScreen() {
                 )}
 
                 {pricingModel === 'monthly' && (
-                  <View style={styles.priceInputWrap}>
-                    <Text style={styles.pricePrefix}>{formatPrice(0).replace('0', '')}</Text>
+                  <View style={[styles.priceInputWrap, isSmallScreen && styles.priceInputWrapMobile]}>
+                    <Text style={[styles.pricePrefix, isSmallScreen && styles.pricePrefixMobile]}>{formatPrice(0).replace('0', '')}</Text>
                     <TextInput
-                      style={styles.priceInput}
+                      style={[styles.priceInput, isSmallScreen && styles.priceInputMobile]}
                       value={monthlyPrice}
                       onChangeText={setMonthlyPrice}
                       placeholder="2000"
@@ -655,17 +658,17 @@ export default function AddSkillScreen() {
               </View>
 
               {/* PROMOTION SECTION */}
-              <View style={[styles.section, styles.promoteSection]}>
+              <View style={[styles.section, styles.promoteSection, isSmallScreen && styles.sectionMobile]}>
                 <TouchableOpacity
                   style={styles.promoteToggleRow}
                   onPress={() => setPromoteSkill(!promoteSkill)}
                   activeOpacity={0.7}
                 >
                   <View style={styles.promoteToggleLeft}>
-                    <Sparkles size={18} color="#F59E0B" />
+                    <Sparkles size={isSmallScreen ? 15 : 18} color="#F59E0B" />
                     <View>
-                      <Text style={styles.promoteToggleTitle}>Promote this skill</Text>
-                      <Text style={styles.promoteToggleDesc}>Get featured & stand out to learners</Text>
+                      <Text style={[styles.promoteToggleTitle, isSmallScreen && styles.promoteToggleTitleMobile]}>Promote this skill</Text>
+                      <Text style={[styles.promoteToggleDesc, isSmallScreen && styles.promoteToggleDescMobile]}>Get featured & stand out to learners</Text>
                     </View>
                   </View>
                   <View style={[styles.toggleSwitch, promoteSkill && styles.toggleSwitchOn]}>
@@ -675,9 +678,9 @@ export default function AddSkillScreen() {
 
                 {promoteSkill && (
                   <View style={styles.promoTaglineWrap}>
-                    <Text style={styles.label}>Promotional Tagline <Text style={styles.required}>*</Text></Text>
+                    <Text style={[styles.label, isSmallScreen && styles.labelMobile]}>Promotional Tagline <Text style={styles.required}>*</Text></Text>
                     <TextInput
-                      style={styles.input}
+                      style={[styles.input, isSmallScreen && styles.inputMobile]}
                       value={promoTagline}
                       onChangeText={setPromoTagline}
                       placeholder="e.g. 20% off first session! / Free trial week!"
@@ -693,16 +696,16 @@ export default function AddSkillScreen() {
 
           {/* LEARN FIELDS */}
           {showLearnFields && (
-            <View style={[styles.fieldGroup, showTeachFields && styles.fieldGroupSpaced]}>
-              <Text style={styles.groupTitle}>
-                <BookOpen size={16} color="#6366F1" /> Skill I Want to Learn
+            <View style={[styles.fieldGroup, showTeachFields && styles.fieldGroupSpaced, isSmallScreen && styles.fieldGroupMobile]}>
+              <Text style={[styles.groupTitle, isSmallScreen && styles.groupTitleMobile]}>
+                <BookOpen size={isSmallScreen ? 14 : 16} color="#6366F1" /> Skill I Want to Learn
                 <Text style={styles.required}> *</Text>
               </Text>
 
-              <View style={styles.section}>
-                <Text style={styles.label}>Skill Title <Text style={styles.required}>*</Text></Text>
+              <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+                <Text style={[styles.label, isSmallScreen && styles.labelMobile]}>Skill Title <Text style={styles.required}>*</Text></Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, isSmallScreen && styles.inputMobile]}
                   value={learnTitle}
                   onChangeText={setLearnTitle}
                   placeholder="e.g. Spanish, Watercolor Painting, Python"
@@ -733,17 +736,17 @@ export default function AddSkillScreen() {
           )}
         </ScrollView>
 
-        <View style={styles.footer}>
-          <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()} disabled={isSaving}>
-            <Text style={styles.cancelButtonText}>Cancel</Text>
+        <View style={[styles.footer, isSmallScreen && styles.footerMobile]}>
+          <TouchableOpacity style={[styles.cancelButton, isSmallScreen && styles.cancelButtonMobile]} onPress={() => router.back()} disabled={isSaving}>
+            <Text style={[styles.cancelButtonText, isSmallScreen && styles.cancelButtonTextMobile]}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+            style={[styles.saveButton, isSmallScreen && styles.saveButtonMobile, isSaving && styles.saveButtonDisabled]}
             onPress={handleSave}
             disabled={isSaving}
           >
-            <Check size={18} color="#FFFFFF" />
-            <Text style={styles.saveButtonText}>{isSaving ? 'Saving...' : 'Save'}</Text>
+            <Check size={isSmallScreen ? 15 : 18} color="#FFFFFF" />
+            <Text style={[styles.saveButtonText, isSmallScreen && styles.saveButtonTextMobile]}>{isSaving ? 'Saving...' : 'Save'}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -1223,5 +1226,130 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700' as const,
     color: '#6366F1',
+  },
+  modeScrollContentMobile: {
+    padding: 12,
+    paddingTop: 16,
+  },
+  modeHeadingMobile: {
+    fontSize: 18,
+    marginBottom: 4,
+  },
+  modeSubheadingMobile: {
+    fontSize: 12,
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  modeCardMobile: {
+    padding: 12,
+    gap: 12,
+    borderRadius: 14,
+  },
+  modeIconWrapMobile: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+  },
+  modeCardTitleMobile: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  modeCardSubtitleMobile: {
+    fontSize: 11,
+  },
+  scrollContentMobile: {
+    padding: 12,
+    paddingBottom: 80,
+  },
+  fieldGroupMobile: {
+    padding: 12,
+    borderRadius: 14,
+  },
+  groupTitleMobile: {
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  previewContainerMobile: {
+    height: 120,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  sectionMobile: {
+    marginBottom: 12,
+  },
+  labelMobile: {
+    fontSize: 12.5,
+    marginBottom: 6,
+  },
+  inputMobile: {
+    padding: 10,
+    fontSize: 13,
+    borderRadius: 8,
+  },
+  textAreaMobile: {
+    minHeight: 75,
+    paddingTop: 10,
+  },
+  levelChipMobile: {
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  levelChipTextMobile: {
+    fontSize: 10.5,
+  },
+  pricingTitleMobile: {
+    fontSize: 13,
+  },
+  pricingHintMobile: {
+    fontSize: 11,
+    marginBottom: 8,
+  },
+  pricingChipMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderRadius: 8,
+    gap: 6,
+  },
+  pricingChipLabelMobile: {
+    fontSize: 12,
+    minWidth: 75,
+  },
+  pricingChipDescMobile: {
+    fontSize: 10.5,
+  },
+  priceInputWrapMobile: {
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  pricePrefixMobile: {
+    fontSize: 14,
+  },
+  priceInputMobile: {
+    fontSize: 14,
+    paddingVertical: 9,
+  },
+  promoteToggleTitleMobile: {
+    fontSize: 13,
+  },
+  promoteToggleDescMobile: {
+    fontSize: 10.5,
+  },
+  footerMobile: {
+    padding: 12,
+    gap: 8,
+  },
+  cancelButtonMobile: {
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  cancelButtonTextMobile: {
+    fontSize: 13,
+  },
+  saveButtonMobile: {
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  saveButtonTextMobile: {
+    fontSize: 13,
   },
 });

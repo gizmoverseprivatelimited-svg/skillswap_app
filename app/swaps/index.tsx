@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Image, ActivityIndicator } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Image, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Sparkles, CalendarDays, MessageCircle, Timer, ArrowRight, GraduationCap, BookOpen, ArrowLeftRight } from 'lucide-react-native';
@@ -47,6 +47,8 @@ const buildSkillsLookup = (skills: SkillWithUser[]) => {
 
 export default function SwapsIndexScreen() {
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
   const { swaps, pendingSwaps, negotiatingSwaps, scheduledSwaps, completedSwaps, loading } = useSkillSwaps();
   const { currentUser, allUsers } = useCurrentUser();
   const [selectedFilter, setSelectedFilter] = useState<FilterKey>('all');
@@ -172,17 +174,17 @@ export default function SwapsIndexScreen() {
     return (
       <TouchableOpacity
         key={swap.id}
-        style={styles.swapCard}
+        style={[styles.swapCard, isSmallScreen && styles.swapCardMobile]}
         onPress={() => handleNavigateToDetail(swap.id)}
         activeOpacity={0.85}
         testID={`swap-card-${swap.id}`}
       >
         <View style={styles.swapHeader}>
           <View style={styles.swapPartnerRow}>
-            <Image source={{ uri: resolveImageUrl(partner?.avatarUrl) }} style={styles.avatar} />
+            <Image source={{ uri: resolveImageUrl(partner?.avatarUrl) }} style={[styles.avatar, isSmallScreen && styles.avatarMobile]} />
             <View style={styles.partnerInfo}>
-              <Text style={styles.partnerName}>{partner?.username ? (partner.username.startsWith('@') ? partner.username : `@${partner.username}`) : (partner?.name ? `@${partner.name.toLowerCase().replace(/\s+/g, '')}` : 'Skill Partner')}</Text>
-              <Text style={styles.partnerSubtitle}>{nextAction}</Text>
+              <Text style={[styles.partnerName, isSmallScreen && styles.partnerNameMobile]}>{partner?.username ? (partner.username.startsWith('@') ? partner.username : `@${partner.username}`) : (partner?.name ? `@${partner.name.toLowerCase().replace(/\s+/g, '')}` : 'Skill Partner')}</Text>
+              <Text style={[styles.partnerSubtitle, isSmallScreen && styles.partnerSubtitleMobile]}>{nextAction}</Text>
             </View>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: statusBadge.backgroundColor }]}
@@ -194,16 +196,16 @@ export default function SwapsIndexScreen() {
 
         {/* Role badge */}
         <View style={[styles.swapRoleBadge, { backgroundColor: roleInfo.bg, borderColor: roleInfo.color }]}>
-          <roleInfo.Icon size={14} color={roleInfo.color} />
+          <roleInfo.Icon size={isSmallScreen ? 12 : 14} color={roleInfo.color} />
           <Text style={[styles.swapRoleText, { color: roleInfo.color }]}>
             {roleInfo.myRole === 'Exchanger' ? 'Mutual Exchange' : `You are the ${roleInfo.myRole}`}
           </Text>
         </View>
 
-        <View style={styles.skillsRow}>
+        <View style={[styles.skillsRow, isSmallScreen && styles.skillsRowMobile]}>
           <View style={styles.skillColumn}>
-            <Text style={styles.skillLabel}>{roleInfo.myLabel}</Text>
-            <Text style={styles.skillTitle} numberOfLines={1}>
+            <Text style={[styles.skillLabel, isSmallScreen && styles.skillLabelMobile]}>{roleInfo.myLabel}</Text>
+            <Text style={[styles.skillTitle, isSmallScreen && styles.skillTitleMobile]}>
               {swapType === 'swap'
                 ? (offeredSkill?.title ?? 'Skill TBD')
                 : swapType === 'learn'
@@ -211,10 +213,10 @@ export default function SwapsIndexScreen() {
                   : (isRequester ? offeredSkill?.title : partnerSkill?.title) ?? 'Skill TBD'}
             </Text>
           </View>
-          <ArrowRight size={18} color={roleInfo.color} />
+          <ArrowRight size={isSmallScreen ? 15 : 18} color={roleInfo.color} />
           <View style={styles.skillColumn}>
-            <Text style={styles.skillLabel}>{roleInfo.partnerLabel}</Text>
-            <Text style={styles.skillTitle} numberOfLines={1}>
+            <Text style={[styles.skillLabel, isSmallScreen && styles.skillLabelMobile]}>{roleInfo.partnerLabel}</Text>
+            <Text style={[styles.skillTitle, isSmallScreen && styles.skillTitleMobile]}>
               {swapType === 'swap'
                 ? (partnerSkill?.title ?? 'Skill TBD')
                 : swapType === 'learn'
@@ -227,21 +229,21 @@ export default function SwapsIndexScreen() {
         <View style={styles.swapFooterRow}>
           <View style={styles.timelineRow}>
             {upcomingSlot ? (
-              <Text style={styles.timelineText}>{upcomingSlot}</Text>
+              <Text style={[styles.timelineText, isSmallScreen && styles.timelineTextMobile]}>{upcomingSlot}</Text>
             ) : (
-              <Text style={styles.timelineText}>Choose a time together</Text>
+              <Text style={[styles.timelineText, isSmallScreen && styles.timelineTextMobile]}>Choose a time together</Text>
             )}
             {swap.locationPreference && (
-              <Text style={styles.locationText}>{swap.locationPreference}</Text>
+              <Text style={[styles.locationText, isSmallScreen && styles.locationTextMobile]}>{swap.locationPreference}</Text>
             )}
           </View>
-          <View style={styles.cardChevron}>
-            <ArrowRight size={20} color={Colors.light.textSecondary} />
+          <View style={[styles.cardChevron, isSmallScreen && styles.cardChevronMobile]}>
+            <ArrowRight size={isSmallScreen ? 16 : 20} color={Colors.light.textSecondary} />
           </View>
         </View>
       </TouchableOpacity>
     );
-  }, [allUsers, currentUser?.id, handleNavigateToDetail, skillsMap]);
+  }, [allUsers, currentUser?.id, handleNavigateToDetail, skillsMap, isSmallScreen]);
 
   if (!currentUser || loading || isSkillsLoading) {
     return (
@@ -254,44 +256,44 @@ export default function SwapsIndexScreen() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={['#312E81', '#1E1B4B']} style={styles.heroPanel}>
-          <View style={styles.heroHeader}>
-            <Text style={styles.heroTitle}>Skill Swap Hub</Text>
-            <Text style={styles.heroSubtitle}>Track negotiations, confirm sessions, and keep progress flowing.</Text>
+        <LinearGradient colors={['#312E81', '#1E1B4B']} style={[styles.heroPanel, isSmallScreen && styles.heroPanelMobile]}>
+          <View style={[styles.heroHeader, isSmallScreen && styles.heroHeaderMobile]}>
+            <Text style={[styles.heroTitle, isSmallScreen && styles.heroTitleMobile]}>Skill Swap Hub</Text>
+            <Text style={[styles.heroSubtitle, isSmallScreen && styles.heroSubtitleMobile]}>Track negotiations, confirm sessions, and keep progress flowing.</Text>
           </View>
-          <View style={styles.metricsRow}>
+          <View style={[styles.metricsRow, isSmallScreen && styles.metricsRowMobile]}>
             {metrics.map((metric) => (
               <LinearGradient
                 key={metric.label}
                 colors={metric.gradient}
-                style={styles.metricCard}
+                style={[styles.metricCard, isSmallScreen && styles.metricCardMobile]}
               >
-                <View style={styles.metricIcon}>{metric.icon}</View>
-                <Text style={styles.metricValue}>{metric.value}</Text>
-                <Text style={styles.metricLabel}>{metric.label}</Text>
+                <View style={[styles.metricIcon, isSmallScreen && styles.metricIconMobile]}>{metric.icon}</View>
+                <Text style={[styles.metricValue, isSmallScreen && styles.metricValueMobile]}>{metric.value}</Text>
+                <Text style={[styles.metricLabel, isSmallScreen && styles.metricLabelMobile]}>{metric.label}</Text>
               </LinearGradient>
             ))}
           </View>
         </LinearGradient>
 
-        <View style={styles.filterRow}>
+        <View style={[styles.filterRow, isSmallScreen && styles.filterRowMobile]}>
           {filters.map((filter) => {
             const isActive = selectedFilter === filter.key;
             return (
               <TouchableOpacity
                 key={filter.key}
                 onPress={() => setSelectedFilter(filter.key)}
-                style={[styles.filterChip, isActive && styles.filterChipActive]}
+                style={[styles.filterChip, isSmallScreen && styles.filterChipMobile, isActive && styles.filterChipActive]}
                 activeOpacity={0.85}
                 testID={`swap-filter-${filter.key}`}
               >
-                <Text style={[styles.filterText, isActive && styles.filterTextActive]}>{filter.label}</Text>
+                <Text style={[styles.filterText, isSmallScreen && styles.filterTextMobile, isActive && styles.filterTextActive]}>{filter.label}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <View style={styles.listSection}>
+        <View style={[styles.listSection, isSmallScreen && styles.listSectionMobile]}>
           {filteredSwaps.length === 0 ? (
             <View style={styles.emptyState} testID="swap-empty-state">
               <Sparkles size={28} color={Colors.light.primary} />
@@ -551,5 +553,99 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.light.background,
+  },
+  heroPanelMobile: {
+    paddingHorizontal: 12,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  heroHeaderMobile: {
+    gap: 4,
+    marginBottom: 12,
+  },
+  heroTitleMobile: {
+    fontSize: 20,
+  },
+  heroSubtitleMobile: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  metricsRowMobile: {
+    gap: 8,
+  },
+  metricCardMobile: {
+    padding: 8,
+    borderRadius: 12,
+    gap: 4,
+  },
+  metricIconMobile: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+  },
+  metricValueMobile: {
+    fontSize: 17,
+  },
+  metricLabelMobile: {
+    fontSize: 10,
+  },
+  filterRowMobile: {
+    marginTop: 12,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  filterChipMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  filterTextMobile: {
+    fontSize: 11,
+  },
+  listSectionMobile: {
+    paddingHorizontal: 12,
+    paddingTop: 14,
+    paddingBottom: 40,
+    gap: 10,
+  },
+  swapCardMobile: {
+    padding: 12,
+    borderRadius: 14,
+    gap: 10,
+  },
+  avatarMobile: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  partnerNameMobile: {
+    fontSize: 13,
+  },
+  partnerSubtitleMobile: {
+    fontSize: 11,
+  },
+  skillsRowMobile: {
+    padding: 10,
+    borderRadius: 12,
+    gap: 8,
+  },
+  skillLabelMobile: {
+    fontSize: 10.5,
+  },
+  skillTitleMobile: {
+    fontSize: 12.5,
+  },
+  timelineTextMobile: {
+    fontSize: 11,
+  },
+  locationTextMobile: {
+    fontSize: 10.5,
+  },
+  cardChevronMobile: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
 });

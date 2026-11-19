@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,9 +7,10 @@ import {
   Image,
   TouchableOpacity,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { ArrowLeft, ShieldCheck, UserX } from 'lucide-react-native';
+import { ArrowLeft, ShieldCheck } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useSafety } from '@/providers/safety';
 import { useAuth } from '@/providers/auth';
@@ -20,6 +21,9 @@ const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf37
 
 export default function BlockedUsersScreen() {
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const auth = useAuth();
   const currentUserId = auth?.user?.id || (auth?.user as any)?._id || '';
   const { blockedUsers, unblockUser, fetchBlockedUsers } = useSafety();
@@ -77,7 +81,7 @@ export default function BlockedUsersScreen() {
           style={styles.avatar}
         />
         <View style={styles.userInfo}>
-          <Text style={styles.userName} numberOfLines={1}>
+          <Text style={styles.userName}>
             {item.blockedUserName || 'Blocked User'}
           </Text>
           {formattedDate ? (
@@ -152,61 +156,61 @@ export default function BlockedUsersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.background,
   },
   listContent: {
-    padding: 20,
+    padding: isSmallScreen ? 12 : 20,
   },
   headerSubtitle: {
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     color: Colors.light.textTertiary,
-    marginBottom: 16,
-    lineHeight: 18,
+    marginBottom: isSmallScreen ? 10 : 16,
+    lineHeight: isSmallScreen ? 15 : 18,
   },
   userCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.light.card,
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 12,
+    padding: isSmallScreen ? 10 : 14,
+    borderRadius: isSmallScreen ? 10 : 14,
+    marginBottom: isSmallScreen ? 8 : 12,
     borderWidth: 1,
     borderColor: Colors.light.border,
   },
   avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: isSmallScreen ? 36 : 46,
+    height: isSmallScreen ? 36 : 46,
+    borderRadius: isSmallScreen ? 18 : 23,
     backgroundColor: Colors.light.backgroundTertiary,
   },
   userInfo: {
     flex: 1,
-    marginLeft: 14,
-    marginRight: 10,
+    marginLeft: isSmallScreen ? 10 : 14,
+    marginRight: isSmallScreen ? 6 : 10,
   },
   userName: {
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13 : 15,
     fontWeight: '600' as const,
     color: Colors.light.text,
   },
   blockedDate: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 10.5 : 12,
     color: Colors.light.textTertiary,
     marginTop: 2,
   },
   unblockBtn: {
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    paddingVertical: isSmallScreen ? 5 : 7,
+    paddingHorizontal: isSmallScreen ? 10 : 14,
+    borderRadius: isSmallScreen ? 8 : 10,
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(99, 102, 241, 0.25)',
   },
   unblockBtnText: {
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     fontWeight: '600' as const,
     color: Colors.light.primary,
   },
@@ -214,27 +218,27 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: isSmallScreen ? 20 : 32,
   },
   emptyIconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: isSmallScreen ? 60 : 80,
+    height: isSmallScreen ? 60 : 80,
+    borderRadius: isSmallScreen ? 30 : 40,
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: isSmallScreen ? 12 : 18,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: isSmallScreen ? 15 : 18,
     fontWeight: '700' as const,
     color: Colors.light.text,
-    marginBottom: 8,
+    marginBottom: isSmallScreen ? 6 : 8,
   },
   emptyDesc: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12 : 14,
     color: Colors.light.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: isSmallScreen ? 17 : 20,
   },
 });

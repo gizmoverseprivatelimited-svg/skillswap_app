@@ -13,6 +13,7 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
 
   const isSmallScreen = width < 770;
+  const isMobile = width < 600;
   const isWeb = Platform.OS === 'web';
   const bottomInset = isWeb ? 0 : Math.max(insets.bottom, 8);
 
@@ -33,12 +34,13 @@ export default function TabLayout() {
         <style dangerouslySetInnerHTML={{
           __html: `
             [role="tab"], [role="tab"] a, a[role="tab"], div[role="tab"] {
-              padding-top: 0px !important;
-              padding-bottom: 0px !important;
+              padding-top: 2px !important;
+              padding-bottom: 3px !important;
               margin-top: 0px !important;
               margin-bottom: 0px !important;
               padding-left: 0px !important;
               padding-right: 0px !important;
+              justify-content: center !important;
             }
           `
         }} />
@@ -65,9 +67,9 @@ export default function TabLayout() {
             backgroundColor: Colors.light.background,
             borderTopColor: Colors.light.borderLight,
             borderTopWidth: 1,
-            paddingTop: 6,
-            paddingBottom: isWeb ? 4 : bottomInset,
-            height: isWeb ? 60 : 60 + bottomInset,
+            paddingTop: isMobile ? 2 : 4,
+            paddingBottom: isWeb ? (isMobile ? 4 : 4) : bottomInset,
+            height: isWeb ? (isMobile ? 56 : 60) : (isMobile ? 56 : 60) + bottomInset,
             elevation: 8,
             shadowColor: Colors.light.shadow,
             shadowOffset: { width: 0, height: -2 },
@@ -75,15 +77,15 @@ export default function TabLayout() {
             shadowRadius: 12,
           },
           tabBarItemStyle: {
-            paddingVertical: 2,
+            paddingVertical: 0,
             paddingHorizontal: 0,
             justifyContent: 'center',
             alignItems: 'center',
           },
           tabBarLabelStyle: {
-            fontSize: 11,
+            fontSize: isMobile ? 10 : 11,
             fontWeight: '600' as const,
-            marginTop: 2,
+            marginTop: 1,
             marginBottom: 0,
             paddingTop: 0,
             paddingBottom: 0,
@@ -97,7 +99,7 @@ export default function TabLayout() {
             headerShown: false,
             tabBarIcon: ({ color, focused }) => (
               <Home
-                size={24}
+                size={isMobile ? 19 : 24}
                 color={color}
                 fill={focused ? color : 'none'}
                 strokeWidth={focused ? 2 : 2}
@@ -112,7 +114,7 @@ export default function TabLayout() {
             headerShown: false,
             tabBarIcon: ({ color, focused }) => (
               <Compass
-                size={24}
+                size={isMobile ? 19 : 24}
                 color={color}
                 fill={focused ? color : 'none'}
                 strokeWidth={focused ? 2 : 2}
@@ -127,7 +129,7 @@ export default function TabLayout() {
             headerShown: false,
             tabBarIcon: ({ color, focused }) => (
               <Users
-                size={24}
+                size={isMobile ? 19 : 24}
                 color={color}
                 fill={focused ? color : 'none'}
                 strokeWidth={focused ? 2 : 2}
@@ -142,7 +144,7 @@ export default function TabLayout() {
             headerShown: false,
             tabBarIcon: ({ color, focused }) => (
               <BookOpen
-                size={24}
+                size={isMobile ? 19 : 24}
                 color={color}
                 fill={focused ? color : 'none'}
                 strokeWidth={focused ? 2 : 2}
@@ -164,7 +166,7 @@ export default function TabLayout() {
             headerShown: false,
             tabBarIcon: ({ color, focused }) => (
               <User
-                size={24}
+                size={isMobile ? 19 : 24}
                 color={color}
                 fill={focused ? color : 'none'}
                 strokeWidth={focused ? 2 : 2}

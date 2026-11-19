@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import {
@@ -16,7 +17,6 @@ import {
   MessageCircle,
   CalendarDays,
   MapPin,
-  Filter,
   Handshake,
 } from 'lucide-react-native';
 import { useSkillSwaps } from '@/providers/skill-swaps';
@@ -27,6 +27,9 @@ import Colors from '@/constants/colors';
 type SwapFilter = 'all' | SkillSwapStatus;
 
 export default function SwapOversight() {
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const { allSwaps, loading } = useSkillSwaps();
   const { allUsers } = useCurrentUser();
   const [filter, setFilter] = useState<SwapFilter>('all');
@@ -134,15 +137,15 @@ export default function SwapOversight() {
 
               <View style={styles.participantsRow}>
                 <View style={styles.participant}>
-                  <Text style={styles.participantName} numberOfLines={1}>{getUserName(swap.requesterId || "")}</Text>
-                  <Text style={styles.participantSkill} numberOfLines={1}>{getSkillTitle(swap.requesterId || "", swap.requesterSkillId)}</Text>
+                  <Text style={styles.participantName}>{getUserName(swap.requesterId || "")}</Text>
+                  <Text style={styles.participantSkill}>{getSkillTitle(swap.requesterId || "", swap.requesterSkillId)}</Text>
                 </View>
                 <View style={styles.swapIcon}>
                   <ArrowLeftRight size={16} color="#8B5CF6" />
                 </View>
                 <View style={[styles.participant, styles.participantRight]}>
-                  <Text style={[styles.participantName, { textAlign: 'right' as const }]} numberOfLines={1}>{getUserName(swap.recipientId)}</Text>
-                  <Text style={[styles.participantSkill, { textAlign: 'right' as const }]} numberOfLines={1}>{getSkillTitle(swap.recipientId, swap.recipientSkillId)}</Text>
+                  <Text style={[styles.participantName, { textAlign: 'right' as const }]}>{getUserName(swap.recipientId)}</Text>
+                  <Text style={[styles.participantSkill, { textAlign: 'right' as const }]}>{getSkillTitle(swap.recipientId, swap.recipientSkillId)}</Text>
                 </View>
               </View>
 
@@ -150,7 +153,7 @@ export default function SwapOversight() {
                 {swap.locationPreference && (
                   <View style={styles.detailItem}>
                     <MapPin size={12} color="#94A3B8" />
-                    <Text style={styles.detailText} numberOfLines={1}>{swap.locationPreference}</Text>
+                    <Text style={styles.detailText}>{swap.locationPreference}</Text>
                   </View>
                 )}
                 <View style={styles.detailItem}>
@@ -178,39 +181,39 @@ export default function SwapOversight() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F1F5F9',
   },
   summaryRow: {
     flexDirection: 'row',
-    gap: 10,
-    padding: 16,
+    gap: isSmallScreen ? 6 : 10,
+    padding: isSmallScreen ? 12 : 16,
     paddingBottom: 8,
     backgroundColor: '#FFFFFF',
   },
   summaryCard: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 14,
+    paddingVertical: isSmallScreen ? 10 : 14,
+    borderRadius: isSmallScreen ? 10 : 14,
   },
   summaryValue: {
-    fontSize: 22,
+    fontSize: isSmallScreen ? 16 : 22,
     fontWeight: '800' as const,
   },
   summaryLabel: {
-    fontSize: 11,
+    fontSize: isSmallScreen ? 10 : 11,
     color: '#64748B',
     fontWeight: '600' as const,
     marginTop: 2,
   },
   filterWrap: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingHorizontal: isSmallScreen ? 12 : 16,
+    paddingTop: isSmallScreen ? 8 : 12,
+    paddingBottom: isSmallScreen ? 6 : 8,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
@@ -218,11 +221,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   filterContent: {
-    gap: 8,
+    gap: isSmallScreen ? 6 : 8,
   },
   filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: isSmallScreen ? 10 : 14,
+    paddingVertical: isSmallScreen ? 4 : 6,
     borderRadius: 20,
     backgroundColor: '#F1F5F9',
   },
@@ -230,7 +233,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F172A',
   },
   filterChipText: {
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     fontWeight: '600' as const,
     color: '#64748B',
   },
@@ -241,14 +244,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    padding: 16,
-    gap: 12,
-    paddingBottom: 40,
+    padding: isSmallScreen ? 12 : 16,
+    gap: isSmallScreen ? 8 : 12,
+    paddingBottom: isSmallScreen ? 24 : 40,
   },
   swapCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: isSmallScreen ? 12 : 16,
+    padding: isSmallScreen ? 12 : 16,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
@@ -290,29 +293,29 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   participantName: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 13 : 14,
     fontWeight: '700' as const,
     color: '#0F172A',
   },
   participantSkill: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     color: '#64748B',
     marginTop: 2,
   },
   swapIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: isSmallScreen ? 30 : 36,
+    height: isSmallScreen ? 30 : 36,
+    borderRadius: isSmallScreen ? 15 : 18,
     backgroundColor: '#F5F3FF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 10,
+    marginHorizontal: isSmallScreen ? 6 : 10,
   },
   detailsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    paddingTop: 12,
+    gap: isSmallScreen ? 8 : 12,
+    paddingTop: isSmallScreen ? 8 : 12,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
@@ -322,7 +325,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   detailText: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     color: '#94A3B8',
     fontWeight: '500' as const,
   },

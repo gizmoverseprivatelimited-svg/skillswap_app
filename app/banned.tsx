@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,9 +21,14 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '@/providers/auth';
 import { useCurrentUser } from '@/providers/current-user';
+import { useSafeTopInset } from '@/lib/safeArea';
 
 export default function BannedScreen() {
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const safeTop = useSafeTopInset(isSmallScreen ? 20 : 40);
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const { user: authUser, signOut, refreshAuth } = useAuth();
   const { currentUser, loadUser } = useCurrentUser();
 
@@ -118,7 +124,7 @@ export default function BannedScreen() {
           colors={isSuspended ? ['#D97706', '#F59E0B', '#B45309'] : ['#991B1B', '#DC2626', '#7F1D1D']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.headerHero}
+          style={[styles.headerHero, { paddingTop: safeTop }]}
         >
           <View style={styles.iconCircle}>
             {isSuspended ? (
@@ -278,7 +284,7 @@ export default function BannedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0F172A',
@@ -291,20 +297,20 @@ const styles = StyleSheet.create({
   },
   headerHero: {
     alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? 64 : 48,
-    paddingBottom: 48,
-    paddingHorizontal: 24,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    paddingTop: Platform.OS === 'ios' ? (isSmallScreen ? 44 : 64) : (isSmallScreen ? 32 : 48),
+    paddingBottom: isSmallScreen ? 28 : 48,
+    paddingHorizontal: isSmallScreen ? 16 : 24,
+    borderBottomLeftRadius: isSmallScreen ? 20 : 32,
+    borderBottomRightRadius: isSmallScreen ? 20 : 32,
   },
   iconCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: isSmallScreen ? 60 : 88,
+    height: isSmallScreen ? 60 : 88,
+    borderRadius: isSmallScreen ? 30 : 44,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 18,
+    marginBottom: isSmallScreen ? 12 : 18,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.18,
@@ -312,26 +318,26 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   heroTitle: {
-    fontSize: 24,
+    fontSize: isSmallScreen ? 18 : 24,
     fontWeight: '800' as const,
     color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: isSmallScreen ? 4 : 8,
     letterSpacing: -0.3,
   },
   heroSubtitle: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12 : 14,
     color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: isSmallScreen ? 16 : 20,
     maxWidth: 340,
   },
   mainCard: {
     backgroundColor: '#FFFFFF',
-    marginTop: -24,
-    marginHorizontal: 16,
-    borderRadius: 24,
-    padding: 20,
+    marginTop: isSmallScreen ? -16 : -24,
+    marginHorizontal: isSmallScreen ? 12 : 16,
+    borderRadius: isSmallScreen ? 16 : 24,
+    padding: isSmallScreen ? 14 : 20,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -340,9 +346,9 @@ const styles = StyleSheet.create({
   },
   timerCard: {
     backgroundColor: '#FEF3C7',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
+    borderRadius: isSmallScreen ? 12 : 16,
+    padding: isSmallScreen ? 12 : 16,
+    marginBottom: isSmallScreen ? 14 : 20,
     borderWidth: 1,
     borderColor: '#FDE68A',
   },
@@ -350,10 +356,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: isSmallScreen ? 8 : 12,
   },
   timerHeaderTitle: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12.5 : 14,
     fontWeight: '700' as const,
     color: '#92400E',
   },
@@ -363,29 +369,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    paddingVertical: 12,
+    paddingVertical: isSmallScreen ? 8 : 12,
     paddingHorizontal: 8,
-    marginBottom: 12,
+    marginBottom: isSmallScreen ? 8 : 12,
     gap: 4,
   },
   timeBox: {
     alignItems: 'center',
-    minWidth: 52,
+    minWidth: isSmallScreen ? 40 : 52,
   },
   timeValue: {
-    fontSize: 22,
+    fontSize: isSmallScreen ? 17 : 22,
     fontWeight: '800' as const,
     color: '#B45309',
     fontVariant: ['tabular-nums'],
   },
   timeLabel: {
-    fontSize: 10,
+    fontSize: isSmallScreen ? 9 : 10,
     fontWeight: '700' as const,
     color: '#92400E',
     marginTop: 2,
   },
   timeColon: {
-    fontSize: 20,
+    fontSize: isSmallScreen ? 16 : 20,
     fontWeight: '800' as const,
     color: '#D97706',
     marginBottom: 12,
@@ -396,12 +402,12 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   metaRowLabel: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 10.5 : 12,
     color: '#78350F',
     fontWeight: '500' as const,
   },
   metaRowValue: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 10.5 : 12,
     color: '#78350F',
     fontWeight: '700' as const,
   },
@@ -411,13 +417,13 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   expiredText: {
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     fontWeight: '600' as const,
     color: '#065F46',
     textAlign: 'center',
   },
   sectionBlock: {
-    marginBottom: 20,
+    marginBottom: isSmallScreen ? 14 : 20,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -426,13 +432,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13.5 : 15,
     fontWeight: '700' as const,
     color: '#0F172A',
   },
   reasonBox: {
     borderRadius: 12,
-    padding: 14,
+    padding: isSmallScreen ? 10 : 14,
     borderWidth: 1,
   },
   reasonBoxWarn: {
@@ -444,8 +450,8 @@ const styles = StyleSheet.create({
     borderColor: '#FECACA',
   },
   reasonText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: isSmallScreen ? 12 : 14,
+    lineHeight: isSmallScreen ? 17 : 20,
     fontWeight: '500' as const,
   },
   reasonTextWarn: {
@@ -463,31 +469,31 @@ const styles = StyleSheet.create({
   infoBlock: {
     backgroundColor: '#F8FAFC',
     borderRadius: 14,
-    padding: 14,
-    marginBottom: 24,
+    padding: isSmallScreen ? 10 : 14,
+    marginBottom: isSmallScreen ? 16 : 24,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   infoTitle: {
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     fontWeight: '700' as const,
     color: '#334155',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   infoDesc: {
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: isSmallScreen ? 11 : 12,
+    lineHeight: isSmallScreen ? 15 : 18,
     color: '#64748B',
   },
   actionsContainer: {
-    gap: 10,
+    gap: isSmallScreen ? 8 : 10,
     marginBottom: 16,
   },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: isSmallScreen ? 11 : 14,
     borderRadius: 14,
     gap: 8,
     shadowColor: '#000000',
@@ -503,7 +509,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#DC2626',
   },
   primaryBtnText: {
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13.5 : 15,
     fontWeight: '700' as const,
     color: '#FFFFFF',
   },
@@ -511,7 +517,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: isSmallScreen ? 11 : 14,
     borderRadius: 14,
     gap: 8,
     backgroundColor: '#EFF6FF',
@@ -519,7 +525,7 @@ const styles = StyleSheet.create({
     borderColor: '#BFDBFE',
   },
   secondaryBtnText: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12.5 : 14,
     fontWeight: '700' as const,
     color: '#2563EB',
   },
@@ -527,13 +533,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: isSmallScreen ? 10 : 12,
     borderRadius: 12,
     gap: 6,
     backgroundColor: '#F1F5F9',
   },
   refreshBtnText: {
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     fontWeight: '600' as const,
     color: '#475569',
   },
@@ -541,13 +547,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: isSmallScreen ? 10 : 12,
     borderRadius: 12,
     gap: 6,
     backgroundColor: '#FEF2F2',
   },
   logoutBtnText: {
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     fontWeight: '700' as const,
     color: '#EF4444',
   },
@@ -559,7 +565,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   footerLinkText: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     color: '#94A3B8',
     fontWeight: '600' as const,
   },

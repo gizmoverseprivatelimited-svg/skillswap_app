@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Platform, Modal, Pressable, Image, ActivityIndicator } from 'react-native';
+import { Alert, StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Platform, Modal, Pressable, Image, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Calendar as CalendarIcon, Clock as ClockIcon, Users, Coins, Image as ImageIcon, Check, Sparkles, X, ChevronLeft, ChevronRight, CalendarDays, Clock3, Upload, Camera, Bot } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -45,7 +45,7 @@ function SkillChipItem({ sk, isSelected, onSelect }: { sk: Skill; isSelected: bo
         style={s.skillChipThumb}
         onError={() => setImgUrl(DEFAULT_COVER)}
       />
-      <Text style={[s.chipText, isSelected && s.chipTextActive]} numberOfLines={1}>{sk.title}</Text>
+      <Text style={[s.chipText, isSelected && s.chipTextActive]}>{sk.title}</Text>
     </TouchableOpacity>
   );
 }
@@ -102,6 +102,8 @@ const formatTimeLabel12 = (timeString: string): string => {
 export default function CreateClassScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
   const { createClass } = useClasses();
   const { currentUser } = useCurrentUser();
   const { showAlert } = useAlert();
@@ -545,23 +547,23 @@ export default function CreateClassScreen() {
       <LinearGradient
         colors={[Colors.light.primary, Colors.light.primaryLight]}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={[s.header, { paddingTop: insets.top + 20 }]}
+        style={[s.header, isSmallScreen && s.headerMobile, { paddingTop: insets.top + (isSmallScreen ? 12 : 20) }]}
       >
-        <Text style={s.headerTitle}>Create a Group Class</Text>
-        <Text style={s.headerSub}>Teach multiple students at once</Text>
+        <Text style={[s.headerTitle, isSmallScreen && s.headerTitleMobile]}>Create a Group Class</Text>
+        <Text style={[s.headerSub, isSmallScreen && s.headerSubMobile]}>Teach multiple students at once</Text>
       </LinearGradient>
 
-      <View style={s.form}>
+      <View style={[s.form, isSmallScreen && s.formMobile]}>
         {offeredSkills.length > 0 && (
-          <View style={{ marginBottom: 20 }}>
-            <Text style={s.label}>Base on Your Skill (Optional)</Text>
+          <View style={{ marginBottom: isSmallScreen ? 14 : 20 }}>
+            <Text style={[s.label, isSmallScreen && s.labelMobile]}>Base on Your Skill (Optional)</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
               <TouchableOpacity
-                style={[s.chip, !pickedSkillId && s.chipActive]}
+                style={[s.chip, isSmallScreen && s.chipMobile, !pickedSkillId && s.chipActive]}
                 onPress={() => selectSkill(null)}
                 activeOpacity={0.7}
               >
-                <Text style={[s.chipText, !pickedSkillId && s.chipTextActive]}>Blank</Text>
+                <Text style={[s.chipText, isSmallScreen && s.chipTextMobile, !pickedSkillId && s.chipTextActive]}>Blank</Text>
               </TouchableOpacity>
               {offeredSkills.map((sk, idx) => {
                 const skId = sk.id || (sk as any)._id || `sk-${idx}`;
@@ -579,11 +581,11 @@ export default function CreateClassScreen() {
           </View>
         )}
 
-        <Text style={s.label}>Class Title</Text>
-        <TextInput style={s.input} value={title} onChangeText={setTitle} placeholder="e.g. Intro to Watercolor Painting" placeholderTextColor={Colors.light.textTertiary} />
+        <Text style={[s.label, isSmallScreen && s.labelMobile]}>Class Title</Text>
+        <TextInput style={[s.input, isSmallScreen && s.inputMobile]} value={title} onChangeText={setTitle} placeholder="e.g. Intro to Watercolor Painting" placeholderTextColor={Colors.light.textTertiary} />
 
         <View style={s.labelWithAiRow}>
-          <Text style={s.label}>Description</Text>
+          <Text style={[s.label, isSmallScreen && s.labelMobile]}>Description</Text>
           <TouchableOpacity
             style={s.aiGenBtn}
             onPress={handleGenerateDescription}
@@ -600,7 +602,7 @@ export default function CreateClassScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-        <TextInput style={[s.input, s.textArea]} value={description} onChangeText={setDescription} placeholder="What will students learn? What should they bring?" placeholderTextColor={Colors.light.textTertiary} multiline numberOfLines={4} textAlignVertical="top" />
+        <TextInput style={[s.input, s.textArea, isSmallScreen && s.inputMobile, isSmallScreen && s.textAreaMobile]} value={description} onChangeText={setDescription} placeholder="What will students learn? What should they bring?" placeholderTextColor={Colors.light.textTertiary} multiline numberOfLines={4} textAlignVertical="top" />
 
         <CategorySubcategoryPicker
           selectedCategory={category}
@@ -620,19 +622,19 @@ export default function CreateClassScreen() {
           modalTitle="Select Class Category"
         />
 
-        <Text style={s.label}>Level</Text>
+        <Text style={[s.label, isSmallScreen && s.labelMobile]}>Level</Text>
         <View style={s.chipRow}>
           {LEVELS.map(lvl => (
-            <TouchableOpacity key={lvl} style={[s.chip, level === lvl && s.chipActive]} onPress={() => setLevel(lvl)} activeOpacity={0.7}>
-              <Text style={[s.chipText, level === lvl && s.chipTextActive]}>{lvl}</Text>
+            <TouchableOpacity key={lvl} style={[s.chip, isSmallScreen && s.chipMobile, level === lvl && s.chipActive]} onPress={() => setLevel(lvl)} activeOpacity={0.7}>
+              <Text style={[s.chipText, isSmallScreen && s.chipTextMobile, level === lvl && s.chipTextActive]}>{lvl}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <Text style={s.label}>Cover Image</Text>
-        <View style={s.coverUploadCard}>
+        <Text style={[s.label, isSmallScreen && s.labelMobile]}>Cover Image</Text>
+        <View style={[s.coverUploadCard, isSmallScreen && s.coverUploadCardMobile]}>
           {coverUrl ? (
-            <View style={s.coverPreviewWrap}>
+            <View style={[s.coverPreviewWrap, isSmallScreen && s.coverPreviewWrapMobile]}>
               <Image source={{ uri: resolveImageUrl(coverUrl, DEFAULT_COVER) }} style={s.coverPreviewImage} resizeMode="cover" />
               {uploadingCover && (
                 <View style={s.coverUploadingOverlay}>
@@ -644,50 +646,50 @@ export default function CreateClassScreen() {
           ) : null}
 
           <View style={s.uploadBtnRow}>
-            <TouchableOpacity style={s.uploadBtn} onPress={handlePickImage} disabled={uploadingCover} activeOpacity={0.8}>
-              <Upload size={18} color="#FFFFFF" />
-              <Text style={s.uploadBtnText}>{uploadingCover ? 'Uploading...' : 'Upload Image'}</Text>
+            <TouchableOpacity style={[s.uploadBtn, isSmallScreen && s.uploadBtnMobile]} onPress={handlePickImage} disabled={uploadingCover} activeOpacity={0.8}>
+              <Upload size={isSmallScreen ? 15 : 18} color="#FFFFFF" />
+              <Text style={[s.uploadBtnText, isSmallScreen && s.uploadBtnTextMobile]}>{uploadingCover ? 'Uploading...' : 'Upload Image'}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={s.cameraBtn} onPress={handleTakePhoto} disabled={uploadingCover} activeOpacity={0.8}>
-              <Camera size={18} color={Colors.light.primary} />
-              <Text style={s.cameraBtnText}>Camera</Text>
+            <TouchableOpacity style={[s.cameraBtn, isSmallScreen && s.cameraBtnMobile]} onPress={handleTakePhoto} disabled={uploadingCover} activeOpacity={0.8}>
+              <Camera size={isSmallScreen ? 15 : 18} color={Colors.light.primary} />
+              <Text style={[s.cameraBtnText, isSmallScreen && s.cameraBtnTextMobile]}>Camera</Text>
             </TouchableOpacity>
           </View>
 
           <View style={s.urlFallbackWrap}>
             <Text style={s.subLabel}>Or paste image URL:</Text>
             <View style={s.inputRow}>
-              <ImageIcon size={18} color={Colors.light.textTertiary} />
-              <TextInput style={[s.input, { flex: 1, borderWidth: 0, paddingVertical: 10 }]} value={coverUrl} onChangeText={setCoverUrl} placeholder="https://..." placeholderTextColor={Colors.light.textTertiary} autoCapitalize="none" />
+              <ImageIcon size={isSmallScreen ? 15 : 18} color={Colors.light.textTertiary} />
+              <TextInput style={[s.input, isSmallScreen && s.inputMobile, { flex: 1, borderWidth: 0, paddingVertical: isSmallScreen ? 8 : 10 }]} value={coverUrl} onChangeText={setCoverUrl} placeholder="https://..." placeholderTextColor={Colors.light.textTertiary} autoCapitalize="none" />
             </View>
           </View>
         </View>
 
-        <Text style={s.label}>Session Type</Text>
+        <Text style={[s.label, isSmallScreen && s.labelMobile]}>Session Type</Text>
         <View style={s.chipRow}>
           {SESSION_TYPES.map(st => (
             <TouchableOpacity
               key={st.key}
-              style={[s.chip, sessionType === st.key && s.chipActive]}
+              style={[s.chip, isSmallScreen && s.chipMobile, sessionType === st.key && s.chipActive]}
               onPress={() => setSessionType(st.key)}
               activeOpacity={0.7}
             >
-              <Text style={[s.chipText, sessionType === st.key && s.chipTextActive]}>{st.label}</Text>
+              <Text style={[s.chipText, isSmallScreen && s.chipTextMobile, sessionType === st.key && s.chipTextActive]}>{st.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <Text style={s.label}>Billing Model</Text>
+        <Text style={[s.label, isSmallScreen && s.labelMobile]}>Billing Model</Text>
         <View style={s.chipRow}>
           {BILLING_CYCLES.map(bc => (
             <TouchableOpacity
               key={bc.key}
-              style={[s.chip, billingCycle === bc.key && s.chipActive]}
+              style={[s.chip, isSmallScreen && s.chipMobile, billingCycle === bc.key && s.chipActive]}
               onPress={() => setBillingCycle(bc.key)}
               activeOpacity={0.7}
             >
-              <Text style={[s.chipText, billingCycle === bc.key && s.chipTextActive]}>{bc.label}</Text>
+              <Text style={[s.chipText, isSmallScreen && s.chipTextMobile, billingCycle === bc.key && s.chipTextActive]}>{bc.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -696,32 +698,32 @@ export default function CreateClassScreen() {
         {isRecurring ? (
           <View style={s.timeRow}>
             <View style={{ flex: 1 }}>
-              <Text style={s.label}>Start Date</Text>
-              <TouchableOpacity style={s.selectorBtnCompact} onPress={() => handleOpenDatePicker('start')} activeOpacity={0.8}>
-                <CalendarDays size={18} color={Colors.light.primary} />
+              <Text style={[s.label, isSmallScreen && s.labelMobile]}>Start Date</Text>
+              <TouchableOpacity style={[s.selectorBtnCompact, isSmallScreen && s.selectorBtnCompactMobile]} onPress={() => handleOpenDatePicker('start')} activeOpacity={0.8}>
+                <CalendarDays size={isSmallScreen ? 15 : 18} color={Colors.light.primary} />
                 <View style={{ flex: 1 }}>
-                  <Text style={s.selectorBtnTextCompact}>{startDate ? formatDateLabel(startDate) : 'Select Start Date'}</Text>
+                  <Text style={[s.selectorBtnTextCompact, isSmallScreen && s.selectorBtnTextCompactMobile]}>{startDate ? formatDateLabel(startDate) : 'Select Start Date'}</Text>
                 </View>
               </TouchableOpacity>
             </View>
-            <View style={{ width: 12 }} />
+            <View style={{ width: isSmallScreen ? 8 : 12 }} />
             <View style={{ flex: 1 }}>
-              <Text style={s.label}>End Date</Text>
-              <TouchableOpacity style={s.selectorBtnCompact} onPress={() => handleOpenDatePicker('end')} activeOpacity={0.8}>
-                <CalendarDays size={18} color={Colors.light.primary} />
+              <Text style={[s.label, isSmallScreen && s.labelMobile]}>End Date</Text>
+              <TouchableOpacity style={[s.selectorBtnCompact, isSmallScreen && s.selectorBtnCompactMobile]} onPress={() => handleOpenDatePicker('end')} activeOpacity={0.8}>
+                <CalendarDays size={isSmallScreen ? 15 : 18} color={Colors.light.primary} />
                 <View style={{ flex: 1 }}>
-                  <Text style={s.selectorBtnTextCompact}>{endDate ? formatDateLabel(endDate) : 'Select End Date'}</Text>
+                  <Text style={[s.selectorBtnTextCompact, isSmallScreen && s.selectorBtnTextCompactMobile]}>{endDate ? formatDateLabel(endDate) : 'Select End Date'}</Text>
                 </View>
               </TouchableOpacity>
             </View>
           </View>
         ) : (
           <>
-            <Text style={s.label}>Class Date</Text>
-            <TouchableOpacity style={s.selectorBtn} onPress={() => handleOpenDatePicker('single')} activeOpacity={0.8}>
-              <CalendarDays size={20} color={Colors.light.primary} />
+            <Text style={[s.label, isSmallScreen && s.labelMobile]}>Class Date</Text>
+            <TouchableOpacity style={[s.selectorBtn, isSmallScreen && s.selectorBtnMobile]} onPress={() => handleOpenDatePicker('single')} activeOpacity={0.8}>
+              <CalendarDays size={isSmallScreen ? 16 : 20} color={Colors.light.primary} />
               <View style={{ flex: 1 }}>
-                <Text style={s.selectorBtnText}>{formatDateLabel(dateStr)}</Text>
+                <Text style={[s.selectorBtnText, isSmallScreen && s.selectorBtnTextMobile]}>{formatDateLabel(dateStr)}</Text>
                 <Text style={s.selectorBtnSubtext}>Tap to open calendar popup</Text>
               </View>
               <View style={s.badgeChip}>
@@ -732,19 +734,19 @@ export default function CreateClassScreen() {
         )}
 
         {isWeekly && (
-          <View style={{ marginTop: 12 }}>
-            <Text style={s.label}>Weekly Session Days</Text>
+          <View style={{ marginTop: isSmallScreen ? 8 : 12 }}>
+            <Text style={[s.label, isSmallScreen && s.labelMobile]}>Weekly Session Days</Text>
             <View style={s.chipRow}>
               {WEEK_DAYS.map(day => {
                 const active = scheduleDays.includes(day);
                 return (
                   <TouchableOpacity
                     key={day}
-                    style={[s.chip, active && s.chipActive]}
+                    style={[s.chip, isSmallScreen && s.chipMobile, active && s.chipActive]}
                     onPress={() => toggleDay(day)}
                     activeOpacity={0.7}
                   >
-                    <Text style={[s.chipText, active && s.chipTextActive]}>{day}</Text>
+                    <Text style={[s.chipText, isSmallScreen && s.chipTextMobile, active && s.chipTextActive]}>{day}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -763,21 +765,21 @@ export default function CreateClassScreen() {
         {/* ⏰ Start & End Time Touch Fields */}
         <View style={s.timeRow}>
           <View style={{ flex: 1 }}>
-            <Text style={s.label}>Start Time</Text>
-            <TouchableOpacity style={s.selectorBtnCompact} onPress={() => handleOpenTimePicker('start')} activeOpacity={0.8}>
-              <Clock3 size={18} color={Colors.light.primary} />
+            <Text style={[s.label, isSmallScreen && s.labelMobile]}>Start Time</Text>
+            <TouchableOpacity style={[s.selectorBtnCompact, isSmallScreen && s.selectorBtnCompactMobile]} onPress={() => handleOpenTimePicker('start')} activeOpacity={0.8}>
+              <Clock3 size={isSmallScreen ? 15 : 18} color={Colors.light.primary} />
               <View style={{ flex: 1 }}>
-                <Text style={s.selectorBtnTextCompact}>{formatTimeLabel12(startTime)}</Text>
+                <Text style={[s.selectorBtnTextCompact, isSmallScreen && s.selectorBtnTextCompactMobile]}>{formatTimeLabel12(startTime)}</Text>
               </View>
             </TouchableOpacity>
           </View>
-          <View style={{ width: 12 }} />
+          <View style={{ width: isSmallScreen ? 8 : 12 }} />
           <View style={{ flex: 1 }}>
-            <Text style={s.label}>End Time</Text>
-            <TouchableOpacity style={s.selectorBtnCompact} onPress={() => handleOpenTimePicker('end')} activeOpacity={0.8}>
-              <Clock3 size={18} color={Colors.light.primary} />
+            <Text style={[s.label, isSmallScreen && s.labelMobile]}>End Time</Text>
+            <TouchableOpacity style={[s.selectorBtnCompact, isSmallScreen && s.selectorBtnCompactMobile]} onPress={() => handleOpenTimePicker('end')} activeOpacity={0.8}>
+              <Clock3 size={isSmallScreen ? 15 : 18} color={Colors.light.primary} />
               <View style={{ flex: 1 }}>
-                <Text style={s.selectorBtnTextCompact}>{formatTimeLabel12(endTime)}</Text>
+                <Text style={[s.selectorBtnTextCompact, isSmallScreen && s.selectorBtnTextCompactMobile]}>{formatTimeLabel12(endTime)}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -785,18 +787,18 @@ export default function CreateClassScreen() {
 
         <View style={s.timeRow}>
           <View style={{ flex: 1 }}>
-            <Text style={s.label}>Max Capacity</Text>
+            <Text style={[s.label, isSmallScreen && s.labelMobile]}>Max Capacity</Text>
             <View style={s.inputRow}>
-              <Users size={18} color={Colors.light.textTertiary} />
-              <TextInput style={[s.input, { flex: 1 }]} value={capacity} onChangeText={setCapacity} placeholder="10" placeholderTextColor={Colors.light.textTertiary} keyboardType="numeric" />
+              <Users size={isSmallScreen ? 15 : 18} color={Colors.light.textTertiary} />
+              <TextInput style={[s.input, isSmallScreen && s.inputMobile, { flex: 1 }]} value={capacity} onChangeText={setCapacity} placeholder="10" placeholderTextColor={Colors.light.textTertiary} keyboardType="numeric" />
             </View>
           </View>
-          <View style={{ width: 12 }} />
+          <View style={{ width: isSmallScreen ? 8 : 12 }} />
           <View style={{ flex: 1 }}>
-            <Text style={s.label}>Seat Price (credits)</Text>
+            <Text style={[s.label, isSmallScreen && s.labelMobile]}>Seat Price (credits)</Text>
             <View style={s.inputRow}>
-              <Coins size={18} color={Colors.light.textTertiary} />
-              <TextInput style={[s.input, { flex: 1 }]} value={seatPrice} onChangeText={setSeatPrice} placeholder="0 = free" placeholderTextColor={Colors.light.textTertiary} keyboardType="numeric" />
+              <Coins size={isSmallScreen ? 15 : 18} color={Colors.light.textTertiary} />
+              <TextInput style={[s.input, isSmallScreen && s.inputMobile, { flex: 1 }]} value={seatPrice} onChangeText={setSeatPrice} placeholder="0 = free" placeholderTextColor={Colors.light.textTertiary} keyboardType="numeric" />
             </View>
           </View>
         </View>
@@ -814,9 +816,9 @@ export default function CreateClassScreen() {
           </View>
         )}
 
-        <TouchableOpacity style={[s.submitBtn, submitting && { opacity: 0.6 }]} onPress={handleCreate} disabled={submitting} activeOpacity={0.8}>
-          <Check size={20} color="#FFFFFF" />
-          <Text style={s.submitBtnText}>{submitting ? 'Creating...' : 'Create Class'}</Text>
+        <TouchableOpacity style={[s.submitBtn, isSmallScreen && s.submitBtnMobile, submitting && { opacity: 0.6 }]} onPress={handleCreate} disabled={submitting} activeOpacity={0.8}>
+          <Check size={isSmallScreen ? 16 : 20} color="#FFFFFF" />
+          <Text style={[s.submitBtnText, isSmallScreen && s.submitBtnTextMobile]}>{submitting ? 'Creating...' : 'Create Class'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -1230,6 +1232,95 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700' as const,
     color: '#6366F1',
+  },
+  headerMobile: {
+    paddingHorizontal: 12,
+    paddingBottom: 16,
+  },
+  headerTitleMobile: {
+    fontSize: 18,
+  },
+  headerSubMobile: {
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  formMobile: {
+    padding: 12,
+  },
+  labelMobile: {
+    fontSize: 12.5,
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  inputMobile: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    borderRadius: 10,
+  },
+  textAreaMobile: {
+    minHeight: 75,
+    paddingTop: 10,
+  },
+  chipMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  chipTextMobile: {
+    fontSize: 11.5,
+  },
+  coverUploadCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+    gap: 8,
+  },
+  coverPreviewWrapMobile: {
+    height: 120,
+    borderRadius: 8,
+  },
+  uploadBtnMobile: {
+    paddingVertical: 9,
+    borderRadius: 8,
+    gap: 6,
+  },
+  uploadBtnTextMobile: {
+    fontSize: 12,
+  },
+  cameraBtnMobile: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 8,
+    gap: 6,
+  },
+  cameraBtnTextMobile: {
+    fontSize: 12,
+  },
+  selectorBtnMobile: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 8,
+  },
+  selectorBtnTextMobile: {
+    fontSize: 13,
+  },
+  selectorBtnCompactMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderRadius: 8,
+    gap: 6,
+  },
+  selectorBtnTextCompactMobile: {
+    fontSize: 11.5,
+  },
+  submitBtnMobile: {
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 18,
+  },
+  submitBtnTextMobile: {
+    fontSize: 13.5,
   },
 });
 

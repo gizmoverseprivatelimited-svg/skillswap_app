@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useCallback } from 'react';
-import { StyleSheet, Text, View, Animated, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
+import { StyleSheet, Text, View, Animated, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { useNotifications } from '../providers/notifications';
 import { useAuth } from '../providers/auth';
 import { Bell, X, MessageSquare, Video, Wallet } from 'lucide-react-native';
@@ -7,6 +7,9 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export function InAppNotificationBanner() {
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmall = windowWidth < 600;
+  const styles = useMemo(() => createStyles(isSmall), [isSmall]);
   const auth = useAuth();
   const isLoggedIn = Boolean(auth?.isAuthenticated && auth?.user && !auth?.user?.isDemo);
   const { bannerNotification, clearBannerNotification, markAsRead } = useNotifications();
@@ -98,8 +101,8 @@ export function InAppNotificationBanner() {
           )}
         </View>
         <View style={styles.textContainer}>
-          <Text style={styles.title} numberOfLines={1}>{bannerNotification.title}</Text>
-          <Text style={[styles.body, isVideoCall && { color: '#FFFFFF', fontWeight: '600' }]} numberOfLines={2}>
+          <Text style={styles.title}>{bannerNotification.title}</Text>
+          <Text style={[styles.body, isVideoCall && { color: '#FFFFFF', fontWeight: '600' }]}>
             {bannerNotification.body} {isVideoCall ? '— Tap to join!' : ''}
           </Text>
         </View>
@@ -111,12 +114,12 @@ export function InAppNotificationBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmall: boolean) => StyleSheet.create({
   bannerContainer: {
     position: 'absolute',
     top: 0,
-    left: 16,
-    right: 16,
+    left: isSmall ? 10 : 16,
+    right: isSmall ? 10 : 16,
     zIndex: 99999,
     elevation: 99,
   },
@@ -124,8 +127,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#1E1B4B', // Premium Dark Purple/Indigo
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: isSmall ? 12 : 16,
+    padding: isSmall ? 10 : 16,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
@@ -139,13 +142,13 @@ const styles = StyleSheet.create({
     borderColor: '#059669',
   },
   iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: isSmall ? 30 : 36,
+    height: isSmall ? 30 : 36,
+    borderRadius: isSmall ? 15 : 18,
     backgroundColor: '#6366F1', // Indigo active
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: isSmall ? 8 : 12,
   },
   videoCallIconContainer: {
     backgroundColor: '#10B981', // Bright Emerald
@@ -161,15 +164,15 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   title: {
-    fontSize: 14,
+    fontSize: isSmall ? 12.5 : 14,
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 2,
   },
   body: {
-    fontSize: 12,
+    fontSize: isSmall ? 11 : 12,
     color: '#E2E8F0', // slate-200
-    lineHeight: 16,
+    lineHeight: isSmall ? 15 : 16,
   },
   closeButton: {
     padding: 4,

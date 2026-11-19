@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Platform, ActivityIndicator, Alert, Modal } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Platform, ActivityIndicator, Alert, Modal, useWindowDimensions } from 'react-native';
 import { useAlert } from '@/providers/alert';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -91,6 +91,8 @@ const classifySlotStatus = (slot: SwapTimeProposal) => {
 export default function SwapDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
   const { getSwapById, addMessage, addCounterProposal, acceptProposal, declineSlot, declineSwap, updateLocation, completeSwap, setCalendarEventId, loading } = useSkillSwaps();
   const { currentUser, allUsers, loadUser } = useCurrentUser();
   const { socket } = useSocket();
@@ -709,15 +711,15 @@ export default function SwapDetailScreen() {
         }}
       />
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={['#1F2937', '#111827']} style={styles.heroBanner}>
+        <LinearGradient colors={['#1F2937', '#111827']} style={[styles.heroBanner, isSmallScreen && styles.heroBannerMobile]}>
           <TouchableOpacity style={styles.backRow} onPress={() => router.back()} testID="swap-detail-back">
-            <ArrowLeft size={20} color="#F8FAFC" />
+            <ArrowLeft size={isSmallScreen ? 16 : 20} color="#F8FAFC" />
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
           <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>{partner?.username ? (partner.username.startsWith('@') ? partner.username : `@${partner.username}`) : (partner?.name ? `@${partner.name.toLowerCase().replace(/\s+/g, '')}` : 'Skill Partner')}</Text>
-            <Text style={styles.heroSubtitle}>{headerCopy?.title}</Text>
-            <Text style={styles.heroBody}>{headerCopy?.description}</Text>
+            <Text style={[styles.heroTitle, isSmallScreen && styles.heroTitleMobile]}>{partner?.username ? (partner.username.startsWith('@') ? partner.username : `@${partner.username}`) : (partner?.name ? `@${partner.name.toLowerCase().replace(/\s+/g, '')}` : 'Skill Partner')}</Text>
+            <Text style={[styles.heroSubtitle, isSmallScreen && styles.heroSubtitleMobile]}>{headerCopy?.title}</Text>
+            <Text style={[styles.heroBody, isSmallScreen && styles.heroBodyMobile]}>{headerCopy?.description}</Text>
           </View>
           <View style={[styles.heroBadge, { backgroundColor: headerCopy?.accent ?? '#38BDF8' }]}>
             <Text style={styles.heroBadgeText}>{swap.status.toUpperCase()}</Text>
@@ -731,65 +733,65 @@ export default function SwapDetailScreen() {
           </View>
         )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionHeading}>Exchange Overview</Text>
+        <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+          <Text style={[styles.sectionHeading, isSmallScreen && styles.sectionHeadingMobile]}>Exchange Overview</Text>
           {/* Role badge */}
           {roleInfo && (
             <View style={[styles.detailRoleBadge, { backgroundColor: roleInfo.bg, borderColor: roleInfo.color }]}>
-              <roleInfo.Icon size={16} color={roleInfo.color} />
+              <roleInfo.Icon size={isSmallScreen ? 13 : 16} color={roleInfo.color} />
               <Text style={[styles.detailRoleText, { color: roleInfo.color }]}>
                 {roleInfo.myRole === 'Swapper' ? 'Mutual Skill Swap' : `You are the ${roleInfo.myRole}`}
               </Text>
             </View>
           )}
-          <View style={styles.overviewCard}>
+          <View style={[styles.overviewCard, isSmallScreen && styles.overviewCardMobile]}>
             <View style={styles.overviewRow}>
               {/* Teaching Skill Box */}
-              <View style={[styles.overviewColumn, styles.overviewColumnTeaching]}>
+              <View style={[styles.overviewColumn, styles.overviewColumnTeaching, isSmallScreen && styles.overviewColumnMobile]}>
                 <View style={styles.overviewHeader}>
                   <View style={[styles.roleIconCircle, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                    <GraduationCap size={16} color="#10B981" />
+                    <GraduationCap size={isSmallScreen ? 13 : 16} color="#10B981" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.overviewRoleTitle, { color: '#10B981' }]}>TEACHING</Text>
-                    <Text style={styles.overviewPersonName} numberOfLines={1}>
+                    <Text style={[styles.overviewRoleTitle, isSmallScreen && styles.overviewRoleTitleMobile, { color: '#10B981' }]}>TEACHING</Text>
+                    <Text style={[styles.overviewPersonName, isSmallScreen && styles.overviewPersonNameMobile]}>
                       {exchangeSkills.teacherName}
                     </Text>
                   </View>
                 </View>
                 <View style={styles.overviewSkillBox}>
-                  <Text style={styles.overviewSkillLabel}>Skill to Teach</Text>
-                  <Text style={styles.overviewValue} numberOfLines={2}>
+                  <Text style={[styles.overviewSkillLabel, isSmallScreen && styles.overviewSkillLabelMobile]}>Skill to Teach</Text>
+                  <Text style={[styles.overviewValue, isSmallScreen && styles.overviewValueMobile]}>
                     {exchangeSkills.teachingSkillTitle}
                   </Text>
                   {!!exchangeSkills.teachingCategory && (
-                    <Text style={styles.overviewCategory}>{exchangeSkills.teachingCategory}</Text>
+                    <Text style={[styles.overviewCategory, isSmallScreen && styles.overviewCategoryMobile]}>{exchangeSkills.teachingCategory}</Text>
                   )}
                 </View>
               </View>
 
               {/* Learning Skill Box */}
-              <View style={[styles.overviewColumn, styles.overviewColumnLearning]}>
+              <View style={[styles.overviewColumn, styles.overviewColumnLearning, isSmallScreen && styles.overviewColumnMobile]}>
                 <View style={styles.overviewHeader}>
                   <View style={[styles.roleIconCircle, { backgroundColor: 'rgba(99, 102, 241, 0.15)' }]}>
-                    <BookOpen size={16} color="#6366F1" />
+                    <BookOpen size={isSmallScreen ? 13 : 16} color="#6366F1" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.overviewRoleTitle, { color: '#6366F1' }]}>LEARNING</Text>
-                    <Text style={styles.overviewPersonName} numberOfLines={1}>
+                    <Text style={[styles.overviewRoleTitle, isSmallScreen && styles.overviewRoleTitleMobile, { color: '#6366F1' }]}>LEARNING</Text>
+                    <Text style={[styles.overviewPersonName, isSmallScreen && styles.overviewPersonNameMobile]}>
                       {exchangeSkills.learnerName}
                     </Text>
                   </View>
                 </View>
                 <View style={styles.overviewSkillBox}>
-                  <Text style={styles.overviewSkillLabel}>
+                  <Text style={[styles.overviewSkillLabel, isSmallScreen && styles.overviewSkillLabelMobile]}>
                     {exchangeSkills.swapType === 'swap' ? 'Skill to Learn' : 'Session Objective'}
                   </Text>
-                  <Text style={styles.overviewValue} numberOfLines={2}>
+                  <Text style={[styles.overviewValue, isSmallScreen && styles.overviewValueMobile]}>
                     {exchangeSkills.learningSkillTitle}
                   </Text>
                   {!!exchangeSkills.learningCategory && (
-                    <Text style={styles.overviewCategory}>{exchangeSkills.learningCategory}</Text>
+                    <Text style={[styles.overviewCategory, isSmallScreen && styles.overviewCategoryMobile]}>{exchangeSkills.learningCategory}</Text>
                   )}
                 </View>
               </View>
@@ -797,12 +799,12 @@ export default function SwapDetailScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeading}>Proposed time slots</Text>
-            <CalendarClock size={18} color={Colors.light.primary} />
+        <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+          <View style={[styles.sectionHeaderRow, isSmallScreen && styles.sectionHeaderRowMobile]}>
+            <Text style={[styles.sectionHeading, isSmallScreen && styles.sectionHeadingMobile]}>Proposed time slots</Text>
+            <CalendarClock size={isSmallScreen ? 15 : 18} color={Colors.light.primary} />
           </View>
-          <View style={styles.slotList}>
+          <View style={[styles.slotList, isSmallScreen && styles.slotListMobile]}>
             {swap.proposedTimes.map((slot, i) => {
               const statusMeta = classifySlotStatus(slot);
               const isPending = slot.status === 'pending';
@@ -812,12 +814,12 @@ export default function SwapDetailScreen() {
               const slotId = slot._id || slot.id || '';
 
               return (
-                <View key={slotId || i} style={styles.slotCard} testID={`swap-slot-${slot.id}`}>
-                  <View style={styles.slotInfo}>
-                    <Clock size={18} color={statusMeta.color} />
+                <View key={slotId || i} style={[styles.slotCard, isSmallScreen && styles.slotCardMobile]} testID={`swap-slot-${slot.id}`}>
+                  <View style={[styles.slotInfo, isSmallScreen && styles.slotInfoMobile]}>
+                    <Clock size={isSmallScreen ? 14 : 18} color={statusMeta.color} />
                     <View style={styles.slotCopy}>
-                      <Text style={styles.slotPrimary}>{formatTimestamp(slot.startISO)}</Text>
-                      <Text style={[styles.slotSecondary, { color: statusMeta.color }]}>
+                      <Text style={[styles.slotPrimary, isSmallScreen && styles.slotPrimaryMobile]}>{formatTimestamp(slot.startISO)}</Text>
+                      <Text style={[styles.slotSecondary, isSmallScreen && styles.slotSecondaryMobile, { color: statusMeta.color }]}>
                         {slot.status === 'pending'
                           ? isProposer
                             ? 'Proposed by you • Awaiting partner'
@@ -828,31 +830,31 @@ export default function SwapDetailScreen() {
                   </View>
 
                   {isPending && !isProposer && (
-                    <View style={styles.slotActionButtons}>
+                    <View style={[styles.slotActionButtons, isSmallScreen && styles.slotActionButtonsMobile]}>
                       <TouchableOpacity
-                        style={styles.declineSlotButton}
+                        style={[styles.declineSlotButton, isSmallScreen && styles.declineSlotButtonMobile]}
                         onPress={() => handleDeclineSlot(slotId)}
                         activeOpacity={0.8}
                         testID={`decline-slot-${slot.id}`}
                       >
-                        <X size={15} color="#EF4444" />
-                        <Text style={styles.declineSlotText}>Decline</Text>
+                        <X size={isSmallScreen ? 12 : 15} color="#EF4444" />
+                        <Text style={[styles.declineSlotText, isSmallScreen && styles.declineSlotTextMobile]}>Decline</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.acceptButton}
+                        style={[styles.acceptButton, isSmallScreen && styles.acceptButtonMobile]}
                         onPress={() => handleAcceptSlot(slotId)}
                         activeOpacity={0.9}
                         testID={`accept-slot-${slot.id}`}
                       >
-                        <Check size={16} color="#0B1220" />
-                        <Text style={styles.acceptText}>Accept</Text>
+                        <Check size={isSmallScreen ? 13 : 16} color="#0B1220" />
+                        <Text style={[styles.acceptText, isSmallScreen && styles.acceptTextMobile]}>Accept</Text>
                       </TouchableOpacity>
                     </View>
                   )}
 
                   {isPending && isProposer && (
-                    <View style={styles.pendingProposerBadge}>
-                      <Text style={styles.pendingProposerBadgeText}>Awaiting partner</Text>
+                    <View style={[styles.pendingProposerBadge, isSmallScreen && styles.pendingProposerBadgeMobile]}>
+                      <Text style={[styles.pendingProposerBadgeText, isSmallScreen && styles.pendingProposerBadgeTextMobile]}>Awaiting partner</Text>
                     </View>
                   )}
                 </View>
@@ -861,21 +863,21 @@ export default function SwapDetailScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionHeading}>Suggest new times</Text>
+        <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+          <Text style={[styles.sectionHeading, isSmallScreen && styles.sectionHeadingMobile]}>Suggest new times</Text>
 
-          <Text style={styles.subHeadingLabel}>Quick options</Text>
-          <View style={styles.suggestionRow}>
+          <Text style={[styles.subHeadingLabel, isSmallScreen && styles.subHeadingLabelMobile]}>Quick options</Text>
+          <View style={[styles.suggestionRow, isSmallScreen && styles.suggestionRowMobile]}>
             {timeSuggestions.map((suggestion, i) => {
               const isActive = selectedSuggestions.some((item) => item.id === suggestion.id);
               return (
                 <TouchableOpacity
                   key={i}
                   onPress={() => handleToggleSuggestion(suggestion)}
-                  style={[styles.suggestionChip, isActive && styles.suggestionChipActive]}
+                  style={[styles.suggestionChip, isSmallScreen && styles.suggestionChipMobile, isActive && styles.suggestionChipActive]}
                   testID={`counter-suggestion-${suggestion.id}`}
                 >
-                  <Text style={[styles.suggestionText, isActive && styles.suggestionTextActive]}>{suggestion.label}</Text>
+                  <Text style={[styles.suggestionText, isSmallScreen && styles.suggestionTextMobile, isActive && styles.suggestionTextActive]}>{suggestion.label}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -883,24 +885,24 @@ export default function SwapDetailScreen() {
 
           {/* Interactive Calendar Date & Time Button */}
           <TouchableOpacity
-            style={styles.openCalendarPickerBtn}
+            style={[styles.openCalendarPickerBtn, isSmallScreen && styles.openCalendarPickerBtnMobile]}
             onPress={() => setCalendarModalVisible(true)}
             activeOpacity={0.85}
           >
-            <CalendarClock size={20} color="#38BDF8" />
-            <Text style={styles.openCalendarPickerText}>Choose Date & Time from Calendar 📅</Text>
+            <CalendarClock size={isSmallScreen ? 16 : 20} color="#38BDF8" />
+            <Text style={[styles.openCalendarPickerText, isSmallScreen && styles.openCalendarPickerTextMobile]}>Choose Date & Time from Calendar 📅</Text>
           </TouchableOpacity>
 
           {/* Selected Slots Tag List */}
           {selectedSuggestions.length > 0 && (
-            <View style={styles.selectedSlotsBox}>
-              <Text style={styles.selectedSlotsTitle}>Selected Counter Slots ({selectedSuggestions.length}):</Text>
-              <View style={styles.selectedSlotsRow}>
+            <View style={[styles.selectedSlotsBox, isSmallScreen && styles.selectedSlotsBoxMobile]}>
+              <Text style={[styles.selectedSlotsTitle, isSmallScreen && styles.selectedSlotsTitleMobile]}>Selected Counter Slots ({selectedSuggestions.length}):</Text>
+              <View style={[styles.selectedSlotsRow, isSmallScreen && styles.selectedSlotsRowMobile]}>
                 {selectedSuggestions.map((slot) => (
-                  <View key={slot.id} style={styles.selectedSlotTag}>
-                    <Text style={styles.selectedSlotTagText}>{slot.label}</Text>
+                  <View key={slot.id} style={[styles.selectedSlotTag, isSmallScreen && styles.selectedSlotTagMobile]}>
+                    <Text style={[styles.selectedSlotTagText, isSmallScreen && styles.selectedSlotTagTextMobile]}>{slot.label}</Text>
                     <TouchableOpacity onPress={() => handleToggleSuggestion(slot)}>
-                      <X size={14} color="#F8FAFC" />
+                      <X size={isSmallScreen ? 12 : 14} color="#F8FAFC" />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -918,34 +920,34 @@ export default function SwapDetailScreen() {
             placeholderTextColor="rgba(148, 163, 184, 0.65)"
             testID="counter-notes-input"
           /> */}
-          <View style={styles.counterActions}>
+          <View style={[styles.counterActions, isSmallScreen && styles.counterActionsMobile]}>
             <TouchableOpacity
-              style={[styles.counterButton, styles.primaryButton]}
+              style={[styles.counterButton, styles.primaryButton, isSmallScreen && styles.counterButtonMobile]}
               onPress={handleSendCounterProposal}
               activeOpacity={0.9}
               testID="submit-counter-proposal"
             >
-              <PlusCircle size={18} color="#0B1220" />
-              <Text style={styles.primaryButtonText}>Send counter slots</Text>
+              <PlusCircle size={isSmallScreen ? 15 : 18} color="#0B1220" />
+              <Text style={[styles.primaryButtonText, isSmallScreen && styles.primaryButtonTextMobile]}>Send counter slots</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.counterButton, styles.declineButton]}
+              style={[styles.counterButton, styles.declineButton, isSmallScreen && styles.counterButtonMobile]}
               onPress={handleDeclineSwap}
               activeOpacity={0.9}
               testID="decline-swap"
             >
-              <X size={18} color="#991B1B" />
-              <Text style={styles.declineText}>Decline swap</Text>
+              <X size={isSmallScreen ? 15 : 18} color="#991B1B" />
+              <Text style={[styles.declineText, isSmallScreen && styles.declineTextMobile]}>Decline swap</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeading}>Negotiation thread</Text>
-            <Sparkles size={18} color={Colors.light.primary} />
+        <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+          <View style={[styles.sectionHeaderRow, isSmallScreen && styles.sectionHeaderRowMobile]}>
+            <Text style={[styles.sectionHeading, isSmallScreen && styles.sectionHeadingMobile]}>Negotiation thread</Text>
+            <Sparkles size={isSmallScreen ? 15 : 18} color={Colors.light.primary} />
           </View>
-          <View style={styles.timeline}>
+          <View style={[styles.timeline, isSmallScreen && styles.timelineMobile]}>
             {sortedNotes.map((note, i) => {
               const isSelf = note.authorId === currentUser?.id;
               const isCallAlert = note.body?.toLowerCase().includes('started the') && note.body?.toLowerCase().includes('call');
@@ -966,6 +968,7 @@ export default function SwapDetailScreen() {
                   }}
                   style={[
                     styles.noteBubble,
+                    isSmallScreen && styles.noteBubbleMobile,
                     isSelf ? styles.noteSelf : styles.notePartner,
                     isCallAlert && {
                       backgroundColor: '#7C3AED',
@@ -981,19 +984,19 @@ export default function SwapDetailScreen() {
                   testID={`swap-note-${note.id}`}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    {isCallAlert && <Video size={16} color="#FFFFFF" />}
-                    <Text style={[styles.noteBody, isCallAlert && { color: '#FFFFFF', fontWeight: '700' as const }]}>
+                    {isCallAlert && <Video size={isSmallScreen ? 13 : 16} color="#FFFFFF" />}
+                    <Text style={[styles.noteBody, isSmallScreen && styles.noteBodyMobile, isCallAlert && { color: '#FFFFFF', fontWeight: '700' as const }]}>
                       {note.body}
                     </Text>
                   </View>
-                  <Text style={[styles.noteTimestamp, isCallAlert && { color: '#DDD6FE' }]}>{formatTimestamp(note.createdAt)}</Text>
+                  <Text style={[styles.noteTimestamp, isSmallScreen && styles.noteTimestampMobile, isCallAlert && { color: '#DDD6FE' }]}>{formatTimestamp(note.createdAt)}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
-          <View style={styles.messageComposer}>
+          <View style={[styles.messageComposer, isSmallScreen && styles.messageComposerMobile]}>
             <TextInput
-              style={styles.messageInput}
+              style={[styles.messageInput, isSmallScreen && styles.messageInputMobile]}
               placeholder="Drop a note or next step"
               value={messageDraft}
               onChangeText={setMessageDraft}
@@ -1001,57 +1004,57 @@ export default function SwapDetailScreen() {
               testID="message-input"
             />
             <TouchableOpacity
-              style={styles.sendButton}
+              style={[styles.sendButton, isSmallScreen && styles.sendButtonMobile]}
               onPress={handleSendMessage}
               activeOpacity={0.9}
               testID="send-message"
             >
-              <Send size={18} color="#0B1220" />
+              <Send size={isSmallScreen ? 15 : 18} color="#0B1220" />
             </TouchableOpacity>
           </View>
         </View>
 
         {swap.status === 'scheduled' && (
-          <View style={styles.section}>
-            <View style={styles.calendarActions}>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+            <View style={[styles.calendarActions, isSmallScreen && styles.calendarActionsMobile]}>
               <TouchableOpacity
-                style={[styles.calendarButton, swap.calendarEventId && styles.calendarButtonAdded]}
+                style={[styles.calendarButton, isSmallScreen && styles.calendarButtonMobile, swap.calendarEventId && styles.calendarButtonAdded]}
                 onPress={handleAddToCalendar}
                 activeOpacity={0.9}
                 disabled={isSyncingCalendar || !!swap.calendarEventId}
                 testID="add-to-calendar"
               >
-                <CalendarPlus size={18} color={swap.calendarEventId ? '#10B981' : '#FFFFFF'} />
-                <Text style={[styles.calendarButtonText, swap.calendarEventId && styles.calendarButtonTextAdded]}>
+                <CalendarPlus size={isSmallScreen ? 15 : 18} color={swap.calendarEventId ? '#10B981' : '#FFFFFF'} />
+                <Text style={[styles.calendarButtonText, isSmallScreen && styles.calendarButtonTextMobile, swap.calendarEventId && styles.calendarButtonTextAdded]}>
                   {swap.calendarEventId ? 'Added to Calendar' : isSyncingCalendar ? 'Syncing...' : 'Add to Calendar'}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.exportButton}
+                style={[styles.exportButton, isSmallScreen && styles.exportButtonMobile]}
                 onPress={handleExportToICalendar}
                 activeOpacity={0.9}
                 disabled={isSyncingCalendar}
                 testID="export-ical"
               >
-                <Download size={18} color="#3B82F6" />
-                <Text style={styles.exportButtonText}>Export iCal</Text>
+                <Download size={isSmallScreen ? 15 : 18} color="#3B82F6" />
+                <Text style={[styles.exportButtonText, isSmallScreen && styles.exportButtonTextMobile]}>Export iCal</Text>
               </TouchableOpacity>
             </View>
             {canStartVideoCall ? (
-              <View style={styles.callActions}>
+              <View style={[styles.callActions, isSmallScreen && styles.callActionsMobile]}>
                 <TouchableOpacity
-                  style={[styles.callButton, styles.videoCallButton, { backgroundColor: '#8B5CF6' }]}
+                  style={[styles.callButton, styles.videoCallButton, isSmallScreen && styles.callButtonMobile, { backgroundColor: '#8B5CF6' }]}
                   onPress={() => handleStartCall('video')}
                   activeOpacity={0.9}
                   testID="start-video-call"
                 >
-                  <Video size={20} color="#FFFFFF" />
-                  <Text style={styles.callButtonText}>Start Video Call</Text>
+                  <Video size={isSmallScreen ? 16 : 20} color="#FFFFFF" />
+                  <Text style={[styles.callButtonText, isSmallScreen && styles.callButtonTextMobile]}>Start Video Call</Text>
                 </TouchableOpacity>
               </View>
             ) : (
-              <View style={[styles.callActions, { marginTop: 4, marginBottom: 8 }]}>
-                <View style={{
+              <View style={[styles.callActions, isSmallScreen && styles.callActionsMobile, { marginTop: 4, marginBottom: 8 }]}>
+                <View style={[{
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: 10,
@@ -1062,9 +1065,14 @@ export default function SwapDetailScreen() {
                   borderWidth: 1,
                   borderColor: '#DDD6FE',
                   width: '100%',
-                }}>
-                  <Video size={20} color="#8B5CF6" />
-                  <Text style={{ fontSize: 13, color: '#5B21B6', flex: 1, fontWeight: '500' as const, lineHeight: 18 }}>
+                }, isSmallScreen && {
+                  gap: 6,
+                  paddingHorizontal: 10,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                }]}>
+                  <Video size={isSmallScreen ? 16 : 20} color="#8B5CF6" />
+                  <Text style={[{ fontSize: 13, color: '#5B21B6', flex: 1, fontWeight: '500' as const, lineHeight: 18 }, isSmallScreen && { fontSize: 11, lineHeight: 15 }]}>
                     Your teacher will start the video call at session time. You will receive an instant notification to join.
                   </Text>
                 </View>
@@ -1072,25 +1080,25 @@ export default function SwapDetailScreen() {
             )}
             {roleInfo?.myRole !== 'Teacher' && (
               <TouchableOpacity
-                style={[styles.counterButton, styles.completeButton]}
+                style={[styles.counterButton, styles.completeButton, isSmallScreen && styles.counterButtonMobile]}
                 onPress={handleCompleteSwap}
                 activeOpacity={0.9}
                 testID="complete-swap"
               >
-                <ShieldCheck size={18} color="#0F172A" />
-                <Text style={styles.completeText}>Mark swap as completed</Text>
+                <ShieldCheck size={isSmallScreen ? 15 : 18} color="#0F172A" />
+                <Text style={[styles.completeText, isSmallScreen && styles.completeTextMobile]}>Mark swap as completed</Text>
               </TouchableOpacity>
             )}
           </View>
         )}
         
         {swap.recordings && swap.recordings.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionHeading}>Session Recordings</Text>
-              <Video size={18} color={Colors.light.primary} />
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+            <View style={[styles.sectionHeaderRow, isSmallScreen && styles.sectionHeaderRowMobile]}>
+              <Text style={[styles.sectionHeading, isSmallScreen && styles.sectionHeadingMobile]}>Session Recordings</Text>
+              <Video size={isSmallScreen ? 15 : 18} color={Colors.light.primary} />
             </View>
-            <View style={{ gap: 12 }}>
+            <View style={{ gap: isSmallScreen ? 8 : 12 }}>
               {swap.recordings.map((recording, idx) => {
                  const recDate = new Date(recording.recordedAt).toLocaleString(undefined, { 
                     month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' 
@@ -1100,7 +1108,7 @@ export default function SwapDetailScreen() {
                  return (
                    <TouchableOpacity
                      key={idx}
-                     style={styles.recordingCard}
+                     style={[styles.recordingCard, isSmallScreen && styles.recordingCardMobile]}
                      onPress={() => {
                         if (Platform.OS === 'web') {
                            window.open(recording.url, '_blank');
@@ -1111,12 +1119,12 @@ export default function SwapDetailScreen() {
                      }}
                      activeOpacity={0.8}
                    >
-                      <View style={styles.recordingIconBox}>
-                        <Video size={20} color="#8B5CF6" />
+                      <View style={[styles.recordingIconBox, isSmallScreen && styles.recordingIconBoxMobile]}>
+                        <Video size={isSmallScreen ? 15 : 20} color="#8B5CF6" />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.recordingTitle}>Recording {idx + 1}</Text>
-                        <Text style={styles.recordingMeta}>{recDate} • {durationMin} min</Text>
+                        <Text style={[styles.recordingTitle, isSmallScreen && styles.recordingTitleMobile]}>Recording {idx + 1}</Text>
+                        <Text style={[styles.recordingMeta, isSmallScreen && styles.recordingMetaMobile]}>{recDate} • {durationMin} min</Text>
                       </View>
                    </TouchableOpacity>
                  );
@@ -1136,7 +1144,7 @@ export default function SwapDetailScreen() {
         onRequestClose={() => setCalendarModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, isSmallScreen && styles.modalCardMobile]}>
             <LinearGradient
               colors={['#38BDF8', '#6366F1']}
               start={{ x: 0, y: 0 }}
@@ -1151,21 +1159,21 @@ export default function SwapDetailScreen() {
               <X size={18} color={Colors.light.textSecondary} />
             </TouchableOpacity>
 
-            <View style={styles.modalIconBox}>
+            <View style={[styles.modalIconBox, isSmallScreen && styles.modalIconBoxMobile]}>
               <LinearGradient
                 colors={['#F0F9FF', '#E0F2FE']}
-                style={styles.modalIconCircle}
+                style={[styles.modalIconCircle, isSmallScreen && styles.modalIconCircleMobile]}
               >
-                <CalendarClock size={32} color="#0284C7" />
+                <CalendarClock size={isSmallScreen ? 22 : 32} color="#0284C7" />
               </LinearGradient>
             </View>
 
-            <Text style={styles.modalTitle}>Choose Date & Time 📅</Text>
-            <Text style={styles.modalDesc}>Select your preferred day and time slot to suggest for this swap.</Text>
+            <Text style={[styles.modalTitle, isSmallScreen && styles.modalTitleMobile]}>Choose Date & Time 📅</Text>
+            <Text style={[styles.modalDesc, isSmallScreen && styles.modalDescMobile]}>Select your preferred day and time slot to suggest for this swap.</Text>
 
             {/* HTML Calendar Date & Time Input */}
-            <View style={styles.pickerSection}>
-              <Text style={styles.pickerSectionTitle}>Select Date & Time (Calendar)</Text>
+            <View style={[styles.pickerSection, isSmallScreen && styles.pickerSectionMobile]}>
+              <Text style={[styles.pickerSectionTitle, isSmallScreen && styles.pickerSectionTitleMobile]}>Select Date & Time (Calendar)</Text>
               {Platform.OS === 'web' ? (
                 <>
                   <style>{`
@@ -1196,13 +1204,13 @@ export default function SwapDetailScreen() {
                     }}
                     style={{
                       width: '100%',
-                      padding: '14px 16px',
-                      borderRadius: '14px',
+                      padding: isSmallScreen ? '10px 12px' : '14px 16px',
+                      borderRadius: isSmallScreen ? '10px' : '14px',
                       border: '1px solid rgba(56, 189, 248, 0.4)',
                       backgroundColor: '#0F172A',
                       color: '#F8FAFC',
                       colorScheme: 'dark',
-                      fontSize: '15px',
+                      fontSize: isSmallScreen ? '12.5px' : '15px',
                       fontFamily: 'inherit',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -1244,23 +1252,23 @@ export default function SwapDetailScreen() {
             </View>
 
             {/* Quick Day Chips */}
-            <View style={styles.pickerSection}>
-              <Text style={styles.pickerSectionTitle}>Or Quick Select Day</Text>
+            <View style={[styles.pickerSection, isSmallScreen && styles.pickerSectionMobile]}>
+              <Text style={[styles.pickerSectionTitle, isSmallScreen && styles.pickerSectionTitleMobile]}>Or Quick Select Day</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daysScroll}>
                 {next14Days.map((d) => {
                   const isSelected = pickerSelectedDate === d.dateStr;
                   return (
                     <TouchableOpacity
                       key={d.dateStr}
-                      style={[styles.dayCard, isSelected && styles.dayCardSelected]}
+                      style={[styles.dayCard, isSmallScreen && styles.dayCardMobile, isSelected && styles.dayCardSelected]}
                       onPress={() => {
                         setPickerSelectedDate(d.dateStr);
                         setCustomDateTimeStr(`${d.dateStr}T${pickerSelectedTime}`);
                       }}
                       activeOpacity={0.8}
                     >
-                      <Text style={[styles.dayCardLabel, isSelected && styles.dayCardLabelSelected]}>{d.label}</Text>
-                      <Text style={[styles.dayCardSublabel, isSelected && styles.dayCardSublabelSelected]}>{d.sublabel}</Text>
+                      <Text style={[styles.dayCardLabel, isSmallScreen && styles.dayCardLabelMobile, isSelected && styles.dayCardLabelSelected]}>{d.label}</Text>
+                      <Text style={[styles.dayCardSublabel, isSmallScreen && styles.dayCardSublabelMobile, isSelected && styles.dayCardSublabelSelected]}>{d.sublabel}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -1268,8 +1276,8 @@ export default function SwapDetailScreen() {
             </View>
 
             {/* Quick Time Slot Grid */}
-            <View style={styles.pickerSection}>
-              <Text style={styles.pickerSectionTitle}>Or Quick Select Time</Text>
+            <View style={[styles.pickerSection, isSmallScreen && styles.pickerSectionMobile]}>
+              <Text style={[styles.pickerSectionTitle, isSmallScreen && styles.pickerSectionTitleMobile]}>Or Quick Select Time</Text>
               <View style={styles.timeGrid}>
                 {timeSlotOptions.map((time) => {
                   const isSelected = pickerSelectedTime === time;
@@ -1281,14 +1289,14 @@ export default function SwapDetailScreen() {
                   return (
                     <TouchableOpacity
                       key={time}
-                      style={[styles.timeSlotPill, isSelected && styles.timeSlotPillSelected]}
+                      style={[styles.timeSlotPill, isSmallScreen && styles.timeSlotPillMobile, isSelected && styles.timeSlotPillSelected]}
                       onPress={() => {
                         setPickerSelectedTime(time);
                         setCustomDateTimeStr(`${pickerSelectedDate}T${time}`);
                       }}
                       activeOpacity={0.8}
                     >
-                      <Text style={[styles.timeSlotPillText, isSelected && styles.timeSlotPillTextSelected]}>
+                      <Text style={[styles.timeSlotPillText, isSmallScreen && styles.timeSlotPillTextMobile, isSelected && styles.timeSlotPillTextSelected]}>
                         {displayTime}
                       </Text>
                     </TouchableOpacity>
@@ -1298,17 +1306,17 @@ export default function SwapDetailScreen() {
             </View>
 
             {/* Actions */}
-            <View style={styles.modalActions}>
+            <View style={[styles.modalActions, isSmallScreen && styles.modalActionsMobile]}>
               <TouchableOpacity
-                style={styles.cancelActionBtn}
+                style={[styles.cancelActionBtn, isSmallScreen && styles.cancelActionBtnMobile]}
                 onPress={() => setCalendarModalVisible(false)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.cancelActionText}>Cancel</Text>
+                <Text style={[styles.cancelActionText, isSmallScreen && styles.cancelActionTextMobile]}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.confirmActionBtn}
+                style={[styles.confirmActionBtn, isSmallScreen && styles.confirmActionBtnMobile]}
                 onPress={handleConfirmCalendarSlot}
                 activeOpacity={0.85}
               >
@@ -1316,10 +1324,10 @@ export default function SwapDetailScreen() {
                   colors={['#38BDF8', '#6366F1']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={styles.confirmGradient}
+                  style={[styles.confirmGradient, isSmallScreen && styles.confirmGradientMobile]}
                 >
-                  <PlusCircle size={16} color="#FFFFFF" />
-                  <Text style={styles.confirmActionText}>Confirm & Add Slot</Text>
+                  <PlusCircle size={isSmallScreen ? 14 : 16} color="#FFFFFF" />
+                  <Text style={[styles.confirmActionText, isSmallScreen && styles.confirmActionTextMobile]}>Confirm & Add Slot</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -1340,7 +1348,7 @@ export default function SwapDetailScreen() {
         }}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, isSmallScreen && styles.modalCardMobile]}>
             {/* Top Accent Bar */}
             <LinearGradient
               colors={['#F59E0B', '#D97706']}
@@ -1364,45 +1372,45 @@ export default function SwapDetailScreen() {
             </TouchableOpacity>
 
             {/* Icon Banner */}
-            <View style={styles.modalIconBox}>
+            <View style={[styles.modalIconBox, isSmallScreen && styles.modalIconBoxMobile]}>
               <LinearGradient
                 colors={['#FFFBEB', '#FEF3C7']}
-                style={styles.modalIconCircle}
+                style={[styles.modalIconCircle, isSmallScreen && styles.modalIconCircleMobile]}
               >
-                <Coins size={32} color="#D97706" />
+                <Coins size={isSmallScreen ? 22 : 32} color="#D97706" />
               </LinearGradient>
             </View>
 
             {/* Title & Description */}
-            <Text style={styles.modalTitle}>Credit Requirement ⚡</Text>
-            <Text style={styles.modalDesc}>
+            <Text style={[styles.modalTitle, isSmallScreen && styles.modalTitleMobile]}>Credit Requirement ⚡</Text>
+            <Text style={[styles.modalDesc, isSmallScreen && styles.modalDescMobile]}>
               As a {swap?.swapType === 'swap' ? 'Skill Swapper' : 'Learner'}, accepting this skill swap session requires <Text style={{ fontWeight: '700', color: '#D97706' }}>5 credits</Text>.
             </Text>
 
             {/* Credit Summary Card */}
-            <View style={styles.summaryCard}>
+            <View style={[styles.summaryCard, isSmallScreen && styles.summaryCardMobile]}>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Current Balance</Text>
-                <Text style={styles.summaryValue}>{currentUser?.credits ?? 0} credits</Text>
+                <Text style={[styles.summaryLabel, isSmallScreen && styles.summaryLabelMobile]}>Current Balance</Text>
+                <Text style={[styles.summaryValue, isSmallScreen && styles.summaryValueMobile]}>{currentUser?.credits ?? 0} credits</Text>
               </View>
               <View style={styles.summaryDivider} />
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Deduction</Text>
-                <Text style={[styles.summaryValue, { color: '#DC2626' }]}>-5 credits</Text>
+                <Text style={[styles.summaryLabel, isSmallScreen && styles.summaryLabelMobile]}>Deduction</Text>
+                <Text style={[styles.summaryValue, isSmallScreen && styles.summaryValueMobile, { color: '#DC2626' }]}>-5 credits</Text>
               </View>
               <View style={styles.summaryDivider} />
               <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { fontWeight: '700', color: Colors.light.text }]}>Remaining Balance</Text>
-                <Text style={[styles.summaryValue, { fontWeight: '700', color: '#10B981' }]}>
+                <Text style={[styles.summaryLabel, isSmallScreen && styles.summaryLabelMobile, { fontWeight: '700', color: Colors.light.text }]}>Remaining Balance</Text>
+                <Text style={[styles.summaryValue, isSmallScreen && styles.summaryValueMobile, { fontWeight: '700', color: '#10B981' }]}>
                   {Math.max(0, (currentUser?.credits ?? 0) - 5)} credits
                 </Text>
               </View>
             </View>
 
             {/* Action Buttons */}
-            <View style={styles.modalActions}>
+            <View style={[styles.modalActions, isSmallScreen && styles.modalActionsMobile]}>
               <TouchableOpacity
-                style={styles.cancelActionBtn}
+                style={[styles.cancelActionBtn, isSmallScreen && styles.cancelActionBtnMobile]}
                 onPress={() => {
                   setCreditConfirmModalVisible(false);
                   setPendingSlotToAccept(null);
@@ -1410,11 +1418,11 @@ export default function SwapDetailScreen() {
                 disabled={isAcceptingWithCredit}
                 activeOpacity={0.8}
               >
-                <Text style={styles.cancelActionText}>Cancel</Text>
+                <Text style={[styles.cancelActionText, isSmallScreen && styles.cancelActionTextMobile]}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.confirmActionBtn}
+                style={[styles.confirmActionBtn, isSmallScreen && styles.confirmActionBtnMobile]}
                 onPress={handleConfirmCreditDeduction}
                 disabled={isAcceptingWithCredit}
                 activeOpacity={0.85}
@@ -1423,14 +1431,14 @@ export default function SwapDetailScreen() {
                   colors={['#F59E0B', '#D97706']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={styles.confirmGradient}
+                  style={[styles.confirmGradient, isSmallScreen && styles.confirmGradientMobile]}
                 >
                   {isAcceptingWithCredit ? (
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
                     <>
-                      <Zap size={16} color="#FFFFFF" />
-                      <Text style={styles.confirmActionText}>Accept (-5 Credits)</Text>
+                      <Zap size={isSmallScreen ? 14 : 16} color="#FFFFFF" />
+                      <Text style={[styles.confirmActionText, isSmallScreen && styles.confirmActionTextMobile]}>Accept (-5 Credits)</Text>
                     </>
                   )}
                 </LinearGradient>
@@ -1448,7 +1456,7 @@ export default function SwapDetailScreen() {
         onRequestClose={() => setCallTimeModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, isSmallScreen && styles.modalCardMobile]}>
             {/* Top Accent Bar */}
             <LinearGradient
               colors={['#8B5CF6', '#6366F1']}
@@ -1466,41 +1474,41 @@ export default function SwapDetailScreen() {
             </TouchableOpacity>
 
             {/* Icon Banner */}
-            <View style={styles.modalIconBox}>
+            <View style={[styles.modalIconBox, isSmallScreen && styles.modalIconBoxMobile]}>
               <LinearGradient
                 colors={['#F5F3FF', '#EDE9FE']}
-                style={styles.modalIconCircle}
+                style={[styles.modalIconCircle, isSmallScreen && styles.modalIconCircleMobile]}
               >
-                <CalendarClock size={34} color="#8B5CF6" />
+                <CalendarClock size={isSmallScreen ? 24 : 34} color="#8B5CF6" />
               </LinearGradient>
             </View>
 
             {/* Title & Description */}
-            <Text style={styles.modalTitle}>
+            <Text style={[styles.modalTitle, isSmallScreen && styles.modalTitleMobile]}>
               {callModeToStart === 'video' ? 'Video Call Not Started Yet' : 'Voice Call Not Started Yet'}
             </Text>
-            <Text style={styles.modalDesc}>
+            <Text style={[styles.modalDesc, isSmallScreen && styles.modalDescMobile]}>
               You can only start the {callModeToStart} call once the locked-in session time slot begins.
             </Text>
 
             {/* Locked In Slot Info Box */}
             {lockedInSlot && (
-              <View style={styles.callLockInfoBox}>
+              <View style={[styles.callLockInfoBox, isSmallScreen && styles.callLockInfoBoxMobile]}>
                 <View style={styles.callLockRow}>
-                  <Clock size={18} color="#8B5CF6" />
+                  <Clock size={isSmallScreen ? 14 : 18} color="#8B5CF6" />
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={styles.callLockLabel}>Locked-in Time Slot</Text>
-                    <Text style={styles.callLockValue}>{formatTimestamp(lockedInSlot.startISO)}</Text>
+                    <Text style={[styles.callLockLabel, isSmallScreen && styles.callLockLabelMobile]}>Locked-in Time Slot</Text>
+                    <Text style={[styles.callLockValue, isSmallScreen && styles.callLockValueMobile]}>{formatTimestamp(lockedInSlot.startISO)}</Text>
                   </View>
                 </View>
 
                 <View style={styles.callLockDivider} />
 
                 <View style={styles.callLockRow}>
-                  <AlertCircle size={18} color="#6366F1" />
+                  <AlertCircle size={isSmallScreen ? 14 : 18} color="#6366F1" />
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={styles.callLockLabel}>Status</Text>
-                    <Text style={styles.callLockCountdown}>
+                    <Text style={[styles.callLockLabel, isSmallScreen && styles.callLockLabelMobile]}>Status</Text>
+                    <Text style={[styles.callLockCountdown, isSmallScreen && styles.callLockCountdownMobile]}>
                       {getTimeRemainingText(lockedInSlot.startISO)}
                     </Text>
                   </View>
@@ -1509,9 +1517,9 @@ export default function SwapDetailScreen() {
             )}
 
             {/* Actions */}
-            <View style={styles.modalActions}>
+            <View style={[styles.modalActions, isSmallScreen && styles.modalActionsMobile]}>
               <TouchableOpacity
-                style={[styles.confirmActionBtn, { flex: 1 }]}
+                style={[styles.confirmActionBtn, isSmallScreen && styles.confirmActionBtnMobile, { flex: 1 }]}
                 onPress={() => setCallTimeModalVisible(false)}
                 activeOpacity={0.85}
               >
@@ -1519,9 +1527,9 @@ export default function SwapDetailScreen() {
                   colors={['#8B5CF6', '#6366F1']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={styles.confirmGradient}
+                  style={[styles.confirmGradient, isSmallScreen && styles.confirmGradientMobile]}
                 >
-                  <Text style={styles.confirmActionText}>Got it</Text>
+                  <Text style={[styles.confirmActionText, isSmallScreen && styles.confirmActionTextMobile]}>Got it</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -2422,5 +2430,348 @@ const styles = StyleSheet.create({
   recordingMeta: {
     fontSize: 13,
     color: Colors.light.textSecondary,
+  },
+  heroBannerMobile: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    gap: 12,
+  },
+  heroTitleMobile: {
+    fontSize: 18,
+  },
+  heroSubtitleMobile: {
+    fontSize: 13,
+  },
+  heroBodyMobile: {
+    fontSize: 11.5,
+    lineHeight: 16,
+  },
+  sectionMobile: {
+    marginTop: 14,
+    paddingHorizontal: 12,
+    gap: 10,
+  },
+  sectionHeadingMobile: {
+    fontSize: 14,
+  },
+  overviewCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+    gap: 10,
+  },
+  overviewColumnMobile: {
+    padding: 10,
+    borderRadius: 10,
+    minWidth: 120,
+    gap: 6,
+  },
+  overviewRoleTitleMobile: {
+    fontSize: 10,
+  },
+  overviewPersonNameMobile: {
+    fontSize: 12,
+  },
+  overviewSkillLabelMobile: {
+    fontSize: 10,
+  },
+  overviewValueMobile: {
+    fontSize: 12,
+  },
+  overviewCategoryMobile: {
+    fontSize: 9.5,
+  },
+  sectionHeaderRowMobile: {
+    gap: 6,
+  },
+  slotListMobile: {
+    gap: 8,
+  },
+  slotCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+    gap: 8,
+  },
+  slotInfoMobile: {
+    gap: 8,
+    minWidth: 160,
+  },
+  slotPrimaryMobile: {
+    fontSize: 13,
+  },
+  slotSecondaryMobile: {
+    fontSize: 11,
+  },
+  slotActionButtonsMobile: {
+    gap: 6,
+  },
+  declineSlotButtonMobile: {
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 4,
+  },
+  declineSlotTextMobile: {
+    fontSize: 11.5,
+  },
+  acceptButtonMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 5,
+  },
+  acceptTextMobile: {
+    fontSize: 11.5,
+  },
+  pendingProposerBadgeMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  pendingProposerBadgeTextMobile: {
+    fontSize: 10.5,
+  },
+  subHeadingLabelMobile: {
+    fontSize: 11.5,
+    marginBottom: 5,
+  },
+  suggestionRowMobile: {
+    gap: 6,
+  },
+  suggestionChipMobile: {
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  suggestionTextMobile: {
+    fontSize: 11,
+  },
+  openCalendarPickerBtnMobile: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    gap: 6,
+    marginVertical: 8,
+  },
+  openCalendarPickerTextMobile: {
+    fontSize: 12,
+  },
+  selectedSlotsBoxMobile: {
+    padding: 10,
+    borderRadius: 12,
+    gap: 6,
+    marginBottom: 8,
+  },
+  selectedSlotsTitleMobile: {
+    fontSize: 11.5,
+  },
+  selectedSlotsRowMobile: {
+    gap: 6,
+  },
+  selectedSlotTagMobile: {
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+  },
+  selectedSlotTagTextMobile: {
+    fontSize: 10.5,
+  },
+  counterActionsMobile: {
+    gap: 8,
+    marginTop: 8,
+  },
+  counterButtonMobile: {
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+  },
+  primaryButtonTextMobile: {
+    fontSize: 12,
+  },
+  declineTextMobile: {
+    fontSize: 12,
+  },
+  timelineMobile: {
+    gap: 8,
+  },
+  noteBubbleMobile: {
+    padding: 10,
+    borderRadius: 12,
+    gap: 4,
+  },
+  noteBodyMobile: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  noteTimestampMobile: {
+    fontSize: 10,
+  },
+  messageComposerMobile: {
+    gap: 8,
+  },
+  messageInputMobile: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    fontSize: 12.5,
+  },
+  sendButtonMobile: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  calendarActionsMobile: {
+    gap: 8,
+    marginBottom: 8,
+  },
+  calendarButtonMobile: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    gap: 6,
+  },
+  calendarButtonTextMobile: {
+    fontSize: 11.5,
+  },
+  exportButtonMobile: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    gap: 6,
+  },
+  exportButtonTextMobile: {
+    fontSize: 11.5,
+  },
+  callActionsMobile: {
+    gap: 8,
+    marginBottom: 8,
+  },
+  callButtonMobile: {
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+  },
+  callButtonTextMobile: {
+    fontSize: 12.5,
+  },
+  completeTextMobile: {
+    fontSize: 12,
+  },
+  recordingCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+    gap: 10,
+  },
+  recordingIconBoxMobile: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+  },
+  recordingTitleMobile: {
+    fontSize: 12.5,
+  },
+  recordingMetaMobile: {
+    fontSize: 10.5,
+  },
+  modalCardMobile: {
+    borderRadius: 16,
+  },
+  modalIconBoxMobile: {
+    marginTop: 14,
+  },
+  modalIconCircleMobile: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  modalTitleMobile: {
+    fontSize: 15,
+    marginTop: 10,
+  },
+  modalDescMobile: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    paddingHorizontal: 14,
+    marginTop: 4,
+  },
+  summaryCardMobile: {
+    marginHorizontal: 14,
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 12,
+  },
+  summaryLabelMobile: {
+    fontSize: 11,
+  },
+  summaryValueMobile: {
+    fontSize: 11.5,
+  },
+  modalActionsMobile: {
+    padding: 14,
+    gap: 8,
+  },
+  cancelActionBtnMobile: {
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  cancelActionTextMobile: {
+    fontSize: 12,
+  },
+  confirmActionBtnMobile: {
+    borderRadius: 10,
+  },
+  confirmGradientMobile: {
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  confirmActionTextMobile: {
+    fontSize: 12,
+  },
+  pickerSectionMobile: {
+    marginHorizontal: 14,
+    marginTop: 10,
+    gap: 6,
+  },
+  pickerSectionTitleMobile: {
+    fontSize: 11,
+  },
+  dayCardMobile: {
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 10,
+    minWidth: 54,
+  },
+  dayCardLabelMobile: {
+    fontSize: 11.5,
+  },
+  dayCardSublabelMobile: {
+    fontSize: 9.5,
+  },
+  timeSlotPillMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  timeSlotPillTextMobile: {
+    fontSize: 11,
+  },
+  callLockInfoBoxMobile: {
+    padding: 10,
+    borderRadius: 12,
+    gap: 8,
+    marginVertical: 8,
+  },
+  callLockLabelMobile: {
+    fontSize: 9.5,
+  },
+  callLockValueMobile: {
+    fontSize: 12.5,
+  },
+  callLockCountdownMobile: {
+    fontSize: 12,
   },
 });

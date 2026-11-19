@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,6 +27,9 @@ const REASONS: { value: ContactReason; label: string }[] = [
 ];
 
 export default function ContactScreen() {
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const [reason, setReason] = useState<ContactReason>('general');
   const [subject, setSubject] = useState<string>('');
   const [message, setMessage] = useState<string>('');
@@ -183,7 +187,7 @@ export default function ContactScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.backgroundSecondary,
@@ -199,41 +203,41 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingTop: 40,
-    paddingBottom: 32,
-    paddingHorizontal: 24,
+    paddingTop: isSmallScreen ? 24 : 40,
+    paddingBottom: isSmallScreen ? 20 : 32,
+    paddingHorizontal: isSmallScreen ? 16 : 24,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: isSmallScreen ? 20 : 26,
     fontWeight: '800' as const,
     color: '#FFFFFF',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: isSmallScreen ? 10 : 16,
+    marginBottom: isSmallScreen ? 4 : 8,
   },
   headerSubtitle: {
-    fontSize: 15,
+    fontSize: isSmallScreen ? 12.5 : 15,
     color: 'rgba(255,255,255,0.85)',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: isSmallScreen ? 17 : 22,
   },
   content: {
-    marginTop: -20,
+    marginTop: isSmallScreen ? -14 : -20,
     backgroundColor: Colors.light.backgroundSecondary,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 24,
-    paddingHorizontal: 20,
+    borderTopLeftRadius: isSmallScreen ? 16 : 24,
+    borderTopRightRadius: isSmallScreen ? 16 : 24,
+    paddingTop: isSmallScreen ? 16 : 24,
+    paddingHorizontal: isSmallScreen ? 12 : 20,
   },
   contactInfoRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
+    gap: isSmallScreen ? 8 : 12,
+    marginBottom: isSmallScreen ? 16 : 24,
   },
   contactInfoCard: {
     flex: 1,
     backgroundColor: Colors.light.card,
-    padding: 16,
-    borderRadius: 16,
+    padding: isSmallScreen ? 10 : 16,
+    borderRadius: isSmallScreen ? 12 : 16,
     alignItems: 'center',
     gap: 6,
     borderWidth: 1,
@@ -245,22 +249,22 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   contactInfoLabel: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 10.5 : 12,
     fontWeight: '600' as const,
     color: Colors.light.textTertiary,
     textTransform: 'uppercase' as const,
     letterSpacing: 0.5,
   },
   contactInfoValue: {
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     fontWeight: '600' as const,
     color: Colors.light.text,
     textAlign: 'center',
   },
   formCard: {
     backgroundColor: Colors.light.card,
-    padding: 20,
-    borderRadius: 20,
+    padding: isSmallScreen ? 14 : 20,
+    borderRadius: isSmallScreen ? 14 : 20,
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
     shadowColor: Colors.light.shadow,
@@ -270,28 +274,28 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   formTitle: {
-    fontSize: 18,
+    fontSize: isSmallScreen ? 16 : 18,
     fontWeight: '700' as const,
     color: Colors.light.text,
-    marginBottom: 18,
+    marginBottom: isSmallScreen ? 12 : 18,
   },
   label: {
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     fontWeight: '600' as const,
     color: Colors.light.textSecondary,
-    marginBottom: 8,
+    marginBottom: 6,
     marginTop: 4,
   },
   reasonRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
+    gap: isSmallScreen ? 6 : 8,
+    marginBottom: isSmallScreen ? 10 : 16,
   },
   reasonChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: isSmallScreen ? 10 : 14,
+    paddingVertical: isSmallScreen ? 6 : 8,
+    borderRadius: isSmallScreen ? 16 : 20,
     backgroundColor: Colors.light.backgroundTertiary,
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
@@ -301,7 +305,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.primary,
   },
   reasonChipText: {
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     fontWeight: '600' as const,
     color: Colors.light.textSecondary,
   },
@@ -310,18 +314,18 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: Colors.light.backgroundTertiary,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    fontSize: 15,
+    paddingHorizontal: isSmallScreen ? 12 : 16,
+    paddingVertical: isSmallScreen ? 9 : 14,
+    borderRadius: isSmallScreen ? 10 : 14,
+    fontSize: isSmallScreen ? 13.5 : 15,
     color: Colors.light.text,
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
-    marginBottom: 16,
+    marginBottom: isSmallScreen ? 10 : 16,
   },
   messageInput: {
-    height: 140,
-    paddingTop: 14,
+    height: isSmallScreen ? 100 : 140,
+    paddingTop: isSmallScreen ? 10 : 14,
   },
   submitButton: {
     flexDirection: 'row',
@@ -329,8 +333,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     backgroundColor: Colors.light.primary,
-    paddingVertical: 16,
-    borderRadius: 16,
+    paddingVertical: isSmallScreen ? 12 : 16,
+    borderRadius: isSmallScreen ? 12 : 16,
     marginTop: 4,
     shadowColor: Colors.light.primary,
     shadowOffset: { width: 0, height: 4 },
@@ -342,29 +346,29 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   submitButtonText: {
-    fontSize: 16,
+    fontSize: isSmallScreen ? 13.5 : 16,
     fontWeight: '700' as const,
     color: '#FFFFFF',
   },
   locationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 24,
-    padding: 16,
+    marginTop: isSmallScreen ? 16 : 24,
+    padding: isSmallScreen ? 12 : 16,
     backgroundColor: Colors.light.backgroundTertiary,
-    borderRadius: 16,
+    borderRadius: isSmallScreen ? 12 : 16,
     gap: 10,
   },
   locationText: {
     flex: 1,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: isSmallScreen ? 11.5 : 13,
+    lineHeight: isSmallScreen ? 16 : 20,
     color: Colors.light.textSecondary,
   },
   companyInfoCard: {
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 16,
+    marginTop: isSmallScreen ? 14 : 20,
+    padding: isSmallScreen ? 12 : 16,
+    borderRadius: isSmallScreen ? 12 : 16,
     backgroundColor: Colors.light.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -373,12 +377,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   companyNameText: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12.5 : 14,
     fontWeight: '700' as const,
     color: Colors.light.text,
   },
   companyProductText: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     color: Colors.light.textSecondary,
     textAlign: 'center',
   },

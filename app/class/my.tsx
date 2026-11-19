@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, Image, ScrollView, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Calendar, Clock, Users, Coins, Plus, CheckCircle2, XCircle, Sparkles, Repeat, CreditCard, Video } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,7 +16,7 @@ type Segment = 'teaching' | 'enrolled';
 
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800';
 
-function MyClassCardItem({ item, currentUserId, router }: { item: ClassWithTeacher; currentUserId?: string; router: any }) {
+function MyClassCardItem({ item, currentUserId, router, isSmallScreen }: { item: ClassWithTeacher; currentUserId?: string; router: any; isSmallScreen: boolean }) {
   const isFree = item.seatPriceCredits === 0;
   const isTeacher = item.teacherId === currentUserId;
   const isRecurring = item.sessionType && item.sessionType !== 'single';
@@ -35,43 +35,43 @@ function MyClassCardItem({ item, currentUserId, router }: { item: ClassWithTeach
 
   return (
     <TouchableOpacity
-      style={s.card}
+      style={[s.card, isSmallScreen && s.cardMobile]}
       onPress={() => router.push(`/class/${item.id}` as any)}
       activeOpacity={0.85}
     >
       <Image
         source={{ uri: coverUrl }}
-        style={s.cover}
+        style={[s.cover, isSmallScreen && s.coverMobile]}
         onError={() => setCoverUrl(DEFAULT_COVER)}
       />
-      <View style={s.cardBody}>
+      <View style={[s.cardBody, isSmallScreen && s.cardBodyMobile]}>
         <View style={s.cardHeader}>
           <View style={s.catBadgeWrap}>
-            <Text style={s.catBadge} numberOfLines={1} ellipsizeMode="tail">{item.category}</Text>
+            <Text style={s.catBadge}>{item.category}</Text>
           </View>
           <View style={[s.statusPill, item.status === 'completed' && s.statusCompleted, item.status === 'cancelled' && s.statusCancelled, item.status === 'open' && s.statusOpen]}>
             <Text style={s.statusPillText}>{item.status === 'completed' ? 'Completed' : item.status === 'cancelled' ? 'Cancelled' : 'Upcoming'}</Text>
           </View>
         </View>
-        <Text style={s.title} numberOfLines={2}>{item.title}</Text>
+        <Text style={[s.title, isSmallScreen && s.titleMobile]}>{item.title}</Text>
         <View style={s.metaRow}>
           <View style={s.metaChunk}>
-            <Calendar size={12} color={Colors.light.textTertiary} />
-            <Text style={s.metaText} numberOfLines={1}>
+            <Calendar size={isSmallScreen ? 11 : 12} color={Colors.light.textTertiary} />
+            <Text style={[s.metaText, isSmallScreen && s.metaTextMobile]}>
               {isRecurring
                 ? `${formatShortDate(item.startISO)} — ${formatShortDate(item.endISO)}`
                 : formatDate(item.startISO)}
             </Text>
           </View>
           <View style={s.metaChunk}>
-            <Clock size={12} color={Colors.light.textTertiary} />
-            <Text style={s.metaText} numberOfLines={1}>{formatTime(item.startISO)}</Text>
+            <Clock size={isSmallScreen ? 11 : 12} color={Colors.light.textTertiary} />
+            <Text style={[s.metaText, isSmallScreen && s.metaTextMobile]}>{formatTime(item.startISO)}</Text>
           </View>
         </View>
         {isRecurring && (
           <View style={s.scheduleRow}>
-            <Repeat size={11} color={Colors.light.primary} />
-            <Text style={s.scheduleText} numberOfLines={1} ellipsizeMode="tail">
+            <Repeat size={isSmallScreen ? 10 : 11} color={Colors.light.primary} />
+            <Text style={[s.scheduleText, isSmallScreen && s.scheduleTextMobile]}>
               {formatClassSchedule(item.sessionType, item.sessionCount, item.scheduleDays)}
             </Text>
           </View>
@@ -79,18 +79,18 @@ function MyClassCardItem({ item, currentUserId, router }: { item: ClassWithTeach
         <View style={s.bottomRow}>
           {isTeacher ? (
             <View style={s.seatInfo}>
-              <Users size={13} color={Colors.light.primary} />
-              <Text style={s.seatText} numberOfLines={1}>{item.enrolledCount}/{item.maxCapacity} enrolled</Text>
+              <Users size={isSmallScreen ? 11 : 13} color={Colors.light.primary} />
+              <Text style={[s.seatText, isSmallScreen && s.seatTextMobile]}>{item.enrolledCount}/{item.maxCapacity} enrolled</Text>
             </View>
           ) : (
             <View style={s.priceInfo}>
-              {isFree ? <Sparkles size={13} color="#10B981" /> : <Coins size={13} color="#F59E0B" />}
-              <Text style={s.seatText} numberOfLines={1}>{isFree ? 'Free class' : formatCredits(item.seatPriceCredits)}</Text>
+              {isFree ? <Sparkles size={isSmallScreen ? 11 : 13} color="#10B981" /> : <Coins size={isSmallScreen ? 11 : 13} color="#F59E0B" />}
+              <Text style={[s.seatText, isSmallScreen && s.seatTextMobile]}>{isFree ? 'Free class' : formatCredits(item.seatPriceCredits)}</Text>
             </View>
           )}
           {Boolean(item.billingCycle) && (
             <View style={s.billingPill}>
-              <Text style={s.billingPillText} numberOfLines={1}>{formatBillingCycle(item.billingCycle)}</Text>
+              <Text style={s.billingPillText}>{formatBillingCycle(item.billingCycle)}</Text>
             </View>
           )}
           {Boolean(item.isLive) && item.status !== 'completed' && item.status !== 'cancelled' && (
@@ -112,6 +112,8 @@ function MyClassCardItem({ item, currentUserId, router }: { item: ClassWithTeach
 export default function MyClassesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
   const { getMyTeachingClasses, getMyEnrolledClasses } = useClasses();
   const { currentUser } = useCurrentUser();
   const { showAlert } = useAlert();
@@ -139,42 +141,42 @@ export default function MyClassesScreen() {
   const displayClasses = segment === 'teaching' ? teachingClasses : enrolledClasses;
 
   const renderClassCard = useCallback(({ item }: { item: ClassWithTeacher }) => (
-    <MyClassCardItem item={item} currentUserId={currentUser?.id} router={router} />
-  ), [router, currentUser?.id]);
+    <MyClassCardItem item={item} currentUserId={currentUser?.id} router={router} isSmallScreen={isSmallScreen} />
+  ), [router, currentUser?.id, isSmallScreen]);
 
   return (
     <View style={s.container}>
       <LinearGradient
         colors={[Colors.light.primary, Colors.light.primaryLight]}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={[s.header, { paddingTop: insets.top + 16 }]}
+        style={[s.header, isSmallScreen && s.headerMobile, { paddingTop: insets.top + (isSmallScreen ? 12 : 16) }]}
       >
-        <Text style={s.headerTitle}>My Classes</Text>
-        <Text style={s.headerSub}>Manage your teaching and enrolled classes</Text>
+        <Text style={[s.headerTitle, isSmallScreen && s.headerTitleMobile]}>My Classes</Text>
+        <Text style={[s.headerSub, isSmallScreen && s.headerSubMobile]}>Manage your teaching and enrolled classes</Text>
         <TouchableOpacity
-          style={s.createBtn}
+          style={[s.createBtn, isSmallScreen && s.createBtnMobile]}
           onPress={handleCreateClassPress}
           activeOpacity={0.8}
         >
-          <Plus size={18} color="#FFFFFF" />
-          <Text style={s.createBtnText}>Create Class</Text>
+          <Plus size={isSmallScreen ? 15 : 18} color="#FFFFFF" />
+          <Text style={[s.createBtnText, isSmallScreen && s.createBtnTextMobile]}>Create Class</Text>
         </TouchableOpacity>
       </LinearGradient>
 
-      <View style={s.segmentRow}>
+      <View style={[s.segmentRow, isSmallScreen && s.segmentRowMobile]}>
         <TouchableOpacity
-          style={[s.segment, segment === 'teaching' && s.segmentActive]}
+          style={[s.segment, isSmallScreen && s.segmentMobile, segment === 'teaching' && s.segmentActive]}
           onPress={() => setSegment('teaching')}
           activeOpacity={0.7}
         >
-          <Text style={[s.segmentText, segment === 'teaching' && s.segmentTextActive]}>Teaching ({teachingClasses.length})</Text>
+          <Text style={[s.segmentText, isSmallScreen && s.segmentTextMobile, segment === 'teaching' && s.segmentTextActive]}>Teaching ({teachingClasses.length})</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[s.segment, segment === 'enrolled' && s.segmentActive]}
+          style={[s.segment, isSmallScreen && s.segmentMobile, segment === 'enrolled' && s.segmentActive]}
           onPress={() => setSegment('enrolled')}
           activeOpacity={0.7}
         >
-          <Text style={[s.segmentText, segment === 'enrolled' && s.segmentTextActive]}>Enrolled ({enrolledClasses.length})</Text>
+          <Text style={[s.segmentText, isSmallScreen && s.segmentTextMobile, segment === 'enrolled' && s.segmentTextActive]}>Enrolled ({enrolledClasses.length})</Text>
         </TouchableOpacity>
       </View>
 
@@ -182,8 +184,8 @@ export default function MyClassesScreen() {
         data={displayClasses}
         keyExtractor={item => item.id}
         renderItem={renderClassCard}
-        ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
-        contentContainerStyle={s.listContent}
+        ItemSeparatorComponent={() => <View style={{ height: isSmallScreen ? 10 : 16 }} />}
+        contentContainerStyle={[s.listContent, isSmallScreen && s.listContentMobile]}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={s.emptyWrap}>
@@ -247,4 +249,65 @@ const s = StyleSheet.create({
   emptyText: { fontSize: 15, color: Colors.light.textTertiary, fontWeight: '500' as const, textAlign: 'center' },
   emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.light.primary, paddingHorizontal: 18, paddingVertical: 12, borderRadius: 14 },
   emptyBtnText: { fontSize: 14, fontWeight: '700' as const, color: '#FFFFFF' },
+  headerMobile: {
+    paddingHorizontal: 12,
+    paddingBottom: 14,
+  },
+  headerTitleMobile: {
+    fontSize: 18,
+  },
+  headerSubMobile: {
+    fontSize: 11.5,
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  createBtnMobile: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    gap: 4,
+  },
+  createBtnTextMobile: {
+    fontSize: 11.5,
+  },
+  segmentRowMobile: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  segmentMobile: {
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  segmentTextMobile: {
+    fontSize: 11.5,
+  },
+  listContentMobile: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 30,
+  },
+  cardMobile: {
+    borderRadius: 14,
+  },
+  coverMobile: {
+    height: 105,
+  },
+  cardBodyMobile: {
+    padding: 10,
+  },
+  titleMobile: {
+    fontSize: 12.5,
+    lineHeight: 16,
+    marginBottom: 6,
+  },
+  metaTextMobile: {
+    fontSize: 10,
+  },
+  scheduleTextMobile: {
+    fontSize: 10,
+  },
+  seatTextMobile: {
+    fontSize: 10.5,
+  },
 });

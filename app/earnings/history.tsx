@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet, SectionList, TouchableOpacity, RefreshControl, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SectionList, TouchableOpacity, RefreshControl, ScrollView, useWindowDimensions } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import { useSafeTopInset } from '@/lib/safeArea';
 import { ArrowLeft, Coins, Plus, Minus, Wallet, CreditCard, Sparkles, Gift, ShieldAlert } from 'lucide-react-native';
 import { useMemo, useState, useCallback, useEffect } from 'react';
 import Colors from '@/constants/colors';
@@ -43,6 +44,9 @@ const methodLabels: Record<string, string> = {
 
 export default function EarningsHistoryScreen() {
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const safeTop = useSafeTopInset(isSmallScreen ? 8 : 14);
   const { currentUser } = useCurrentUser();
   const { getUserTransactions, getUserPayouts, refreshUserEarnings } = useEarnings();
   const [activeFilter, setActiveFilter] = useState<HistoryFilter>('all');
@@ -206,40 +210,40 @@ export default function EarningsHistoryScreen() {
   return (
     <View style={s.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <ArrowLeft size={22} color="#FFFFFF" />
+      <View style={[s.header, isSmallScreen && s.headerMobile, { paddingTop: safeTop }]}>
+        <TouchableOpacity onPress={() => router.back()} style={[s.backBtn, isSmallScreen && s.backBtnMobile]}>
+          <ArrowLeft size={isSmallScreen ? 18 : 22} color={Colors.light.text} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Credits History</Text>
-        <View style={{ width: 44 }} />
+        <Text style={[s.headerTitle, isSmallScreen && s.headerTitleMobile]}>Credits History</Text>
+        <View style={{ width: isSmallScreen ? 34 : 44 }} />
       </View>
 
       {/* Filter Tabs */}
       <View style={s.filterContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterScroll}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.filterScroll, isSmallScreen && s.filterScrollMobile]}>
           <TouchableOpacity
-            style={[s.filterChip, activeFilter === 'all' && s.filterChipActive]}
+            style={[s.filterChip, isSmallScreen && s.filterChipMobile, activeFilter === 'all' && s.filterChipActive]}
             onPress={() => setActiveFilter('all')}
           >
-            <Text style={[s.filterChipText, activeFilter === 'all' && s.filterChipTextActive]}>All Activity</Text>
+            <Text style={[s.filterChipText, isSmallScreen && s.filterChipTextMobile, activeFilter === 'all' && s.filterChipTextActive]}>All Activity</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[s.filterChip, activeFilter === 'top_up' && s.filterChipActive]}
+            style={[s.filterChip, isSmallScreen && s.filterChipMobile, activeFilter === 'top_up' && s.filterChipActive]}
             onPress={() => setActiveFilter('top_up')}
           >
-            <Text style={[s.filterChipText, activeFilter === 'top_up' && s.filterChipTextActive]}>💳 Top-ups</Text>
+            <Text style={[s.filterChipText, isSmallScreen && s.filterChipTextMobile, activeFilter === 'top_up' && s.filterChipTextActive]}>💳 Top-ups</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[s.filterChip, activeFilter === 'earning' && s.filterChipActive]}
+            style={[s.filterChip, isSmallScreen && s.filterChipMobile, activeFilter === 'earning' && s.filterChipActive]}
             onPress={() => setActiveFilter('earning')}
           >
-            <Text style={[s.filterChipText, activeFilter === 'earning' && s.filterChipTextActive]}>✨ Earnings</Text>
+            <Text style={[s.filterChipText, isSmallScreen && s.filterChipTextMobile, activeFilter === 'earning' && s.filterChipTextActive]}>✨ Earnings</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[s.filterChip, activeFilter === 'payout' && s.filterChipActive]}
+            style={[s.filterChip, isSmallScreen && s.filterChipMobile, activeFilter === 'payout' && s.filterChipActive]}
             onPress={() => setActiveFilter('payout')}
           >
-            <Text style={[s.filterChipText, activeFilter === 'payout' && s.filterChipTextActive]}>💰 Payouts</Text>
+            <Text style={[s.filterChipText, isSmallScreen && s.filterChipTextMobile, activeFilter === 'payout' && s.filterChipTextActive]}>💰 Payouts</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -251,49 +255,49 @@ export default function EarningsHistoryScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#6366F1']} />
         }
         renderSectionHeader={({ section: { title } }) => (
-          <Text style={s.sectionHeader}>{title}</Text>
+          <Text style={[s.sectionHeader, isSmallScreen && s.sectionHeaderMobile]}>{title}</Text>
         )}
         renderItem={({ item }) => (
-          <View style={s.itemCard}>
+          <View style={[s.itemCard, isSmallScreen && s.itemCardMobile]}>
             {renderIcon(item)}
             <View style={{ flex: 1 }}>
               <View style={s.itemTitleRow}>
-                <Text style={s.itemTitle}>{item.title}</Text>
+                <Text style={[s.itemTitle, isSmallScreen && s.itemTitleMobile]}>{item.title}</Text>
                 {item.category === 'top_up' && (
                   <View style={s.topUpBadge}>
                     <Text style={s.topUpBadgeText}>Top-up</Text>
                   </View>
                 )}
               </View>
-              <Text style={s.itemSubtitle} numberOfLines={2}>{item.subtitle}</Text>
-              <Text style={s.itemDate}>
+              <Text style={[s.itemSubtitle, isSmallScreen && s.itemSubtitleMobile]}>{item.subtitle}</Text>
+              <Text style={[s.itemDate, isSmallScreen && s.itemDateMobile]}>
                 {new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </Text>
             </View>
             <View style={s.itemRight}>
-              <Text style={[s.itemPoints, { color: item.points > 0 ? '#10B981' : '#EF4444' }]}>
+              <Text style={[s.itemPoints, isSmallScreen && s.itemPointsMobile, { color: item.points > 0 ? '#10B981' : '#EF4444' }]}>
                 {item.points > 0 ? '+' : ''}{item.points} credits
               </Text>
               {item.amount !== undefined && (
-                <Text style={s.itemAmount}>{formatPrice(item.amount)}</Text>
+                <Text style={[s.itemAmount, isSmallScreen && s.itemAmountMobile]}>{formatPrice(item.amount)}</Text>
               )}
             </View>
           </View>
         )}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        contentContainerStyle={{ paddingHorizontal: isSmallScreen ? 12 : 20, paddingBottom: 40 }}
+        ItemSeparatorComponent={() => <View style={{ height: isSmallScreen ? 8 : 10 }} />}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View style={s.emptyWrap}>
-            <Coins size={40} color={Colors.light.textTertiary} />
-            <Text style={s.emptyTitle}>
+          <View style={[s.emptyWrap, isSmallScreen && { paddingVertical: 40 }]}>
+            <Coins size={isSmallScreen ? 32 : 40} color={Colors.light.textTertiary} />
+            <Text style={[s.emptyTitle, isSmallScreen && { fontSize: 15 }]}>
               {activeFilter === 'top_up'
                 ? 'No Top-ups Yet'
                 : activeFilter === 'payout'
                 ? 'No Payouts Yet'
                 : 'No History Yet'}
             </Text>
-            <Text style={s.emptyDesc}>
+            <Text style={[s.emptyDesc, isSmallScreen && { fontSize: 12, paddingHorizontal: 20 }]}>
               {activeFilter === 'top_up'
                 ? 'Top up credits in the Store to request sessions and enroll in classes.'
                 : 'Complete swaps, teach classes, or top up in the Store to see activity here!'}
@@ -331,4 +335,17 @@ const s = StyleSheet.create({
   emptyWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 80, gap: 12 },
   emptyTitle: { fontSize: 18, fontWeight: '700' as const, color: Colors.light.text },
   emptyDesc: { fontSize: 14, color: Colors.light.textSecondary, textAlign: 'center', paddingHorizontal: 40, lineHeight: 20 },
+  headerMobile: { paddingHorizontal: 12, paddingVertical: 10 },
+  backBtnMobile: { width: 34, height: 34, borderRadius: 17 },
+  headerTitleMobile: { fontSize: 16 },
+  filterScrollMobile: { paddingHorizontal: 12, gap: 6 },
+  filterChipMobile: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16 },
+  filterChipTextMobile: { fontSize: 11.5 },
+  sectionHeaderMobile: { fontSize: 12.5, marginTop: 12, marginBottom: 6 },
+  itemCardMobile: { padding: 10, borderRadius: 10, gap: 8 },
+  itemTitleMobile: { fontSize: 13 },
+  itemSubtitleMobile: { fontSize: 11, marginBottom: 2 },
+  itemDateMobile: { fontSize: 10 },
+  itemPointsMobile: { fontSize: 13, marginBottom: 1 },
+  itemAmountMobile: { fontSize: 11 },
 });

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { MapPin, Star, Users, ArrowRight, Award, Clock, CalendarCheck2, IndianRupee, Sparkles, Coins, Trash2, Edit, Calendar, Repeat, CreditCard, BadgeCheck } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -43,6 +43,8 @@ export default function SkillDetailScreen() {
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
   const [skill, setSkill] = useState<SkillWithUser>();
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { swaps, allSwaps, fetchSwaps } = useSkillSwaps();
@@ -348,10 +350,10 @@ export default function SkillDetailScreen() {
   }, [skill, removeSkill, router, showAlert]);
   const contentContainerStyle = useMemo(() => {
     return {
-      paddingBottom: insets.bottom + 140,
+      paddingBottom: insets.bottom + (isSmallScreen ? 84 : 140),
       paddingTop: insets.top,
     };
-  }, [insets.bottom, insets.top]);
+  }, [insets.bottom, insets.top, isSmallScreen]);
 
   if (isLoading) {
     return (
@@ -386,192 +388,197 @@ export default function SkillDetailScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={contentContainerStyle}
       >
-        <View style={styles.heroContainer}>
+        <View style={[styles.heroContainer, isSmallScreen && styles.heroContainerMobile]}>
           <Image
             source={{ uri: resolveImageUrl(skill.imageUrl, getCategoryImageUrl(skill.category || skill.title)) }}
             style={styles.headerImage}
+            resizeMode="cover"
           />
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.8)']}
-            style={styles.heroGradient}
+            style={[styles.heroGradient, isSmallScreen && styles.heroGradientMobile]}
           />
         </View>
 
-        <View style={styles.content}>
+        <View style={[styles.content, isSmallScreen && styles.contentMobile]}>
           {activeSwap && swapStatusLabel ? (
-            <View style={styles.swapStatusCard} testID="existing-swap-status">
-              <View style={styles.swapStatusHeader}>
-                <View style={[styles.swapTagBase, resolveSwapTagStyle(activeSwap.status)]}>
-                  <Text style={styles.swapTagText}>{activeSwap.status.toUpperCase()}</Text>
+            <View style={[styles.swapStatusCard, isSmallScreen && styles.swapStatusCardMobile]} testID="existing-swap-status">
+              <View style={[styles.swapStatusHeader, isSmallScreen && styles.swapStatusHeaderMobile]}>
+                <View style={[styles.swapTagBase, isSmallScreen && styles.swapTagBaseMobile, resolveSwapTagStyle(activeSwap.status)]}>
+                  <Text style={[styles.swapTagText, isSmallScreen && styles.swapTagTextMobile]}>{activeSwap.status.toUpperCase()}</Text>
                 </View>
                 {Boolean(nextSwapTime) ? (
-                  <View style={styles.swapTimeRow}>
-                    <CalendarCheck2 size={16} color={Colors.light.primary} />
-                    <Text style={styles.swapTimeText}>{nextSwapTime}</Text>
+                  <View style={[styles.swapTimeRow, isSmallScreen && styles.swapTimeRowMobile]}>
+                    <CalendarCheck2 size={isSmallScreen ? 12 : 16} color={Colors.light.primary} />
+                    <Text style={[styles.swapTimeText, isSmallScreen && styles.swapTimeTextMobile]}>{nextSwapTime}</Text>
                   </View>
                 ) : null}
               </View>
-              <Text style={styles.swapStatusBody}>{swapStatusLabel}</Text>
+              <Text style={[styles.swapStatusBody, isSmallScreen && styles.swapStatusBodyMobile]}>{swapStatusLabel}</Text>
               {activeSwap.locationPreference ? (
-                <View style={styles.swapFooter}>
-                  <MapPin size={16} color={Colors.light.textSecondary} />
-                  <Text style={styles.swapLocationText}>{activeSwap.locationPreference}</Text>
+                <View style={[styles.swapFooter, isSmallScreen && styles.swapFooterMobile]}>
+                  <MapPin size={isSmallScreen ? 12 : 16} color={Colors.light.textSecondary} />
+                  <Text style={[styles.swapLocationText, isSmallScreen && styles.swapLocationTextMobile]}>{activeSwap.locationPreference}</Text>
                 </View>
               ) : null}
             </View>
           ) : null}
-          <View style={styles.header}>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>{skill.category}</Text>
+          <View style={[styles.header, isSmallScreen && styles.headerMobile]}>
+            <View style={[styles.categoryBadge, isSmallScreen && styles.categoryBadgeMobile]}>
+              <Text style={[styles.categoryBadgeText, isSmallScreen && styles.categoryBadgeTextMobile]}>{skill.category}</Text>
             </View>
-            <View style={styles.levelBadge}>
-              <Text style={styles.levelText}>{skill.level}</Text>
+            <View style={[styles.levelBadge, isSmallScreen && styles.levelBadgeMobile]}>
+              <Text style={[styles.levelText, isSmallScreen && styles.levelTextMobile]}>{skill.level}</Text>
             </View>
             {Boolean(skill.certificateUri) ? (
-              <View style={styles.certVerifiedBadge}>
-                <BadgeCheck size={14} color="#10B981" />
-                <Text style={styles.certVerifiedBadgeText}>Certified</Text>
+              <View style={[styles.certVerifiedBadge, isSmallScreen && styles.certVerifiedBadgeMobile]}>
+                <BadgeCheck size={isSmallScreen ? 12 : 14} color="#10B981" />
+                <Text style={[styles.certVerifiedBadgeText, isSmallScreen && styles.certVerifiedBadgeTextMobile]}>Certified</Text>
               </View>
             ) : null}
           </View>
 
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>{skill.title}</Text>
+          <View style={[styles.titleRow, isSmallScreen && styles.titleRowMobile]}>
+            <Text style={[styles.title, isSmallScreen && styles.titleMobile]}>{skill.title}</Text>
             {Boolean(isOwner) ? (
               <View style={styles.ownerActionsRow}>
                 <TouchableOpacity
                   onPress={() => router.push(`/add-skill?id=${skill._id || skill.id}` as any)}
-                  style={styles.editButton}
+                  style={[styles.editButton, isSmallScreen && styles.editButtonMobile]}
                   activeOpacity={0.7}
                   testID="edit-skill-button"
                 >
-                  <Edit size={18} color={Colors.light.primary} />
+                  <Edit size={isSmallScreen ? 14 : 18} color={Colors.light.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleDeleteSkill}
-                  style={styles.deleteButton}
+                  style={[styles.deleteButton, isSmallScreen && styles.deleteButtonMobile]}
                   activeOpacity={0.7}
                   testID="delete-skill-button"
                 >
-                  <Trash2 size={18} color="#EF4444" />
+                  <Trash2 size={isSmallScreen ? 14 : 18} color="#EF4444" />
                 </TouchableOpacity>
               </View>
             ) : null}
           </View>
 
           {Boolean(skill.promoted || (skill.pricingModel && skill.pricingModel !== 'free')) ? (
-            <View style={styles.pricingCard}>
+            <View style={[styles.pricingCard, isSmallScreen && styles.pricingCardMobile]}>
               {Boolean(skill.promoted && skill.promoTagline) ? (
-                <View style={styles.promoBanner}>
-                  <Sparkles size={16} color="#F59E0B" />
-                  <Text style={styles.promoText}>{skill.promoTagline}</Text>
+                <View style={[styles.promoBanner, isSmallScreen && styles.promoBannerMobile]}>
+                  <Sparkles size={isSmallScreen ? 13 : 16} color="#F59E0B" />
+                  <Text style={[styles.promoText, isSmallScreen && styles.promoTextMobile]}>{skill.promoTagline}</Text>
                 </View>
               ) : null}
               {Boolean(skill.pricingModel && skill.pricingModel !== 'free') ? (
                 <View>
-                  <View style={styles.priceRow}>
-                    <IndianRupee size={20} color="#10B981" />
-                    <Text style={styles.priceValue}>
+                  <View style={[styles.priceRow, isSmallScreen && styles.priceRowMobile]}>
+                    <IndianRupee size={isSmallScreen ? 16 : 20} color="#10B981" />
+                    <Text style={[styles.priceValue, isSmallScreen && styles.priceValueMobile]}>
                       {skill.pricingModel === 'per_session'
                         ? `${formatPrice(skill.pricePerSession ?? 0)}`
                         : `${formatPrice(skill.monthlyPrice ?? 0)}`}
                     </Text>
-                    <Text style={styles.priceUnit}>
+                    <Text style={[styles.priceUnit, isSmallScreen && styles.priceUnitMobile]}>
                       {skill.pricingModel === 'per_session' ? '/ session' : '/ month'}
                     </Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                    <Coins size={14} color="#F59E0B" />
-                    <Text style={{ fontSize: 13, color: Colors.light.textSecondary, fontWeight: '500' }}>
+                    <Coins size={isSmallScreen ? 12 : 14} color="#F59E0B" />
+                    <Text style={{ fontSize: isSmallScreen ? 11 : 13, color: Colors.light.textSecondary, fontWeight: '500' }}>
                       = {formatCredits(getSessionCreditCost(skill))}
                     </Text>
                   </View>
                 </View>
               ) : null}
               {Boolean(skill.pricingModel === 'free') ? (
-                <View style={styles.priceRow}>
-                  <Text style={styles.freeTag}>Free — Skill Exchange</Text>
+                <View style={[styles.priceRow, isSmallScreen && styles.priceRowMobile]}>
+                  <Text style={[styles.freeTag, isSmallScreen && styles.freeTagMobile]}>Free — Skill Exchange</Text>
                 </View>
               ) : null}
             </View>
           ) : null}
 
           {Boolean(skill.description) ? (
-            <View style={styles.description}>
-              <Text style={styles.descriptionText}>{skill.description}</Text>
+            <View style={[styles.description, isSmallScreen && styles.descriptionMobile]}>
+              <Text style={[styles.descriptionText, isSmallScreen && styles.descriptionTextMobile]}>{skill.description}</Text>
             </View>
           ) : null}
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, isSmallScreen && styles.dividerMobile]} />
 
-          <View style={styles.teacherSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Your Teacher</Text>
-              <Award size={18} color={Colors.light.primary} />
+          <View style={[styles.teacherSection, isSmallScreen && styles.teacherSectionMobile]}>
+            <View style={[styles.sectionHeader, isSmallScreen && styles.sectionHeaderMobile]}>
+              <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>Your Teacher</Text>
+              <Award size={isSmallScreen ? 15 : 18} color={Colors.light.primary} />
             </View>
             <TouchableOpacity
-              style={styles.teacherCard}
+              style={[styles.teacherCard, isSmallScreen && styles.teacherCardMobile]}
               onPress={() => router.push(`/profile/${skill?.user?.id}` as any)}
             >
               <Image
                 source={{ uri: resolveImageUrl(skill.user?.avatarUrl) }}
-                style={styles.teacherAvatar}
+                style={[styles.teacherAvatar, isSmallScreen && styles.teacherAvatarMobile]}
               />
               <View style={styles.teacherInfo}>
-                <Text style={styles.teacherName}>{skill.user?.username ? (skill.user.username.startsWith('@') ? skill.user.username : `@${skill.user.username}`) : skill.user?.name ? `@${skill.user.name.toLowerCase().replace(/\s+/g, '')}` : '@teacher'}</Text>
+                <Text style={[styles.teacherName, isSmallScreen && styles.teacherNameMobile]}>{skill.user?.username ? (skill.user.username.startsWith('@') ? skill.user.username : `@${skill.user.username}`) : skill.user?.name ? `@${skill.user.name.toLowerCase().replace(/\s+/g, '')}` : '@teacher'}</Text>
                 <View style={styles.teacherStats}>
                   <View style={styles.statItem}>
-                    <Star size={14} fill={Colors.light.accent} color={Colors.light.accent} />
-                    <Text style={styles.statText}>{skillAverageRating?.toFixed(1)} ({skillTotalReviews})</Text>
+                    <Star size={isSmallScreen ? 12 : 14} fill={Colors.light.accent} color={Colors.light.accent} />
+                    <Text style={[styles.statText, isSmallScreen && styles.statTextMobile]}>{skillAverageRating?.toFixed(1)} ({skillTotalReviews})</Text>
                   </View>
                   <View style={styles.statDivider} />
                   <View style={styles.statItem}>
-                    <Users size={14} color={Colors.light.textSecondary} />
-                    <Text style={styles.statText}>{teacherTotalSwaps} exchanges</Text>
+                    <Users size={isSmallScreen ? 12 : 14} color={Colors.light.textSecondary} />
+                    <Text style={[styles.statText, isSmallScreen && styles.statTextMobile]}>{teacherTotalSwaps} exchanges</Text>
                   </View>
                 </View>
                 <View style={styles.locationRow}>
-                  <MapPin size={14} color={Colors.light.textSecondary} />
-                  <Text style={styles.locationText}>{skill.user?.location || 'Location not set'}</Text>
+                  <MapPin size={isSmallScreen ? 12 : 14} color={Colors.light.textSecondary} />
+                  <Text style={[styles.locationText, isSmallScreen && styles.locationTextMobile]}>{skill.user?.location || 'Location not set'}</Text>
                 </View>
               </View>
               <View style={styles.arrowIcon}>
-                <ArrowRight size={20} color={Colors.light.textSecondary} />
+                <ArrowRight size={isSmallScreen ? 16 : 20} color={Colors.light.textSecondary} />
               </View>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, isSmallScreen && styles.dividerMobile]} />
 
-          <View style={styles.aboutSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>About</Text>
-              <Clock size={18} color={Colors.light.secondary} />
+          <View style={[styles.aboutSection, isSmallScreen && styles.aboutSectionMobile]}>
+            <View style={[styles.sectionHeader, isSmallScreen && styles.sectionHeaderMobile]}>
+              <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>About</Text>
+              <Clock size={isSmallScreen ? 15 : 18} color={Colors.light.secondary} />
             </View>
-            <View style={styles.aboutCard}>
-              <Text style={styles.aboutText}>{skill.user?.bio || 'No bio available.'}</Text>
+            <View style={[styles.aboutCard, isSmallScreen && styles.aboutCardMobile]}>
+              <Text style={[styles.aboutText, isSmallScreen && styles.aboutTextMobile]}>{skill.user?.bio || 'No bio available.'}</Text>
             </View>
           </View>
 
-          <View style={styles.wantsSection}>
-            <Text style={styles.sectionTitle}>Looking to Learn</Text>
-            <View style={styles.wantsTags}>
-              {(skill?.user?.skillsWanted || []).map((wantedSkill, index) => (
-                <View key={index} style={styles.wantTag}>
-                  <Text style={styles.wantTagText}>{wantedSkill}</Text>
-                </View>
-              ))}
+          <View style={[styles.wantsSection, isSmallScreen && styles.wantsSectionMobile]}>
+            <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>Looking to Learn</Text>
+            <View style={[styles.wantsTags, isSmallScreen && styles.wantsTagsMobile]}>
+              {(skill?.user?.skillsWanted || []).length > 0 ? (
+                skill.user.skillsWanted.map((wantedSkill, index) => (
+                  <View key={index} style={[styles.wantTag, isSmallScreen && styles.wantTagMobile]}>
+                    <Text style={[styles.wantTagText, isSmallScreen && styles.wantTagTextMobile]}>{wantedSkill}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={[styles.emptyWantsText, isSmallScreen && styles.emptyWantsTextMobile]}>Not specified</Text>
+              )}
             </View>
           </View>
 
           {Boolean(teacherClasses && teacherClasses.length > 0) ? (
-            <View style={styles.classesSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>
+            <View style={[styles.classesSection, isSmallScreen && styles.classesSectionMobile]}>
+              <View style={[styles.sectionHeader, isSmallScreen && styles.sectionHeaderMobile]}>
+                <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>
                   Classes by {skill?.user?.name?.split(' ')[0] || 'Teacher'}
                 </Text>
-                <View style={styles.classCountBadge}>
-                  <Text style={styles.classCountBadgeText}>{teacherClasses.length}</Text>
+                <View style={[styles.classCountBadge, isSmallScreen && styles.classCountBadgeMobile]}>
+                  <Text style={[styles.classCountBadgeText, isSmallScreen && styles.classCountBadgeTextMobile]}>{teacherClasses.length}</Text>
                 </View>
               </View>
               <View style={styles.teacherClassesList}>
@@ -585,93 +592,93 @@ export default function SkillDetailScreen() {
                   const shortDate = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
                   const timeStr = new Date(cls.startISO).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
                   return (
-                    <View key={cls.id} style={styles.classCard}>
+                    <View key={cls.id} style={[styles.classCard, isSmallScreen && styles.classCardMobile]}>
                       <TouchableOpacity
                         onPress={() => router.push(`/class/${cls.id}` as any)}
                         activeOpacity={0.85}
                       >
-                        <Image source={{ uri: resolveImageUrl(cls.coverImageUrl) }} style={styles.classCover} />
-                        <View style={styles.classBody}>
-                          <View style={styles.classTopRow}>
-                            <Text style={styles.classCatBadge}>{cls.category}</Text>
-                            <View style={styles.classLevelPill}>
-                              <Text style={styles.classLevelText}>{cls.level}</Text>
+                        <Image source={{ uri: resolveImageUrl(cls.coverImageUrl) }} style={[styles.classCover, isSmallScreen && styles.classCoverMobile]} />
+                        <View style={[styles.classBody, isSmallScreen && styles.classBodyMobile]}>
+                          <View style={[styles.classTopRow, isSmallScreen && styles.classTopRowMobile]}>
+                            <Text style={[styles.classCatBadge, isSmallScreen && styles.classCatBadgeMobile]}>{cls.category}</Text>
+                            <View style={[styles.classLevelPill, isSmallScreen && styles.classLevelPillMobile]}>
+                              <Text style={[styles.classLevelText, isSmallScreen && styles.classLevelTextMobile]}>{cls.level}</Text>
                             </View>
                           </View>
-                          <Text style={styles.classTitle} numberOfLines={2}>{cls.title}</Text>
-                          <View style={styles.classMetaRow}>
-                            <Calendar size={12} color={Colors.light.textTertiary} />
-                            <Text style={styles.classMetaText}>
+                          <Text style={[styles.classTitle, isSmallScreen && styles.classTitleMobile]}>{cls.title}</Text>
+                          <View style={[styles.classMetaRow, isSmallScreen && styles.classMetaRowMobile]}>
+                            <Calendar size={isSmallScreen ? 10 : 12} color={Colors.light.textTertiary} />
+                            <Text style={[styles.classMetaText, isSmallScreen && styles.classMetaTextMobile]}>
                               {isRecurring
                                 ? `${shortDate(cls.startISO)} — ${shortDate(cls.endISO)}`
                                 : shortDate(cls.startISO)}
                             </Text>
-                            <Clock size={12} color={Colors.light.textTertiary} />
-                            <Text style={styles.classMetaText}>{timeStr}</Text>
+                            <Clock size={isSmallScreen ? 10 : 12} color={Colors.light.textTertiary} />
+                            <Text style={[styles.classMetaText, isSmallScreen && styles.classMetaTextMobile]}>{timeStr}</Text>
                           </View>
-                          <View style={styles.classMetaRow}>
-                            <Repeat size={12} color={Colors.light.primary} />
-                            <Text style={[styles.classMetaText, { color: Colors.light.primary }]}>
+                          <View style={[styles.classMetaRow, isSmallScreen && styles.classMetaRowMobile]}>
+                            <Repeat size={isSmallScreen ? 10 : 12} color={Colors.light.primary} />
+                            <Text style={[styles.classMetaText, isSmallScreen && styles.classMetaTextMobile, { color: Colors.light.primary }]}>
                               {formatClassSchedule(cls.sessionType, cls.sessionCount, cls.scheduleDays)}
                             </Text>
-                            <CreditCard size={12} color={Colors.light.secondary} />
-                            <Text style={[styles.classMetaText, { color: Colors.light.secondary }]}>
+                            <CreditCard size={isSmallScreen ? 10 : 12} color={Colors.light.secondary} />
+                            <Text style={[styles.classMetaText, isSmallScreen && styles.classMetaTextMobile, { color: Colors.light.secondary }]}>
                               {formatBillingCycle(cls.billingCycle)}
                             </Text>
                           </View>
-                          <View style={styles.classSeatRow}>
+                          <View style={[styles.classSeatRow, isSmallScreen && styles.classSeatRowMobile]}>
                             <View style={styles.classSeatInfo}>
-                              <Users size={13} color={Colors.light.primary} />
-                              <Text style={styles.classSeatText}>{cls.enrolledCount}/{cls.maxCapacity} enrolled</Text>
+                              <Users size={isSmallScreen ? 11 : 13} color={Colors.light.primary} />
+                              <Text style={[styles.classSeatText, isSmallScreen && styles.classSeatTextMobile]}>{cls.enrolledCount}/{cls.maxCapacity} enrolled</Text>
                             </View>
                             {isFree ? (
-                              <View style={styles.classFreeTag}>
-                                <Sparkles size={12} color="#10B981" />
-                                <Text style={styles.classFreeText}>Free</Text>
+                              <View style={[styles.classFreeTag, isSmallScreen && styles.classFreeTagMobile]}>
+                                <Sparkles size={isSmallScreen ? 10 : 12} color="#10B981" />
+                                <Text style={[styles.classFreeText, isSmallScreen && styles.classFreeTextMobile]}>Free</Text>
                               </View>
                             ) : (
-                              <View style={styles.classPriceTag}>
-                                <Coins size={13} color="#F59E0B" />
-                                <Text style={styles.classPriceText}>{formatCredits(cls.seatPriceCredits)}</Text>
+                              <View style={[styles.classPriceTag, isSmallScreen && styles.classPriceTagMobile]}>
+                                <Coins size={isSmallScreen ? 11 : 13} color="#F59E0B" />
+                                <Text style={[styles.classPriceText, isSmallScreen && styles.classPriceTextMobile]}>{formatCredits(cls.seatPriceCredits)}</Text>
                               </View>
                             )}
                           </View>
                         </View>
                       </TouchableOpacity>
 
-                      <View style={[styles.classBody, { paddingTop: 0 }]}>
-                        <View style={styles.classActionRow}>
+                      <View style={[styles.classBody, isSmallScreen && styles.classBodyMobile, { paddingTop: 0 }]}>
+                        <View style={[styles.classActionRow, isSmallScreen && styles.classActionRowMobile]}>
                           {isClassOwner ? (
-                            <View style={styles.classOwnerBadge}>
-                              <Text style={styles.classOwnerText}>Your Class</Text>
+                            <View style={[styles.classOwnerBadge, isSmallScreen && styles.classOwnerBadgeMobile]}>
+                              <Text style={[styles.classOwnerText, isSmallScreen && styles.classOwnerTextMobile]}>Your Class</Text>
                             </View>
                           ) : enrolled ? (
-                            <View style={styles.classEnrolledBadge}>
-                              <Sparkles size={14} color="#10B981" />
-                              <Text style={styles.classEnrolledText}>Enrolled</Text>
+                            <View style={[styles.classEnrolledBadge, isSmallScreen && styles.classEnrolledBadgeMobile]}>
+                              <Sparkles size={isSmallScreen ? 11 : 14} color="#10B981" />
+                              <Text style={[styles.classEnrolledText, isSmallScreen && styles.classEnrolledTextMobile]}>Enrolled</Text>
                             </View>
                           ) : isFull ? (
-                            <View style={styles.classFullBadge}>
-                              <Text style={styles.classFullText}>Class Full</Text>
+                            <View style={[styles.classFullBadge, isSmallScreen && styles.classFullBadgeMobile]}>
+                              <Text style={[styles.classFullText, isSmallScreen && styles.classFullTextMobile]}>Class Full</Text>
                             </View>
                           ) : (
                             <TouchableOpacity
-                              style={styles.classEnrollBtn}
+                              style={[styles.classEnrollBtn, isSmallScreen && styles.classEnrollBtnMobile]}
                               onPress={() => handleQuickEnroll(cls)}
                               activeOpacity={0.7}
                             >
-                              <Text style={styles.classEnrollBtnText}>
+                              <Text style={[styles.classEnrollBtnText, isSmallScreen && styles.classEnrollBtnTextMobile]}>
                                 {isFree ? 'Enroll Free' : `Enroll · ${cls.seatPriceCredits} cr`}
                               </Text>
-                              <ArrowRight size={14} color="#FFFFFF" />
+                              <ArrowRight size={isSmallScreen ? 11 : 14} color="#FFFFFF" />
                             </TouchableOpacity>
                           )}
                           <TouchableOpacity
-                            style={styles.classDetailLink}
+                            style={[styles.classDetailLink, isSmallScreen && styles.classDetailLinkMobile]}
                             onPress={() => router.push(`/class/${cls.id}` as any)}
                             activeOpacity={0.7}
                           >
-                            <Text style={styles.classDetailLinkText}>Details</Text>
+                            <Text style={[styles.classDetailLinkText, isSmallScreen && styles.classDetailLinkTextMobile]}>Details</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -683,14 +690,14 @@ export default function SkillDetailScreen() {
           ) : null}
         </View>
 
-        <View style={styles.reviewsWrapper}>
+        <View style={[styles.reviewsWrapper, isSmallScreen && styles.reviewsWrapperMobile]}>
           <ReviewsSection revieweeId={skill?.user?.id} skillId={skill?.id} headline="Session reflections" />
         </View>
 
-        <View style={styles.bottomSpacer} />
+        <View style={[styles.bottomSpacer, isSmallScreen && styles.bottomSpacerMobile]} />
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, isSmallScreen && styles.footerMobile]}>
         {Boolean(canCreateGroupClass) ? (
           <TouchableOpacity
             style={styles.groupClassButton}
@@ -701,10 +708,10 @@ export default function SkillDetailScreen() {
               colors={['#10B981', '#34D399']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.groupClassButtonGradient}
+              style={[styles.groupClassButtonGradient, isSmallScreen && styles.groupClassButtonGradientMobile]}
             >
-              <Users size={20} color="#FFFFFF" />
-              <Text style={styles.groupClassButtonText}>Create Group Class</Text>
+              <Users size={isSmallScreen ? 16 : 20} color="#FFFFFF" />
+              <Text style={[styles.groupClassButtonText, isSmallScreen && styles.groupClassButtonTextMobile]}>Create Group Class</Text>
             </LinearGradient>
           </TouchableOpacity>
         ) : null}
@@ -719,9 +726,9 @@ export default function SkillDetailScreen() {
               colors={activeSwap ? ['#38BDF8', '#6366F1'] : [Colors.light.primary, Colors.light.primaryLight]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.requestButtonGradient}
+              style={[styles.requestButtonGradient, isSmallScreen && styles.requestButtonGradientMobile]}
             >
-              <Text style={styles.requestButtonText}>{activeSwap ? 'Open Exchange Thread' : 'Request Skill Exchange'}</Text>
+              <Text style={[styles.requestButtonText, isSmallScreen && styles.requestButtonTextMobile]}>{activeSwap ? 'Open Exchange Thread' : 'Request Skill Exchange'}</Text>
             </LinearGradient>
           </TouchableOpacity>
         ) : null}
@@ -1336,5 +1343,331 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600' as const,
     color: Colors.light.textSecondary,
+  },
+  heroContainerMobile: {
+    height: 220,
+  },
+  heroGradientMobile: {
+    height: 120,
+  },
+  contentMobile: {
+    padding: 14,
+  },
+  headerMobile: {
+    marginBottom: 8,
+    gap: 6,
+  },
+  categoryBadgeMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  categoryBadgeTextMobile: {
+    fontSize: 10,
+  },
+  levelBadgeMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  levelTextMobile: {
+    fontSize: 10,
+  },
+  certVerifiedBadgeMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 3,
+  },
+  certVerifiedBadgeTextMobile: {
+    fontSize: 9.5,
+  },
+  titleRowMobile: {
+    marginBottom: 8,
+  },
+  titleMobile: {
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  pricingCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 8,
+  },
+  priceRowMobile: {
+    gap: 4,
+  },
+  priceValueMobile: {
+    fontSize: 17,
+  },
+  priceUnitMobile: {
+    fontSize: 11,
+  },
+  promoTextMobile: {
+    fontSize: 11,
+  },
+  descriptionMobile: {
+    marginBottom: 12,
+  },
+  descriptionTextMobile: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  teacherSectionMobile: {
+    marginVertical: 12,
+  },
+  sectionHeaderMobile: {
+    marginBottom: 8,
+  },
+  sectionTitleMobile: {
+    fontSize: 15,
+  },
+  teacherCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+    gap: 10,
+  },
+  teacherAvatarMobile: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  teacherNameMobile: {
+    fontSize: 13,
+  },
+  statTextMobile: {
+    fontSize: 10.5,
+  },
+  locationTextMobile: {
+    fontSize: 10.5,
+  },
+  aboutSectionMobile: {
+    marginVertical: 12,
+  },
+  aboutCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+  },
+  aboutTextMobile: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  wantsSectionMobile: {
+    marginVertical: 12,
+  },
+  wantTagMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  wantTagTextMobile: {
+    fontSize: 11,
+  },
+  classesSectionMobile: {
+    marginVertical: 12,
+  },
+  classCardMobile: {
+    borderRadius: 14,
+    marginBottom: 12,
+  },
+  classBodyMobile: {
+    padding: 10,
+    gap: 6,
+  },
+  classTitleMobile: {
+    fontSize: 13,
+    lineHeight: 17,
+    flexWrap: 'wrap',
+  },
+  classMetaTextMobile: {
+    fontSize: 10,
+  },
+  classSeatTextMobile: {
+    fontSize: 10,
+  },
+  classEnrollBtnMobile: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  classEnrollBtnTextMobile: {
+    fontSize: 11,
+  },
+  footerMobile: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  requestButtonGradientMobile: {
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  requestButtonTextMobile: {
+    fontSize: 12.5,
+  },
+  groupClassButtonGradientMobile: {
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6,
+  },
+  groupClassButtonTextMobile: {
+    fontSize: 12,
+  },
+  reviewsWrapperMobile: {
+    paddingHorizontal: 12,
+    marginTop: 10,
+  },
+  swapStatusCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 14,
+    gap: 8,
+  },
+  swapStatusHeaderMobile: {
+    gap: 6,
+  },
+  swapTagBaseMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  swapTagTextMobile: {
+    fontSize: 10,
+  },
+  swapTimeRowMobile: {
+    gap: 4,
+  },
+  swapTimeTextMobile: {
+    fontSize: 11,
+  },
+  swapStatusBodyMobile: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  swapFooterMobile: {
+    gap: 4,
+  },
+  swapLocationTextMobile: {
+    fontSize: 11,
+  },
+  editButtonMobile: {
+    padding: 6,
+    borderRadius: 8,
+  },
+  deleteButtonMobile: {
+    padding: 6,
+    borderRadius: 8,
+  },
+  promoBannerMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+  },
+  freeTagMobile: {
+    fontSize: 13,
+  },
+  dividerMobile: {
+    marginVertical: 12,
+  },
+  wantsTagsMobile: {
+    gap: 6,
+    marginTop: 8,
+  },
+  emptyWantsTextMobile: {
+    fontSize: 11.5,
+  },
+  classCountBadgeMobile: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+  },
+  classCountBadgeTextMobile: {
+    fontSize: 10,
+  },
+  classCoverMobile: {
+    height: 90,
+  },
+  classTopRowMobile: {
+    gap: 4,
+    marginBottom: 4,
+  },
+  classCatBadgeMobile: {
+    fontSize: 9.5,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  classLevelPillMobile: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  classLevelTextMobile: {
+    fontSize: 9.5,
+  },
+  classMetaRowMobile: {
+    gap: 3,
+    marginBottom: 4,
+  },
+  classSeatRowMobile: {
+    marginTop: 2,
+  },
+  classFreeTagMobile: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 3,
+  },
+  classFreeTextMobile: {
+    fontSize: 10,
+  },
+  classPriceTagMobile: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 3,
+  },
+  classPriceTextMobile: {
+    fontSize: 10.5,
+  },
+  classActionRowMobile: {
+    gap: 6,
+  },
+  classOwnerBadgeMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  classOwnerTextMobile: {
+    fontSize: 10.5,
+  },
+  classEnrolledBadgeMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 3,
+  },
+  classEnrolledTextMobile: {
+    fontSize: 10.5,
+  },
+  classFullBadgeMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  classFullTextMobile: {
+    fontSize: 10.5,
+  },
+  classDetailLinkMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  classDetailLinkTextMobile: {
+    fontSize: 11,
+  },
+  bottomSpacerMobile: {
+    height: 16,
   },
 });

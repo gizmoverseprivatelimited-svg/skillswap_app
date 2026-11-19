@@ -379,7 +379,7 @@ export default function CallPreviewScreen({
                 </View>
               </View>
 
-              <Text style={styles.roomTitleText} numberOfLines={2}>
+              <Text style={styles.roomTitleText}>
                 {displayTitle}
               </Text>
               {partnerName ? (
@@ -453,7 +453,7 @@ export default function CallPreviewScreen({
                 {/* Floating Participant Tag */}
                 <View style={styles.previewFloatingTag}>
                   <View style={[styles.micStatusDot, { backgroundColor: isMicOn ? '#10B981' : '#EF4444' }]} />
-                  <Text style={styles.previewUserName} numberOfLines={1}>
+                  <Text style={styles.previewUserName}>
                     {userName || 'You'} {isTeacher ? '(Host)' : ''}
                   </Text>
                 </View>
@@ -506,7 +506,7 @@ export default function CallPreviewScreen({
               <View style={styles.userCardRow}>
                 <Image source={{ uri: avatarUri }} style={styles.userSmallAvatar} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.userCardName} numberOfLines={1}>
+                  <Text style={styles.userCardName}>
                     {userName || 'You'}
                   </Text>
                   <Text style={styles.userCardRole}>

@@ -230,7 +230,11 @@ export const [ResourcesProvider, useResources] =
           console.error(`[Resources] JSON Parse failed for ${fullUrl}. Response snippet:`, text.substring(0, 200));
           throw parseErr;
         }
-        setResourceList(data.resources);
+        const cleaned = (data.resources || []).map((r: any) => ({
+          ...r,
+          url: (r.title && r.title.includes('Figma')) ? 'https://ui.shadcn.com/' : r.url
+        }));
+        setResourceList(cleaned);
       } catch (err) {
         console.error('[Resources] Fetch error', err);
       } finally {

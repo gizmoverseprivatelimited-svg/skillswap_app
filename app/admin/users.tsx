@@ -8,8 +8,8 @@ import {
   Image,
   TextInput,
   Modal,
-  Platform,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import {
@@ -52,6 +52,9 @@ function UserAvatar({ uri, style }: { uri: string | undefined; style: any }) {
 type FilterType = 'all' | 'active' | 'banned' | 'suspended';
 
 export default function UserManagement() {
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const { users, banUser, unbanUser, suspendUser, updateUserCredits, isLoading } = useAdmin();
   const { showAlert } = useAlert();
   const [search, setSearch] = useState<string>('');
@@ -231,12 +234,12 @@ export default function UserManagement() {
               <UserAvatar uri={user.avatarUrl} style={styles.avatar} />
               <View style={styles.userInfo}>
                 <View style={styles.nameRow}>
-                  <Text style={styles.userName} numberOfLines={1}>{user.username ? `@${user.username}` : user.name} ({user.name})</Text>
+                  <Text style={styles.userName}>{user.username ? `@${user.username}` : user.name} ({user.name})</Text>
                   {user.premiumTier !== 'free' && (
                     <Crown size={14} color="#F59E0B" />
                   )}
                 </View>
-                <Text style={styles.userEmail} numberOfLines={1}>{user.email}</Text>
+                <Text style={styles.userEmail}>{user.email}</Text>
                 <View style={styles.metaRow}>
                   <MapPin size={11} color="#94A3B8" />
                   <Text style={styles.metaText}>{user.location}</Text>
@@ -474,16 +477,16 @@ export default function UserManagement() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F1F5F9',
   },
   searchWrap: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingHorizontal: isSmallScreen ? 12 : 16,
+    paddingTop: isSmallScreen ? 8 : 12,
+    paddingBottom: isSmallScreen ? 6 : 8,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
@@ -492,25 +495,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F1F5F9',
     borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 44,
+    paddingHorizontal: isSmallScreen ? 10 : 14,
+    height: isSmallScreen ? 38 : 44,
     gap: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13 : 15,
     color: '#0F172A',
   },
   filterRow: {
-    marginTop: 10,
+    marginTop: isSmallScreen ? 6 : 10,
     marginBottom: 4,
   },
   filterContent: {
-    gap: 8,
+    gap: isSmallScreen ? 6 : 8,
   },
   filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: isSmallScreen ? 10 : 14,
+    paddingVertical: isSmallScreen ? 4 : 6,
     borderRadius: 20,
     backgroundColor: '#F1F5F9',
   },
@@ -518,7 +521,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F172A',
   },
   filterChipText: {
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     fontWeight: '600' as const,
     color: '#64748B',
   },
@@ -529,14 +532,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    padding: 16,
-    gap: 12,
-    paddingBottom: 40,
+    padding: isSmallScreen ? 12 : 16,
+    gap: isSmallScreen ? 8 : 12,
+    paddingBottom: isSmallScreen ? 24 : 40,
   },
   userCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: isSmallScreen ? 12 : 16,
+    padding: isSmallScreen ? 12 : 16,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
@@ -548,10 +551,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    marginRight: 12,
+    width: isSmallScreen ? 40 : 48,
+    height: isSmallScreen ? 40 : 48,
+    borderRadius: isSmallScreen ? 11 : 14,
+    marginRight: isSmallScreen ? 10 : 12,
   },
   userInfo: {
     flex: 1,
@@ -562,12 +565,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   userName: {
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13.5 : 15,
     fontWeight: '700' as const,
     color: '#0F172A',
   },
   userEmail: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     color: '#64748B',
     marginTop: 1,
   },

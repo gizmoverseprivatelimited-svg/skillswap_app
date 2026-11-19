@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,6 +23,9 @@ type ResetStep = 'email' | 'verify' | 'new_password';
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const { showAlert } = useAlert();
 
   const [step, setStep] = useState<ResetStep>('email');
@@ -410,7 +414,7 @@ export default function ResetPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: Colors.light.background,
@@ -423,31 +427,31 @@ const styles = StyleSheet.create({
   },
   headerGradient: {
     alignItems: 'center',
-    paddingTop: 48,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
+    paddingTop: isSmallScreen ? 20 : 48,
+    paddingBottom: isSmallScreen ? 24 : 40,
+    paddingHorizontal: isSmallScreen ? 16 : 20,
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: isSmallScreen ? 20 : 32,
     fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 6,
+    marginBottom: isSmallScreen ? 4 : 6,
   },
   headerSubtitle: {
-    fontSize: 16,
+    fontSize: isSmallScreen ? 12.5 : 16,
     color: 'rgba(255,255,255,0.9)',
     fontWeight: '500',
   },
   contentContainer: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 20,
+    paddingHorizontal: isSmallScreen ? 14 : 20,
+    paddingTop: isSmallScreen ? 14 : 24,
+    paddingBottom: isSmallScreen ? 14 : 20,
   },
   card: {
     backgroundColor: Colors.light.card,
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: isSmallScreen ? 14 : 20,
+    padding: isSmallScreen ? 14 : 20,
     shadowColor: Colors.light.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
@@ -459,63 +463,63 @@ const styles = StyleSheet.create({
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 20,
+    gap: isSmallScreen ? 6 : 8,
+    marginBottom: isSmallScreen ? 12 : 20,
   },
   backText: {
     color: Colors.light.primary,
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13 : 15,
     fontWeight: '600',
   },
   title: {
-    fontSize: 24,
+    fontSize: isSmallScreen ? 18 : 24,
     fontWeight: '700',
     color: Colors.light.text,
-    marginBottom: 8,
+    marginBottom: isSmallScreen ? 4 : 8,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: isSmallScreen ? 12.5 : 15,
     color: Colors.light.textSecondary,
-    marginBottom: 20,
-    lineHeight: 22,
+    marginBottom: isSmallScreen ? 14 : 20,
+    lineHeight: isSmallScreen ? 17 : 22,
   },
   label: {
-    fontSize: 15,
+    fontSize: isSmallScreen ? 12.5 : 15,
     fontWeight: '600',
     color: Colors.light.text,
-    marginBottom: 10,
+    marginBottom: isSmallScreen ? 6 : 10,
   },
   labelSpaced: {
-    marginTop: 16,
+    marginTop: isSmallScreen ? 10 : 16,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: Colors.light.border,
-    borderRadius: 16,
+    borderRadius: isSmallScreen ? 12 : 16,
     backgroundColor: Colors.light.backgroundTertiary,
   },
   inputIcon: {
-    width: 48,
+    width: isSmallScreen ? 38 : 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: isSmallScreen ? 13.5 : 16,
     color: Colors.light.text,
-    paddingVertical: 14,
-    paddingRight: 16,
+    paddingVertical: isSmallScreen ? 9 : 14,
+    paddingRight: isSmallScreen ? 12 : 16,
   },
   otpInput: {
-    fontSize: 24,
+    fontSize: isSmallScreen ? 18 : 24,
     fontWeight: '700',
-    letterSpacing: 6,
+    letterSpacing: isSmallScreen ? 4 : 6,
     textAlign: 'center',
   },
   eyeBtn: {
-    padding: 12,
+    padding: isSmallScreen ? 8 : 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -523,34 +527,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 14,
-    marginBottom: 6,
+    marginTop: isSmallScreen ? 10 : 14,
+    marginBottom: isSmallScreen ? 4 : 6,
     paddingHorizontal: 4,
   },
   resendLinkText: {
     color: Colors.light.primary,
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12.5 : 14,
     fontWeight: '600',
   },
   resendCooldownText: {
     color: Colors.light.textTertiary,
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12 : 14,
     fontWeight: '500',
   },
   changeEmailText: {
     color: Colors.light.primary,
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     fontWeight: '500',
   },
   errorText: {
     color: Colors.light.error,
-    marginTop: 10,
-    fontSize: 14,
+    marginTop: isSmallScreen ? 6 : 10,
+    fontSize: isSmallScreen ? 12 : 14,
     fontWeight: '500',
   },
   primaryBtn: {
-    marginTop: 20,
-    borderRadius: 16,
+    marginTop: isSmallScreen ? 14 : 20,
+    borderRadius: isSmallScreen ? 12 : 16,
     overflow: 'hidden',
     shadowColor: Colors.light.primary,
     shadowOffset: { width: 0, height: 4 },
@@ -562,13 +566,13 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonGradient: {
-    paddingVertical: 16,
+    paddingVertical: isSmallScreen ? 11 : 16,
     alignItems: 'center',
   },
   primaryBtnText: {
     color: '#fff',
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: isSmallScreen ? 13.5 : 16,
   },
 });
 

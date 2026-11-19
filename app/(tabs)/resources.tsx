@@ -14,9 +14,11 @@ import {
   View,
   ActivityIndicator,
   useWindowDimensions,
+  DimensionValue,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeTopInset } from '@/lib/safeArea';
 import { BookmarkPlus, Check, ExternalLink, Flame, Layers, Plus, Sparkles, Tag, UploadCloud } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { categories } from '@/mocks/data';
@@ -27,6 +29,7 @@ import { useAlert } from '@/providers/alert';
 import { useRouter } from 'expo-router';
 import url from '@/constants/backurl';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
+import { logEvent } from '@/lib/analytics';
 
 const MOCK_RESOURCE_COVER = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800';
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
@@ -41,6 +44,49 @@ const resourceCategories = categories.filter((category) => category !== 'All');
 const heroGradient = ['#0F172A', '#1D1B4B', '#4F46E5'] as const;
 
 const overlayGradient = ['transparent', 'rgba(15, 23, 42, 0.75)'] as const;
+
+const DEMO_URL_MAP: Record<string, string> = {
+  'https://fstoppers.com/lighting/ultimate-guide-portrait-lighting-2024-654321': 'https://photographylife.com/portrait-photography-lighting',
+  'https://www.youtube.com/watch?v=OxFcbx6QyBc': 'https://react.dev/reference/react/hooks',
+  'https://drive.google.com/file/d/spanish-deck': 'https://www.fluentu.com/blog/spanish/spanish-conversation-practice/',
+  'https://notion.so/mobility-primer': 'https://www.healthline.com/health/fitness-exercise/morning-stretches',
+  'https://www.figma.com/community/file/123456789': 'https://ui.shadcn.com/',
+  'https://www.figma.com/community/file/1179782559585642674': 'https://ui.shadcn.com/',
+  'https://stackshare.io/fullstack-cheats': 'https://roadmap.sh/full-stack',
+};
+
+const resolveWorkingUrl = (rawUrl?: string, title?: string): string => {
+  if (!rawUrl) return 'https://roadmap.sh';
+  const trimmed = rawUrl.trim();
+  if (DEMO_URL_MAP[trimmed]) return DEMO_URL_MAP[trimmed];
+
+  const lower = trimmed.toLowerCase();
+  const lowerTitle = (title || '').toLowerCase();
+
+  if (lower.includes('portrait-lighting') || lower.includes('654321') || lowerTitle.includes('portrait lighting')) {
+    return 'https://photographylife.com/portrait-photography-lighting';
+  }
+  if (lower.includes('oxfcbx6qybc') || lowerTitle.includes('react hooks')) {
+    return 'https://react.dev/reference/react/hooks';
+  }
+  if (lower.includes('spanish-deck') || lowerTitle.includes('spanish')) {
+    return 'https://www.fluentu.com/blog/spanish/spanish-conversation-practice/';
+  }
+  if (lower.includes('mobility-primer') || lowerTitle.includes('mobility')) {
+    return 'https://www.healthline.com/health/fitness-exercise/morning-stretches';
+  }
+  if (lower.includes('123456789') || lowerTitle.includes('figma components') || lowerTitle.includes('starter vault') || lower.includes('figma.com')) {
+    return 'https://ui.shadcn.com/';
+  }
+  if (lower.includes('fullstack-cheats') || lowerTitle.includes('full-stack')) {
+    return 'https://roadmap.sh/full-stack';
+  }
+
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
+};
 
 type ActiveTypeFilter = ResourceType | 'All';
 
@@ -66,9 +112,11 @@ interface ResourceCardProps {
   onOpen: () => void;
   onToggleSave: () => void;
   onEndorse: () => void;
+  cardWidth?: DimensionValue;
+  isSmallScreen?: boolean;
 }
 
-const ResourceCardItem = memo(({ resource, isSaved, difficultyText, onOpen, onToggleSave, onEndorse }: ResourceCardProps) => {
+const ResourceCardItem = memo(({ resource, isSaved, difficultyText, onOpen, onToggleSave, onEndorse, cardWidth, isSmallScreen }: ResourceCardProps) => {
   const scale = useRef(new Animated.Value(1)).current;
   const coverErrorRef = useRef(false);
   const avatarErrorRef = useRef(false);
@@ -129,67 +177,69 @@ const ResourceCardItem = memo(({ resource, isSaved, difficultyText, onOpen, onTo
   }, [animate, onEndorse]);
 
   return (
-    <Animated.View style={[styles.resourceCard, { transform: [{ scale }] }]} testID={`resource-${resource._id}`}>
+    <Animated.View style={[styles.resourceCard, isSmallScreen && styles.resourceCardMobile, cardWidth ? { width: cardWidth } : null, { transform: [{ scale }] }]} testID={`resource-${resource._id}`}>
       <Pressable onPress={onOpen} testID={`resource-open-${resource._id}`}>
         <ImageBackground
           source={{ uri: coverUri }}
-          style={styles.cardImage}
-          imageStyle={styles.cardImageRadius}
+          style={[styles.cardImage, isSmallScreen && styles.cardImageMobile]}
+          imageStyle={[styles.cardImageRadius, isSmallScreen && styles.cardImageRadiusMobile]}
           onError={coverError ? undefined : handleCoverError}
         >
-          <LinearGradient colors={overlayGradient} style={styles.cardOverlay}>
-            <View style={styles.cardHeaderRow}>
-              <View style={styles.badgePill}>
-                <Layers size={14} color="#E0E7FF" />
-                <Text style={styles.badgeText}>{resource.type}</Text>
+          <LinearGradient colors={overlayGradient} style={[styles.cardOverlay, isSmallScreen && styles.cardOverlayMobile]}>
+            <View style={[styles.cardHeaderRow, isSmallScreen && styles.cardHeaderRowMobile]}>
+              <View style={[styles.badgePill, isSmallScreen && styles.badgePillMobile]}>
+                <Layers size={isSmallScreen ? 11 : 14} color="#E0E7FF" />
+                <Text style={[styles.badgeText, isSmallScreen && styles.badgeTextMobile]}>{resource.type}</Text>
               </View>
               {resource.formatBadge ? (
-                <View style={styles.badgeAccent}>
-                  <Text style={styles.badgeAccentText}>{resource.formatBadge}</Text>
+                <View style={[styles.badgeAccent, isSmallScreen && styles.badgeAccentMobile]}>
+                  <Text style={[styles.badgeAccentText, isSmallScreen && styles.badgeAccentTextMobile]}>{resource.formatBadge}</Text>
                 </View>
               ) : null}
             </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle} numberOfLines={2}>{resource.title}</Text>
-              <Text style={styles.cardSubtitle} numberOfLines={2}>{resource.description}</Text>
+            <View style={[styles.cardContent, isSmallScreen && styles.cardContentMobile]}>
+              <Text style={[styles.cardTitle, isSmallScreen && styles.cardTitleMobile]}>{resource.title}</Text>
+              <Text style={[styles.cardSubtitle, isSmallScreen && styles.cardSubtitleMobile]}>{resource.description}</Text>
               <View style={styles.metaRow}>
-                <View style={styles.metaLeft}>
+                <View style={[styles.metaLeft, isSmallScreen && styles.metaLeftMobile]}>
                   <ImageBackground
                     source={{ uri: avatarUri }}
-                    style={styles.avatar}
-                    imageStyle={styles.avatarImage}
+                    style={[styles.avatar, isSmallScreen && styles.avatarMobile]}
+                    imageStyle={[styles.avatarImage, isSmallScreen && styles.avatarImageMobile]}
                     onError={avatarError ? undefined : handleAvatarError}
                   />
-                  <View style={styles.metaTextBlock}>
-                    <Text style={styles.contributorName}>{resource.contributorName}</Text>
-                    <Text style={styles.contributorSubtitle}>{difficultyText}</Text>
+                  <View style={[styles.metaTextBlock, isSmallScreen && styles.metaTextBlockMobile]}>
+                    <Text style={[styles.contributorName, isSmallScreen && styles.contributorNameMobile]}>{resource.contributorName}</Text>
+                    <Text style={[styles.contributorSubtitle, isSmallScreen && styles.contributorSubtitleMobile]}>{difficultyText}</Text>
                   </View>
                 </View>
-                <TouchableOpacity onPress={onOpen} style={styles.openButton} activeOpacity={0.85} testID={`resource-link-${resource._id}`}>
-                  <ExternalLink size={16} color="#E0E7FF" />
-                </TouchableOpacity>
+                {!isSmallScreen && (
+                  <TouchableOpacity onPress={onOpen} style={styles.openButton} activeOpacity={0.85} testID={`resource-link-${resource._id}`}>
+                    <ExternalLink size={16} color="#E0E7FF" />
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           </LinearGradient>
         </ImageBackground>
       </Pressable>
-      <View style={styles.cardFooter}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagRow}>
-          {resource.tags.map((tag) => (
-            <View style={styles.tagPill} key={`${resource._id}-${tag}`}>
-              <Tag size={12} color={Colors.light.primary} />
-              <Text style={styles.tagText}>{tag}</Text>
+      <View style={[styles.cardFooter, isSmallScreen && styles.cardFooterMobile]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.tagRow, isSmallScreen && styles.tagRowMobile]}>
+          {resource.tags.slice(0, isSmallScreen ? 2 : undefined).map((tag) => (
+            <View style={[styles.tagPill, isSmallScreen && styles.tagPillMobile]} key={`${resource._id}-${tag}`}>
+              <Tag size={isSmallScreen ? 10 : 12} color={Colors.light.primary} />
+              <Text style={[styles.tagText, isSmallScreen && styles.tagTextMobile]}>{tag}</Text>
             </View>
           ))}
         </ScrollView>
-        <View style={styles.actionsRow}>
-          <AnimatedTouchable style={[styles.saveButton, isSaved && styles.saveButtonActive]} onPress={handleSave} activeOpacity={0.85} testID={`resource-save-${resource._id}`}>
-            <BookmarkPlus size={18} color={isSaved ? '#312E81' : Colors.light.primary} />
-            <Text style={[styles.saveButtonText, isSaved && styles.saveButtonTextActive]}>{isSaved ? 'Saved' : 'Save'}</Text>
+        <View style={[styles.actionsRow, isSmallScreen && styles.actionsRowMobile]}>
+          <AnimatedTouchable style={[styles.saveButton, isSmallScreen && styles.saveButtonMobile, isSaved && styles.saveButtonActive]} onPress={handleSave} activeOpacity={0.85} testID={`resource-save-${resource._id}`}>
+            <BookmarkPlus size={isSmallScreen ? 14 : 18} color={isSaved ? '#312E81' : Colors.light.primary} />
+            <Text style={[styles.saveButtonText, isSmallScreen && styles.saveButtonTextMobile, isSaved && styles.saveButtonTextActive]}>{isSaved ? 'Saved' : 'Save'}</Text>
           </AnimatedTouchable>
-          <TouchableOpacity style={styles.endorseButton} onPress={handleEndorse} activeOpacity={0.85} testID={`resource-endorse-${resource._id}`}>
-            <Flame size={16} color="#FFFFFF" />
-            <Text style={styles.endorseText}>{resource.endorsements}</Text>
+          <TouchableOpacity style={[styles.endorseButton, isSmallScreen && styles.endorseButtonMobile]} onPress={handleEndorse} activeOpacity={0.85} testID={`resource-endorse-${resource._id}`}>
+            <Flame size={isSmallScreen ? 13 : 16} color="#FFFFFF" />
+            <Text style={[styles.endorseText, isSmallScreen && styles.endorseTextMobile]}>{resource.endorsements}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -198,7 +248,14 @@ const ResourceCardItem = memo(({ resource, isSaved, difficultyText, onOpen, onTo
 });
 ResourceCardItem.displayName = 'ResourceCardItem';
 
-const FeaturedResourceCard = memo(({ resource, onOpen }: { resource: ResourceMeta; onOpen: () => void }) => {
+interface FeaturedResourceCardProps {
+  resource: ResourceMeta;
+  onOpen: () => void;
+  cardWidth?: number;
+  cardMarginRight?: number;
+}
+
+const FeaturedResourceCard = memo(({ resource, onOpen, cardWidth, cardMarginRight }: FeaturedResourceCardProps) => {
   const coverErrorRef = useRef(false);
   const [coverError, setCoverError] = useState(false);
   const { width: windowWidth } = useWindowDimensions();
@@ -218,7 +275,12 @@ const FeaturedResourceCard = memo(({ resource, onOpen }: { resource: ResourceMet
 
   return (
     <Pressable
-      style={[styles.featuredCard, isSmall && styles.featuredCardSmall]}
+      style={[
+        styles.featuredCard,
+        isSmall && styles.featuredCardSmall,
+        cardWidth ? { width: cardWidth } : null,
+        cardMarginRight !== undefined ? { marginRight: cardMarginRight } : null,
+      ]}
       onPress={onOpen}
       testID={`featured-${resource._id}`}
     >
@@ -229,17 +291,17 @@ const FeaturedResourceCard = memo(({ resource, onOpen }: { resource: ResourceMet
         onError={coverError ? undefined : handleCoverError}
       >
         <LinearGradient colors={overlayGradient} style={[styles.featuredOverlay, isSmall && styles.featuredOverlaySmall]}>
-          <View style={styles.featuredBadgeRow}>
+          <View style={[styles.featuredBadgeRow, isSmall && { flexWrap: 'wrap', gap: 4 }]}>
             <View style={[styles.badgePill, isSmall && styles.badgePillSmall]}>
-              <Layers size={isSmall ? 11 : 13} color="#E0E7FF" />
+              <Layers size={isSmall ? 10 : 13} color="#E0E7FF" />
               <Text style={[styles.badgeText, isSmall && styles.badgeTextSmall]}>{resource.type}</Text>
             </View>
             <View style={[styles.badgeAccent, isSmall && styles.badgeAccentSmall]}>
               <Text style={[styles.badgeAccentText, isSmall && styles.badgeAccentTextSmall]}>{resource.difficulty}</Text>
             </View>
           </View>
-          <Text style={[styles.featuredTitle, isSmall && styles.featuredTitleSmall]} numberOfLines={3}>{resource.title}</Text>
-          <Text style={[styles.featuredCaption, isSmall && styles.featuredCaptionSmall]} numberOfLines={2}>{resource.description}</Text>
+          <Text style={[styles.featuredTitle, isSmall && styles.featuredTitleSmall]}>{resource.title}</Text>
+          <Text style={[styles.featuredCaption, isSmall && styles.featuredCaptionSmall]}>{resource.description}</Text>
         </LinearGradient>
       </ImageBackground>
     </Pressable>
@@ -251,6 +313,34 @@ export default function ResourcesScreen() {
   const router = useRouter();
   const { showAlert } = useAlert();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const safeTopInset = useSafeTopInset(isSmallScreen ? 14 : 32);
+
+  const numResourceColumns = useMemo(() => {
+    if (windowWidth >= 1150) return 4;
+    if (windowWidth >= 820) return 3;
+    return 2; // Always 2 cards in a row on mobile devices
+  }, [windowWidth]);
+
+  const resourceGridPadding = isSmallScreen ? (windowWidth < 360 ? 12 : 16) : 20;
+  const resourceGridGap = isSmallScreen ? (windowWidth < 360 ? 8 : 12) : 16;
+
+  const resourceCardWidth = useMemo(() => {
+    const totalPadding = resourceGridPadding * 2;
+    const totalGap = (numResourceColumns - 1) * resourceGridGap;
+    const availableWidth = Math.min(windowWidth, 1280) - totalPadding - totalGap;
+    return Math.floor(availableWidth / numResourceColumns);
+  }, [windowWidth, numResourceColumns, resourceGridPadding, resourceGridGap]);
+
+  // Featured Collections sizing on mobile (exactly 2 cards visible in the row with horizontal scroll)
+  const featuredCardGap = isSmallScreen ? (windowWidth < 360 ? 8 : 10) : 16;
+  const featuredCardWidth = useMemo(() => {
+    if (!isSmallScreen) return 260;
+    const totalPadding = resourceGridPadding * 2;
+    const availableWidth = windowWidth - totalPadding - featuredCardGap;
+    return Math.floor(availableWidth / 2);
+  }, [isSmallScreen, windowWidth, resourceGridPadding, featuredCardGap]);
   const { resources, featuredResources, recentResources, savedResourceIds, trendingTags, addResource, toggleSaved, endorseResource, isLoading } = useResources();
   const { currentUser } = useCurrentUser();
   const [selectedType, setSelectedType] = useState<ActiveTypeFilter>('All');
@@ -323,12 +413,22 @@ export default function ResourcesScreen() {
     endorseResource(resourceId);
   }, [endorseResource]);
 
-  const handleVisitResource = useCallback(async (url: string) => {
-    const supported = await Linking.canOpenURL(url);
-    if (supported) {
-      await Linking.openURL(url);
-    } else {
-      console.warn('[Resources] Unsupported URL', { url });
+  const handleVisitResource = useCallback(async (rawUrl: string, title?: string) => {
+    const targetUrl = resolveWorkingUrl(rawUrl, title);
+    logEvent('resource_open', { url: targetUrl, title: title || '' });
+    try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      const supported = await Linking.canOpenURL(targetUrl);
+      if (supported) {
+        await Linking.openURL(targetUrl);
+      } else {
+        await Linking.openURL(targetUrl);
+      }
+    } catch (err) {
+      console.warn('[Resources] Failed to open URL', { targetUrl, err });
     }
   }, []);
 
@@ -424,149 +524,186 @@ export default function ResourcesScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 + insets.bottom }}>
-        <LinearGradient colors={heroGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { paddingTop: insets.top + 36 }]}>
-          <View style={styles.heroHeader}>
-            <View style={styles.heroTextBlock}>
-              <Text style={styles.heroEyebrow}>Resource Exchange</Text>
-              <Text style={styles.heroTitle}>Share the playbook that helped you level up</Text>
-              <Text style={styles.heroSubtitle}>Drop game-changing guides, playlists, decks, and tools for the community.</Text>
+        <LinearGradient
+          colors={heroGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[
+            styles.hero,
+            isSmallScreen && styles.heroMobile,
+            { paddingTop: safeTopInset }
+          ]}
+        >
+          <View style={styles.heroInner}>
+            <View style={[styles.heroHeader, isSmallScreen && styles.heroHeaderMobile]}>
+              <View style={[styles.heroTextBlock, isSmallScreen && styles.heroTextBlockMobile]}>
+                <Text style={[styles.heroEyebrow, isSmallScreen && styles.heroEyebrowMobile]}>Resource Exchange</Text>
+                <Text style={[styles.heroTitle, isSmallScreen && styles.heroTitleMobile]}>
+                  Share the playbook that helped you level up
+                </Text>
+                <Text style={[styles.heroSubtitle, isSmallScreen && styles.heroSubtitleMobile]}>
+                  Drop game-changing guides, playlists, decks, and tools for the community.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.heroButton, isSmallScreen && styles.heroButtonMobile]}
+                onPress={openComposer}
+                activeOpacity={0.9}
+                testID="open-resource-composer"
+              >
+                <Plus size={isSmallScreen ? 15 : 18} color="#0F172A" />
+                <Text style={[styles.heroButtonText, isSmallScreen && styles.heroButtonTextMobile]}>
+                  {isSmallScreen ? 'Share' : 'Share Resource'}
+                </Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.heroButton} onPress={openComposer} activeOpacity={0.9} testID="open-resource-composer">
-              <Plus size={18} color="#0F172A" />
-              <Text style={styles.heroButtonText}>Share Resource</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.heroMetrics}>
-            <View style={styles.metricCard}>
-              <Sparkles size={18} color="#A5B4FC" />
-              <Text style={styles.metricValue}>{featuredResources.length}</Text>
-              <Text style={styles.metricLabel}>Featured drops</Text>
-            </View>
-            <View style={styles.metricCard}>
-              <Flame size={18} color="#F97316" />
-              <Text style={styles.metricValue}>{recentResources.length}</Text>
-              <Text style={styles.metricLabel}>Fresh this week</Text>
-            </View>
-            <View style={styles.metricCard}>
-              <UploadCloud size={18} color="#C4B5FD" />
-              <Text style={styles.metricValue}>{resources.length}</Text>
-              <Text style={styles.metricLabel}>Total uploads</Text>
+            <View style={[styles.heroMetrics, isSmallScreen && styles.heroMetricsMobile]}>
+              <View style={[styles.metricCard, isSmallScreen && styles.metricCardMobile]}>
+                <Sparkles size={isSmallScreen ? 14 : 18} color="#A5B4FC" />
+                <Text style={[styles.metricValue, isSmallScreen && styles.metricValueMobile]}>{featuredResources.length}</Text>
+                <Text style={[styles.metricLabel, isSmallScreen && styles.metricLabelMobile]}>Featured drops</Text>
+              </View>
+              <View style={[styles.metricCard, isSmallScreen && styles.metricCardMobile]}>
+                <Flame size={isSmallScreen ? 14 : 18} color="#F97316" />
+                <Text style={[styles.metricValue, isSmallScreen && styles.metricValueMobile]}>{recentResources.length}</Text>
+                <Text style={[styles.metricLabel, isSmallScreen && styles.metricLabelMobile]}>Fresh this week</Text>
+              </View>
+              <View style={[styles.metricCard, isSmallScreen && styles.metricCardMobile]}>
+                <UploadCloud size={isSmallScreen ? 14 : 18} color="#C4B5FD" />
+                <Text style={[styles.metricValue, isSmallScreen && styles.metricValueMobile]}>{resources.length}</Text>
+                <Text style={[styles.metricLabel, isSmallScreen && styles.metricLabelMobile]}>Total uploads</Text>
+              </View>
             </View>
           </View>
         </LinearGradient>
 
-        <View style={styles.content}>
-          <View style={styles.section}>
+        <View style={[styles.content, isSmallScreen && styles.contentMobile, isSmallScreen && { paddingHorizontal: resourceGridPadding }]}>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Featured Collections</Text>
+              <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>Featured Collections</Text>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[styles.featuredScroll, isSmallScreen && { gap: 0 }]}
+            >
               {featuredResources.map((resource, i) => (
                 <FeaturedResourceCard
                   key={`featured-${i}`}
                   resource={resource}
-                  onOpen={() => handleVisitResource(resource.url)}
+                  onOpen={() => handleVisitResource(resource.url, resource.title)}
+                  cardWidth={isSmallScreen ? featuredCardWidth : undefined}
+                  cardMarginRight={isSmallScreen ? featuredCardGap : undefined}
                 />
               ))}
             </ScrollView>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Trending Tags</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+            <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>Trending Tags</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.trendingRow, isSmallScreen && styles.trendingRowMobile]}>
               {trendingTags.map((tag, i) => (
-                <View style={styles.trendingPill} key={`tag-${i}`}>
-                  <Sparkles size={14} color={Colors.light.primary} />
-                  <Text style={styles.trendingText}>#{tag}</Text>
+                <View style={[styles.trendingPill, isSmallScreen && styles.trendingPillMobile]} key={`tag-${i}`}>
+                  <Sparkles size={isSmallScreen ? 11 : 14} color={Colors.light.primary} />
+                  <Text style={[styles.trendingText, isSmallScreen && styles.trendingTextMobile]}>#{tag}</Text>
                 </View>
               ))}
               {trendingTags.length === 0 && (
-                <Text style={styles.emptyTrending}>Tag activity will appear once members share resources.</Text>
+                <Text style={[styles.emptyTrending, isSmallScreen && styles.emptyTrendingMobile]}>Tag activity will appear once members share resources.</Text>
               )}
             </ScrollView>
           </View>
 
-          <View style={styles.filtersCard}>
-            <View style={styles.searchRow}>
+          <View style={[styles.filtersCard, isSmallScreen && styles.filtersCardMobile]}>
+            <View style={[styles.searchRow, isSmallScreen && styles.searchRowMobile]}>
               <TextInput
                 placeholder="Search resources, topics, or mentors"
                 placeholderTextColor="rgba(15, 23, 42, 0.4)"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                style={styles.searchInput}
+                style={[styles.searchInput, isSmallScreen && styles.searchInputMobile]}
                 returnKeyType="search"
                 testID="resources-search"
               />
               {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton} testID="resources-clear-search">
-                  <Text style={styles.clearButtonText}>Reset</Text>
+                <TouchableOpacity onPress={() => setSearchQuery('')} style={[styles.clearButton, isSmallScreen && styles.clearButtonMobile]} testID="resources-clear-search">
+                  <Text style={[styles.clearButtonText, isSmallScreen && styles.clearButtonTextMobile]}>Reset</Text>
                 </TouchableOpacity>
               )}
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.filterRow, isSmallScreen && styles.filterRowMobile]}>
               <TouchableOpacity
-                style={[styles.filterChip, selectedType === 'All' && styles.filterChipActive]}
+                style={[styles.filterChip, isSmallScreen && styles.filterChipMobile, selectedType === 'All' && styles.filterChipActive]}
                 onPress={() => setSelectedType('All')}
                 testID="filter-type-all"
               >
-                <Text style={[styles.filterChipText, selectedType === 'All' && styles.filterChipTextActive]}>All Types</Text>
+                <Text style={[styles.filterChipText, isSmallScreen && styles.filterChipTextMobile, selectedType === 'All' && styles.filterChipTextActive]}>All Types</Text>
               </TouchableOpacity>
               {RESOURCE_TYPES.map((type) => (
                 <TouchableOpacity
                   key={type}
-                  style={[styles.filterChip, selectedType === type && styles.filterChipActive]}
+                  style={[styles.filterChip, isSmallScreen && styles.filterChipMobile, selectedType === type && styles.filterChipActive]}
                   onPress={() => setSelectedType(type)}
                   testID={`filter-type-${type}`}
                 >
-                  <Text style={[styles.filterChipText, selectedType === type && styles.filterChipTextActive]}>{type}</Text>
+                  <Text style={[styles.filterChipText, isSmallScreen && styles.filterChipTextMobile, selectedType === type && styles.filterChipTextActive]}>{type}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.filterRow, isSmallScreen && styles.filterRowMobile]}>
               <TouchableOpacity
-                style={[styles.filterChip, selectedCategory === 'All' && styles.filterChipActiveSecondary]}
+                style={[styles.filterChip, isSmallScreen && styles.filterChipMobile, selectedCategory === 'All' && styles.filterChipActiveSecondary]}
                 onPress={() => setSelectedCategory('All')}
                 testID="filter-category-all"
               >
-                <Text style={[styles.filterChipTextSecondary, selectedCategory === 'All' && styles.filterChipTextActiveSecondary]}>All Categories</Text>
+                <Text style={[styles.filterChipTextSecondary, isSmallScreen && styles.filterChipTextSecondaryMobile, selectedCategory === 'All' && styles.filterChipTextActiveSecondary]}>All Categories</Text>
               </TouchableOpacity>
               {resourceCategories.map((category) => (
                 <TouchableOpacity
                   key={category}
-                  style={[styles.filterChip, selectedCategory === category && styles.filterChipActiveSecondary]}
+                  style={[styles.filterChip, isSmallScreen && styles.filterChipMobile, selectedCategory === category && styles.filterChipActiveSecondary]}
                   onPress={() => setSelectedCategory(category as SkillCategory)}
                   testID={`filter-category-${category}`}
                 >
-                  <Text style={[styles.filterChipTextSecondary, selectedCategory === category && styles.filterChipTextActiveSecondary]}>{category}</Text>
+                  <Text style={[styles.filterChipTextSecondary, isSmallScreen && styles.filterChipTextSecondaryMobile, selectedCategory === category && styles.filterChipTextActiveSecondary]}>{category}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
 
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Community Library</Text>
-            <Text style={styles.sectionCount}>{filteredResources.length} resources</Text>
+          <View style={[styles.sectionHeaderRow, isSmallScreen && styles.sectionHeaderRowMobile]}>
+            <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>Community Library</Text>
+            <Text style={[styles.sectionCount, isSmallScreen && styles.sectionCountMobile]}>{filteredResources.length} resources</Text>
           </View>
 
-          <View style={styles.resourceList}>
+          <View style={[
+            styles.resourceList,
+            numResourceColumns > 1 && {
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              gap: resourceGridGap,
+            }
+          ]}>
             {filteredResources.map((resource, i) => (
               <ResourceCardItem
-                key={i}
+                key={resource._id || i}
                 resource={resource}
                 isSaved={savedResourceIds.includes(resource._id || "")}
                 difficultyText={difficultyLabel(resource.difficulty)}
-                onOpen={() => handleVisitResource(resource.url)}
+                onOpen={() => handleVisitResource(resource.url, resource.title)}
                 onToggleSave={() => handleToggleSave(resource._id || "")}
                 onEndorse={() => handleEndorse(resource._id || "")}
+                cardWidth={resourceCardWidth}
+                isSmallScreen={isSmallScreen}
               />
             ))}
             {filteredResources.length === 0 && (
-              <View style={styles.emptyState} testID="resources-empty">
-                <Text style={styles.emptyTitle}>Nothing yet</Text>
-                <Text style={styles.emptySubtitle}>Try updating your filters or sharing a resource to kick things off.</Text>
-                <TouchableOpacity style={styles.emptyButton} onPress={openComposer} testID="empty-share-resource">
-                  <Plus size={16} color="#0F172A" />
-                  <Text style={styles.emptyButtonText}>Share now</Text>
+              <View style={[styles.emptyState, isSmallScreen && styles.emptyStateMobile]} testID="resources-empty">
+                <Text style={[styles.emptyTitle, isSmallScreen && styles.emptyTitleMobile]}>Nothing yet</Text>
+                <Text style={[styles.emptySubtitle, isSmallScreen && styles.emptySubtitleMobile]}>Try updating your filters or sharing a resource to kick things off.</Text>
+                <TouchableOpacity style={[styles.emptyButton, isSmallScreen && styles.emptyButtonMobile]} onPress={openComposer} testID="empty-share-resource">
+                  <Plus size={isSmallScreen ? 13 : 16} color="#0F172A" />
+                  <Text style={[styles.emptyButtonText, isSmallScreen && styles.emptyButtonTextMobile]}>Share now</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -767,6 +904,60 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 28,
     overflow: 'hidden',
   },
+  heroMobile: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  heroHeaderMobile: {
+    gap: 12,
+    alignItems: 'center',
+  },
+  heroTextBlockMobile: {
+    gap: 3,
+  },
+  heroEyebrowMobile: {
+    fontSize: 10.5,
+    letterSpacing: 0.8,
+  },
+  heroTitleMobile: {
+    fontSize: 18,
+    lineHeight: 23,
+  },
+  heroSubtitleMobile: {
+    fontSize: 11.5,
+    lineHeight: 16,
+  },
+  heroButtonMobile: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 5,
+  },
+  heroButtonTextMobile: {
+    fontSize: 12.5,
+  },
+  heroMetricsMobile: {
+    marginTop: 14,
+    gap: 8,
+  },
+  metricCardMobile: {
+    paddingVertical: 9,
+    paddingHorizontal: 6,
+    borderRadius: 12,
+    gap: 3,
+  },
+  metricValueMobile: {
+    fontSize: 16,
+  },
+  metricLabelMobile: {
+    fontSize: 10,
+  },
+  contentMobile: {
+    paddingTop: 16,
+    gap: 20,
+  },
   heroHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -839,10 +1030,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(226, 232, 240, 0.7)',
   },
+  heroInner: {
+    maxWidth: 1280,
+    width: '100%',
+    alignSelf: 'center',
+  },
   content: {
     paddingHorizontal: 20,
     paddingTop: 28,
     gap: 32,
+    maxWidth: 1280,
+    width: '100%',
+    alignSelf: 'center',
   },
   section: {
     gap: 16,
@@ -1010,6 +1209,8 @@ const styles = StyleSheet.create({
   },
   resourceList: {
     gap: 20,
+    width: '100%',
+    alignSelf: 'center',
   },
   resourceCard: {
     borderRadius: 24,
@@ -1195,6 +1396,116 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.card,
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
+    width: '100%',
+  },
+  resourceCardMobile: {
+    borderRadius: 16,
+  },
+  cardImageMobile: {
+    height: 185,
+  },
+  cardImageRadiusMobile: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  cardOverlayMobile: {
+    padding: 10,
+  },
+  badgePillMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    gap: 4,
+  },
+  badgeTextMobile: {
+    fontSize: 10,
+  },
+  badgeAccentMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  badgeAccentTextMobile: {
+    fontSize: 10,
+  },
+  cardContentMobile: {
+    gap: 6,
+  },
+  cardHeaderRowMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 4,
+  },
+  cardTitleMobile: {
+    fontSize: 13,
+    lineHeight: 17,
+    flexWrap: 'wrap',
+  },
+  cardSubtitleMobile: {
+    fontSize: 11,
+    lineHeight: 15,
+    flexWrap: 'wrap',
+  },
+  metaLeftMobile: {
+    gap: 6,
+    flex: 1,
+  },
+  metaTextBlockMobile: {
+    flex: 1,
+    minWidth: 0,
+  },
+  avatarMobile: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  avatarImageMobile: {
+    borderRadius: 12,
+  },
+  contributorNameMobile: {
+    fontSize: 11,
+    flexWrap: 'wrap',
+  },
+  contributorSubtitleMobile: {
+    fontSize: 9.5,
+    flexWrap: 'wrap',
+  },
+  cardFooterMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  tagRowMobile: {
+    gap: 6,
+  },
+  tagPillMobile: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+  },
+  tagTextMobile: {
+    fontSize: 9.5,
+  },
+  actionsRowMobile: {
+    gap: 6,
+  },
+  saveButtonMobile: {
+    paddingVertical: 7,
+    borderRadius: 10,
+    gap: 4,
+  },
+  saveButtonTextMobile: {
+    fontSize: 11,
+  },
+  endorseButtonMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    gap: 4,
+  },
+  endorseTextMobile: {
+    fontSize: 11,
   },
   emptyTitle: {
     fontSize: 20,
@@ -1348,40 +1659,121 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
   },
   featuredCardSmall: {
-    width: 215,
     height: 250,
-    borderRadius: 18,
-    marginRight: 12,
+    borderRadius: 16,
   },
   featuredImageRadiusSmall: {
-    borderRadius: 18,
+    borderRadius: 16,
   },
   featuredOverlaySmall: {
-    padding: 14,
+    padding: 10,
+    justifyContent: 'space-between',
   },
   badgePillSmall: {
-    paddingHorizontal: 9,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 3,
+  },
+  badgeTextSmall: {
+    fontSize: 8.5,
+  },
+  badgeAccentSmall: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  badgeAccentTextSmall: {
+    fontSize: 8.5,
+  },
+  featuredTitleSmall: {
+    fontSize: 13,
+    lineHeight: 17,
+    flexWrap: 'wrap',
+  },
+  featuredCaptionSmall: {
+    fontSize: 10,
+    lineHeight: 14,
+    flexWrap: 'wrap',
+  },
+  sectionMobile: {
+    gap: 10,
+  },
+  sectionTitleMobile: {
+    fontSize: 15,
+  },
+  sectionHeaderRowMobile: {
+    marginTop: 6,
+  },
+  sectionCountMobile: {
+    fontSize: 11.5,
+  },
+  trendingRowMobile: {
+    gap: 8,
+  },
+  trendingPillMobile: {
+    paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
     gap: 4,
   },
-  badgeTextSmall: {
-    fontSize: 10,
+  trendingTextMobile: {
+    fontSize: 11,
   },
-  badgeAccentSmall: {
-    paddingHorizontal: 9,
+  emptyTrendingMobile: {
+    fontSize: 11,
+  },
+  filtersCardMobile: {
+    padding: 10,
+    gap: 8,
+    borderRadius: 14,
+  },
+  searchRowMobile: {
+    gap: 6,
+  },
+  searchInputMobile: {
+    fontSize: 12.5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  clearButtonMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  clearButtonTextMobile: {
+    fontSize: 11,
+  },
+  filterRowMobile: {
+    gap: 6,
+  },
+  filterChipMobile: {
+    paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
   },
-  badgeAccentTextSmall: {
-    fontSize: 10,
-  },
-  featuredTitleSmall: {
-    fontSize: 17,
-    lineHeight: 22,
-  },
-  featuredCaptionSmall: {
+  filterChipTextMobile: {
     fontSize: 11,
-    lineHeight: 16,
+  },
+  filterChipTextSecondaryMobile: {
+    fontSize: 11,
+  },
+  emptyStateMobile: {
+    padding: 20,
+  },
+  emptyTitleMobile: {
+    fontSize: 15,
+  },
+  emptySubtitleMobile: {
+    fontSize: 11.5,
+  },
+  emptyButtonMobile: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  emptyButtonTextMobile: {
+    fontSize: 12,
   },
 });

@@ -9,6 +9,7 @@ import { useNotifications } from './notifications';
 import { useSafety } from './safety';
 import { useSocket } from './socket';
 import { getClassEnrollmentCost, getClassTeacherEarnings } from '../lib/payments';
+import { logCoursePurchase } from '@/lib/analytics';
 import url from '@/constants/backurl';
 
 interface CreateClassInput {
@@ -366,6 +367,9 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
       status: 'enrolled',
     };
     setEnrollments(prev => [...prev, enr]);
+
+    // 📊 Track course purchase in Firebase Analytics
+    logCoursePurchase(cls.id, cost, 'INR');
 
     // Backend sync
     fetch(`${url}/classes/${cls.id}/enroll`, {

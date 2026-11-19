@@ -21,6 +21,7 @@ import MatchCard from '../../components/MatchCard';
 import { useCurrentUser } from '../../providers/current-user';
 import { useNotifications } from '../../providers/notifications';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeTopInset } from '@/lib/safeArea';
 import { resolveImageUrl } from '../../lib/resolveImageUrl';
 import {
   MAIN_CATEGORIES,
@@ -39,6 +40,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const isSmallScreen = windowWidth < 600;
+  const safeTopInset = useSafeTopInset(isSmallScreen ? 14 : 24);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
   const [skillsWithUsers, setSkillsWithUsers] = useState<any[]>([]);
@@ -122,6 +124,17 @@ export default function HomeScreen() {
     const availableWidth = windowWidth - totalPadding - totalGap;
     return Math.floor(availableWidth / numSkillColumns);
   }, [windowWidth, numSkillColumns, skillGridPadding, skillGridGap]);
+
+  // Horizontal carousel metrics for mobile (2 visible cards in a row with horizontal scroll)
+  const horizontalScrollPadding = isSmallScreen ? (windowWidth < 360 ? 12 : 16) : 20;
+  const horizontalCardGap = isSmallScreen ? (windowWidth < 360 ? 8 : 10) : 16;
+  const horizontalCardWidth = useMemo(() => {
+    if (!isSmallScreen) return 280;
+    // Exactly 2 cards visible in the row on mobile screens
+    const totalPadding = horizontalScrollPadding * 2;
+    const availableWidth = windowWidth - totalPadding - horizontalCardGap;
+    return Math.floor(availableWidth / 2);
+  }, [isSmallScreen, windowWidth, horizontalScrollPadding, horizontalCardGap]);
 
   const { unreadCount } = useNotifications();
   const { currentUser, topRecommendations, teachMatches, learnMatches, swapMatches, userRole, refreshRecommendations, isLoading: isUserLoading } = useCurrentUser();
@@ -349,23 +362,23 @@ export default function HomeScreen() {
           colors={['#6366F1', '#818CF8']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[styles.header, { paddingTop: insets.top + 24 }]}
+          style={[styles.header, isSmallScreen && styles.headerSmall, { paddingTop: safeTopInset }]}
         >
           <View style={styles.headerContent}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.greeting}>Hi, {userDisplayName}</Text>
-              <Text style={styles.subtitle}>Curated exchanges to accelerate your growth</Text>
+              <Text style={[styles.greeting, isSmallScreen && styles.greetingSmall]}>Hi, {userDisplayName}</Text>
+              <Text style={[styles.subtitle, isSmallScreen && styles.subtitleSmall]}>Curated exchanges to accelerate your growth</Text>
             </View>
             <TouchableOpacity
-              style={styles.bellButton}
+              style={[styles.bellButton, isSmallScreen && styles.bellButtonSmall]}
               onPress={() => router.push('/(tabs)/notifications' as any)}
               activeOpacity={0.8}
               testID="home-alerts-bell-button"
             >
-              <Bell size={22} color="#FFFFFF" />
+              <Bell size={isSmallScreen ? 18 : 22} color="#FFFFFF" />
               {unreadCount > 0 && (
-                <View style={styles.bellBadge}>
-                  <Text style={styles.bellBadgeText}>
+                <View style={[styles.bellBadge, isSmallScreen && styles.bellBadgeSmall]}>
+                  <Text style={[styles.bellBadgeText, isSmallScreen && styles.bellBadgeTextSmall]}>
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </Text>
                 </View>
@@ -374,33 +387,33 @@ export default function HomeScreen() {
           </View>
         </LinearGradient>
 
-        <View style={styles.content}>
+        <View style={[styles.content, isSmallScreen && styles.contentSmall]}>
           {promotedSkills.length > 0 && (
-            <View style={styles.promotedSection} testID="promoted-teachers-section">
-              <View style={styles.matchesHeader}>
-                <View style={styles.matchesTitleGroup}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Sparkles size={18} color="#F59E0B" />
-                    <Text style={styles.promotedTitle}>Promoted Teachers</Text>
+            <View style={[styles.promotedSection, isSmallScreen && styles.promotedSectionSmall]} testID="promoted-teachers-section">
+              <View style={[styles.matchesHeader, isSmallScreen && styles.matchesHeaderSmall]}>
+                <View style={[styles.matchesTitleGroup, isSmallScreen && styles.matchesTitleGroupSmall]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: isSmallScreen ? 4 : 6 }}>
+                    <Sparkles size={isSmallScreen ? 15 : 18} color="#F59E0B" />
+                    <Text style={[styles.promotedTitle, isSmallScreen && styles.promotedTitleSmall]}>Promoted Teachers</Text>
                   </View>
-                  <Text style={styles.matchesSubtitle}>Featured classes with special offers</Text>
+                  <Text style={[styles.matchesSubtitle, isSmallScreen && styles.matchesSubtitleSmall]}>Featured classes with special offers</Text>
                 </View>
-                <View style={styles.carouselNavRow}>
+                <View style={[styles.carouselNavRow, isSmallScreen && styles.carouselNavRowSmall]}>
                   <TouchableOpacity
-                    style={[styles.carouselNavBtn, !promotedNav.canLeft && styles.carouselNavBtnDisabled]}
-                    onPress={() => handleScrollCarouselStep(promotedScrollRef, promotedPosRef, setPromotedNav, 'left', isSmallScreen ? 232 : 300)}
+                    style={[styles.carouselNavBtn, isSmallScreen && styles.carouselNavBtnSmall, !promotedNav.canLeft && styles.carouselNavBtnDisabled]}
+                    onPress={() => handleScrollCarouselStep(promotedScrollRef, promotedPosRef, setPromotedNav, 'left', isSmallScreen ? (horizontalCardWidth + horizontalCardGap) : 300)}
                     activeOpacity={0.7}
                     disabled={!promotedNav.canLeft}
                   >
-                    <ChevronLeft size={16} color={!promotedNav.canLeft ? '#CCC' : '#333'} />
+                    <ChevronLeft size={isSmallScreen ? 14 : 16} color={!promotedNav.canLeft ? '#CCC' : '#333'} />
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.carouselNavBtn, !promotedNav.canRight && styles.carouselNavBtnDisabled]}
-                    onPress={() => handleScrollCarouselStep(promotedScrollRef, promotedPosRef, setPromotedNav, 'right', isSmallScreen ? 232 : 300)}
+                    style={[styles.carouselNavBtn, isSmallScreen && styles.carouselNavBtnSmall, !promotedNav.canRight && styles.carouselNavBtnDisabled]}
+                    onPress={() => handleScrollCarouselStep(promotedScrollRef, promotedPosRef, setPromotedNav, 'right', isSmallScreen ? (horizontalCardWidth + horizontalCardGap) : 300)}
                     activeOpacity={0.7}
                     disabled={!promotedNav.canRight}
                   >
-                    <ChevronRight size={16} color={!promotedNav.canRight ? '#CCC' : '#333'} />
+                    <ChevronRight size={isSmallScreen ? 14 : 16} color={!promotedNav.canRight ? '#CCC' : '#333'} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -408,7 +421,7 @@ export default function HomeScreen() {
                 ref={promotedScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.promotedScroll}
+                contentContainerStyle={[styles.promotedScroll, isSmallScreen && { paddingLeft: horizontalScrollPadding, paddingRight: horizontalScrollPadding }]}
                 onLayout={(e) => updateCarouselMetrics(promotedPosRef, setPromotedNav, { layoutWidth: e.nativeEvent.layout.width })}
                 onContentSizeChange={(w) => updateCarouselMetrics(promotedPosRef, setPromotedNav, { contentWidth: w })}
                 onScroll={(e) => {
@@ -423,7 +436,11 @@ export default function HomeScreen() {
                 {promotedSkills.map((skill) => (
                   <TouchableOpacity
                     key={`promo-${skill.id}`}
-                    style={[styles.promotedCard, isSmallScreen && styles.promotedCardSmall]}
+                    style={[
+                      styles.promotedCard,
+                      isSmallScreen && styles.promotedCardSmall,
+                      isSmallScreen && { width: horizontalCardWidth, marginRight: horizontalCardGap },
+                    ]}
                     onPress={() => router.push(`/skill/${skill.id}` as any)}
                     activeOpacity={0.85}
                   >
@@ -456,11 +473,11 @@ export default function HomeScreen() {
                         )}
                       </View>
                       <View style={[styles.promotedContent, isSmallScreen && styles.promotedContentSmall]}>
-                        <Text style={[styles.promotedSkillTitle, isSmallScreen && styles.promotedSkillTitleSmall]} numberOfLines={1}>{skill.title}</Text>
-                        <Text style={[styles.promotedTagline, isSmallScreen && styles.promotedTaglineSmall]} numberOfLines={2}>{skill.promoTagline}</Text>
+                        <Text style={[styles.promotedSkillTitle, isSmallScreen && styles.promotedSkillTitleSmall]}>{skill.title}</Text>
+                        <Text style={[styles.promotedTagline, isSmallScreen && styles.promotedTaglineSmall]}>{skill.promoTagline}</Text>
                         <View style={[styles.promotedTeacherRow, isSmallScreen && styles.promotedTeacherRowSmall]}>
                           <Image source={{ uri: resolveImageUrl(skill.user?.avatarUrl, DEFAULT_AVATAR) }} style={[styles.promotedAvatar, isSmallScreen && styles.promotedAvatarSmall]} defaultSource={{ uri: DEFAULT_AVATAR }} />
-                          <Text style={[styles.promotedTeacherName, isSmallScreen && styles.promotedTeacherNameSmall]} numberOfLines={1}>{skill.user?.name}</Text>
+                          <Text style={[styles.promotedTeacherName, isSmallScreen && styles.promotedTeacherNameSmall]}>{skill.user?.name}</Text>
                           <View style={styles.promotedRating}>
                             <Star size={isSmallScreen ? 9 : 10} fill={Colors.light.accent} color={Colors.light.accent} />
                             <Text style={[styles.promotedRatingText, isSmallScreen && styles.promotedRatingTextSmall]}>{skill.user?.rating}</Text>
@@ -474,15 +491,15 @@ export default function HomeScreen() {
             </View>
           )}
 
-          <View style={styles.matchesSection} testID="smart-matches-section">
-            <View style={styles.matchesHeader}>
-              <View style={styles.matchesTitleGroup}>
-                <Text style={styles.matchesTitle}>Smart Matches</Text>
-                <Text style={styles.matchesSubtitle}>{matchesSubtitle}</Text>
+          <View style={[styles.matchesSection, isSmallScreen && styles.matchesSectionSmall]} testID="smart-matches-section">
+            <View style={[styles.matchesHeader, isSmallScreen && styles.matchesHeaderSmall]}>
+              <View style={[styles.matchesTitleGroup, isSmallScreen && styles.matchesTitleGroupSmall]}>
+                <Text style={[styles.matchesTitle, isSmallScreen && styles.matchesTitleSmall]}>Smart Matches</Text>
+                <Text style={[styles.matchesSubtitle, isSmallScreen && styles.matchesSubtitleSmall]}>{matchesSubtitle}</Text>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: isSmallScreen ? 6 : 8 }}>
                 <TouchableOpacity
-                  style={[styles.refreshButton, isRefreshing && { opacity: 0.8 }]}
+                  style={[styles.refreshButton, isSmallScreen && styles.refreshButtonSmall, isRefreshing && { opacity: 0.8 }]}
                   onPress={handleRefresh}
                   disabled={isRefreshing}
                   activeOpacity={0.85}
@@ -491,28 +508,28 @@ export default function HomeScreen() {
                   {isRefreshing ? (
                     <ActivityIndicator size="small" color={Colors.light.primary} style={{ marginRight: 4 }} />
                   ) : (
-                    <RefreshCcw size={16} color={Colors.light.primary} />
+                    <RefreshCcw size={isSmallScreen ? 13 : 16} color={Colors.light.primary} />
                   )}
-                  <Text style={styles.refreshText}>{isRefreshing ? 'Loading...' : 'Refresh'}</Text>
+                  <Text style={[styles.refreshText, isSmallScreen && styles.refreshTextSmall]}>{isRefreshing ? 'Loading...' : 'Refresh'}</Text>
                 </TouchableOpacity>
 
                 {hasMatches && (
-                  <View style={styles.carouselNavRow}>
+                  <View style={[styles.carouselNavRow, isSmallScreen && styles.carouselNavRowSmall]}>
                     <TouchableOpacity
-                      style={[styles.carouselNavBtn, !matchesNav.canLeft && styles.carouselNavBtnDisabled]}
-                      onPress={() => handleScrollCarouselStep(matchesScrollRef, matchesPosRef, setMatchesNav, 'left', isSmallScreen ? 242 : 300)}
+                      style={[styles.carouselNavBtn, isSmallScreen && styles.carouselNavBtnSmall, !matchesNav.canLeft && styles.carouselNavBtnDisabled]}
+                      onPress={() => handleScrollCarouselStep(matchesScrollRef, matchesPosRef, setMatchesNav, 'left', isSmallScreen ? (horizontalCardWidth + horizontalCardGap) : 300)}
                       activeOpacity={0.7}
                       disabled={!matchesNav.canLeft}
                     >
-                      <ChevronLeft size={16} color={!matchesNav.canLeft ? '#CCC' : '#333'} />
+                      <ChevronLeft size={isSmallScreen ? 14 : 16} color={!matchesNav.canLeft ? '#CCC' : '#333'} />
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.carouselNavBtn, !matchesNav.canRight && styles.carouselNavBtnDisabled]}
-                      onPress={() => handleScrollCarouselStep(matchesScrollRef, matchesPosRef, setMatchesNav, 'right', isSmallScreen ? 242 : 300)}
+                      style={[styles.carouselNavBtn, isSmallScreen && styles.carouselNavBtnSmall, !matchesNav.canRight && styles.carouselNavBtnDisabled]}
+                      onPress={() => handleScrollCarouselStep(matchesScrollRef, matchesPosRef, setMatchesNav, 'right', isSmallScreen ? (horizontalCardWidth + horizontalCardGap) : 300)}
                       activeOpacity={0.7}
                       disabled={!matchesNav.canRight}
                     >
-                      <ChevronRight size={16} color={!matchesNav.canRight ? '#CCC' : '#333'} />
+                      <ChevronRight size={isSmallScreen ? 14 : 16} color={!matchesNav.canRight ? '#CCC' : '#333'} />
                     </TouchableOpacity>
                   </View>
                 )}
@@ -523,7 +540,7 @@ export default function HomeScreen() {
                 ref={matchesScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.matchesScroll}
+                contentContainerStyle={[styles.matchesScroll, isSmallScreen && { paddingLeft: horizontalScrollPadding, paddingRight: horizontalScrollPadding }]}
                 onLayout={(e) => updateCarouselMetrics(matchesPosRef, setMatchesNav, { layoutWidth: e.nativeEvent.layout.width })}
                 onContentSizeChange={(w) => updateCarouselMetrics(matchesPosRef, setMatchesNav, { contentWidth: w })}
                 onScroll={(e) => {
@@ -541,88 +558,90 @@ export default function HomeScreen() {
                     recommendation={match}
                     onPress={() => router.push(`/profile/${match.user.id}` as any)}
                     testID={`match-card-${match.user.id}`}
+                    cardWidth={isSmallScreen ? horizontalCardWidth : undefined}
+                    cardMarginRight={isSmallScreen ? horizontalCardGap : undefined}
                   />
                 ))}
               </ScrollView>
             ) : (
-              <View style={styles.emptyMatchesCard}>
-                <Users size={22} color={Colors.light.textSecondary} />
-                <Text style={styles.emptyMatchesTitle}>No matches yet</Text>
-                <Text style={styles.emptyMatchesSubtitle}>Share what you can teach to see instant connections.</Text>
+              <View style={[styles.emptyMatchesCard, isSmallScreen && styles.emptyMatchesCardSmall]}>
+                <Users size={isSmallScreen ? 18 : 22} color={Colors.light.textSecondary} />
+                <Text style={[styles.emptyMatchesTitle, isSmallScreen && styles.emptyMatchesTitleSmall]}>No matches yet</Text>
+                <Text style={[styles.emptyMatchesSubtitle, isSmallScreen && styles.emptyMatchesSubtitleSmall]}>Share what you can teach to see instant connections.</Text>
               </View>
             )}
           </View>
 
-          <View style={styles.teachSection} testID="teach-matches-section">
-            <View style={styles.matchesHeader}>
-              <View style={styles.matchesTitleGroup}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  {secondarySection && <secondarySection.icon size={20} color={secondarySection.color} />}
-                  <Text style={styles.teachTitle}>{secondarySection?.title ?? ''}</Text>
+          <View style={[styles.teachSection, isSmallScreen && styles.teachSectionSmall]} testID="teach-matches-section">
+            <View style={[styles.matchesHeader, isSmallScreen && styles.matchesHeaderSmall]}>
+              <View style={[styles.matchesTitleGroup, isSmallScreen && styles.matchesTitleGroupSmall]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: isSmallScreen ? 6 : 8 }}>
+                  {secondarySection && <secondarySection.icon size={isSmallScreen ? 15 : 20} color={secondarySection.color} />}
+                  <Text style={[styles.teachTitle, isSmallScreen && styles.teachTitleSmall]}>{secondarySection?.title ?? ''}</Text>
                 </View>
-                <Text style={styles.matchesSubtitle}>{secondarySection?.subtitle ?? ''}</Text>
+                <Text style={[styles.matchesSubtitle, isSmallScreen && styles.matchesSubtitleSmall]}>{secondarySection?.subtitle ?? ''}</Text>
               </View>
             </View>
             {secondarySection?.items.map((match) => (
               <TouchableOpacity
                 key={`sec-${match.user.id}`}
-                style={styles.teachCard}
+                style={[styles.teachCard, isSmallScreen && styles.teachCardSmall]}
                 onPress={() => router.push(`/profile/${match.user.id}` as any)}
                 activeOpacity={0.85}
                 testID={`sec-card-${match.user.id}`}
               >
                 {match.user.avatarUrl ? (
-                  <Image source={{ uri: resolveImageUrl(match.user.avatarUrl, DEFAULT_AVATAR) }} style={styles.teachAvatar} defaultSource={{ uri: DEFAULT_AVATAR }} />
+                  <Image source={{ uri: resolveImageUrl(match.user.avatarUrl, DEFAULT_AVATAR) }} style={[styles.teachAvatar, isSmallScreen && styles.teachAvatarSmall]} defaultSource={{ uri: DEFAULT_AVATAR }} />
                 ) : (
-                  <Image source={{ uri: DEFAULT_AVATAR }} style={styles.teachAvatar} />
+                  <Image source={{ uri: DEFAULT_AVATAR }} style={[styles.teachAvatar, isSmallScreen && styles.teachAvatarSmall]} />
                 )}
-                <View style={styles.teachInfo}>
-                  <Text style={styles.teachName}>{match.user.username ? (match.user.username.startsWith('@') ? match.user.username : `@${match.user.username}`) : `@${match.user.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
-                  <View style={styles.teachSkillsRow}>
+                <View style={[styles.teachInfo, isSmallScreen && styles.teachInfoSmall]}>
+                  <Text style={[styles.teachName, isSmallScreen && styles.teachNameSmall]}>{match.user.username ? (match.user.username.startsWith('@') ? match.user.username : `@${match.user.username}`) : `@${match.user.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
+                  <View style={[styles.teachSkillsRow, isSmallScreen && styles.teachSkillsRowSmall]}>
                     {secondarySection.chips(match).map((skill, index) => {
                       const skillText = typeof skill === 'string' ? skill : (skill as any)?.title || String(skill);
                       return (
-                        <View key={`${match.user.id}-${index}`} style={styles.teachChip}>
-                          <Text style={styles.teachChipText}>{skillText}</Text>
+                        <View key={`${match.user.id}-${index}`} style={[styles.teachChip, isSmallScreen && styles.teachChipSmall]}>
+                          <Text style={[styles.teachChipText, isSmallScreen && styles.teachChipTextSmall]}>{skillText}</Text>
                         </View>
                       );
                     })}
                   </View>
                 </View>
                 <View style={styles.teachCompatibility}>
-                  <Text style={styles.teachCompatibilityValue}>{match.compatibility}</Text>
-                  <Text style={styles.teachCompatibilityLabel}>match</Text>
+                  <Text style={[styles.teachCompatibilityValue, isSmallScreen && styles.teachCompatibilityValueSmall]}>{match.compatibility}</Text>
+                  <Text style={[styles.teachCompatibilityLabel, isSmallScreen && styles.teachCompatibilityLabelSmall]}>match</Text>
                 </View>
               </TouchableOpacity>
             ))}
             {secondarySection && secondarySection.items.length === 0 && (
-              <View style={styles.emptyTeachCard}>
-                <Text style={styles.emptyMatchesTitle}>No matches here yet — add more skills to your profile.</Text>
+              <View style={[styles.emptyTeachCard, isSmallScreen && styles.emptyTeachCardSmall]}>
+                <Text style={[styles.emptyMatchesTitle, isSmallScreen && styles.emptyMatchesTitleSmall]}>No matches here yet — add more skills to your profile.</Text>
               </View>
             )}
           </View>
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                <Text style={styles.sectionTitleWithoutPadding}>Featured</Text>
-                <Zap size={18} color={Colors.light.accent} fill={Colors.light.accent} />
+          <View style={[styles.section, isSmallScreen && styles.sectionSmall]}>
+            <View style={[styles.sectionHeader, isSmallScreen && styles.sectionHeaderSmall]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: isSmallScreen ? 6 : 8, flex: 1 }}>
+                <Text style={[styles.sectionTitleWithoutPadding, isSmallScreen && styles.sectionTitleWithoutPaddingSmall]}>Featured</Text>
+                <Zap size={isSmallScreen ? 15 : 18} color={Colors.light.accent} fill={Colors.light.accent} />
               </View>
-              <View style={styles.carouselNavRow}>
+              <View style={[styles.carouselNavRow, isSmallScreen && styles.carouselNavRowSmall]}>
                 <TouchableOpacity
-                  style={[styles.carouselNavBtn, !featuredNav.canLeft && styles.carouselNavBtnDisabled]}
-                  onPress={() => handleScrollCarouselStep(featuredScrollRef, featuredPosRef, setFeaturedNav, 'left', isSmallScreen ? 242 : 320)}
+                  style={[styles.carouselNavBtn, isSmallScreen && styles.carouselNavBtnSmall, !featuredNav.canLeft && styles.carouselNavBtnDisabled]}
+                  onPress={() => handleScrollCarouselStep(featuredScrollRef, featuredPosRef, setFeaturedNav, 'left', isSmallScreen ? (horizontalCardWidth + horizontalCardGap) : 320)}
                   activeOpacity={0.7}
                   disabled={!featuredNav.canLeft}
                 >
-                  <ChevronLeft size={16} color={!featuredNav.canLeft ? '#CCC' : '#333'} />
+                  <ChevronLeft size={isSmallScreen ? 14 : 16} color={!featuredNav.canLeft ? '#CCC' : '#333'} />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.carouselNavBtn, !featuredNav.canRight && styles.carouselNavBtnDisabled]}
-                  onPress={() => handleScrollCarouselStep(featuredScrollRef, featuredPosRef, setFeaturedNav, 'right', isSmallScreen ? 242 : 320)}
+                  style={[styles.carouselNavBtn, isSmallScreen && styles.carouselNavBtnSmall, !featuredNav.canRight && styles.carouselNavBtnDisabled]}
+                  onPress={() => handleScrollCarouselStep(featuredScrollRef, featuredPosRef, setFeaturedNav, 'right', isSmallScreen ? (horizontalCardWidth + horizontalCardGap) : 320)}
                   activeOpacity={0.7}
                   disabled={!featuredNav.canRight}
                 >
-                  <ChevronRight size={16} color={!featuredNav.canRight ? '#CCC' : '#333'} />
+                  <ChevronRight size={isSmallScreen ? 14 : 16} color={!featuredNav.canRight ? '#CCC' : '#333'} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -630,7 +649,7 @@ export default function HomeScreen() {
               ref={featuredScrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.featuredScroll}
+              contentContainerStyle={[styles.featuredScroll, isSmallScreen && { paddingLeft: horizontalScrollPadding, paddingRight: horizontalScrollPadding }]}
               onLayout={(e) => updateCarouselMetrics(featuredPosRef, setFeaturedNav, { layoutWidth: e.nativeEvent.layout.width })}
               onContentSizeChange={(w) => updateCarouselMetrics(featuredPosRef, setFeaturedNav, { contentWidth: w })}
               onScroll={(e) => {
@@ -645,7 +664,11 @@ export default function HomeScreen() {
               {featuredSkills.map((skill) => (
                 <TouchableOpacity
                   key={skill.id}
-                  style={[styles.featuredCard, isSmallScreen && styles.featuredCardSmall]}
+                  style={[
+                    styles.featuredCard,
+                    isSmallScreen && styles.featuredCardSmall,
+                    isSmallScreen && { width: horizontalCardWidth, marginRight: horizontalCardGap },
+                  ]}
                   onPress={() => router.push(`/skill/${skill.id}` as any)}
                 >
                   <Image
@@ -675,7 +698,7 @@ export default function HomeScreen() {
                     </View>
                     <View style={[styles.featuredContent, isSmallScreen && styles.featuredContentSmall]}>
                       <Text style={[styles.featuredCategory, isSmallScreen && styles.featuredCategorySmall]}>{skill.category}</Text>
-                      <Text style={[styles.featuredTitle, isSmallScreen && styles.featuredTitleSmall]} numberOfLines={2}>
+                      <Text style={[styles.featuredTitle, isSmallScreen && styles.featuredTitleSmall]}>
                         {skill.title}
                       </Text>
                       <View style={[styles.featuredUser, isSmallScreen && styles.featuredUserSmall]}>
@@ -684,7 +707,7 @@ export default function HomeScreen() {
                           style={[styles.featuredAvatar, isSmallScreen && styles.featuredAvatarSmall]}
                         />
                         <View style={styles.featuredUserInfo}>
-                          <Text style={[styles.featuredUserName, isSmallScreen && styles.featuredUserNameSmall]} numberOfLines={1}>
+                          <Text style={[styles.featuredUserName, isSmallScreen && styles.featuredUserNameSmall]}>
                             {skill.user.username ? (skill.user.username.startsWith('@') ? skill.user.username : `@${skill.user.username}`) : `@${skill.user.name.toLowerCase().replace(/\s+/g, '')}`}
                           </Text>
                           <View style={styles.featuredRating}>
@@ -700,18 +723,19 @@ export default function HomeScreen() {
             </ScrollView>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Categories</Text>
+          <View style={[styles.section, isSmallScreen && styles.sectionSmall]}>
+            <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleSmall]}>Categories</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoriesScroll}
+              contentContainerStyle={[styles.categoriesScroll, isSmallScreen && styles.categoriesScrollSmall]}
             >
               {['All', ...MAIN_CATEGORIES].map((category) => (
                 <TouchableOpacity
                   key={category}
                   style={[
                     styles.categoryChip,
+                    isSmallScreen && styles.categoryChipSmall,
                     selectedCategory === category && styles.categoryChipActive,
                   ]}
                   onPress={() => {
@@ -722,6 +746,7 @@ export default function HomeScreen() {
                   <Text
                     style={[
                       styles.categoryText,
+                      isSmallScreen && styles.categoryTextSmall,
                       selectedCategory === category && styles.categoryTextActive,
                     ]}
                   >
@@ -732,15 +757,16 @@ export default function HomeScreen() {
             </ScrollView>
 
             {selectedCategory !== 'All' && getSubcategoriesForCategory(selectedCategory).length > 0 && (
-              <View style={styles.subcategoriesContainer}>
+              <View style={[styles.subcategoriesContainer, isSmallScreen && styles.subcategoriesContainerSmall]}>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.subcategoriesScroll}
+                  contentContainerStyle={[styles.subcategoriesScroll, isSmallScreen && styles.subcategoriesScrollSmall]}
                 >
                   <TouchableOpacity
                     style={[
                       styles.subcategoryChip,
+                      isSmallScreen && styles.subcategoryChipSmall,
                       selectedSubcategory === 'All' && styles.subcategoryChipActive,
                     ]}
                     onPress={() => setSelectedSubcategory('All')}
@@ -749,6 +775,7 @@ export default function HomeScreen() {
                     <Text
                       style={[
                         styles.subcategoryText,
+                        isSmallScreen && styles.subcategoryTextSmall,
                         selectedSubcategory === 'All' && styles.subcategoryTextActive,
                       ]}
                     >
@@ -760,6 +787,7 @@ export default function HomeScreen() {
                       key={sub}
                       style={[
                         styles.subcategoryChip,
+                        isSmallScreen && styles.subcategoryChipSmall,
                         selectedSubcategory === sub && styles.subcategoryChipActive,
                       ]}
                       onPress={() => setSelectedSubcategory(sub)}
@@ -768,6 +796,7 @@ export default function HomeScreen() {
                       <Text
                         style={[
                           styles.subcategoryText,
+                          isSmallScreen && styles.subcategoryTextSmall,
                           selectedSubcategory === sub && styles.subcategoryTextActive,
                         ]}
                       >
@@ -780,17 +809,17 @@ export default function HomeScreen() {
             )}
           </View>
 
-          <View style={styles.section}>
-            <View style={[styles.skillsSectionHeader, isSmallScreen && { paddingHorizontal: skillGridPadding }]}>
-              <Text style={styles.sectionTitleWithoutPadding}>
+          <View style={[styles.section, isSmallScreen && styles.sectionSmall]}>
+            <View style={[styles.skillsSectionHeader, isSmallScreen && styles.skillsSectionHeaderSmall, isSmallScreen && { paddingHorizontal: skillGridPadding }]}>
+              <Text style={[styles.sectionTitleWithoutPadding, isSmallScreen && styles.sectionTitleWithoutPaddingSmall]}>
                 {selectedCategory === 'All'
                   ? 'All Skills'
                   : selectedSubcategory !== 'All'
                     ? `${selectedCategory} • ${selectedSubcategory}`
                     : selectedCategory}
               </Text>
-              <View style={styles.skillsCountBadge}>
-                <Text style={styles.skillsCountText}>
+              <View style={[styles.skillsCountBadge, isSmallScreen && styles.skillsCountBadgeSmall]}>
+                <Text style={[styles.skillsCountText, isSmallScreen && styles.skillsCountTextSmall]}>
                   {filteredSkills.length} {filteredSkills.length === 1 ? 'skill' : 'skills'}
                 </Text>
               </View>
@@ -832,11 +861,14 @@ export default function HomeScreen() {
                     defaultSource={{ uri: DEFAULT_SKILL_IMAGE }}
                   />
                   <View style={[styles.skillContent, isSmallScreen && styles.skillContentMobile]}>
-                    <View style={styles.skillHeader}>
-                      <Text style={[styles.categoryLabel, isSmallScreen && styles.categoryLabelMobile]} numberOfLines={1} ellipsizeMode="tail">
+                    <View style={[styles.skillHeader, isSmallScreen && styles.skillHeaderMobile]}>
+                      <Text style={[styles.categoryLabel, isSmallScreen && styles.categoryLabelMobile]}>
                         {skill.category}
                       </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: isSmallScreen ? 4 : 6, flexShrink: 0 }}>
+                      <View style={[
+                        { flexDirection: 'row', alignItems: 'center', gap: isSmallScreen ? 4 : 6, flexShrink: 0 },
+                        isSmallScreen && { flexWrap: 'wrap', width: '100%', marginTop: 2 }
+                      ]}>
                         {skill.certificateStatus === 'approved' && (
                           <View style={[styles.skillCertifiedBadge, isSmallScreen && styles.skillCertifiedBadgeMobile]}>
                             <BadgeCheck size={isSmallScreen ? 9.5 : 11} color="#10B981" />
@@ -848,16 +880,16 @@ export default function HomeScreen() {
                         </View>
                       </View>
                     </View>
-                    <Text style={[styles.skillTitle, isSmallScreen && styles.skillTitleMobile]} numberOfLines={2}>
+                    <Text style={[styles.skillTitle, isSmallScreen && styles.skillTitleMobile]}>
                       {skill.title}
                     </Text>
-                    <View style={styles.skillFooter}>
+                    <View style={[styles.skillFooter, isSmallScreen && styles.skillFooterMobile]}>
                       <View style={[styles.userInfo, isSmallScreen && styles.userInfoMobile]}>
                         <Image
                           source={{ uri: resolveImageUrl(skill.user?.avatarUrl, DEFAULT_AVATAR) }}
                           style={[styles.userAvatar, isSmallScreen && styles.userAvatarMobile]}
                         />
-                        <Text style={[styles.userName, isSmallScreen && styles.userNameMobile]} numberOfLines={1}>
+                        <Text style={[styles.userName, isSmallScreen && styles.userNameMobile]}>
                           {skill.user?.username ? (skill.user.username.startsWith('@') ? skill.user.username : `@${skill.user.username}`) : `@${(skill.user?.name || 'user').toLowerCase().replace(/\s+/g, '')}`}
                         </Text>
                       </View>
@@ -872,12 +904,12 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          <View style={styles.bottomSpacer} />
+          <View style={[styles.bottomSpacer, isSmallScreen && styles.bottomSpacerSmall]} />
         </View>
       </ScrollView>
 
       <TouchableOpacity
-        style={styles.aiFab}
+        style={[styles.aiFab, isSmallScreen && styles.aiFabMobile]}
         onPress={() => router.push('/assistant' as any)}
         activeOpacity={0.85}
       >
@@ -885,10 +917,10 @@ export default function HomeScreen() {
           colors={['#6366F1', '#818CF8']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.aiFabGradient}
+          style={[styles.aiFabGradient, isSmallScreen && styles.aiFabGradientMobile]}
         >
-          <Bot size={22} color="#FFF" />
-          <Text style={styles.aiFabText}>AI</Text>
+          <Bot size={isSmallScreen ? 16 : 22} color="#FFF" />
+          <Text style={[styles.aiFabText, isSmallScreen && styles.aiFabTextMobile]}>AI</Text>
         </LinearGradient>
       </TouchableOpacity>
     </View>
@@ -908,6 +940,10 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 32,
   },
+  headerSmall: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -919,9 +955,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 4,
   },
+  greetingSmall: {
+    fontSize: 18,
+    marginBottom: 2,
+  },
   subtitle: {
     fontSize: 16,
     color: 'rgba(255,255,255,0.85)',
+  },
+  subtitleSmall: {
+    fontSize: 12,
   },
   logo: {
     width: 52,
@@ -938,6 +981,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
+  bellButtonSmall: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
   bellBadge: {
     position: 'absolute',
     top: 4,
@@ -952,10 +1000,21 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
   },
+  bellBadgeSmall: {
+    top: 2,
+    right: 2,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 3,
+  },
   bellBadgeText: {
     fontSize: 10,
     fontWeight: '800' as const,
     color: '#FFFFFF',
+  },
+  bellBadgeTextSmall: {
+    fontSize: 9,
   },
   content: {
     marginTop: -16,
@@ -964,19 +1023,37 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingTop: 8,
   },
+  contentSmall: {
+    marginTop: -10,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    paddingTop: 4,
+  },
   matchesSection: {
     marginTop: 24,
     paddingBottom: 12,
+  },
+  matchesSectionSmall: {
+    marginTop: 14,
+    paddingBottom: 6,
   },
   // Promoted teachers
   promotedSection: {
     marginTop: 20,
     paddingBottom: 12,
   },
+  promotedSectionSmall: {
+    marginTop: 14,
+    paddingBottom: 6,
+  },
   promotedTitle: {
     fontSize: 22,
     fontWeight: '800' as const,
     color: Colors.light.text,
+  },
+  promotedTitleSmall: {
+    fontSize: 15,
+    fontWeight: '700' as const,
   },
   promotedScroll: {
     paddingLeft: 20,
@@ -1112,24 +1189,43 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 12,
   },
+  matchesHeaderSmall: {
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    gap: 8,
+  },
   matchesTitleGroup: {
     flex: 1,
     gap: 6,
+  },
+  matchesTitleGroupSmall: {
+    gap: 2,
   },
   matchesTitle: {
     fontSize: 24,
     fontWeight: '800' as const,
     color: Colors.light.text,
   },
+  matchesTitleSmall: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
   teachTitle: {
     fontSize: 20,
     fontWeight: '800' as const,
     color: Colors.light.text,
   },
+  teachTitleSmall: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
   matchesSubtitle: {
     fontSize: 14,
     color: Colors.light.textSecondary,
     fontWeight: '500' as const,
+  },
+  matchesSubtitleSmall: {
+    fontSize: 11,
   },
   refreshButton: {
     flexDirection: 'row',
@@ -1142,10 +1238,20 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.primary,
     backgroundColor: Colors.light.background,
   },
+  refreshButtonSmall: {
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
   refreshText: {
     fontSize: 13,
     fontWeight: '700' as const,
     color: Colors.light.primary,
+  },
+  refreshTextSmall: {
+    fontSize: 11,
+    fontWeight: '600' as const,
   },
   matchesScroll: {
     paddingLeft: 20,
@@ -1161,10 +1267,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
   },
+  emptyMatchesCardSmall: {
+    marginHorizontal: 16,
+    paddingVertical: 20,
+    gap: 8,
+    borderRadius: 14,
+  },
   emptyMatchesTitle: {
     fontSize: 18,
     fontWeight: '700' as const,
     color: Colors.light.text,
+  },
+  emptyMatchesTitleSmall: {
+    fontSize: 13,
   },
   emptyMatchesSubtitle: {
     fontSize: 14,
@@ -1173,11 +1288,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  emptyMatchesSubtitleSmall: {
+    fontSize: 11,
+    paddingHorizontal: 16,
+    lineHeight: 16,
+  },
   teachSection: {
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 8,
     gap: 12,
+  },
+  teachSectionSmall: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+    gap: 8,
   },
   teachCard: {
     flexDirection: 'row',
@@ -1194,6 +1320,15 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 3,
   },
+  teachCardSmall: {
+    borderRadius: 14,
+    padding: 10,
+    gap: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
   teachAvatar: {
     width: 52,
     height: 52,
@@ -1201,19 +1336,34 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.light.border,
   },
+  teachAvatarSmall: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+  },
   teachInfo: {
     flex: 1,
     gap: 8,
+  },
+  teachInfoSmall: {
+    gap: 4,
   },
   teachName: {
     fontSize: 16,
     fontWeight: '700' as const,
     color: Colors.light.text,
   },
+  teachNameSmall: {
+    fontSize: 13,
+  },
   teachSkillsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap' as const,
     gap: 8,
+  },
+  teachSkillsRowSmall: {
+    gap: 6,
   },
   teachChip: {
     paddingHorizontal: 10,
@@ -1221,10 +1371,18 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: Colors.light.backgroundTertiary,
   },
+  teachChipSmall: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
   teachChipText: {
     fontSize: 12,
     fontWeight: '600' as const,
     color: Colors.light.primary,
+  },
+  teachChipTextSmall: {
+    fontSize: 10.5,
   },
   teachCompatibility: {
     alignItems: 'flex-end',
@@ -1235,12 +1393,19 @@ const styles = StyleSheet.create({
     fontWeight: '800' as const,
     color: Colors.light.primary,
   },
+  teachCompatibilityValueSmall: {
+    fontSize: 15,
+  },
   teachCompatibilityLabel: {
     fontSize: 11,
     fontWeight: '600' as const,
     color: Colors.light.textSecondary,
     textTransform: 'uppercase' as const,
     letterSpacing: 1,
+  },
+  teachCompatibilityLabelSmall: {
+    fontSize: 9.5,
+    letterSpacing: 0.5,
   },
   emptyTeachCard: {
     backgroundColor: Colors.light.backgroundTertiary,
@@ -1250,8 +1415,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
   },
+  emptyTeachCardSmall: {
+    borderRadius: 12,
+    padding: 14,
+  },
   section: {
     marginTop: 24,
+  },
+  sectionSmall: {
+    marginTop: 14,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1261,6 +1433,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 8,
   },
+  sectionHeaderSmall: {
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
   sectionTitle: {
     fontSize: 22,
     fontWeight: '700' as const,
@@ -1268,15 +1444,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 16,
   },
+  sectionTitleSmall: {
+    fontSize: 15,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
   sectionTitleWithoutPadding: {
     fontSize: 22,
     fontWeight: '700' as const,
     color: Colors.light.text,
   },
+  sectionTitleWithoutPaddingSmall: {
+    fontSize: 15,
+  },
   carouselNavRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  carouselNavRowSmall: {
+    gap: 4,
   },
   carouselNavBtn: {
     width: 32,
@@ -1292,6 +1479,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 2,
     elevation: 2,
+  },
+  carouselNavBtnSmall: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   carouselNavBtnDisabled: {
     opacity: 0.35,
@@ -1400,6 +1592,10 @@ const styles = StyleSheet.create({
     paddingLeft: 20,
     paddingRight: 4,
   },
+  categoriesScrollSmall: {
+    paddingLeft: 16,
+    paddingRight: 4,
+  },
   categoryChip: {
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -1407,6 +1603,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
     marginRight: 10,
     borderWidth: 2,
+    borderColor: Colors.light.border,
+  },
+  categoryChipSmall: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    marginRight: 8,
+    borderWidth: 1,
     borderColor: Colors.light.border,
   },
   categoryChipActive: {
@@ -1418,15 +1622,26 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: Colors.light.text,
   },
+  categoryTextSmall: {
+    fontSize: 12,
+  },
   categoryTextActive: {
     color: '#FFFFFF',
+    fontWeight: '700' as const,
   },
   subcategoriesContainer: {
     marginTop: 10,
   },
+  subcategoriesContainerSmall: {
+    marginTop: 6,
+  },
   subcategoriesScroll: {
     paddingLeft: 20,
     paddingRight: 10,
+  },
+  subcategoriesScrollSmall: {
+    paddingLeft: 16,
+    paddingRight: 8,
   },
   subcategoryChip: {
     paddingHorizontal: 14,
@@ -1437,6 +1652,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(99, 102, 241, 0.2)',
   },
+  subcategoryChipSmall: {
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 12,
+    marginRight: 6,
+  },
   subcategoryChipActive: {
     backgroundColor: '#6366F1',
     borderColor: '#6366F1',
@@ -1445,6 +1666,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600' as const,
     color: '#4F46E5',
+  },
+  subcategoryTextSmall: {
+    fontSize: 11,
   },
   subcategoryTextActive: {
     color: '#FFFFFF',
@@ -1457,16 +1681,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 16,
   },
+  skillsSectionHeaderSmall: {
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
   skillsCountBadge: {
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
+  skillsCountBadgeSmall: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
   skillsCountText: {
     fontSize: 12,
     fontWeight: '700' as const,
     color: '#6366F1',
+  },
+  skillsCountTextSmall: {
+    fontSize: 10.5,
   },
   skillsGrid: {
     paddingHorizontal: 20,
@@ -1599,10 +1835,19 @@ const styles = StyleSheet.create({
   },
   skillContentMobile: {
     padding: 10,
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  skillHeaderMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 4,
+    marginBottom: 6,
   },
   categoryLabelMobile: {
     fontSize: 9.5,
     letterSpacing: 0.4,
+    flexWrap: 'wrap',
   },
   skillCertifiedBadgeMobile: {
     paddingHorizontal: 4,
@@ -1622,13 +1867,23 @@ const styles = StyleSheet.create({
     fontSize: 9,
   },
   skillTitleMobile: {
-    fontSize: 13.5,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 17,
     marginBottom: 8,
+    flexWrap: 'wrap',
+  },
+  skillFooterMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 'auto',
   },
   userInfoMobile: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
-    marginRight: 4,
+    width: '100%',
+    marginRight: 0,
   },
   userAvatarMobile: {
     width: 22,
@@ -1637,18 +1892,24 @@ const styles = StyleSheet.create({
   },
   userNameMobile: {
     fontSize: 11,
+    flex: 1,
+    flexWrap: 'wrap',
   },
   ratingContainerMobile: {
-    paddingHorizontal: 5,
+    paddingHorizontal: 6,
     paddingVertical: 2.5,
     borderRadius: 6,
-    gap: 2.5,
+    gap: 3,
+    alignSelf: 'flex-start',
   },
   ratingTextMobile: {
     fontSize: 10.5,
   },
   bottomSpacer: {
     height: 40,
+  },
+  bottomSpacerSmall: {
+    height: 16,
   },
   loadingOverlay: {
     flex: 1,
@@ -1685,6 +1946,11 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
+  aiFabMobile: {
+    bottom: 16,
+    right: 14,
+    borderRadius: 20,
+  },
   aiFabGradient: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1693,10 +1959,19 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 28,
   },
+  aiFabGradientMobile: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 4,
+  },
   aiFabText: {
     fontSize: 15,
     fontWeight: '800' as const,
     color: '#FFFFFF',
+  },
+  aiFabTextMobile: {
+    fontSize: 12,
   },
   fullScreenLoaderContainer: {
     flex: 1,
@@ -1751,119 +2026,115 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   promotedCardSmall: {
-    width: 220,
-    height: 250,
-    marginRight: 12,
-    borderRadius: 18,
+    height: 260,
+    borderRadius: 16,
   },
   promotedGradientSmall: {
-    padding: 12,
+    padding: 10,
   },
   promotedBadgeSmall: {
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 2.5,
+    borderRadius: 5,
   },
   promotedBadgeTextSmall: {
-    fontSize: 9,
+    fontSize: 8.5,
   },
   promotedCertBadgeSmall: {
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 2.5,
+    borderRadius: 5,
   },
   promotedCertBadgeTextSmall: {
-    fontSize: 9,
+    fontSize: 8.5,
   },
   promotedPriceBadgeSmall: {
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 2.5,
+    borderRadius: 5,
   },
   promotedPriceTextSmall: {
-    fontSize: 10,
+    fontSize: 9.5,
   },
   promotedContentSmall: {
-    gap: 4,
+    gap: 3,
   },
   promotedSkillTitleSmall: {
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 17,
   },
   promotedTaglineSmall: {
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 10,
+    lineHeight: 13,
   },
   promotedTeacherRowSmall: {
-    gap: 6,
+    gap: 5,
     marginTop: 2,
   },
   promotedAvatarSmall: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+  },
+  promotedTeacherNameSmall: {
+    fontSize: 10,
+  },
+  promotedRatingTextSmall: {
+    fontSize: 10,
+  },
+
+  featuredCardSmall: {
+    height: 270,
+    borderRadius: 16,
+  },
+  featuredOverlaySmall: {
+    padding: 10,
+  },
+  levelBadgeSmall: {
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+  },
+  levelBadgeTextSmall: {
+    fontSize: 9.5,
+  },
+  featuredCertBadgeSmall: {
+    paddingHorizontal: 5,
+    paddingVertical: 3,
+    borderRadius: 5,
+  },
+  featuredCertBadgeTextSmall: {
+    fontSize: 8.5,
+  },
+  trendingBadgeSmall: {
     width: 24,
     height: 24,
     borderRadius: 12,
   },
-  promotedTeacherNameSmall: {
-    fontSize: 11,
-  },
-  promotedRatingTextSmall: {
-    fontSize: 11,
-  },
-
-  featuredCardSmall: {
-    width: 230,
-    height: 290,
-    marginRight: 12,
-    borderRadius: 18,
-  },
-  featuredOverlaySmall: {
-    padding: 14,
-  },
-  levelBadgeSmall: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  levelBadgeTextSmall: {
-    fontSize: 11,
-  },
-  featuredCertBadgeSmall: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  featuredCertBadgeTextSmall: {
-    fontSize: 9,
-  },
-  trendingBadgeSmall: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-  },
   featuredContentSmall: {
-    gap: 6,
+    gap: 4,
   },
   featuredCategorySmall: {
-    fontSize: 10,
-    letterSpacing: 0.8,
+    fontSize: 9.5,
+    letterSpacing: 0.6,
   },
   featuredTitleSmall: {
-    fontSize: 18,
-    lineHeight: 22,
+    fontSize: 13,
+    lineHeight: 17,
   },
   featuredUserSmall: {
-    gap: 8,
+    gap: 6,
     marginTop: 2,
   },
   featuredAvatarSmall: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
   },
   featuredUserNameSmall: {
-    fontSize: 12,
+    fontSize: 10,
   },
   featuredRatingTextSmall: {
-    fontSize: 11,
+    fontSize: 10,
   },
 });

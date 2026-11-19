@@ -13,86 +13,89 @@ interface MatchCardProps {
   recommendation: MatchRecommendation;
   onPress: () => void;
   testID?: string;
+  cardWidth?: number;
+  cardMarginRight?: number;
 }
 
-const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps) => {
+const MatchCardComponent = ({ recommendation, onPress, testID, cardWidth, cardMarginRight }: MatchCardProps) => {
   const scale = useRef(new Animated.Value(1)).current;
   const avatarErrorRef = useRef(false);
   const [avatarError, setAvatarError] = useState(false);
   const { width: windowWidth } = useWindowDimensions();
   const isSmall = windowWidth < 600;
+  const isVeryCompact = isSmall && (cardWidth !== undefined ? cardWidth < 200 : false);
 
   const dynamicCardStyle = useMemo(() => ({
     card: {
-      width: isSmall ? 230 : 280,
-      marginRight: isSmall ? 12 : 18,
-      borderRadius: isSmall ? 18 : 24,
+      width: cardWidth ?? (isSmall ? 230 : 280),
+      marginRight: cardMarginRight ?? (isSmall ? 12 : 18),
+      borderRadius: isVeryCompact ? 16 : isSmall ? 18 : 24,
     },
     pressable: {
-      borderRadius: isSmall ? 18 : 24,
+      borderRadius: isVeryCompact ? 16 : isSmall ? 18 : 24,
     },
     gradient: {
-      padding: isSmall ? 14 : 20,
-      gap: isSmall ? 12 : 18,
-      borderRadius: isSmall ? 18 : 24,
+      padding: isVeryCompact ? 10 : isSmall ? 14 : 20,
+      gap: isVeryCompact ? 8 : isSmall ? 12 : 18,
+      borderRadius: isVeryCompact ? 16 : isSmall ? 18 : 24,
     },
     badge: {
-      paddingHorizontal: isSmall ? 9 : 12,
-      paddingVertical: isSmall ? 5 : 8,
-      borderRadius: isSmall ? 10 : 14,
-      gap: isSmall ? 5 : 8,
+      paddingHorizontal: isVeryCompact ? 6 : isSmall ? 9 : 12,
+      paddingVertical: isVeryCompact ? 3 : isSmall ? 5 : 8,
+      borderRadius: isVeryCompact ? 8 : isSmall ? 10 : 14,
+      gap: isVeryCompact ? 3 : isSmall ? 5 : 8,
     },
     badgeText: {
-      fontSize: isSmall ? 11 : 13,
+      fontSize: isVeryCompact ? 9.5 : isSmall ? 11 : 13,
     },
     scoreBadge: {
-      paddingHorizontal: isSmall ? 10 : 16,
-      paddingVertical: isSmall ? 6 : 10,
-      minWidth: isSmall ? 54 : 68,
-      borderRadius: isSmall ? 12 : 16,
+      paddingHorizontal: isVeryCompact ? 6 : isSmall ? 10 : 16,
+      paddingVertical: isVeryCompact ? 3 : isSmall ? 6 : 10,
+      minWidth: isVeryCompact ? 42 : isSmall ? 54 : 68,
+      borderRadius: isVeryCompact ? 10 : isSmall ? 12 : 16,
     },
     scoreValue: {
-      fontSize: isSmall ? 18 : 22,
+      fontSize: isVeryCompact ? 14 : isSmall ? 18 : 22,
     },
     scoreLabel: {
-      fontSize: isSmall ? 9 : 11,
+      fontSize: isVeryCompact ? 8 : isSmall ? 9 : 11,
     },
     avatar: {
-      width: isSmall ? 44 : 58,
-      height: isSmall ? 44 : 58,
-      borderRadius: isSmall ? 22 : 29,
+      width: isVeryCompact ? 34 : isSmall ? 44 : 58,
+      height: isVeryCompact ? 34 : isSmall ? 44 : 58,
+      borderRadius: isVeryCompact ? 17 : isSmall ? 22 : 29,
     },
     userName: {
-      fontSize: isSmall ? 15 : 18,
+      fontSize: isVeryCompact ? 12 : isSmall ? 15 : 18,
     },
     spotlightText: {
-      fontSize: isSmall ? 11 : 13,
+      fontSize: isVeryCompact ? 9.5 : isSmall ? 11 : 13,
     },
     skillHeaderText: {
-      fontSize: isSmall ? 11 : 14,
+      fontSize: isVeryCompact ? 9.5 : isSmall ? 11 : 14,
     },
     chip: {
-      paddingHorizontal: isSmall ? 9 : 12,
-      paddingVertical: isSmall ? 5 : 8,
-      borderRadius: isSmall ? 9 : 12,
+      paddingHorizontal: isVeryCompact ? 6 : isSmall ? 9 : 12,
+      paddingVertical: isVeryCompact ? 3 : isSmall ? 5 : 8,
+      borderRadius: isVeryCompact ? 7 : isSmall ? 9 : 12,
     },
     chipText: {
-      fontSize: isSmall ? 11 : 13,
+      fontSize: isVeryCompact ? 9 : isSmall ? 11 : 13,
     },
     ctaIcon: {
-      width: isSmall ? 32 : 38,
-      height: isSmall ? 32 : 38,
-      borderRadius: isSmall ? 16 : 19,
+      width: isVeryCompact ? 26 : isSmall ? 32 : 38,
+      height: isVeryCompact ? 26 : isSmall ? 32 : 38,
+      borderRadius: isVeryCompact ? 13 : isSmall ? 16 : 19,
     },
     aiInsightBtn: {
-      paddingHorizontal: isSmall ? 9 : 12,
-      paddingVertical: isSmall ? 5 : 8,
-      borderRadius: isSmall ? 9 : 12,
+      paddingHorizontal: isVeryCompact ? 6 : isSmall ? 9 : 12,
+      paddingVertical: isVeryCompact ? 3 : isSmall ? 5 : 8,
+      borderRadius: isVeryCompact ? 7 : isSmall ? 9 : 12,
     },
     aiInsightText: {
-      fontSize: isSmall ? 10 : 12,
+      fontSize: isVeryCompact ? 8.5 : isSmall ? 10 : 12,
     },
-  }), [isSmall]);
+  }), [isSmall, isVeryCompact, cardWidth, cardMarginRight]);
   const [insight, setInsight] = useState<string | null>(null);
   const [loadingInsight, setLoadingInsight] = useState(false);
 
@@ -180,7 +183,7 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
         >
           <View style={styles.headerRow}>
             <View style={[styles.badge, dynamicCardStyle.badge]}>
-              <Sparkles size={16} color="#F8FAFC" />
+              <Sparkles size={isVeryCompact ? 11 : 16} color="#F8FAFC" />
               <Text style={[styles.badgeText, dynamicCardStyle.badgeText]}>Smart Match</Text>
             </View>
             <View style={[styles.scoreBadge, dynamicCardStyle.scoreBadge]}>
@@ -201,7 +204,7 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
               </Text>
               {spotlightSkill && (
                 <View style={styles.spotlightRow}>
-                  <GraduationCap size={14} color="rgba(148, 163, 184, 0.9)" />
+                  <GraduationCap size={isVeryCompact ? 11 : 14} color="rgba(148, 163, 184, 0.9)" />
                   <Text style={[styles.spotlightText, dynamicCardStyle.spotlightText]}>{spotlightSkill}</Text>
                 </View>
               )}
@@ -210,7 +213,7 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
 
           <View style={styles.skillBlock}>
             <View style={styles.skillHeader}>
-              <BookOpen size={16} color="#F8FAFC" />
+              <BookOpen size={isVeryCompact ? 13 : 16} color="#F8FAFC" />
               <Text style={[styles.skillHeaderText, dynamicCardStyle.skillHeaderText]}>You can learn</Text>
             </View>
             <View style={styles.chipRow}>
@@ -228,7 +231,7 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
           {theyCanLearn.length > 0 && (
             <View style={styles.skillBlock}>
               <View style={styles.skillHeader}>
-                <Sparkles size={16} color="#F472B6" />
+                <Sparkles size={isVeryCompact ? 13 : 16} color="#F472B6" />
                 <Text style={[styles.skillHeaderText, dynamicCardStyle.skillHeaderText]}>They want from you</Text>
               </View>
               <View style={styles.chipRow}>
@@ -250,7 +253,7 @@ const MatchCardComponent = ({ recommendation, onPress, testID }: MatchCardProps)
               ))}
             </View>
             <View style={[styles.ctaIcon, dynamicCardStyle.ctaIcon]}>
-              <ArrowRight size={20} color="#F8FAFC" />
+              <ArrowRight size={isVeryCompact ? 14 : 20} color="#F8FAFC" />
             </View>
           </View>
 

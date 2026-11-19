@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from 'react';
-import { SectionList, SectionListData, SectionListRenderItemInfo, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SectionList, SectionListData, SectionListRenderItemInfo, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeTopInset } from '@/lib/safeArea';
 import { useRouter } from 'expo-router';
 import { BellPlus, CheckCircle2, Inbox } from 'lucide-react-native';
 import Colors from '../../constants/colors';
@@ -44,6 +45,9 @@ const groupNotifications = (items: NotificationItem[]): NotificationSection[] =>
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const safeTopInset = useSafeTopInset(isSmallScreen ? 14 : 28);
   const { notifications, markAsRead, markAllAsRead, clearAll, unreadCount } = useNotifications();
 
   const sections = useMemo(() => {
@@ -93,21 +97,21 @@ export default function NotificationsScreen() {
   const renderItem = useCallback(({ item, index, section }: SectionListRenderItemInfo<NotificationItem>) => {
     return (
       <View
-        style={[styles.itemWrapper, index === section.data.length - 1 && styles.itemWrapperLast]}
+        style={[styles.itemWrapper, isSmallScreen && styles.itemWrapperMobile, index === section.data.length - 1 && styles.itemWrapperLast]}
         testID={`notification-row-${item.id}`}
       >
         <NotificationCard notification={item} onPress={handleNotificationPress} testID={`notification-card-${item.id}`} />
       </View>
     );
-  }, [handleNotificationPress]);
+  }, [handleNotificationPress, isSmallScreen]);
 
   const renderSectionHeader = useCallback(({ section }: { section: NotificationSection }) => {
     return (
-      <Text style={styles.sectionTitle} testID={`section-${section.title.toLowerCase().replace(/\s+/g, '-')}`}>
+      <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]} testID={`section-${section.title.toLowerCase().replace(/\s+/g, '-')}`}>
         {section.title}
       </Text>
     );
-  }, []);
+  }, [isSmallScreen]);
 
   return (
     <View style={styles.screen}>
@@ -115,63 +119,63 @@ export default function NotificationsScreen() {
         colors={['#0F172A', '#1E1B4B']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.hero, { paddingTop: insets.top + 28 }]}
+        style={[styles.hero, isSmallScreen && styles.heroMobile, { paddingTop: safeTopInset }]}
       >
-        <View style={styles.heroHeader}>
-          <View style={styles.titleGroup}>
-            <View style={styles.titleRow}>
-              <BellPlus size={30} color="#FFFFFF" />
-              <Text style={styles.heroTitle}>Notifications</Text>
+        <View style={[styles.heroHeader, isSmallScreen && styles.heroHeaderMobile]}>
+          <View style={[styles.titleGroup, isSmallScreen && styles.titleGroupMobile]}>
+            <View style={[styles.titleRow, isSmallScreen && styles.titleRowMobile]}>
+              <BellPlus size={isSmallScreen ? 20 : 30} color="#FFFFFF" />
+              <Text style={[styles.heroTitle, isSmallScreen && styles.heroTitleMobile]}>Notifications</Text>
             </View>
-            <Text style={styles.heroSubtitle}>
+            <Text style={[styles.heroSubtitle, isSmallScreen && styles.heroSubtitleMobile]}>
               {unreadCount > 0 ? `${unreadCount} unread ${unreadCount === 1 ? 'alert' : 'alerts'} waiting` : 'You are all caught up'}
             </Text>
           </View>
-          <View style={styles.heroActions}>
+          <View style={[styles.heroActions, isSmallScreen && styles.heroActionsMobile]}>
             <TouchableOpacity
               onPress={handleMarkAll}
-              style={styles.heroActionButton}
+              style={[styles.heroActionButton, isSmallScreen && styles.heroActionButtonMobile]}
               activeOpacity={0.85}
               testID="mark-all-read"
             >
-              <CheckCircle2 size={18} color="#FFFFFF" />
-              <Text style={styles.heroActionText}>Mark all read</Text>
+              <CheckCircle2 size={isSmallScreen ? 14 : 18} color="#FFFFFF" />
+              <Text style={[styles.heroActionText, isSmallScreen && styles.heroActionTextMobile]}>Mark all read</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleClearAll}
-              style={styles.heroActionButton}
+              style={[styles.heroActionButton, isSmallScreen && styles.heroActionButtonMobile]}
               activeOpacity={0.85}
               testID="clear-all"
             >
-              <Inbox size={18} color="#FFFFFF" />
-              <Text style={styles.heroActionText}>Clear</Text>
+              <Inbox size={isSmallScreen ? 14 : 18} color="#FFFFFF" />
+              <Text style={[styles.heroActionText, isSmallScreen && styles.heroActionTextMobile]}>Clear</Text>
             </TouchableOpacity>
           </View>
         </View>
       </LinearGradient>
-      <View style={styles.content}>
+      <View style={[styles.content, isSmallScreen && styles.contentMobile]}>
         <SectionList
           sections={sections}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, isSmallScreen && styles.listContentMobile]}
           stickySectionHeadersEnabled={false}
           showsVerticalScrollIndicator={false}
           testID="notifications-list"
           ListEmptyComponent={
-            <View style={styles.emptyState} testID="notifications-empty">
+            <View style={[styles.emptyState, isSmallScreen && styles.emptyStateMobile]} testID="notifications-empty">
               <LinearGradient
                 colors={['rgba(99,102,241,0.12)', 'rgba(20,31,75,0.18)']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={styles.emptyCard}
+                style={[styles.emptyCard, isSmallScreen && styles.emptyCardMobile]}
               >
-                <View style={styles.emptyIconWrapper}>
-                  <BellPlus size={32} color={Colors.light.primary} />
+                <View style={[styles.emptyIconWrapper, isSmallScreen && styles.emptyIconWrapperMobile]}>
+                  <BellPlus size={isSmallScreen ? 24 : 32} color={Colors.light.primary} />
                 </View>
-                <Text style={styles.emptyTitle}>Nothing new yet</Text>
-                <Text style={styles.emptySubtitle}>
+                <Text style={[styles.emptyTitle, isSmallScreen && styles.emptyTitleMobile]}>Nothing new yet</Text>
+                <Text style={[styles.emptySubtitle, isSmallScreen && styles.emptySubtitleMobile]}>
                   Stay tuned—new matches, exchange updates, and reminders will land here the moment they happen.
                 </Text>
               </LinearGradient>
@@ -285,5 +289,74 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     fontWeight: '500' as const,
+  },
+  heroMobile: {
+    paddingHorizontal: 16,
+    paddingBottom: 22,
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
+  },
+  heroHeaderMobile: {
+    gap: 12,
+  },
+  titleGroupMobile: {
+    gap: 4,
+  },
+  titleRowMobile: {
+    gap: 8,
+  },
+  heroTitleMobile: {
+    fontSize: 18,
+  },
+  heroSubtitleMobile: {
+    fontSize: 11.5,
+  },
+  heroActionsMobile: {
+    gap: 8,
+  },
+  heroActionButtonMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 5,
+  },
+  heroActionTextMobile: {
+    fontSize: 11,
+  },
+  contentMobile: {
+    marginTop: -14,
+    paddingTop: 16,
+    paddingHorizontal: 14,
+  },
+  listContentMobile: {
+    gap: 14,
+    paddingBottom: 90,
+  },
+  sectionTitleMobile: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  itemWrapperMobile: {
+    marginBottom: 10,
+  },
+  emptyStateMobile: {
+    paddingTop: 24,
+  },
+  emptyCardMobile: {
+    padding: 18,
+    borderRadius: 16,
+    gap: 10,
+  },
+  emptyIconWrapperMobile: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  emptyTitleMobile: {
+    fontSize: 15,
+  },
+  emptySubtitleMobile: {
+    fontSize: 11.5,
+    lineHeight: 16,
   },
 });

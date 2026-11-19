@@ -10,9 +10,11 @@ import {
   RefreshControl,
   Image,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeTopInset } from '@/lib/safeArea';
 import {
   ArrowLeft,
   Search,
@@ -56,6 +58,10 @@ const SOURCE_LABELS: Record<string, { label: string; bg: string; color: string }
 export default function AdminTransactionsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const safeTop = useSafeTopInset(isSmallScreen ? 8 : 14);
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const { transactions, transactionStats, fetchTransactions, isAdminAuthenticated } = useAdmin();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -150,7 +156,7 @@ export default function AdminTransactionsScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
-      <View style={[styles.headerWrap, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.headerWrap, { paddingTop: safeTop }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={handleBack} style={styles.backBtn} activeOpacity={0.7} testID="admin-transactions-back">
             <ArrowLeft size={20} color="#FFFFFF" />
@@ -356,7 +362,7 @@ export default function AdminTransactionsScreen() {
                     <Image source={{ uri: avatarUri }} style={styles.userAvatar} />
                     <View style={{ flex: 1 }}>
                       <View style={styles.userNameRow}>
-                        <Text style={styles.userName} numberOfLines={1}>
+                        <Text style={styles.userName}>
                           {tx.userName}
                         </Text>
                         {tx.userTier && tx.userTier !== 'free' && (
@@ -365,7 +371,7 @@ export default function AdminTransactionsScreen() {
                           </View>
                         )}
                       </View>
-                      <Text style={styles.userSubText} numberOfLines={1}>
+                      <Text style={styles.userSubText}>
                         {tx.userUsername || tx.userEmail || `User ID: ${tx.userId.slice(-6)}`} · Balance: {tx.userCredits} cr
                       </Text>
                     </View>
@@ -453,50 +459,50 @@ export default function AdminTransactionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
   headerWrap: {
     backgroundColor: '#0F172A',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingHorizontal: isSmallScreen ? 14 : 20,
+    paddingBottom: isSmallScreen ? 14 : 20,
+    borderBottomLeftRadius: isSmallScreen ? 18 : 24,
+    borderBottomRightRadius: isSmallScreen ? 18 : 24,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: isSmallScreen ? 8 : 12,
   },
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: isSmallScreen ? 4 : 6,
+    paddingHorizontal: isSmallScreen ? 10 : 12,
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: 999,
   },
   backText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12.5 : 14,
     fontWeight: '600',
   },
   refreshBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: isSmallScreen ? 4 : 6,
+    paddingHorizontal: isSmallScreen ? 10 : 12,
     backgroundColor: '#3B82F6',
     borderRadius: 999,
   },
   refreshBtnText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     fontWeight: '600',
   },
   spinning: {
@@ -504,34 +510,34 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: isSmallScreen ? 20 : 24,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
   headerSubtitle: {
     color: '#94A3B8',
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     marginTop: 4,
-    lineHeight: 18,
+    lineHeight: isSmallScreen ? 16 : 18,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: isSmallScreen ? 12 : 16,
   },
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 16,
+    gap: isSmallScreen ? 6 : 10,
+    marginBottom: isSmallScreen ? 12 : 16,
   },
   kpiCard: {
     flex: 1,
     minWidth: '47%',
     backgroundColor: '#FFFFFF',
-    padding: 14,
-    borderRadius: 16,
+    padding: isSmallScreen ? 10 : 14,
+    borderRadius: isSmallScreen ? 12 : 16,
     borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },

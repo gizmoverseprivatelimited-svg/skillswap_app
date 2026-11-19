@@ -8,8 +8,8 @@ import {
   Image,
   TextInput,
   Modal,
-  Platform,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import {
@@ -18,7 +18,6 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  User,
   Fingerprint,
   Mail,
   Phone,
@@ -39,6 +38,9 @@ type VFilter = 'all' | 'pending' | 'verified' | 'rejected';
 
 export default function VerificationApprovals() {
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const { verificationRequests, approveVerification, rejectVerification, isLoading } = useAdmin();
   const { showAlert } = useAlert();
   const [filter, setFilter] = useState<VFilter>('pending');
@@ -333,16 +335,16 @@ export default function VerificationApprovals() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F1F5F9',
   },
   filterWrap: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingHorizontal: isSmallScreen ? 12 : 16,
+    paddingTop: isSmallScreen ? 8 : 12,
+    paddingBottom: isSmallScreen ? 6 : 8,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
@@ -350,11 +352,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   filterContent: {
-    gap: 8,
+    gap: isSmallScreen ? 6 : 8,
   },
   filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: isSmallScreen ? 10 : 14,
+    paddingVertical: isSmallScreen ? 4 : 6,
     borderRadius: 20,
     backgroundColor: '#F1F5F9',
   },
@@ -362,7 +364,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F172A',
   },
   filterChipText: {
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     fontWeight: '600' as const,
     color: '#64748B',
   },
@@ -373,14 +375,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    padding: 16,
-    gap: 12,
-    paddingBottom: 40,
+    padding: isSmallScreen ? 12 : 16,
+    gap: isSmallScreen ? 8 : 12,
+    paddingBottom: isSmallScreen ? 24 : 40,
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: isSmallScreen ? 12 : 16,
+    padding: isSmallScreen ? 12 : 16,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
@@ -392,21 +394,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatar: {
-    width: 44,
-    height: 44,
+    width: isSmallScreen ? 36 : 44,
+    height: isSmallScreen ? 36 : 44,
     borderRadius: 13,
-    marginRight: 12,
+    marginRight: isSmallScreen ? 10 : 12,
   },
   cardInfo: {
     flex: 1,
   },
   cardName: {
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13.5 : 15,
     fontWeight: '700' as const,
     color: '#0F172A',
   },
   cardDate: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     color: '#94A3B8',
     marginTop: 2,
   },

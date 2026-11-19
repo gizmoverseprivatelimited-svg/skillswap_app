@@ -68,6 +68,7 @@ import { useClasses } from '@/providers/classes';
 import { useEarnings } from '@/providers/earnings';
 import { useSafety } from '@/providers/safety';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
+import { useSafeTopInset } from '@/lib/safeArea';
 import { requestCameraPermissionsSafely, requestMediaLibraryPermissionsSafely } from '@/lib/imagePickerPermissions';
 import { formatPrice } from '@/constants/locale';
 import url from '@/constants/backurl';
@@ -107,6 +108,8 @@ export default function ProfileScreen() {
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const safeTopInset = useSafeTopInset(isSmallScreen ? 16 : 32);
 
   const numSkillColumns = useMemo(() => {
     if (windowWidth >= 1024) return 3;
@@ -488,69 +491,69 @@ export default function ProfileScreen() {
           colors={[Colors.light.primary, Colors.light.primaryLight]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.header}
+          style={[styles.header, isSmallScreen && styles.headerMobile, { paddingTop: safeTopInset }]}
         >
-          <View style={styles.avatarContainer}>
+          <View style={[styles.avatarContainer, isSmallScreen && styles.avatarContainerMobile]}>
             <Image
               source={{ uri: resolveImageUrl(currentUser?.avatarUrl) }}
-              style={styles.avatar}
+              style={[styles.avatar, isSmallScreen && styles.avatarMobile]}
             />
-            <View style={styles.badgeContainer}>
-              <Award size={16} color="#FFFFFF" />
+            <View style={[styles.badgeContainer, isSmallScreen && styles.badgeContainerMobile]}>
+              <Award size={isSmallScreen ? 12 : 16} color="#FFFFFF" />
             </View>
           </View>
-          <View style={styles.nameRow}>
-            <Text style={styles.name}>{currentUser?.name}</Text>
+          <View style={[styles.nameRow, isSmallScreen && styles.nameRowMobile]}>
+            <Text style={[styles.name, isSmallScreen && styles.nameMobile]}>{currentUser?.name}</Text>
             <TouchableOpacity
-              style={styles.nameEditButton}
+              style={[styles.nameEditButton, isSmallScreen && styles.nameEditButtonMobile]}
               onPress={() => isDemoUser ? handleRequireLogin('edit your profile') : router.push('/edit-profile')}
               activeOpacity={0.7}
               accessibilityLabel="Edit Profile"
               testID="edit-profile-pen-button"
             >
-              <Pencil size={15} color="#FFFFFF" />
+              <Pencil size={isSmallScreen ? 12 : 15} color="#FFFFFF" />
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.shareIconBtn}
+              style={[styles.shareIconBtn, isSmallScreen && styles.shareIconBtnMobile]}
               onPress={handleShareProfile}
               activeOpacity={0.7}
               accessibilityLabel="Share Profile"
               testID="share-profile-button"
             >
-              <Share2 size={15} color="#FFFFFF" />
+              <Share2 size={isSmallScreen ? 12 : 15} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
-          <View style={styles.locationRow}>
-            <MapPin size={16} color="rgba(255,255,255,0.9)" />
-            <Text style={styles.location}>{currentUser?.location || 'Location not set'}</Text>
+          <View style={[styles.locationRow, isSmallScreen && styles.locationRowMobile]}>
+            <MapPin size={isSmallScreen ? 13 : 16} color="rgba(255,255,255,0.9)" />
+            <Text style={[styles.location, isSmallScreen && styles.locationMobile]}>{currentUser?.location || 'Location not set'}</Text>
           </View>
           {verifications && verifications.trustScore > 0 && (
             <TouchableOpacity
-              style={styles.trustScoreContainer}
+              style={[styles.trustScoreContainer, isSmallScreen && styles.trustScoreContainerMobile]}
               onPress={() => isDemoUser ? handleRequireLogin('account verification tools') : router.push('/verification')}
               activeOpacity={0.7}
             >
               <TrustScoreBadge score={verifications.trustScore} size="small" showLabel={false} />
-              <Text style={styles.trustScoreLabel}>Trust Score</Text>
+              <Text style={[styles.trustScoreLabel, isSmallScreen && styles.trustScoreLabelMobile]}>Trust Score</Text>
             </TouchableOpacity>
           )}
         </LinearGradient>
 
-        <View style={styles.content}>
+        <View style={[styles.content, isSmallScreen && styles.contentMobile]}>
           {currentUser?.premiumTier && currentUser?.premiumTier !== 'free' && (
-            <View style={styles.premiumBanner}>
+            <View style={[styles.premiumBanner, isSmallScreen && styles.premiumBannerMobile]}>
               <View style={[styles.premiumGlow, { backgroundColor: (currentUser?.premiumTier === 'elite' || (currentUser?.premiumTier as any) === 'yearly') ? '#F59E0B' : (currentUser?.premiumTier === 'premium' || (currentUser?.premiumTier as any) === 'quarterly') ? '#8B5CF6' : '#6366F1' }]} />
-              <View style={styles.premiumContent}>
-                <Crown size={24} color="#FFFFFF" fill="#FFFFFF" />
+              <View style={[styles.premiumContent, isSmallScreen && styles.premiumContentMobile]}>
+                <Crown size={isSmallScreen ? 18 : 24} color="#FFFFFF" fill="#FFFFFF" />
                 <View style={styles.premiumInfo}>
-                  <Text style={styles.premiumTitle}>
+                  <Text style={[styles.premiumTitle, isSmallScreen && styles.premiumTitleMobile]}>
                     {(currentUser?.premiumTier === 'elite' || (currentUser?.premiumTier as any) === 'yearly')
                       ? 'YEARLY (ELITE) MEMBER'
                       : (currentUser?.premiumTier === 'premium' || (currentUser?.premiumTier as any) === 'quarterly')
                         ? 'QUARTERLY (PREMIUM) MEMBER'
                         : 'MONTHLY MEMBER'}
                   </Text>
-                  <Text style={styles.premiumExpiry}>
+                  <Text style={[styles.premiumExpiry, isSmallScreen && styles.premiumExpiryMobile]}>
                     {currentUser?.premiumExpiresAt ? `Active until ${new Date(currentUser?.premiumExpiresAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })} • All Perks Active` : 'Active Membership'}
                   </Text>
                 </View>
@@ -559,26 +562,26 @@ export default function ProfileScreen() {
           )}
 
           <TouchableOpacity
-            style={styles.creditsCard}
+            style={[styles.creditsCard, isSmallScreen && styles.creditsCardMobile]}
             onPress={() => isDemoUser ? handleRequireLogin('purchase credits and store') : router.push('/store')}
           >
-            <View style={styles.creditsLeft}>
-              <View style={styles.creditsIcon}>
-                <Coins size={24} color="#F59E0B" />
+            <View style={[styles.creditsLeft, isSmallScreen && styles.creditsLeftMobile]}>
+              <View style={[styles.creditsIcon, isSmallScreen && styles.creditsIconMobile]}>
+                <Coins size={isSmallScreen ? 18 : 24} color="#F59E0B" />
               </View>
               <View style={styles.creditsInfo}>
-                <Text style={styles.creditsLabel}>Your Credits</Text>
-                <Text style={styles.creditsValue}>{currentUser?.credits}</Text>
+                <Text style={[styles.creditsLabel, isSmallScreen && styles.creditsLabelMobile]}>Your Credits</Text>
+                <Text style={[styles.creditsValue, isSmallScreen && styles.creditsValueMobile]}>{currentUser?.credits}</Text>
               </View>
             </View>
-            <View style={styles.creditsButton}>
-              <ShoppingBag size={18} color={Colors.light.primary} />
-              <Text style={styles.creditsButtonText}>Get Credits</Text>
+            <View style={[styles.creditsButton, isSmallScreen && styles.creditsButtonMobile]}>
+              <ShoppingBag size={isSmallScreen ? 14 : 18} color={Colors.light.primary} />
+              <Text style={[styles.creditsButtonText, isSmallScreen && styles.creditsButtonTextMobile]}>Get Credits</Text>
             </View>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.earningsCard}
+            style={[styles.earningsCard, isSmallScreen && styles.earningsCardMobile]}
             onPress={() => router.push('/earnings' as any)}
             activeOpacity={0.7}
           >
@@ -586,75 +589,75 @@ export default function ProfileScreen() {
               colors={['#6366F1', '#4F46E5']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.earningsGradient}
+              style={[styles.earningsGradient, isSmallScreen && styles.earningsGradientMobile]}
             >
-              <View style={styles.earningsIconWrap}>
-                <Wallet size={22} color="#FFFFFF" />
+              <View style={[styles.earningsIconWrap, isSmallScreen && styles.earningsIconWrapMobile]}>
+                <Wallet size={isSmallScreen ? 16 : 22} color="#FFFFFF" />
               </View>
               <View style={styles.earningsInfo}>
-                <Text style={styles.earningsLabel}>Teaching Earnings</Text>
-                <Text style={styles.earningsPoints}>{earningsSummary.availablePoints.toLocaleString()} credits available</Text>
-                <Text style={styles.earningsSub}>This month: +{earningsSummary.currentMonthPoints} cr · {earningsSummary.currentMonthClasses} classes</Text>
+                <Text style={[styles.earningsLabel, isSmallScreen && styles.earningsLabelMobile]}>Teaching Earnings</Text>
+                <Text style={[styles.earningsPoints, isSmallScreen && styles.earningsPointsMobile]}>{earningsSummary.availablePoints.toLocaleString()} credits available</Text>
+                <Text style={[styles.earningsSub, isSmallScreen && styles.earningsSubMobile]}>This month: +{earningsSummary.currentMonthPoints} cr · {earningsSummary.currentMonthClasses} classes</Text>
               </View>
-              <View style={styles.earningsArrow}>
-                <Text style={styles.earningsArrowText}>View →</Text>
+              <View style={[styles.earningsArrow, isSmallScreen && styles.earningsArrowMobile]}>
+                <Text style={[styles.earningsArrowText, isSmallScreen && styles.earningsArrowTextMobile]}>View →</Text>
               </View>
             </LinearGradient>
           </TouchableOpacity>
 
-          <View style={styles.statsRow}>
-            <View style={styles.statCard}>
-              <View style={styles.statIconContainer}>
-                <TrendingUp size={20} color={Colors.light.primary} />
+          <View style={[styles.statsRow, isSmallScreen && styles.statsRowMobile]}>
+            <View style={[styles.statCard, isSmallScreen && styles.statCardMobile]}>
+              <View style={[styles.statIconContainer, isSmallScreen && styles.statIconContainerMobile]}>
+                <TrendingUp size={isSmallScreen ? 15 : 20} color={Colors.light.primary} />
               </View>
-              <Text style={styles.statValue}>{displayTotalSwaps}</Text>
-              <Text style={styles.statLabel}>Total Exchanges</Text>
+              <Text style={[styles.statValue, isSmallScreen && styles.statValueMobile]}>{displayTotalSwaps}</Text>
+              <Text style={[styles.statLabel, isSmallScreen && styles.statLabelMobile]}>Total Exchanges</Text>
             </View>
-            <View style={styles.statCard}>
-              <View style={styles.statIconContainer}>
-                <Star size={20} fill={Colors.light.accent} color={Colors.light.accent} />
+            <View style={[styles.statCard, isSmallScreen && styles.statCardMobile]}>
+              <View style={[styles.statIconContainer, isSmallScreen && styles.statIconContainerMobile]}>
+                <Star size={isSmallScreen ? 15 : 20} fill={Colors.light.accent} color={Colors.light.accent} />
               </View>
-              <Text style={styles.statValue}>{reviews?.stats?.averageRating ?? currentUser?.rating ?? 5.0}</Text>
-              <Text style={styles.statLabel}>Rating</Text>
+              <Text style={[styles.statValue, isSmallScreen && styles.statValueMobile]}>{reviews?.stats?.averageRating ?? currentUser?.rating ?? 5.0}</Text>
+              <Text style={[styles.statLabel, isSmallScreen && styles.statLabelMobile]}>Rating</Text>
             </View>
-            <View style={styles.statCard}>
-              <View style={styles.statIconContainer}>
-                <Calendar size={20} color={Colors.light.secondary} />
+            <View style={[styles.statCard, isSmallScreen && styles.statCardMobile]}>
+              <View style={[styles.statIconContainer, isSmallScreen && styles.statIconContainerMobile]}>
+                <Calendar size={isSmallScreen ? 15 : 20} color={Colors.light.secondary} />
               </View>
-              <Text style={styles.statValue}>{currentUser?.joinedDate ? new Date(currentUser.joinedDate).getFullYear() : '2024'}</Text>
-              <Text style={styles.statLabel}>Joined</Text>
+              <Text style={[styles.statValue, isSmallScreen && styles.statValueMobile]}>{currentUser?.joinedDate ? new Date(currentUser.joinedDate).getFullYear() : '2024'}</Text>
+              <Text style={[styles.statLabel, isSmallScreen && styles.statLabelMobile]}>Joined</Text>
             </View>
           </View>
 
           <TouchableOpacity
-            style={styles.verificationCard}
+            style={[styles.verificationCard, isSmallScreen && styles.verificationCardMobile]}
             onPress={() => isDemoUser ? handleRequireLogin('exchange history') : router.push('/swaps/history' as any)}
             activeOpacity={0.7}
             testID="swap-history-button"
           >
-            <View style={[styles.verificationIcon, { backgroundColor: '#EEF2FF' }]}>
-              <History size={24} color="#6366F1" />
+            <View style={[styles.verificationIcon, isSmallScreen && styles.verificationIconMobile, { backgroundColor: '#EEF2FF' }]}>
+              <History size={isSmallScreen ? 18 : 24} color="#6366F1" />
             </View>
             <View style={styles.verificationContent}>
-              <Text style={styles.verificationTitle}>Exchange History</Text>
-              <Text style={styles.verificationSubtitle}>
+              <Text style={[styles.verificationTitle, isSmallScreen && styles.verificationTitleMobile]}>Exchange History</Text>
+              <Text style={[styles.verificationSubtitle, isSmallScreen && styles.verificationSubtitleMobile]}>
                 {swaps.length > 0 ? `${swaps.length} total exchanges (ongoing & completed)` : 'View all past and ongoing exchanges'}
               </Text>
             </View>
-            <Text style={[styles.verificationAction, { color: '#6366F1' }]}>View →</Text>
+            <Text style={[styles.verificationAction, isSmallScreen && styles.verificationActionMobile, { color: '#6366F1' }]}>View →</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.verificationCard}
+            style={[styles.verificationCard, isSmallScreen && styles.verificationCardMobile]}
             onPress={() => isDemoUser ? handleRequireLogin('account verification tools') : router.push('/verification')}
             activeOpacity={0.7}
           >
-            <View style={styles.verificationIcon}>
-              <ShieldCheck size={24} color={Colors.light.primary} />
+            <View style={[styles.verificationIcon, isSmallScreen && styles.verificationIconMobile]}>
+              <ShieldCheck size={isSmallScreen ? 18 : 24} color={Colors.light.primary} />
             </View>
             <View style={styles.verificationContent}>
-              <Text style={styles.verificationTitle}>Account Verification</Text>
-              <Text style={styles.verificationSubtitle}>
+              <Text style={[styles.verificationTitle, isSmallScreen && styles.verificationTitleMobile]}>Account Verification</Text>
+              <Text style={[styles.verificationSubtitle, isSmallScreen && styles.verificationSubtitleMobile]}>
                 {verifications ?
                   `${[
                     verifications.identity,
@@ -665,53 +668,53 @@ export default function ProfileScreen() {
                   'Build your trust score'}
               </Text>
             </View>
-            <Text style={styles.verificationAction}>View</Text>
+            <Text style={[styles.verificationAction, isSmallScreen && styles.verificationActionMobile]}>View</Text>
           </TouchableOpacity>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>About</Text>
-            <View style={styles.bioContainer}>
-              <Text style={styles.bioText}>{currentUser?.bio || 'No bio added yet.'}</Text>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+            <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>About</Text>
+            <View style={[styles.bioContainer, isSmallScreen && styles.bioContainerMobile]}>
+              <Text style={[styles.bioText, isSmallScreen && styles.bioTextMobile]}>{currentUser?.bio || 'No bio added yet.'}</Text>
             </View>
           </View>
 
           {currentUser?.teacherProfile && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
+            <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+              <View style={[styles.sectionHeader, isSmallScreen && styles.sectionHeaderMobile]}>
                 <View style={styles.credTitleRow}>
-                  <GraduationCap size={20} color={Colors.light.primary} />
-                  <Text style={styles.sectionTitle}>Teaching Credentials</Text>
+                  <GraduationCap size={isSmallScreen ? 16 : 20} color={Colors.light.primary} />
+                  <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>Teaching Credentials</Text>
                 </View>
                 {currentUser.teacherProfile.isCertified && (
-                  <View style={styles.verifiedChip}>
-                    <BadgeCheck size={13} color="#10B981" />
-                    <Text style={styles.verifiedChipText}>Certified</Text>
+                  <View style={[styles.verifiedChip, isSmallScreen && styles.verifiedChipMobile]}>
+                    <BadgeCheck size={isSmallScreen ? 11 : 13} color="#10B981" />
+                    <Text style={[styles.verifiedChipText, isSmallScreen && styles.verifiedChipTextMobile]}>Certified</Text>
                   </View>
                 )}
               </View>
 
               {currentUser.teacherProfile.languages && currentUser.teacherProfile.languages.length > 0 && (
-                <View style={styles.credRow}>
-                  <Languages size={16} color={Colors.light.primary} />
-                  <Text style={styles.credText}>Teaches in {currentUser.teacherProfile.languages.join(', ')}</Text>
+                <View style={[styles.credRow, isSmallScreen && styles.credRowMobile]}>
+                  <Languages size={isSmallScreen ? 14 : 16} color={Colors.light.primary} />
+                  <Text style={[styles.credText, isSmallScreen && styles.credTextMobile]}>Teaches in {currentUser.teacherProfile.languages.join(', ')}</Text>
                 </View>
               )}
               {currentUser.teacherProfile.qualifications && currentUser.teacherProfile.qualifications.length > 0 && (
-                <View style={styles.credRow}>
-                  <Award size={16} color={Colors.light.primary} />
-                  <Text style={styles.credText}>{currentUser.teacherProfile.qualifications.join(' · ')}</Text>
+                <View style={[styles.credRow, isSmallScreen && styles.credRowMobile]}>
+                  <Award size={isSmallScreen ? 14 : 16} color={Colors.light.primary} />
+                  <Text style={[styles.credText, isSmallScreen && styles.credTextMobile]}>{currentUser.teacherProfile.qualifications.join(' · ')}</Text>
                 </View>
               )}
               {currentUser.teacherProfile.yearsTeaching ? (
-                <View style={styles.credRow}>
-                  <Clock size={16} color={Colors.light.primary} />
-                  <Text style={styles.credText}>{currentUser.teacherProfile.yearsTeaching} teaching experience</Text>
+                <View style={[styles.credRow, isSmallScreen && styles.credRowMobile]}>
+                  <Clock size={isSmallScreen ? 14 : 16} color={Colors.light.primary} />
+                  <Text style={[styles.credText, isSmallScreen && styles.credTextMobile]}>{currentUser.teacherProfile.yearsTeaching} teaching experience</Text>
                 </View>
               ) : null}
               {currentUser.teacherProfile.privateTuition && (
-                <View style={styles.credRow}>
-                  <Users size={16} color={Colors.light.primary} />
-                  <Text style={styles.credText}>Private tuition & coaching experience</Text>
+                <View style={[styles.credRow, isSmallScreen && styles.credRowMobile]}>
+                  <Users size={isSmallScreen ? 14 : 16} color={Colors.light.primary} />
+                  <Text style={[styles.credText, isSmallScreen && styles.credTextMobile]}>Private tuition & coaching experience</Text>
                 </View>
               )}
 
@@ -721,38 +724,39 @@ export default function ProfileScreen() {
                 const isRejected = adminStatus === 'rejected';
 
                 return (
-                  <View key={cert.id} style={styles.certRow}>
-                    <View style={[styles.certIconWrap, isApproved && { backgroundColor: '#ECFDF5' }, isRejected && { backgroundColor: '#FEF2F2' }]}>
-                      <Award size={14} color={isApproved ? '#10B981' : isRejected ? '#EF4444' : '#F59E0B'} />
+                  <View key={cert.id} style={[styles.certRow, isSmallScreen && styles.certRowMobile]}>
+                    <View style={[styles.certIconWrap, isSmallScreen && styles.certIconWrapMobile, isApproved && { backgroundColor: '#ECFDF5' }, isRejected && { backgroundColor: '#FEF2F2' }]}>
+                      <Award size={isSmallScreen ? 12 : 14} color={isApproved ? '#10B981' : isRejected ? '#EF4444' : '#F59E0B'} />
                     </View>
                     <View style={styles.certContent}>
-                      <Text style={styles.certTitle}>{cert.title}</Text>
+                      <Text style={[styles.certTitle, isSmallScreen && styles.certTitleMobile]}>{cert.title}</Text>
                       {cert.documentUri ? (
                         <View style={[
                           styles.docBadge,
+                          isSmallScreen && styles.docBadgeMobile,
                           isApproved && { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
                           isRejected && { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
                           !isApproved && !isRejected && { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }
                         ]}>
                           {isApproved ? (
                             <>
-                              <BadgeCheck size={11} color="#059669" />
-                              <Text style={[styles.docBadgeText, { color: '#059669', fontWeight: '700' as const }]}>Verified ✓</Text>
+                              <BadgeCheck size={isSmallScreen ? 9.5 : 11} color="#059669" />
+                              <Text style={[styles.docBadgeText, isSmallScreen && styles.docBadgeTextMobile, { color: '#059669', fontWeight: '700' as const }]}>Verified ✓</Text>
                             </>
                           ) : isRejected ? (
                             <>
-                              <XCircle size={11} color="#DC2626" />
-                              <Text style={[styles.docBadgeText, { color: '#DC2626' }]}>Certificate rejected</Text>
+                              <XCircle size={isSmallScreen ? 9.5 : 11} color="#DC2626" />
+                              <Text style={[styles.docBadgeText, isSmallScreen && styles.docBadgeTextMobile, { color: '#DC2626' }]}>Certificate rejected</Text>
                             </>
                           ) : (
                             <>
-                              <Clock size={11} color="#D97706" />
-                              <Text style={[styles.docBadgeText, { color: '#D97706' }]}>Under admin review ⏳</Text>
+                              <Clock size={isSmallScreen ? 9.5 : 11} color="#D97706" />
+                              <Text style={[styles.docBadgeText, isSmallScreen && styles.docBadgeTextMobile, { color: '#D97706' }]}>Under admin review ⏳</Text>
                             </>
                           )}
                         </View>
                       ) : (
-                        <Text style={styles.certMeta}>Certificate</Text>
+                        <Text style={[styles.certMeta, isSmallScreen && styles.certMetaMobile]}>Certificate</Text>
                       )}
                     </View>
                   </View>
@@ -761,15 +765,15 @@ export default function ProfileScreen() {
 
               {currentUser.teacherProfile.careerHistory && currentUser.teacherProfile.careerHistory.length > 0 && (
                 <View style={styles.careerBlock}>
-                  <Text style={styles.careerBlockTitle}>Past Experience</Text>
+                  <Text style={[styles.careerBlockTitle, isSmallScreen && styles.careerBlockTitleMobile]}>Past Experience</Text>
                   {currentUser.teacherProfile.careerHistory.map((entry: any) => (
-                    <View key={entry.id} style={styles.certRow}>
-                      <View style={[styles.certIconWrap, { backgroundColor: 'rgba(59,130,246,0.12)' }]}>
-                        <Briefcase size={14} color={Colors.light.primary} />
+                    <View key={entry.id} style={[styles.certRow, isSmallScreen && styles.certRowMobile]}>
+                      <View style={[styles.certIconWrap, isSmallScreen && styles.certIconWrapMobile, { backgroundColor: 'rgba(59,130,246,0.12)' }]}>
+                        <Briefcase size={isSmallScreen ? 12 : 14} color={Colors.light.primary} />
                       </View>
                       <View style={styles.certContent}>
-                        <Text style={styles.certTitle}>{entry.role}</Text>
-                        <Text style={styles.certMeta}>
+                        <Text style={[styles.certTitle, isSmallScreen && styles.certTitleMobile]}>{entry.role}</Text>
+                        <Text style={[styles.certMeta, isSmallScreen && styles.certMetaMobile]}>
                           {[entry.organization, entry.years].filter(Boolean).join(' · ') || '—'}
                         </Text>
                       </View>
@@ -780,16 +784,16 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Skills I Offer</Text>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+            <View style={[styles.sectionHeader, isSmallScreen && styles.sectionHeaderMobile]}>
+              <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>Skills I Offer</Text>
               <TouchableOpacity
-                style={styles.addSkillButton}
+                style={[styles.addSkillButton, isSmallScreen && styles.addSkillButtonMobile]}
                 onPress={() => isDemoUser ? handleRequireLogin('add an offer skill') : router.push('/add-skill?mode=teach' as any)}
                 activeOpacity={0.7}
               >
-                <Plus size={16} color="#FFFFFF" />
-                <Text style={styles.addSkillButtonText}>Add Skill</Text>
+                <Plus size={isSmallScreen ? 13 : 16} color="#FFFFFF" />
+                <Text style={[styles.addSkillButtonText, isSmallScreen && styles.addSkillButtonTextMobile]}>Add Skill</Text>
               </TouchableOpacity>
             </View>
             <View
@@ -822,7 +826,7 @@ export default function ProfileScreen() {
                     ]}
                   >
                     <TouchableOpacity
-                      style={styles.skillCard}
+                      style={[styles.skillCard, isSmallScreen && styles.skillCardMobile]}
                       onPress={() => router.push(`/skill/${skId}` as any)}
                       activeOpacity={0.85}
                     >
@@ -836,18 +840,18 @@ export default function ProfileScreen() {
                       )}
                       <LinearGradient
                         colors={['transparent', 'rgba(0,0,0,0.85)']}
-                        style={styles.skillOverlay}
+                        style={[styles.skillOverlay, isSmallScreen && styles.skillOverlayMobile]}
                       >
                         <View style={styles.skillBadgeRow}>
                           {skill.promoted ? (
                             <View style={styles.skillPromotedBadge}>
                               <Sparkles size={8} color="#F59E0B" />
-                              <Text style={styles.skillPromotedBadgeText}>PROMOTED</Text>
+                              <Text style={[styles.skillPromotedBadgeText, isSmallScreen && styles.skillPromotedBadgeTextMobile]}>PROMOTED</Text>
                             </View>
                           ) : null}
                           {skill.pricingModel && skill.pricingModel !== 'free' ? (
                             <View style={styles.skillPriceBadge}>
-                              <Text style={styles.skillPriceBadgeText}>
+                              <Text style={[styles.skillPriceBadgeText, isSmallScreen && styles.skillPriceBadgeTextMobile]}>
                                 {skill.pricingModel === 'per_session'
                                   ? `${formatPrice(skill.pricePerSession ?? 0)}/s`
                                   : `${formatPrice(skill.monthlyPrice ?? 0)}/m`}
@@ -860,11 +864,11 @@ export default function ProfileScreen() {
                             </View>
                           ) : null}
                         </View>
-                        <Text style={styles.skillCardTitle} numberOfLines={2}>
+                        <Text style={[styles.skillCardTitle, isSmallScreen && styles.skillCardTitleMobile]}>
                           {skill.title}
                         </Text>
-                        <View style={styles.skillCardBadge}>
-                          <Text style={styles.skillCardBadgeText}>{skill.level}</Text>
+                        <View style={[styles.skillCardBadge, isSmallScreen && styles.skillCardBadgeMobile]}>
+                          <Text style={[styles.skillCardBadgeText, isSmallScreen && styles.skillCardBadgeTextMobile]}>{skill.level}</Text>
                         </View>
                       </LinearGradient>
 
@@ -917,9 +921,9 @@ export default function ProfileScreen() {
                     {isTeacher ? (
                       skill.certificateUri ? (
                         <View style={styles.skillCertRow}>
-                          <View style={[styles.skillCertAttached, { backgroundColor: certView.color + '14' }]}>
+                          <View style={[styles.skillCertAttached, isSmallScreen && styles.skillCertAttachedMobile, { backgroundColor: certView.color + '14' }]}>
                             <certView.Icon size={14} color={certView.color} />
-                            <Text style={[styles.skillCertAttachedText, { color: certView.color }]} numberOfLines={1}>
+                            <Text style={[styles.skillCertAttachedText, isSmallScreen && styles.skillCertAttachedTextMobile, { color: certView.color }]}>
                               {certView.label}
                             </Text>
                           </View>
@@ -928,24 +932,24 @@ export default function ProfileScreen() {
                             onPress={() => handleUploadCertificate(skId, skill.title)}
                             activeOpacity={0.7}
                           >
-                            <Text style={styles.skillCertActionText}>Replace</Text>
+                            <Text style={[styles.skillCertActionText, isSmallScreen && styles.skillCertActionTextMobile]}>Replace</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.skillCertAction}
                             onPress={() => handleRemoveCertificate(skId, skill.title)}
                             activeOpacity={0.7}
                           >
-                            <Text style={[styles.skillCertActionText, { color: Colors.light.error }]}>Remove</Text>
+                            <Text style={[styles.skillCertActionText, isSmallScreen && styles.skillCertActionTextMobile, { color: Colors.light.error }]}>Remove</Text>
                           </TouchableOpacity>
                         </View>
                       ) : (
                         <TouchableOpacity
-                          style={styles.skillCertUploadBtn}
+                          style={[styles.skillCertUploadBtn, isSmallScreen && styles.skillCertUploadBtnMobile]}
                           onPress={() => handleUploadCertificate(skId, skill.title)}
                           activeOpacity={0.75}
                         >
                           <Upload size={14} color="#059669" />
-                          <Text style={styles.skillCertUploadText}>Upload certificate / document</Text>
+                          <Text style={[styles.skillCertUploadText, isSmallScreen && styles.skillCertUploadTextMobile]}>Upload certificate / document</Text>
                         </TouchableOpacity>
                       )
                     ) : null}
@@ -955,31 +959,31 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Want to Learn</Text>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+            <View style={[styles.sectionHeader, isSmallScreen && styles.sectionHeaderMobile]}>
+              <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>Want to Learn</Text>
               <TouchableOpacity
-                style={styles.addWantButton}
+                style={[styles.addWantButton, isSmallScreen && styles.addWantButtonMobile]}
                 onPress={() => isDemoUser ? handleRequireLogin('edit learning skills') : router.push('/add-skill?mode=learn' as any)}
                 activeOpacity={0.7}
               >
-                <Plus size={14} color={Colors.light.primary} />
-                <Text style={styles.addWantButtonText}>Edit</Text>
+                <Plus size={isSmallScreen ? 12 : 14} color={Colors.light.primary} />
+                <Text style={[styles.addWantButtonText, isSmallScreen && styles.addWantButtonTextMobile]}>Edit</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.wantsList}>
               {(currentUser?.skillsWanted || []).map((skill, index) => (
-                <View key={index} style={styles.wantCard}>
-                  <View style={styles.wantIconContainer}>
-                    <Sparkles size={16} color={Colors.light.primary} />
+                <View key={index} style={[styles.wantCard, isSmallScreen && styles.wantCardMobile]}>
+                  <View style={[styles.wantIconContainer, isSmallScreen && styles.wantIconContainerMobile]}>
+                    <Sparkles size={isSmallScreen ? 13 : 16} color={Colors.light.primary} />
                   </View>
-                  <Text style={styles.wantText}>{skill}</Text>
+                  <Text style={[styles.wantText, isSmallScreen && styles.wantTextMobile]}>{skill}</Text>
                 </View>
               ))}
             </View>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
             <ReviewsSection
               revieweeId={currentUser?.id || ''}
               headline="Reviews You've Received"
@@ -987,20 +991,20 @@ export default function ProfileScreen() {
           </View>
 
           {/* Certificates Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Certificates</Text>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+            <View style={[styles.sectionHeader, isSmallScreen && styles.sectionHeaderMobile]}>
+              <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>Certificates</Text>
               {certificates.length > 0 && (
-                <View style={styles.certCountBadge}>
-                  <Text style={styles.certCountText}>{certificates.length}</Text>
+                <View style={[styles.certCountBadge, isSmallScreen && styles.certCountBadgeMobile]}>
+                  <Text style={[styles.certCountText, isSmallScreen && styles.certCountTextMobile]}>{certificates.length}</Text>
                 </View>
               )}
             </View>
             {certificates.length === 0 ? (
-              <View style={styles.certEmpty}>
-                <ScrollText size={36} color={Colors.light.textTertiary} />
-                <Text style={styles.certEmptyTitle}>No certificates yet</Text>
-                <Text style={styles.certEmptySub}>Complete swaps and classes to earn certificates</Text>
+              <View style={[styles.certEmpty, isSmallScreen && styles.certEmptyMobile]}>
+                <ScrollText size={isSmallScreen ? 28 : 36} color={Colors.light.textTertiary} />
+                <Text style={[styles.certEmptyTitle, isSmallScreen && styles.certEmptyTitleMobile]}>No certificates yet</Text>
+                <Text style={[styles.certEmptySub, isSmallScreen && styles.certEmptySubMobile]}>Complete swaps and classes to earn certificates</Text>
               </View>
             ) : (
               <View style={styles.certList}>
@@ -1009,7 +1013,7 @@ export default function ProfileScreen() {
                   return (
                     <TouchableOpacity
                       key={cert.id}
-                      style={styles.certCard}
+                      style={[styles.certCard, isSmallScreen && styles.certCardMobile]}
                       onPress={() => router.push(`/certificate/${cert.id}` as any)}
                       activeOpacity={0.7}
                     >
@@ -1017,21 +1021,21 @@ export default function ProfileScreen() {
                         colors={['#6366F1', '#4F46E5']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
-                        style={styles.certCardIcon}
+                        style={[styles.certCardIcon, isSmallScreen && styles.certCardIconMobile]}
                       >
-                        <Award size={22} color="#FFFFFF" />
+                        <Award size={isSmallScreen ? 16 : 22} color="#FFFFFF" />
                       </LinearGradient>
                       <View style={styles.certCardInfo}>
-                        <Text style={styles.certCardTitle} numberOfLines={1}>{cert.skillTitle}</Text>
-                        <Text style={styles.certCardSub} numberOfLines={1}>{label.subtitle}</Text>
-                        <Text style={styles.certCardDate}>{formatDate(cert.completedAt)}</Text>
+                        <Text style={[styles.certCardTitle, isSmallScreen && styles.certCardTitleMobile]}>{cert.skillTitle}</Text>
+                        <Text style={[styles.certCardSub, isSmallScreen && styles.certCardSubMobile]}>{label.subtitle}</Text>
+                        <Text style={[styles.certCardDate, isSmallScreen && styles.certCardDateMobile]}>{formatDate(cert.completedAt)}</Text>
                       </View>
                       <View style={styles.certCardActions}>
                         <TouchableOpacity
-                          style={styles.certDownloadBtn}
+                          style={[styles.certDownloadBtn, isSmallScreen && styles.certDownloadBtnMobile]}
                           onPress={() => router.push(`/certificate/${cert.id}` as any)}
                         >
-                          <Download size={16} color={Colors.light.primary} />
+                          <Download size={isSmallScreen ? 13 : 16} color={Colors.light.primary} />
                         </TouchableOpacity>
                       </View>
                     </TouchableOpacity>
@@ -1042,88 +1046,88 @@ export default function ProfileScreen() {
           </View>
 
           {/* Support & Info Section (Last Section) */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Support & Info</Text>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+            <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>Support & Info</Text>
             <View style={styles.supportGrid}>
               <TouchableOpacity
-                style={styles.supportCard}
+                style={[styles.supportCard, isSmallScreen && styles.supportCardMobile]}
                 onPress={() => isDemoUser ? handleRequireLogin('create a group class') : router.push('/class/create' as any)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.supportIcon, { backgroundColor: Colors.light.accent + '20' }]}>
-                  <Plus size={22} color={Colors.light.accent} />
+                <View style={[styles.supportIcon, isSmallScreen && styles.supportIconMobile, { backgroundColor: Colors.light.accent + '20' }]}>
+                  <Plus size={isSmallScreen ? 16 : 22} color={Colors.light.accent} />
                 </View>
-                <Text style={styles.supportLabel}>Create a Group Class</Text>
+                <Text style={[styles.supportLabel, isSmallScreen && styles.supportLabelMobile]}>Create a Group Class</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.supportCard}
+                style={[styles.supportCard, isSmallScreen && styles.supportCardMobile]}
                 onPress={() => isDemoUser ? handleRequireLogin('view your enrolled classes') : router.push('/class/my' as any)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.supportIcon, { backgroundColor: Colors.light.primary + '20' }]}>
-                  <Users size={22} color={Colors.light.primary} />
+                <View style={[styles.supportIcon, isSmallScreen && styles.supportIconMobile, { backgroundColor: Colors.light.primary + '20' }]}>
+                  <Users size={isSmallScreen ? 16 : 22} color={Colors.light.primary} />
                 </View>
-                <Text style={styles.supportLabel}>My Classes</Text>
+                <Text style={[styles.supportLabel, isSmallScreen && styles.supportLabelMobile]}>My Classes</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.supportCard}
+                style={[styles.supportCard, isSmallScreen && styles.supportCardMobile]}
                 onPress={() => router.push('/help' as any)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.supportIcon, { backgroundColor: Colors.light.primaryLight + '20' }]}>
-                  <HelpCircle size={22} color={Colors.light.primary} />
+                <View style={[styles.supportIcon, isSmallScreen && styles.supportIconMobile, { backgroundColor: Colors.light.primaryLight + '20' }]}>
+                  <HelpCircle size={isSmallScreen ? 16 : 22} color={Colors.light.primary} />
                 </View>
-                <Text style={styles.supportLabel}>Help & Support</Text>
+                <Text style={[styles.supportLabel, isSmallScreen && styles.supportLabelMobile]}>Help & Support</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.supportCard}
+                style={[styles.supportCard, isSmallScreen && styles.supportCardMobile]}
                 onPress={() => router.push('/contact' as any)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.supportIcon, { backgroundColor: Colors.light.secondary + '20' }]}>
-                  <MessageSquare size={22} color={Colors.light.secondary} />
+                <View style={[styles.supportIcon, isSmallScreen && styles.supportIconMobile, { backgroundColor: Colors.light.secondary + '20' }]}>
+                  <MessageSquare size={isSmallScreen ? 16 : 22} color={Colors.light.secondary} />
                 </View>
-                <Text style={styles.supportLabel}>Contact Us</Text>
+                <Text style={[styles.supportLabel, isSmallScreen && styles.supportLabelMobile]}>Contact Us</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.supportCard}
+                style={[styles.supportCard, isSmallScreen && styles.supportCardMobile]}
                 onPress={() => router.push('/about' as any)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.supportIcon, { backgroundColor: Colors.light.accentLight + '40' }]}>
-                  <Info size={22} color={Colors.light.accent} />
+                <View style={[styles.supportIcon, isSmallScreen && styles.supportIconMobile, { backgroundColor: Colors.light.accentLight + '40' }]}>
+                  <Info size={isSmallScreen ? 16 : 22} color={Colors.light.accent} />
                 </View>
-                <Text style={styles.supportLabel}>About Us</Text>
+                <Text style={[styles.supportLabel, isSmallScreen && styles.supportLabelMobile]}>About Us</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.supportCard}
+                style={[styles.supportCard, isSmallScreen && styles.supportCardMobile]}
                 onPress={() => router.push('/terms' as any)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.supportIcon, { backgroundColor: Colors.light.backgroundTertiary }]}>
-                  <FileText size={22} color={Colors.light.textSecondary} />
+                <View style={[styles.supportIcon, isSmallScreen && styles.supportIconMobile, { backgroundColor: Colors.light.backgroundTertiary }]}>
+                  <FileText size={isSmallScreen ? 16 : 22} color={Colors.light.textSecondary} />
                 </View>
-                <Text style={styles.supportLabel}>Terms</Text>
+                <Text style={[styles.supportLabel, isSmallScreen && styles.supportLabelMobile]}>Terms</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.supportCard}
+                style={[styles.supportCard, isSmallScreen && styles.supportCardMobile]}
                 onPress={() => router.push('/privacy' as any)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.supportIcon, { backgroundColor: Colors.light.backgroundTertiary }]}>
-                  <Lock size={22} color={Colors.light.textSecondary} />
+                <View style={[styles.supportIcon, isSmallScreen && styles.supportIconMobile, { backgroundColor: Colors.light.backgroundTertiary }]}>
+                  <Lock size={isSmallScreen ? 16 : 22} color={Colors.light.textSecondary} />
                 </View>
-                <Text style={styles.supportLabel}>Privacy</Text>
+                <Text style={[styles.supportLabel, isSmallScreen && styles.supportLabelMobile]}>Privacy</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.supportCard}
+                style={[styles.supportCard, isSmallScreen && styles.supportCardMobile]}
                 onPress={() => router.push('/blocked-users' as any)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.supportIcon, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
-                  <UserX size={22} color="#EF4444" />
+                <View style={[styles.supportIcon, isSmallScreen && styles.supportIconMobile, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
+                  <UserX size={isSmallScreen ? 16 : 22} color="#EF4444" />
                 </View>
-                <Text style={styles.supportLabel}>
+                <Text style={[styles.supportLabel, isSmallScreen && styles.supportLabelMobile]}>
                   Blocked Users{blockedUsers.length > 0 ? ` (${blockedUsers.length})` : ''}
                 </Text>
               </TouchableOpacity>
@@ -1134,30 +1138,30 @@ export default function ProfileScreen() {
           <View style={styles.buttonRow}>
             {isDemoUser ? (
               <TouchableOpacity
-                style={styles.loginButton}
+                style={[styles.loginButton, isSmallScreen && styles.loginButtonMobile]}
                 onPress={handleDemoLogin}
                 activeOpacity={0.85}
                 testID="login-button"
               >
-                <LogIn size={20} color="#FFFFFF" />
-                <Text style={styles.loginButtonText}>Log In to Your Account</Text>
+                <LogIn size={isSmallScreen ? 16 : 20} color="#FFFFFF" />
+                <Text style={[styles.loginButtonText, isSmallScreen && styles.loginButtonTextMobile]}>Log In to Your Account</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={styles.signOutButton}
+                style={[styles.signOutButton, isSmallScreen && styles.signOutButtonMobile]}
                 onPress={handleSignOut}
                 activeOpacity={0.8}
                 testID="sign-out-button"
               >
-                <LogOut size={18} color={Colors.light.error} />
-                <Text style={styles.signOutButtonText}>Sign Out</Text>
+                <LogOut size={isSmallScreen ? 15 : 18} color={Colors.light.error} />
+                <Text style={[styles.signOutButtonText, isSmallScreen && styles.signOutButtonTextMobile]}>Sign Out</Text>
               </TouchableOpacity>
             )}
           </View>
 
-          <View style={styles.companyFooter}>
-            <Text style={styles.companyName}>Gizmoverse Private Limited</Text>
-            <Text style={styles.companyTagline}>leteski is a product of Gizmoverse Private Limited</Text>
+          <View style={[styles.companyFooter, isSmallScreen && styles.companyFooterMobile]}>
+            <Text style={[styles.companyName, isSmallScreen && styles.companyNameMobile]}>Gizmoverse Private Limited</Text>
+            <Text style={[styles.companyTagline, isSmallScreen && styles.companyTaglineMobile]}>leteski is a product of Gizmoverse Private Limited</Text>
           </View>
 
           <View style={styles.bottomSpacer} />
@@ -2054,5 +2058,403 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600' as const,
     color: '#059669',
+  },
+  headerMobile: {
+    paddingBottom: 22,
+    paddingHorizontal: 16,
+  },
+  avatarContainerMobile: {
+    marginBottom: 10,
+  },
+  avatarMobile: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+  },
+  badgeContainerMobile: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+  },
+  nameRowMobile: {
+    gap: 6,
+    marginBottom: 6,
+  },
+  nameMobile: {
+    fontSize: 18,
+  },
+  nameEditButtonMobile: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+  },
+  shareIconBtnMobile: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+  },
+  locationRowMobile: {
+    gap: 4,
+  },
+  locationMobile: {
+    fontSize: 12,
+  },
+  trustScoreContainerMobile: {
+    marginTop: 8,
+    gap: 4,
+  },
+  trustScoreLabelMobile: {
+    fontSize: 10.5,
+  },
+  contentMobile: {
+    marginTop: -16,
+    paddingTop: 16,
+    paddingHorizontal: 14,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+  },
+  premiumBannerMobile: {
+    borderRadius: 14,
+    marginBottom: 14,
+  },
+  premiumContentMobile: {
+    padding: 12,
+    gap: 10,
+  },
+  premiumTitleMobile: {
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  premiumExpiryMobile: {
+    fontSize: 11,
+  },
+  creditsCardMobile: {
+    padding: 12,
+    borderRadius: 14,
+    marginBottom: 14,
+  },
+  creditsLeftMobile: {
+    gap: 10,
+  },
+  creditsIconMobile: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
+  creditsLabelMobile: {
+    fontSize: 11,
+  },
+  creditsValueMobile: {
+    fontSize: 18,
+  },
+  creditsButtonMobile: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    gap: 4,
+  },
+  creditsButtonTextMobile: {
+    fontSize: 11.5,
+  },
+  earningsCardMobile: {
+    marginBottom: 14,
+    borderRadius: 14,
+  },
+  earningsGradientMobile: {
+    padding: 12,
+    gap: 10,
+  },
+  earningsIconWrapMobile: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  earningsLabelMobile: {
+    fontSize: 11,
+  },
+  earningsPointsMobile: {
+    fontSize: 14,
+  },
+  earningsSubMobile: {
+    fontSize: 10.5,
+  },
+  earningsArrowMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  earningsArrowTextMobile: {
+    fontSize: 11,
+  },
+  statsRowMobile: {
+    gap: 8,
+    marginBottom: 14,
+  },
+  statCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+  },
+  statIconContainerMobile: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    marginBottom: 6,
+  },
+  statValueMobile: {
+    fontSize: 15,
+    marginBottom: 2,
+  },
+  statLabelMobile: {
+    fontSize: 10,
+  },
+  verificationCardMobile: {
+    padding: 12,
+    borderRadius: 14,
+    marginBottom: 12,
+    gap: 10,
+  },
+  verificationIconMobile: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  verificationTitleMobile: {
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  verificationSubtitleMobile: {
+    fontSize: 11,
+  },
+  verificationActionMobile: {
+    fontSize: 11.5,
+  },
+  sectionMobile: {
+    marginBottom: 16,
+  },
+  sectionHeaderMobile: {
+    marginBottom: 10,
+  },
+  sectionTitleMobile: {
+    fontSize: 15,
+  },
+  bioContainerMobile: {
+    padding: 12,
+    borderRadius: 12,
+  },
+  bioTextMobile: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  verifiedChipMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 3,
+  },
+  verifiedChipTextMobile: {
+    fontSize: 9.5,
+  },
+  credRowMobile: {
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 6,
+    gap: 8,
+  },
+  credTextMobile: {
+    fontSize: 11.5,
+  },
+  certRowMobile: {
+    gap: 8,
+    marginBottom: 8,
+  },
+  certIconWrapMobile: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+  },
+  certTitleMobile: {
+    fontSize: 12,
+  },
+  certMetaMobile: {
+    fontSize: 10.5,
+  },
+  docBadgeMobile: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 3,
+  },
+  docBadgeTextMobile: {
+    fontSize: 9.5,
+  },
+  careerBlockTitleMobile: {
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  addSkillButtonMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    gap: 4,
+  },
+  addSkillButtonTextMobile: {
+    fontSize: 11.5,
+  },
+  skillCardMobile: {
+    height: 135,
+    borderRadius: 14,
+  },
+  skillOverlayMobile: {
+    padding: 10,
+  },
+  skillPromotedBadgeTextMobile: {
+    fontSize: 8,
+  },
+  skillPriceBadgeTextMobile: {
+    fontSize: 8.5,
+  },
+  skillCardTitleMobile: {
+    fontSize: 13,
+    lineHeight: 17,
+    flexWrap: 'wrap',
+  },
+  skillCardBadgeMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  skillCardBadgeTextMobile: {
+    fontSize: 10,
+  },
+  skillCertAttachedMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 4,
+  },
+  skillCertAttachedTextMobile: {
+    fontSize: 10.5,
+    flexWrap: 'wrap',
+  },
+  skillCertActionTextMobile: {
+    fontSize: 10.5,
+  },
+  skillCertUploadBtnMobile: {
+    paddingVertical: 7,
+    borderRadius: 10,
+    gap: 6,
+  },
+  skillCertUploadTextMobile: {
+    fontSize: 11,
+  },
+  addWantButtonMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    gap: 3,
+  },
+  addWantButtonTextMobile: {
+    fontSize: 11,
+  },
+  wantCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+    gap: 8,
+  },
+  wantIconContainerMobile: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  wantTextMobile: {
+    fontSize: 12,
+  },
+  certCountBadgeMobile: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  certCountTextMobile: {
+    fontSize: 10.5,
+  },
+  certEmptyMobile: {
+    padding: 18,
+    borderRadius: 12,
+    gap: 6,
+  },
+  certEmptyTitleMobile: {
+    fontSize: 13.5,
+  },
+  certEmptySubMobile: {
+    fontSize: 11,
+  },
+  certCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+    gap: 8,
+  },
+  certCardIconMobile: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+  },
+  certCardTitleMobile: {
+    fontSize: 12.5,
+    flexWrap: 'wrap',
+  },
+  certCardSubMobile: {
+    fontSize: 10.5,
+    flexWrap: 'wrap',
+  },
+  certCardDateMobile: {
+    fontSize: 9.5,
+  },
+  certDownloadBtnMobile: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+  },
+  supportCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+    gap: 8,
+  },
+  supportIconMobile: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+  },
+  supportLabelMobile: {
+    fontSize: 11,
+  },
+  loginButtonMobile: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    gap: 6,
+  },
+  loginButtonTextMobile: {
+    fontSize: 12.5,
+  },
+  signOutButtonMobile: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    gap: 6,
+  },
+  signOutButtonTextMobile: {
+    fontSize: 12.5,
+  },
+  companyFooterMobile: {
+    padding: 12,
+    marginTop: 10,
+  },
+  companyNameMobile: {
+    fontSize: 11.5,
+  },
+  companyTaglineMobile: {
+    fontSize: 10,
   },
 });

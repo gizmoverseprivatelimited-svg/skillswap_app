@@ -1,11 +1,12 @@
-import React, { useCallback, useMemo, useState, useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Share, Platform, Alert, Dimensions } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Share, Platform, Alert, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Download, Share2, Award, Sparkles, Calendar, Tag, User, ShieldCheck } from 'lucide-react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import Colors from '@/constants/colors';
+import { useSafeTopInset } from '@/lib/safeArea';
 import { useCurrentUser } from '@/providers/current-user';
 import { useSkillSwaps } from '@/providers/skill-swaps';
 import { useClasses } from '@/providers/classes';
@@ -18,12 +19,13 @@ import {
   type CertificateData,
 } from '@/lib/certificate';
 
-const { width } = Dimensions.get('window');
-const CERT_WIDTH = width - 40;
-
 export default function CertificateScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const safeTop = useSafeTopInset(isSmallScreen ? 14 : 24);
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const { currentUser, allUsers } = useCurrentUser();
   const { swaps } = useSkillSwaps();
   const { classes, enrollments } = useClasses();
@@ -157,7 +159,7 @@ export default function CertificateScreen() {
           colors={[Colors.light.primary, Colors.light.primaryLight]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.header}
+          style={[styles.header, { paddingTop: safeTop }]}
         >
           <View style={styles.headerTop}>
             <TouchableOpacity style={styles.backIcon} onPress={() => router.back()}>
@@ -251,7 +253,7 @@ export default function CertificateScreen() {
                 </View>
                 <View style={styles.certSigBlock}>
                   <View style={styles.certSigLine} />
-                  <Text style={styles.certSigName} numberOfLines={1}>{cert.partnerName}</Text>
+                  <Text style={styles.certSigName}>{cert.partnerName}</Text>
                   <Text style={styles.certSigTitle}>{cert.role === 'teacher' ? 'Verified' : 'Instructor'}</Text>
                 </View>
               </View>
@@ -309,7 +311,7 @@ export default function CertificateScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.backgroundSecondary,
@@ -321,66 +323,66 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   header: {
-    paddingTop: 50,
-    paddingBottom: 32,
-    paddingHorizontal: 20,
+    paddingTop: isSmallScreen ? 36 : 50,
+    paddingBottom: isSmallScreen ? 20 : 32,
+    paddingHorizontal: isSmallScreen ? 14 : 20,
     alignItems: 'center',
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    borderBottomLeftRadius: isSmallScreen ? 18 : 28,
+    borderBottomRightRadius: isSmallScreen ? 18 : 28,
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
-    marginBottom: 16,
+    marginBottom: isSmallScreen ? 10 : 16,
   },
   backIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: isSmallScreen ? 34 : 40,
+    height: isSmallScreen ? 34 : 40,
+    borderRadius: isSmallScreen ? 17 : 20,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: isSmallScreen ? 16 : 18,
     fontWeight: '700' as const,
     color: '#FFFFFF',
   },
   headerSpacer: {
-    width: 40,
+    width: isSmallScreen ? 34 : 40,
   },
   headerBadge: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: isSmallScreen ? 44 : 60,
+    height: isSmallScreen ? 44 : 60,
+    borderRadius: isSmallScreen ? 22 : 30,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: isSmallScreen ? 8 : 12,
   },
   headerText: {
-    fontSize: 22,
+    fontSize: isSmallScreen ? 18 : 22,
     fontWeight: '800' as const,
     color: '#FFFFFF',
     textAlign: 'center',
   },
   headerSub: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12 : 14,
     color: 'rgba(255,255,255,0.85)',
     fontWeight: '500' as const,
     marginTop: 4,
   },
   certWrap: {
-    paddingHorizontal: 20,
-    marginTop: -16,
+    paddingHorizontal: isSmallScreen ? 10 : 20,
+    marginTop: isSmallScreen ? -10 : -16,
     width: '100%',
     maxWidth: 680,
     alignSelf: 'center',
   },
   certCard: {
-    borderRadius: 20,
+    borderRadius: isSmallScreen ? 14 : 20,
     overflow: 'hidden',
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 8 },
@@ -408,7 +410,7 @@ const styles = StyleSheet.create({
   cornerBL: { bottom: 12, left: 12, borderRightWidth: 0, borderTopWidth: 0, borderBottomLeftRadius: 12 },
   cornerBR: { bottom: 12, right: 12, borderLeftWidth: 0, borderTopWidth: 0, borderBottomRightRadius: 12 },
   certContent: {
-    padding: 28,
+    padding: isSmallScreen ? 16 : 28,
     alignItems: 'center',
     zIndex: 3,
   },
@@ -423,64 +425,64 @@ const styles = StyleSheet.create({
     backgroundColor: '#F59E0B',
   },
   certLogoText: {
-    fontSize: 20,
+    fontSize: isSmallScreen ? 16 : 20,
     fontWeight: '800' as const,
     color: '#6366F1',
     letterSpacing: -0.5,
   },
   certSubtitleTop: {
-    fontSize: 10,
+    fontSize: isSmallScreen ? 9 : 10,
     color: '#64748B',
     fontWeight: '500' as const,
     letterSpacing: 1.5,
     textTransform: 'uppercase' as const,
-    marginBottom: 24,
+    marginBottom: isSmallScreen ? 14 : 24,
   },
   certTitle: {
-    fontSize: 22,
+    fontSize: isSmallScreen ? 16 : 22,
     fontWeight: '800' as const,
     color: '#0F172A',
     textAlign: 'center',
-    lineHeight: 30,
+    lineHeight: isSmallScreen ? 22 : 30,
     marginBottom: 4,
   },
   certSubtitle: {
-    fontSize: 11,
+    fontSize: isSmallScreen ? 9.5 : 11,
     color: '#6366F1',
     fontWeight: '600' as const,
     letterSpacing: 1,
     textTransform: 'uppercase' as const,
-    marginBottom: 24,
+    marginBottom: isSmallScreen ? 14 : 24,
   },
   certPresentedTo: {
-    fontSize: 11,
+    fontSize: isSmallScreen ? 9.5 : 11,
     color: '#64748B',
     fontWeight: '500' as const,
     letterSpacing: 1,
     textTransform: 'uppercase' as const,
-    marginBottom: 8,
+    marginBottom: isSmallScreen ? 4 : 8,
     textAlign: 'center',
   },
   certRecipientName: {
-    fontSize: 26,
+    fontSize: isSmallScreen ? 18 : 26,
     fontWeight: '700' as const,
     color: '#0F172A',
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: isSmallScreen ? 2 : 4,
   },
   nameUnderline: {
     width: 200,
     maxWidth: '60%',
     height: 2,
     backgroundColor: '#E2E8F0',
-    marginBottom: 24,
+    marginBottom: isSmallScreen ? 14 : 24,
   },
   certBodyText: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12 : 14,
     color: '#334155',
-    lineHeight: 22,
+    lineHeight: isSmallScreen ? 18 : 22,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: isSmallScreen ? 6 : 8,
     maxWidth: 520,
     width: '100%',
   },
@@ -499,8 +501,8 @@ const styles = StyleSheet.create({
   certMetaRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 24,
-    marginVertical: 24,
+    gap: isSmallScreen ? 12 : 24,
+    marginVertical: isSmallScreen ? 14 : 24,
     flexWrap: 'wrap' as const,
   },
   certMetaItem: {
@@ -508,14 +510,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   certMetaLabel: {
-    fontSize: 9,
+    fontSize: isSmallScreen ? 8.5 : 9,
     color: '#94A3B8',
     fontWeight: '600' as const,
     letterSpacing: 1,
     textTransform: 'uppercase' as const,
   },
   certMetaValue: {
-    fontSize: 13,
+    fontSize: isSmallScreen ? 11.5 : 13,
     color: '#0F172A',
     fontWeight: '700' as const,
   },
@@ -524,7 +526,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    marginTop: 20,
+    marginTop: isSmallScreen ? 12 : 20,
     paddingHorizontal: 10,
   },
   certSigBlock: {
@@ -538,18 +540,18 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   certSigName: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 10.5 : 12,
     fontWeight: '700' as const,
     color: '#0F172A',
   },
   certSigTitle: {
-    fontSize: 10,
+    fontSize: isSmallScreen ? 9 : 10,
     color: '#64748B',
   },
   certSeal: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: isSmallScreen ? 38 : 50,
+    height: isSmallScreen ? 38 : 50,
+    borderRadius: isSmallScreen ? 19 : 25,
     overflow: 'hidden' as const,
     borderWidth: 2,
     borderColor: '#FFFFFF',
@@ -566,44 +568,44 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   certSealText: {
-    fontSize: 22,
+    fontSize: isSmallScreen ? 16 : 22,
     fontWeight: '800' as const,
     color: '#FFFFFF',
   },
   certFooter: {
     alignItems: 'center',
-    marginTop: 20,
-    paddingTop: 16,
+    marginTop: isSmallScreen ? 14 : 20,
+    paddingTop: isSmallScreen ? 10 : 16,
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
     width: '100%',
   },
   certNumber: {
-    fontSize: 10,
+    fontSize: isSmallScreen ? 9.5 : 10,
     color: '#94A3B8',
     fontWeight: '600' as const,
     letterSpacing: 1,
     marginBottom: 6,
   },
   certCompany: {
-    fontSize: 11,
+    fontSize: isSmallScreen ? 9.5 : 11,
     color: '#64748B',
     fontWeight: '600' as const,
   },
   certCompanySub: {
-    fontSize: 9,
+    fontSize: isSmallScreen ? 8 : 9,
     color: '#94A3B8',
     marginTop: 2,
   },
   actions: {
     flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 20,
-    marginTop: 24,
+    gap: isSmallScreen ? 8 : 12,
+    paddingHorizontal: isSmallScreen ? 14 : 20,
+    marginTop: isSmallScreen ? 16 : 24,
   },
   downloadBtn: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: isSmallScreen ? 12 : 16,
     overflow: 'hidden' as const,
     shadowColor: Colors.light.primary,
     shadowOffset: { width: 0, height: 4 },
@@ -615,22 +617,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
+    gap: isSmallScreen ? 6 : 8,
+    paddingVertical: isSmallScreen ? 11 : 16,
   },
   actionBtnText: {
     color: '#FFFFFF',
     fontWeight: '700' as const,
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13.5 : 15,
   },
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
+    gap: isSmallScreen ? 6 : 8,
+    paddingVertical: isSmallScreen ? 11 : 16,
+    paddingHorizontal: isSmallScreen ? 16 : 24,
+    borderRadius: isSmallScreen ? 12 : 16,
     backgroundColor: Colors.light.card,
     borderWidth: 2,
     borderColor: Colors.light.primary + '30',
@@ -638,23 +640,23 @@ const styles = StyleSheet.create({
   shareBtnText: {
     color: Colors.light.primary,
     fontWeight: '700' as const,
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13.5 : 15,
   },
   infoNote: {
     flexDirection: 'row',
     gap: 10,
-    paddingHorizontal: 20,
-    marginTop: 20,
+    paddingHorizontal: isSmallScreen ? 12 : 20,
+    marginTop: isSmallScreen ? 14 : 20,
     backgroundColor: Colors.light.accent + '15',
-    marginHorizontal: 20,
-    padding: 14,
-    borderRadius: 14,
+    marginHorizontal: isSmallScreen ? 14 : 20,
+    padding: isSmallScreen ? 10 : 14,
+    borderRadius: isSmallScreen ? 10 : 14,
   },
   infoNoteText: {
     flex: 1,
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     color: Colors.light.textSecondary,
-    lineHeight: 18,
+    lineHeight: isSmallScreen ? 15 : 18,
   },
   notFound: {
     flex: 1,
@@ -664,20 +666,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   notFoundText: {
-    fontSize: 16,
+    fontSize: isSmallScreen ? 14 : 16,
     color: Colors.light.textSecondary,
     fontWeight: '600' as const,
   },
   backBtn: {
     marginTop: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingVertical: isSmallScreen ? 9 : 12,
+    paddingHorizontal: isSmallScreen ? 18 : 24,
     backgroundColor: Colors.light.primary,
-    borderRadius: 14,
+    borderRadius: isSmallScreen ? 10 : 14,
   },
   backBtnText: {
     color: '#FFFFFF',
     fontWeight: '700' as const,
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13.5 : 15,
   },
 });

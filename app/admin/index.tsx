@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -6,10 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeTopInset } from '@/lib/safeArea';
 import {
   Users,
   MessageSquare,
@@ -36,6 +38,10 @@ import { useAlert } from '@/providers/alert';
 export default function AdminDashboard() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const safeTop = useSafeTopInset(isSmallScreen ? 8 : 14);
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const { stats, transactions, isLoading, isAdminAuthenticated, adminLogout } = useAdmin();
   const { pendingPayoutsCount } = useEarnings();
   const { pendingReportsCount } = useSafety();
@@ -172,7 +178,7 @@ export default function AdminDashboard() {
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.headerWrap, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.headerWrap, { paddingTop: safeTop }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={handleBack} style={styles.backBtn} testID="admin-back">
             <Text style={styles.backText}>← Back</Text>
@@ -268,29 +274,29 @@ export default function AdminDashboard() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0F172A',
   },
   headerWrap: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: isSmallScreen ? 14 : 20,
+    paddingBottom: isSmallScreen ? 14 : 20,
     backgroundColor: '#0F172A',
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: isSmallScreen ? 10 : 16,
   },
   backBtn: {
-    paddingVertical: 6,
+    paddingVertical: isSmallScreen ? 4 : 6,
     paddingRight: 12,
   },
   backText: {
     color: '#94A3B8',
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13 : 15,
     fontWeight: '500' as const,
   },
   logoutBtn: {
@@ -298,47 +304,47 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     backgroundColor: 'rgba(239, 68, 68, 0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: isSmallScreen ? 10 : 12,
+    paddingVertical: isSmallScreen ? 4 : 6,
     borderRadius: 8,
   },
   logoutText: {
     color: '#EF4444',
-    fontSize: 13,
+    fontSize: isSmallScreen ? 12 : 13,
     fontWeight: '600' as const,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: isSmallScreen ? 20 : 28,
     fontWeight: '800' as const,
     color: '#F8FAFC',
     letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12 : 14,
     color: '#64748B',
-    marginTop: 4,
+    marginTop: isSmallScreen ? 2 : 4,
   },
   scroll: {
     flex: 1,
     backgroundColor: '#F8FAFC',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: isSmallScreen ? 18 : 24,
+    borderTopRightRadius: isSmallScreen ? 18 : 24,
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: isSmallScreen ? 12 : 20,
+    paddingBottom: isSmallScreen ? 24 : 40,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
+    gap: isSmallScreen ? 8 : 12,
+    marginBottom: isSmallScreen ? 14 : 20,
   },
   statCard: {
     width: '47%' as any,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: isSmallScreen ? 12 : 16,
+    padding: isSmallScreen ? 10 : 16,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -346,74 +352,74 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   statIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: isSmallScreen ? 30 : 36,
+    height: isSmallScreen ? 30 : 36,
+    borderRadius: isSmallScreen ? 8 : 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: isSmallScreen ? 8 : 12,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: isSmallScreen ? 17 : 24,
     fontWeight: '700' as const,
     color: '#0F172A',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 10.5 : 12,
     color: '#64748B',
     marginTop: 2,
     fontWeight: '500' as const,
   },
   alertSection: {
-    marginBottom: 24,
+    marginBottom: isSmallScreen ? 16 : 24,
   },
   alertCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFBEB',
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: isSmallScreen ? 12 : 14,
+    padding: isSmallScreen ? 12 : 16,
     borderWidth: 1,
     borderColor: '#FDE68A',
   },
   alertIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: isSmallScreen ? 34 : 40,
+    height: isSmallScreen ? 34 : 40,
+    borderRadius: isSmallScreen ? 10 : 12,
     backgroundColor: '#FEF3C7',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginRight: isSmallScreen ? 10 : 14,
   },
   alertContent: {
     flex: 1,
   },
   alertTitle: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 13 : 14,
     fontWeight: '700' as const,
     color: '#92400E',
   },
   alertDesc: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     color: '#A16207',
     marginTop: 2,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: isSmallScreen ? 14 : 16,
     fontWeight: '700' as const,
     color: '#0F172A',
-    marginBottom: 12,
+    marginBottom: isSmallScreen ? 8 : 12,
   },
   menuList: {
-    gap: 10,
-    marginBottom: 28,
+    gap: isSmallScreen ? 8 : 10,
+    marginBottom: isSmallScreen ? 20 : 28,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: isSmallScreen ? 12 : 16,
+    padding: isSmallScreen ? 12 : 16,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
@@ -421,12 +427,12 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   menuIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: isSmallScreen ? 40 : 48,
+    height: isSmallScreen ? 40 : 48,
+    borderRadius: isSmallScreen ? 11 : 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginRight: isSmallScreen ? 10 : 14,
   },
   menuTextWrap: {
     flex: 1,
@@ -437,12 +443,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   menuTitle: {
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13.5 : 15,
     fontWeight: '700' as const,
     color: '#0F172A',
   },
   menuSubtitle: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     color: '#64748B',
     marginTop: 2,
   },
@@ -456,7 +462,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: isSmallScreen ? 10 : 11,
     fontWeight: '700' as const,
   },
   quickActions: {
@@ -464,13 +470,13 @@ const styles = StyleSheet.create({
   },
   insightRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: isSmallScreen ? 8 : 12,
   },
   insightCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: isSmallScreen ? 12 : 16,
+    padding: isSmallScreen ? 10 : 16,
     alignItems: 'center',
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 1 },
@@ -479,13 +485,13 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   insightValue: {
-    fontSize: 22,
+    fontSize: isSmallScreen ? 16 : 22,
     fontWeight: '700' as const,
     color: '#0F172A',
-    marginTop: 8,
+    marginTop: isSmallScreen ? 4 : 8,
   },
   insightLabel: {
-    fontSize: 11,
+    fontSize: isSmallScreen ? 10 : 11,
     color: '#64748B',
     marginTop: 2,
     fontWeight: '500' as const,

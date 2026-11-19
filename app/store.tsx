@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Coins, Crown, Zap, Check, Sparkles, Circle, Star, Flame, Gem, ShieldCheck } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -83,6 +83,8 @@ const premiumPlans: PremiumPlan[] = [
 
 export default function StoreScreen() {
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
   const [selectedTab, setSelectedTab] = useState<'credits' | 'premium'>('credits');
   const [selectedDuration, setSelectedDuration] = useState<'monthly' | 'yearly'>('monthly');
   const { currentUser, loadUser, earnCredits } = useCurrentUser();
@@ -464,114 +466,115 @@ export default function StoreScreen() {
         }}
       />
 
-      <View style={styles.header}>
-        <View style={styles.balanceCard}>
-          <View style={styles.balanceIcon}>
-            <Coins size={24} color="#F59E0B" />
+      <View style={[styles.header, isSmallScreen && styles.headerMobile]}>
+        <View style={[styles.balanceCard, isSmallScreen && styles.balanceCardMobile]}>
+          <View style={[styles.balanceIcon, isSmallScreen && styles.balanceIconMobile]}>
+            <Coins size={isSmallScreen ? 18 : 24} color="#F59E0B" />
           </View>
           <View style={styles.balanceInfo}>
-            <Text style={styles.balanceLabel}>Your Balance</Text>
-            <Text style={styles.balanceAmount}>{currentUser?.credits || 0} Credits</Text>
+            <Text style={[styles.balanceLabel, isSmallScreen && styles.balanceLabelMobile]}>Your Balance</Text>
+            <Text style={[styles.balanceAmount, isSmallScreen && styles.balanceAmountMobile]}>{currentUser?.credits || 0} Credits</Text>
           </View>
         </View>
       </View>
 
-      <View style={styles.tabs}>
+      <View style={[styles.tabs, isSmallScreen && styles.tabsMobile]}>
         <TouchableOpacity
-          style={[styles.tab, selectedTab === 'credits' && styles.tabActive]}
+          style={[styles.tab, isSmallScreen && styles.tabMobile, selectedTab === 'credits' && styles.tabActive]}
           onPress={() => setSelectedTab('credits')}
         >
-          <Coins size={20} color={selectedTab === 'credits' ? Colors.light.primary : Colors.light.textSecondary} />
-          <Text style={[styles.tabText, selectedTab === 'credits' && styles.tabTextActive]}>Buy Credits</Text>
+          <Coins size={isSmallScreen ? 16 : 20} color={selectedTab === 'credits' ? Colors.light.primary : Colors.light.textSecondary} />
+          <Text style={[styles.tabText, isSmallScreen && styles.tabTextMobile, selectedTab === 'credits' && styles.tabTextActive]}>Buy Credits</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, selectedTab === 'premium' && styles.tabActive]}
+          style={[styles.tab, isSmallScreen && styles.tabMobile, selectedTab === 'premium' && styles.tabActive]}
           onPress={() => setSelectedTab('premium')}
         >
-          <Crown size={20} color={selectedTab === 'premium' ? Colors.light.primary : Colors.light.textSecondary} />
-          <Text style={[styles.tabText, selectedTab === 'premium' && styles.tabTextActive]}>Premium</Text>
+          <Crown size={isSmallScreen ? 16 : 20} color={selectedTab === 'premium' ? Colors.light.primary : Colors.light.textSecondary} />
+          <Text style={[styles.tabText, isSmallScreen && styles.tabTextMobile, selectedTab === 'premium' && styles.tabTextActive]}>Premium</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {selectedTab === 'credits' ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Credit Packages</Text>
-            <Text style={styles.sectionDescription}>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+            <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>Credit Packages</Text>
+            <Text style={[styles.sectionDescription, isSmallScreen && styles.sectionDescriptionMobile]}>
               1 credit = ₹1 face value. Use credits to request sessions, unlock features, and tip teachers.
             </Text>
-            <View style={styles.packagesGrid}>
+            <View style={[styles.packagesGrid, isSmallScreen && styles.packagesGridMobile]}>
               {creditPackages.map((pkg) => {
                 const totalCredits = pkg.credits + pkg.bonusCredits;
                 
                 const renderTopRightIcon = () => {
                   switch (pkg.id) {
                     case 'starter':
-                      return <Circle size={18} color="#22C55E" fill="#22C55E" />;
+                      return <Circle size={isSmallScreen ? 14 : 18} color="#22C55E" fill="#22C55E" />;
                     case 'basic':
-                      return <Circle size={18} color="#3B82F6" fill="#3B82F6" />;
+                      return <Circle size={isSmallScreen ? 14 : 18} color="#3B82F6" fill="#3B82F6" />;
                     case 'popular':
-                      return <Star size={18} color="#F59E0B" fill="#F59E0B" />;
+                      return <Star size={isSmallScreen ? 14 : 18} color="#F59E0B" fill="#F59E0B" />;
                     case 'pro':
-                      return <Circle size={18} color="#A855F7" fill="#A855F7" />;
+                      return <Circle size={isSmallScreen ? 14 : 18} color="#A855F7" fill="#A855F7" />;
                     case 'premium':
-                      return <Flame size={20} color="#EF4444" fill="#EF4444" />;
+                      return <Flame size={isSmallScreen ? 15 : 20} color="#EF4444" fill="#EF4444" />;
                     case 'ultimate':
-                      return <Crown size={20} color="#EAB308" fill="#EAB308" />;
+                      return <Crown size={isSmallScreen ? 15 : 20} color="#EAB308" fill="#EAB308" />;
                     default:
-                      return <Coins size={18} color={pkg.color || Colors.light.primary} />;
+                      return <Coins size={isSmallScreen ? 14 : 18} color={pkg.color || Colors.light.primary} />;
                   }
                 };
 
                 return (
-                  <View key={pkg.id} style={[styles.packageCard, pkg.popular && styles.packageCardPopular]}>
+                  <View key={pkg.id} style={[styles.packageCard, isSmallScreen && styles.packageCardMobile, pkg.popular && styles.packageCardPopular]}>
                     {/* Top Right Corner React Native Icon */}
-                    <View style={[styles.topRightIconWrap, { backgroundColor: `${pkg.color || '#6366F1'}15` }]}>
+                    <View style={[styles.topRightIconWrap, isSmallScreen && styles.topRightIconWrapMobile, { backgroundColor: `${pkg.color || '#6366F1'}15` }]}>
                       {renderTopRightIcon()}
                     </View>
 
                     {pkg.popular && (
-                      <View style={styles.popularBadge}>
-                        <Zap size={10} color="#FFFFFF" fill="#FFFFFF" />
-                        <Text style={styles.popularText}>POPULAR</Text>
+                      <View style={[styles.popularBadge, isSmallScreen && styles.popularBadgeMobile]}>
+                        <Zap size={isSmallScreen ? 8 : 10} color="#FFFFFF" fill="#FFFFFF" />
+                        <Text style={[styles.popularText, isSmallScreen && styles.popularTextMobile]}>POPULAR</Text>
                       </View>
                     )}
 
-                    <Text style={styles.packageNameTitle}>{pkg.label}</Text>
+                    <Text style={[styles.packageNameTitle, isSmallScreen && styles.packageNameTitleMobile]}>{pkg.label}</Text>
                     
                     <View style={styles.packageCreditsWrap}>
-                      <Text style={styles.packageCredits}>{totalCredits}</Text>
-                      <Text style={styles.packageLabel}>Credits</Text>
+                      <Text style={[styles.packageCredits, isSmallScreen && styles.packageCreditsMobile]}>{totalCredits}</Text>
+                      <Text style={[styles.packageLabel, isSmallScreen && styles.packageLabelMobile]}>Credits</Text>
                     </View>
 
                     {pkg.bonusCredits > 0 ? (
-                      <View style={styles.bonusBadgePill}>
-                        <Sparkles size={11} color="#16A34A" />
-                        <Text style={styles.bonusBadgeText}>+{pkg.bonusCredits} Bonus</Text>
+                      <View style={[styles.bonusBadgePill, isSmallScreen && styles.bonusBadgePillMobile]}>
+                        <Sparkles size={isSmallScreen ? 9.5 : 11} color="#16A34A" />
+                        <Text style={[styles.bonusBadgeText, isSmallScreen && styles.bonusBadgeTextMobile]}>+{pkg.bonusCredits} Bonus</Text>
                       </View>
                     ) : (
-                      <View style={[styles.bonusBadgePill, { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}>
-                        <Text style={[styles.bonusBadgeText, { color: '#94A3B8' }]}>Standard</Text>
+                      <View style={[styles.bonusBadgePill, isSmallScreen && styles.bonusBadgePillMobile, { backgroundColor: '#F1F5F9', borderColor: '#E2E8F0' }]}>
+                        <Text style={[styles.bonusBadgeText, isSmallScreen && styles.bonusBadgeTextMobile, { color: '#94A3B8' }]}>Standard</Text>
                       </View>
                     )}
 
-                    <View style={styles.packageDivider} />
+                    <View style={[styles.packageDivider, isSmallScreen && styles.packageDividerMobile]} />
                     
-                    <View style={styles.priceRow}>
-                      <Text style={styles.payLabel}>Pay</Text>
-                      <Text style={styles.packagePrice}>{formatPrice(pkg.priceRupees)}</Text>
+                    <View style={[styles.priceRow, isSmallScreen && styles.priceRowMobile]}>
+                      <Text style={[styles.payLabel, isSmallScreen && styles.payLabelMobile]}>Pay</Text>
+                      <Text style={[styles.packagePrice, isSmallScreen && styles.packagePriceMobile]}>{formatPrice(pkg.priceRupees)}</Text>
                     </View>
 
                     <TouchableOpacity
                       style={[
                         styles.packageButton,
+                        isSmallScreen && styles.packageButtonMobile,
                         pkg.popular && { backgroundColor: '#F59E0B' },
                         isProcessing && styles.packageButtonDisabled,
                       ]}
                       onPress={() => handlePurchaseCredits(pkg.id as any)}
                       disabled={isProcessing}
                     >
-                      <Text style={styles.packageButtonText}>
+                      <Text style={[styles.packageButtonText, isSmallScreen && styles.packageButtonTextMobile]}>
                         {isProcessing ? 'Processing...' : 'Buy Now'}
                       </Text>
                     </TouchableOpacity>
@@ -581,119 +584,120 @@ export default function StoreScreen() {
             </View>
           </View>
         ) : (
-          <View style={styles.section}>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
             {currentUser?.premiumTier && currentUser?.premiumTier !== 'free' && (
               <View style={styles.activeMembershipCard}>
                 <LinearGradient
                   colors={currentUser?.premiumTier === 'elite' ? ['#78350F', '#B45309'] : currentUser?.premiumTier === 'premium' ? ['#4C1D95', '#6D28D9'] : ['#312E81', '#4338CA']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={styles.activeMembershipGradient}
+                  style={[styles.activeMembershipGradient, isSmallScreen && styles.activeMembershipGradientMobile]}
                 >
                   <View style={styles.activeMembershipHeader}>
                     <View style={styles.activeMembershipBadgeWrap}>
-                      <Crown size={18} color="#FDE047" fill="#FDE047" />
-                      <Text style={styles.activeMembershipBadgeText}>ACTIVE MEMBERSHIP</Text>
+                      <Crown size={isSmallScreen ? 14 : 18} color="#FDE047" fill="#FDE047" />
+                      <Text style={[styles.activeMembershipBadgeText, isSmallScreen && styles.activeMembershipBadgeTextMobile]}>ACTIVE MEMBERSHIP</Text>
                     </View>
                     <View style={styles.activeDaysPill}>
-                      <Text style={styles.activeDaysPillText}>
+                      <Text style={[styles.activeDaysPillText, isSmallScreen && styles.activeDaysPillTextMobile]}>
                         {currentUser?.premiumExpiresAt ? `${Math.max(0, Math.ceil((new Date(currentUser.premiumExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days left` : 'Active'}
                       </Text>
                     </View>
                   </View>
 
-                  <Text style={styles.activePlanTitle}>
+                  <Text style={[styles.activePlanTitle, isSmallScreen && styles.activePlanTitleMobile]}>
                     {currentUser?.premiumTier === 'elite' ? 'Yearly Plan (Elite Member)' : currentUser?.premiumTier === 'premium' ? 'Quarterly Plan (Premium Member)' : 'Monthly Plan (Basic Member)'}
                   </Text>
-                  <Text style={styles.activePlanExpiry}>
+                  <Text style={[styles.activePlanExpiry, isSmallScreen && styles.activePlanExpiryMobile]}>
                     Valid until {currentUser?.premiumExpiresAt ? new Date(currentUser.premiumExpiresAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Active'} • All perks unlocked
                   </Text>
 
                   <View style={styles.activePerksGrid}>
                     <View style={styles.activePerkItem}>
-                      <Check size={14} color="#34D399" strokeWidth={3} />
-                      <Text style={styles.activePerkText}>0 Platform Fee on Swaps</Text>
+                      <Check size={isSmallScreen ? 11 : 14} color="#34D399" strokeWidth={3} />
+                      <Text style={[styles.activePerkText, isSmallScreen && styles.activePerkTextMobile]}>0 Platform Fee on Swaps</Text>
                     </View>
                     <View style={styles.activePerkItem}>
-                      <Check size={14} color="#34D399" strokeWidth={3} />
-                      <Text style={styles.activePerkText}>{currentUser?.premiumTier === 'elite' ? '20%' : currentUser?.premiumTier === 'premium' ? '15%' : '10%'} Class Discounts</Text>
+                      <Check size={isSmallScreen ? 11 : 14} color="#34D399" strokeWidth={3} />
+                      <Text style={[styles.activePerkText, isSmallScreen && styles.activePerkTextMobile]}>{currentUser?.premiumTier === 'elite' ? '20%' : currentUser?.premiumTier === 'premium' ? '15%' : '10%'} Class Discounts</Text>
                     </View>
                     <View style={styles.activePerkItem}>
-                      <Check size={14} color="#34D399" strokeWidth={3} />
-                      <Text style={styles.activePerkText}>Verified Profile Badge</Text>
+                      <Check size={isSmallScreen ? 11 : 14} color="#34D399" strokeWidth={3} />
+                      <Text style={[styles.activePerkText, isSmallScreen && styles.activePerkTextMobile]}>Verified Profile Badge</Text>
                     </View>
                     <View style={styles.activePerkItem}>
-                      <Check size={14} color="#34D399" strokeWidth={3} />
-                      <Text style={styles.activePerkText}>Monthly Bonus Credits</Text>
+                      <Check size={isSmallScreen ? 11 : 14} color="#34D399" strokeWidth={3} />
+                      <Text style={[styles.activePerkText, isSmallScreen && styles.activePerkTextMobile]}>Monthly Bonus Credits</Text>
                     </View>
                   </View>
                 </LinearGradient>
               </View>
             )}
 
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>
               {currentUser?.premiumTier && currentUser?.premiumTier !== 'free' ? 'Extend or Upgrade Plan' : 'Premium Membership'}
             </Text>
-            <Text style={styles.sectionDescription}>
+            <Text style={[styles.sectionDescription, isSmallScreen && styles.sectionDescriptionMobile]}>
               {currentUser?.premiumTier && currentUser?.premiumTier !== 'free'
                 ? 'Choose a plan to extend your active subscription and receive instant bonus credits'
                 : 'Unlock unlimited swaps, priority matching, and exclusive features'}
             </Text>
 
-            <View style={styles.tiersContainer}>
+            <View style={[styles.tiersContainer, isSmallScreen && styles.tiersContainerMobile]}>
               {premiumPlans.map((plan) => (
                 <View
                   key={plan.id}
                   style={[
                     styles.tierCard,
+                    isSmallScreen && styles.tierCardMobile,
                     plan.popular && styles.tierCardPopular,
                     plan.badge && { borderColor: '#F59E0B', borderWidth: 2 },
                   ]}
                 >
                   {plan.badge ? (
-                    <View style={[styles.tierPopularBadge, { backgroundColor: '#F59E0B' }]}>
-                      <Sparkles size={13} color="#FFFFFF" />
-                      <Text style={styles.tierPopularText}>{plan.badge}</Text>
+                    <View style={[styles.tierPopularBadge, isSmallScreen && styles.tierPopularBadgeMobile, { backgroundColor: '#F59E0B' }]}>
+                      <Sparkles size={isSmallScreen ? 10 : 13} color="#FFFFFF" />
+                      <Text style={[styles.tierPopularText, isSmallScreen && styles.tierPopularTextMobile]}>{plan.badge}</Text>
                     </View>
                   ) : plan.popular ? (
-                    <View style={styles.tierPopularBadge}>
-                      <Crown size={13} color="#FFFFFF" fill="#FFFFFF" />
-                      <Text style={styles.tierPopularText}>MOST POPULAR</Text>
+                    <View style={[styles.tierPopularBadge, isSmallScreen && styles.tierPopularBadgeMobile]}>
+                      <Crown size={isSmallScreen ? 10 : 13} color="#FFFFFF" fill="#FFFFFF" />
+                      <Text style={[styles.tierPopularText, isSmallScreen && styles.tierPopularTextMobile]}>MOST POPULAR</Text>
                     </View>
                   ) : null}
 
                   <View style={styles.tierHeaderRow}>
-                    <View style={[styles.tierIcon, { backgroundColor: plan.color }]}>
-                      <Crown size={24} color="#FFFFFF" />
+                    <View style={[styles.tierIcon, isSmallScreen && styles.tierIconMobile, { backgroundColor: plan.color }]}>
+                      <Crown size={isSmallScreen ? 17 : 24} color="#FFFFFF" />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.tierName}>{plan.name}</Text>
+                      <Text style={[styles.tierName, isSmallScreen && styles.tierNameMobile]}>{plan.name}</Text>
                       <View style={styles.tierPriceContainer}>
-                        <Text style={styles.tierPrice}>{formatPrice(plan.price)}</Text>
-                        <Text style={styles.tierPricePeriod}>{plan.periodLabel}</Text>
+                        <Text style={[styles.tierPrice, isSmallScreen && styles.tierPriceMobile]}>{formatPrice(plan.price)}</Text>
+                        <Text style={[styles.tierPricePeriod, isSmallScreen && styles.tierPricePeriodMobile]}>{plan.periodLabel}</Text>
                       </View>
                     </View>
                   </View>
 
                   <View style={styles.tierCreditsInfo}>
-                    <Coins size={16} color={plan.color} />
-                    <Text style={styles.tierCreditsText}>
+                    <Coins size={isSmallScreen ? 13 : 16} color={plan.color} />
+                    <Text style={[styles.tierCreditsText, isSmallScreen && styles.tierCreditsTextMobile]}>
                       +{plan.bonusCredits} Bonus Credits {plan.id === 'monthly' ? 'every month' : 'included'}
                     </Text>
                   </View>
 
-                  <View style={[styles.autopayBadgeWrap, { backgroundColor: `${plan.color}15`, borderColor: `${plan.color}35` }]}>
-                    <Sparkles size={13} color={plan.color} />
-                    <Text style={[styles.autopayBadgeText, { color: plan.color }]}>
+                  <View style={[styles.autopayBadgeWrap, isSmallScreen && styles.autopayBadgeWrapMobile, { backgroundColor: `${plan.color}15`, borderColor: `${plan.color}35` }]}>
+                    <Sparkles size={isSmallScreen ? 10 : 13} color={plan.color} />
+                    <Text style={[styles.autopayBadgeText, isSmallScreen && styles.autopayBadgeTextMobile, { color: plan.color }]}>
                       Auto-renews {plan.periodLabel} • Cancel anytime
                     </Text>
                   </View>
 
-                  <View style={styles.tierFeatures}>
+                  <View style={[styles.tierFeatures, isSmallScreen && styles.tierFeaturesMobile]}>
                     {plan.features.map((feature, index) => (
                       <View key={index} style={styles.tierFeature}>
-                        <Check size={16} color={plan.color} strokeWidth={2.5} style={{ marginTop: 2 }} />
-                        <Text style={styles.tierFeatureText}>{feature}</Text>
+                        <Check size={isSmallScreen ? 13 : 16} color={plan.color} strokeWidth={2.5} style={{ marginTop: 2 }} />
+                        <Text style={[styles.tierFeatureText, isSmallScreen && styles.tierFeatureTextMobile]}>{feature}</Text>
                       </View>
                     ))}
                   </View>
@@ -701,13 +705,14 @@ export default function StoreScreen() {
                   <TouchableOpacity
                     style={[
                       styles.tierButton,
+                      isSmallScreen && styles.tierButtonMobile,
                       { backgroundColor: plan.color },
                       isProcessing && styles.tierButtonDisabled,
                     ]}
                     onPress={() => handlePurchasePremium(plan.id)}
                     disabled={isProcessing}
                   >
-                    <Text style={styles.tierButtonText}>
+                    <Text style={[styles.tierButtonText, isSmallScreen && styles.tierButtonTextMobile]}>
                       {isProcessing ? 'Processing...' : `Subscribe for ${formatPrice(plan.price)}`}
                     </Text>
                   </TouchableOpacity>
@@ -1422,6 +1427,191 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: '#FFFFFF',
     flexShrink: 1,
+  },
+  headerMobile: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 8,
+  },
+  balanceCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+  },
+  balanceIconMobile: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 8,
+  },
+  balanceLabelMobile: {
+    fontSize: 11,
+  },
+  balanceAmountMobile: {
+    fontSize: 17,
+  },
+  tabsMobile: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    gap: 8,
+  },
+  tabMobile: {
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6,
+  },
+  tabTextMobile: {
+    fontSize: 12.5,
+  },
+  sectionMobile: {
+    paddingHorizontal: 14,
+    paddingTop: 14,
+  },
+  sectionTitleMobile: {
+    fontSize: 15,
+    marginBottom: 4,
+  },
+  sectionDescriptionMobile: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    marginBottom: 12,
+  },
+  packagesGridMobile: {
+    gap: 8,
+    marginBottom: 14,
+  },
+  packageCardMobile: {
+    padding: 10,
+    paddingTop: 12,
+    borderRadius: 14,
+  },
+  topRightIconWrapMobile: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    top: 8,
+    right: 8,
+  },
+  popularBadgeMobile: {
+    top: 8,
+    left: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  popularTextMobile: {
+    fontSize: 8.5,
+  },
+  packageNameTitleMobile: {
+    fontSize: 12.5,
+    marginBottom: 3,
+  },
+  packageCreditsMobile: {
+    fontSize: 18,
+  },
+  packageLabelMobile: {
+    fontSize: 10,
+    marginBottom: 2,
+  },
+  bonusBadgePillMobile: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginTop: 2,
+  },
+  bonusBadgeTextMobile: {
+    fontSize: 9.5,
+  },
+  packageDividerMobile: {
+    marginVertical: 6,
+  },
+  priceRowMobile: {
+    gap: 4,
+    marginBottom: 6,
+  },
+  payLabelMobile: {
+    fontSize: 10,
+  },
+  packagePriceMobile: {
+    fontSize: 14,
+  },
+  packageButtonMobile: {
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  packageButtonTextMobile: {
+    fontSize: 12,
+  },
+  activeMembershipGradientMobile: {
+    padding: 12,
+    borderRadius: 14,
+  },
+  activeMembershipBadgeTextMobile: {
+    fontSize: 9.5,
+  },
+  activeDaysPillTextMobile: {
+    fontSize: 10,
+  },
+  activePlanTitleMobile: {
+    fontSize: 14,
+  },
+  activePlanExpiryMobile: {
+    fontSize: 10.5,
+    marginBottom: 10,
+  },
+  activePerkTextMobile: {
+    fontSize: 10.5,
+  },
+  tiersContainerMobile: {
+    gap: 10,
+    marginBottom: 14,
+  },
+  tierCardMobile: {
+    padding: 12,
+    borderRadius: 14,
+  },
+  tierPopularBadgeMobile: {
+    top: -9,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  tierPopularTextMobile: {
+    fontSize: 9.5,
+  },
+  tierIconMobile: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+  },
+  tierNameMobile: {
+    fontSize: 13.5,
+  },
+  tierPriceMobile: {
+    fontSize: 16,
+  },
+  tierPricePeriodMobile: {
+    fontSize: 11,
+  },
+  tierCreditsTextMobile: {
+    fontSize: 11,
+  },
+  autopayBadgeWrapMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  autopayBadgeTextMobile: {
+    fontSize: 10,
+  },
+  tierFeaturesMobile: {
+    gap: 6,
+    marginVertical: 8,
+  },
+  tierFeatureTextMobile: {
+    fontSize: 11,
+  },
+  tierButtonMobile: {
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  tierButtonTextMobile: {
+    fontSize: 12.5,
   },
 });
 

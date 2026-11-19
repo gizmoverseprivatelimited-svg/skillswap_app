@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  useWindowDimensions,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import {
@@ -90,6 +91,9 @@ const FAQ_ITEMS: FaqItem[] = [
 ];
 
 export default function HelpScreen() {
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -158,7 +162,7 @@ export default function HelpScreen() {
                   >
                     <View style={styles.faqHeader}>
                       <View style={styles.faqIcon}>{item.icon}</View>
-                      <Text style={styles.faqQuestion} numberOfLines={isExpanded ? undefined : 2}>
+                      <Text style={styles.faqQuestion}>
                         {item.question}
                       </Text>
                       {isExpanded ? (
@@ -198,7 +202,7 @@ export default function HelpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.backgroundSecondary,
@@ -211,40 +215,40 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingTop: 40,
-    paddingBottom: 32,
-    paddingHorizontal: 24,
+    paddingTop: isSmallScreen ? 24 : 40,
+    paddingBottom: isSmallScreen ? 20 : 32,
+    paddingHorizontal: isSmallScreen ? 16 : 24,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: isSmallScreen ? 20 : 26,
     fontWeight: '800' as const,
     color: '#FFFFFF',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: isSmallScreen ? 10 : 16,
+    marginBottom: isSmallScreen ? 4 : 8,
   },
   headerSubtitle: {
-    fontSize: 15,
+    fontSize: isSmallScreen ? 12.5 : 15,
     color: 'rgba(255,255,255,0.85)',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: isSmallScreen ? 17 : 22,
   },
   content: {
-    marginTop: -20,
+    marginTop: isSmallScreen ? -14 : -20,
     backgroundColor: Colors.light.backgroundSecondary,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 24,
-    paddingHorizontal: 20,
+    borderTopLeftRadius: isSmallScreen ? 16 : 24,
+    borderTopRightRadius: isSmallScreen ? 16 : 24,
+    paddingTop: isSmallScreen ? 16 : 24,
+    paddingHorizontal: isSmallScreen ? 12 : 20,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.light.card,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 16,
-    marginBottom: 24,
-    gap: 10,
+    paddingHorizontal: isSmallScreen ? 12 : 16,
+    paddingVertical: isSmallScreen ? 9 : 14,
+    borderRadius: isSmallScreen ? 12 : 16,
+    marginBottom: isSmallScreen ? 14 : 24,
+    gap: isSmallScreen ? 8 : 10,
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
     shadowColor: Colors.light.shadow,
@@ -255,16 +259,16 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: isSmallScreen ? 13.5 : 16,
     color: Colors.light.text,
   },
   faqList: {
-    gap: 12,
+    gap: isSmallScreen ? 8 : 12,
   },
   faqCard: {
     backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: isSmallScreen ? 12 : 16,
+    padding: isSmallScreen ? 12 : 18,
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
     shadowColor: Colors.light.shadow,
@@ -281,71 +285,71 @@ const styles = StyleSheet.create({
   faqHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: isSmallScreen ? 8 : 12,
   },
   faqIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: isSmallScreen ? 32 : 40,
+    height: isSmallScreen ? 32 : 40,
+    borderRadius: isSmallScreen ? 8 : 12,
     backgroundColor: Colors.light.backgroundTertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   faqQuestion: {
     flex: 1,
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13 : 15,
     fontWeight: '600' as const,
     color: Colors.light.text,
-    lineHeight: 22,
+    lineHeight: isSmallScreen ? 18 : 22,
   },
   faqAnswer: {
-    marginTop: 14,
+    marginTop: isSmallScreen ? 10 : 14,
   },
   faqAnswerDivider: {
     height: 1,
     backgroundColor: Colors.light.borderLight,
-    marginBottom: 14,
+    marginBottom: isSmallScreen ? 10 : 14,
   },
   faqAnswerText: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: isSmallScreen ? 12 : 14,
+    lineHeight: isSmallScreen ? 17 : 22,
     color: Colors.light.textSecondary,
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 48,
+    paddingVertical: isSmallScreen ? 32 : 48,
     gap: 12,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: isSmallScreen ? 16 : 18,
     fontWeight: '700' as const,
     color: Colors.light.textSecondary,
   },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12.5 : 14,
     color: Colors.light.textTertiary,
     textAlign: 'center',
   },
   contactSection: {
-    marginTop: 32,
+    marginTop: isSmallScreen ? 20 : 32,
     alignItems: 'center',
     gap: 8,
   },
   contactTitle: {
-    fontSize: 20,
+    fontSize: isSmallScreen ? 16 : 20,
     fontWeight: '700' as const,
     color: Colors.light.text,
   },
   contactSubtitle: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12 : 14,
     color: Colors.light.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: isSmallScreen ? 16 : 20,
   },
   companyInfoCard: {
-    marginTop: 24,
-    padding: 16,
-    borderRadius: 16,
+    marginTop: isSmallScreen ? 16 : 24,
+    padding: isSmallScreen ? 12 : 16,
+    borderRadius: isSmallScreen ? 12 : 16,
     backgroundColor: Colors.light.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -354,12 +358,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   companyNameText: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12.5 : 14,
     fontWeight: '700' as const,
     color: Colors.light.text,
   },
   companyProductText: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     color: Colors.light.textSecondary,
     textAlign: 'center',
   },

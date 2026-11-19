@@ -1,6 +1,7 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeTopInset } from '@/lib/safeArea';
 import {
   ArrowLeft,
   Coins,
@@ -24,6 +25,8 @@ import { useEarnings, EARNING_RULES } from '@/providers/earnings';
 export default function EarningsDashboard() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
   const { currentUser } = useCurrentUser();
   const { getSummary, creditsToRupees, getUserPayouts } = useEarnings();
 
@@ -56,95 +59,98 @@ export default function EarningsDashboard() {
           headerShown: false,
         }}
       />
-      <LinearGradientHeader insets={insets} onBack={() => router.back()} />
+      <LinearGradientHeader onBack={() => router.back()} isSmallScreen={isSmallScreen} />
 
       <ScrollView
         style={s.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
-        <View style={s.heroCard}>
+        <View style={[s.heroCard, isSmallScreen && s.heroCardMobile]}>
           <View style={s.heroTop}>
-            <View style={s.heroIconWrap}>
-              <Coins size={26} color="#FFFFFF" />
+            <View style={[s.heroIconWrap, isSmallScreen && s.heroIconWrapMobile]}>
+              <Coins size={isSmallScreen ? 20 : 26} color="#FFFFFF" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.heroLabel}>Available Credits</Text>
-              <Text style={s.heroPoints}>{summary.availablePoints.toLocaleString()}</Text>
-              <Text style={s.heroValue}>≈ {formatPrice(currencyValue)}</Text>
+              <Text style={[s.heroLabel, isSmallScreen && s.heroLabelMobile]}>Available Credits</Text>
+              <Text style={[s.heroPoints, isSmallScreen && s.heroPointsMobile]}>{summary.availablePoints.toLocaleString()}</Text>
+              <Text style={[s.heroValue, isSmallScreen && s.heroValueMobile]}>≈ {formatPrice(currencyValue)}</Text>
             </View>
           </View>
           <View style={s.heroActions}>
             <TouchableOpacity
-              style={s.redeemBtn}
+              style={[s.redeemBtn, isSmallScreen && s.redeemBtnMobile]}
               onPress={() => router.push('/payout' as any)}
               activeOpacity={0.85}
             >
-              <Wallet size={18} color="#FFFFFF" />
-              <Text style={s.redeemBtnText}>Redeem</Text>
+              <Wallet size={isSmallScreen ? 15 : 18} color="#FFFFFF" />
+              <Text style={[s.redeemBtnText, isSmallScreen && s.redeemBtnTextMobile]}>Redeem</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={s.historyBtn}
+              style={[s.historyBtn, isSmallScreen && s.historyBtnMobile]}
               onPress={() => router.push('/earnings/history' as any)}
               activeOpacity={0.85}
             >
-              <History size={18} color={Colors.light.primary} />
-              <Text style={s.historyBtnText}>History</Text>
+              <History size={isSmallScreen ? 15 : 18} color={Colors.light.primary} />
+              <Text style={[s.historyBtnText, isSmallScreen && s.historyBtnTextMobile]}>History</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <View style={s.statsRow}>
+        <View style={[s.statsRow, isSmallScreen && s.statsRowMobile]}>
           <StatTile
-            icon={<TrendingUp size={18} color="#10B981" />}
+            icon={<TrendingUp size={isSmallScreen ? 14 : 18} color="#10B981" />}
             iconBg="#ECFDF5"
             value={summary.currentMonthPoints.toString()}
             label="This Month"
+            isSmallScreen={isSmallScreen}
           />
           <StatTile
-            icon={<Sparkles size={18} color="#8B5CF6" />}
+            icon={<Sparkles size={isSmallScreen ? 14 : 18} color="#8B5CF6" />}
             iconBg="#F5F3FF"
             value={summary.currentMonthClasses.toString()}
             label="Classes Taught"
+            isSmallScreen={isSmallScreen}
           />
           <StatTile
-            icon={<Trophy size={18} color="#F59E0B" />}
+            icon={<Trophy size={isSmallScreen ? 14 : 18} color="#F59E0B" />}
             iconBg="#FFFBEB"
             value={summary.totalEarnedPoints.toLocaleString()}
             label="Total Earned"
+            isSmallScreen={isSmallScreen}
           />
         </View>
 
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>How You Earn</Text>
+        <View style={[s.section, isSmallScreen && s.sectionMobile]}>
+          <Text style={[s.sectionTitle, isSmallScreen && s.sectionTitleMobile]}>How You Earn</Text>
           <View style={s.rulesList}>
             {EARNING_RULES.map((rule, i) => (
-              <View key={i} style={s.ruleCard}>
-                <View style={[s.ruleIcon, { backgroundColor: rule.source === 'monthly_subscription' ? '#F5F3FF' : rule.source === 'bonus' ? '#FFFBEB' : '#ECFDF5' }]}>
+              <View key={i} style={[s.ruleCard, isSmallScreen && s.ruleCardMobile]}>
+                <View style={[s.ruleIcon, isSmallScreen && s.ruleIconMobile, { backgroundColor: rule.source === 'monthly_subscription' ? '#F5F3FF' : rule.source === 'bonus' ? '#FFFBEB' : '#ECFDF5' }]}>
                   {rule.source === 'monthly_subscription' ? (
-                    <Gift size={18} color="#8B5CF6" />
+                    <Gift size={isSmallScreen ? 14 : 18} color="#8B5CF6" />
                   ) : rule.source === 'bonus' ? (
-                    <Sparkles size={18} color="#F59E0B" />
+                    <Sparkles size={isSmallScreen ? 14 : 18} color="#F59E0B" />
                   ) : (
-                    <CheckCircle2 size={18} color="#10B981" />
+                    <CheckCircle2 size={isSmallScreen ? 14 : 18} color="#10B981" />
                   )}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.ruleLabel}>{rule.label}</Text>
-                  <Text style={s.ruleDesc}>{rule.description}</Text>
+                  <Text style={[s.ruleLabel, isSmallScreen && s.ruleLabelMobile]}>{rule.label}</Text>
+                  <Text style={[s.ruleDesc, isSmallScreen && s.ruleDescMobile]}>{rule.description}</Text>
                 </View>
                 <View style={s.rulePointsWrap}>
-                  <Text style={s.rulePoints}>+{rule.points}</Text>
-                  <Text style={s.rulePointsUnit}>cr</Text>
+                  <Text style={[s.rulePoints, isSmallScreen && s.rulePointsMobile]}>+{rule.points}</Text>
+                  <Text style={[s.rulePointsUnit, isSmallScreen && s.rulePointsUnitMobile]}>cr</Text>
                 </View>
               </View>
             ))}
           </View>
         </View>
 
-        <View style={s.section}>
+        <View style={[s.section, isSmallScreen && s.sectionMobile]}>
           <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>Recent Payouts</Text>
+            <Text style={[s.sectionTitle, isSmallScreen && s.sectionTitleMobile]}>Recent Payouts</Text>
             {userPayouts.length > 3 && (
               <TouchableOpacity onPress={() => router.push('/earnings/history' as any)}>
                 <Text style={s.seeAllText}>See all</Text>
@@ -153,8 +159,8 @@ export default function EarningsDashboard() {
           </View>
           {recentPayouts.length === 0 ? (
             <View style={s.emptyCard}>
-              <Info size={20} color={Colors.light.textTertiary} />
-              <Text style={s.emptyText}>No payouts yet. Redeem your points to get started!</Text>
+              <Info size={16} color={Colors.light.textTertiary} />
+              <Text style={[s.emptyText, isSmallScreen && s.emptyTextMobile]}>No payouts yet. Redeem your points to get started!</Text>
             </View>
           ) : (
             <View style={s.payoutList}>
@@ -164,30 +170,30 @@ export default function EarningsDashboard() {
                 const statusLabel = payout.status === 'completed' ? 'Completed' : payout.status === 'pending' ? 'Pending' : payout.status === 'rejected' ? 'Rejected' : payout.status;
 
                 return (
-                  <View key={payout.id || (payout as any)._id || index} style={s.payoutCard}>
-                    <View style={[s.payoutIcon, { backgroundColor: statusBg }]}>
+                  <View key={payout.id || (payout as any)._id || index} style={[s.payoutCard, isSmallScreen && s.payoutCardMobile]}>
+                    <View style={[s.payoutIcon, isSmallScreen && s.payoutIconMobile, { backgroundColor: statusBg }]}>
                       {payout.status === 'completed' ? (
-                        <CheckCircle2 size={18} color="#10B981" />
+                        <CheckCircle2 size={isSmallScreen ? 14 : 18} color="#10B981" />
                       ) : payout.status === 'pending' ? (
-                        <Clock size={18} color="#F59E0B" />
+                        <Clock size={isSmallScreen ? 14 : 18} color="#F59E0B" />
                       ) : (
-                        <Info size={18} color="#EF4444" />
+                        <Info size={isSmallScreen ? 14 : 18} color="#EF4444" />
                       )}
                     </View>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                        <Text style={s.payoutMethod}>{payoutMethodLabel(payout.method)}</Text>
+                        <Text style={[s.payoutMethod, isSmallScreen && s.payoutMethodMobile]}>{payoutMethodLabel(payout.method)}</Text>
                         <View style={[s.statusBadge, { backgroundColor: statusBg }]}>
                           <Text style={[s.statusBadgeText, { color: statusColor }]}>{statusLabel}</Text>
                         </View>
                       </View>
-                      <Text style={s.payoutDate}>
+                      <Text style={[s.payoutDate, isSmallScreen && s.payoutDateMobile]}>
                         {new Date(payout.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </Text>
                     </View>
                     <View style={s.payoutRight}>
-                      <Text style={s.payoutPoints}>{payout.points} pts</Text>
-                      <Text style={s.payoutAmount}>{formatPrice(payout.amount)}</Text>
+                      <Text style={[s.payoutPoints, isSmallScreen && s.payoutPointsMobile]}>{payout.points} pts</Text>
+                      <Text style={[s.payoutAmount, isSmallScreen && s.payoutAmountMobile]}>{formatPrice(payout.amount)}</Text>
                     </View>
                   </View>
                 );
@@ -196,9 +202,9 @@ export default function EarningsDashboard() {
           )}
         </View>
 
-        <View style={s.infoBanner}>
-          <Info size={16} color={Colors.light.textSecondary} />
-          <Text style={s.infoText}>
+        <View style={[s.infoBanner, isSmallScreen && s.infoBannerMobile]}>
+          <Info size={14} color={Colors.light.textSecondary} />
+          <Text style={[s.infoText, isSmallScreen && s.infoTextMobile]}>
             Points are awarded when swaps are marked complete. Monthly subscription bonuses are credited on the 1st of each month.
           </Text>
         </View>
@@ -217,32 +223,33 @@ function payoutMethodLabel(method: string): string {
   return labels[method] ?? method;
 }
 
-function StatTile({ icon, iconBg, value, label }: { icon: React.ReactNode; iconBg: string; value: string; label: string }) {
+function StatTile({ icon, iconBg, value, label, isSmallScreen }: { icon: React.ReactNode; iconBg: string; value: string; label: string; isSmallScreen: boolean }) {
   return (
-    <View style={s.statTile}>
-      <View style={[s.statIcon, { backgroundColor: iconBg }]}>{icon}</View>
-      <Text style={s.statValue}>{value}</Text>
-      <Text style={s.statLabel}>{label}</Text>
+    <View style={[s.statTile, isSmallScreen && s.statTileMobile]}>
+      <View style={[s.statIcon, isSmallScreen && s.statIconMobile, { backgroundColor: iconBg }]}>{icon}</View>
+      <Text style={[s.statValue, isSmallScreen && s.statValueMobile]}>{value}</Text>
+      <Text style={[s.statLabel, isSmallScreen && s.statLabelMobile]}>{label}</Text>
     </View>
   );
 }
 
-function LinearGradientHeader({ insets, onBack }: { insets: { top: number }; onBack: () => void }) {
+function LinearGradientHeader({ onBack, isSmallScreen }: { onBack: () => void; isSmallScreen: boolean }) {
+  const safeTop = useSafeTopInset(isSmallScreen ? 10 : 16);
   return (
     <LinearGradient
       colors={['#6366F1', '#4F46E5']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={{ paddingTop: insets.top + 8, paddingHorizontal: 20, paddingBottom: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 }}
+      style={{ paddingTop: safeTop, paddingHorizontal: isSmallScreen ? 14 : 20, paddingBottom: isSmallScreen ? 14 : 20, borderBottomLeftRadius: isSmallScreen ? 16 : 24, borderBottomRightRadius: isSmallScreen ? 16 : 24 }}
     >
       <View style={s.headerRow}>
-        <TouchableOpacity onPress={onBack} style={s.backBtn}>
-          <ArrowLeft size={22} color="#FFFFFF" />
+        <TouchableOpacity onPress={onBack} style={[s.backBtn, isSmallScreen && s.backBtnMobile]}>
+          <ArrowLeft size={isSmallScreen ? 18 : 22} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Earnings</Text>
-        <View style={{ width: 44 }} />
+        <Text style={[s.headerTitle, isSmallScreen && s.headerTitleMobile]}>Earnings</Text>
+        <View style={{ width: isSmallScreen ? 34 : 44 }} />
       </View>
-      <Text style={s.headerSubtitle}>Track your teaching rewards</Text>
+      <Text style={[s.headerSubtitle, isSmallScreen && s.headerSubtitleMobile]}>Track your teaching rewards</Text>
     </LinearGradient>
   );
 }
@@ -296,4 +303,38 @@ const s = StyleSheet.create({
   emptyText: { fontSize: 13, color: Colors.light.textSecondary, flex: 1 },
   infoBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginHorizontal: 20, backgroundColor: Colors.light.backgroundTertiary, borderRadius: 12, padding: 14 },
   infoText: { fontSize: 12, color: Colors.light.textSecondary, flex: 1, lineHeight: 18 },
+  heroCardMobile: { margin: 12, padding: 14, borderRadius: 16 },
+  heroIconWrapMobile: { width: 42, height: 42, borderRadius: 21 },
+  heroLabelMobile: { fontSize: 11, marginBottom: 2 },
+  heroPointsMobile: { fontSize: 24, marginBottom: 2 },
+  heroValueMobile: { fontSize: 12 },
+  redeemBtnMobile: { paddingVertical: 10, borderRadius: 10 },
+  redeemBtnTextMobile: { fontSize: 13 },
+  historyBtnMobile: { paddingVertical: 10, borderRadius: 10 },
+  historyBtnTextMobile: { fontSize: 13 },
+  statsRowMobile: { gap: 8, paddingHorizontal: 12, marginBottom: 16 },
+  statTileMobile: { padding: 8, borderRadius: 12 },
+  statIconMobile: { width: 28, height: 28, borderRadius: 8, marginBottom: 4 },
+  statValueMobile: { fontSize: 15, marginBottom: 2 },
+  statLabelMobile: { fontSize: 9.5 },
+  sectionMobile: { paddingHorizontal: 12, marginBottom: 16 },
+  sectionTitleMobile: { fontSize: 14, marginBottom: 8 },
+  ruleCardMobile: { padding: 10, borderRadius: 12, gap: 8 },
+  ruleIconMobile: { width: 32, height: 32, borderRadius: 8 },
+  ruleLabelMobile: { fontSize: 12.5, marginBottom: 2 },
+  ruleDescMobile: { fontSize: 10.5, lineHeight: 14 },
+  rulePointsMobile: { fontSize: 14 },
+  rulePointsUnitMobile: { fontSize: 9.5 },
+  payoutCardMobile: { padding: 10, borderRadius: 10, gap: 8 },
+  payoutIconMobile: { width: 32, height: 32, borderRadius: 8 },
+  payoutMethodMobile: { fontSize: 12 },
+  payoutDateMobile: { fontSize: 10.5 },
+  payoutPointsMobile: { fontSize: 12 },
+  payoutAmountMobile: { fontSize: 11.5 },
+  emptyTextMobile: { fontSize: 11.5 },
+  infoBannerMobile: { marginHorizontal: 12, padding: 10, borderRadius: 10 },
+  infoTextMobile: { fontSize: 11, lineHeight: 15 },
+  backBtnMobile: { width: 34, height: 34, borderRadius: 17 },
+  headerTitleMobile: { fontSize: 16 },
+  headerSubtitleMobile: { fontSize: 11 },
 });

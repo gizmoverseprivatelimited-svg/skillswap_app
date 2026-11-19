@@ -38,6 +38,7 @@ import type { SkillLevel, SkillWithUser, User } from '@/types';
 import { useCurrentUser } from '@/providers/current-user';
 import { useSafety } from '@/providers/safety';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeTopInset } from '@/lib/safeArea';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
@@ -74,6 +75,7 @@ export default function ExploreScreen() {
   const { width: windowWidth } = useWindowDimensions();
 
   const isSmallScreen = windowWidth < 600;
+  const safeTopInset = useSafeTopInset(isSmallScreen ? 12 : 18);
 
   const numColumns = useMemo(() => {
     if (windowWidth >= 1024) return 4;
@@ -418,11 +420,11 @@ export default function ExploreScreen() {
           ]}
         />
         <View style={[styles.skillContent, isMultiCol && styles.skillContentCompact, isSmallScreen && styles.skillContentMobile]}>
-          <View style={styles.skillHeader}>
-            <Text style={[styles.categoryLabel, isMultiCol && styles.categoryLabelCompact]} numberOfLines={1} ellipsizeMode="tail">
+          <View style={[styles.skillHeader, isMultiCol && styles.skillHeaderCompact]}>
+            <Text style={[styles.categoryLabel, isMultiCol && styles.categoryLabelCompact]}>
               {item.category}
             </Text>
-            <View style={styles.skillBadges}>
+            <View style={[styles.skillBadges, isMultiCol && styles.skillBadgesCompact]}>
               {item.certificateStatus === 'approved' && (
                 <View style={[styles.certifiedBadge, isMultiCol && styles.certifiedBadgeCompact]}>
                   <BadgeCheck size={isMultiCol ? 10 : 11} color="#10B981" />
@@ -434,21 +436,23 @@ export default function ExploreScreen() {
               </View>
             </View>
           </View>
-          <Text style={[styles.skillTitle, isMultiCol && styles.skillTitleCompact]} numberOfLines={2}>{item.title}</Text>
-          <Text style={[styles.skillDescription, isMultiCol && styles.skillDescriptionCompact]} numberOfLines={2}>{item.description}</Text>
-          <View style={styles.skillFooter}>
+          <Text style={[styles.skillTitle, isMultiCol && styles.skillTitleCompact]}>{item.title}</Text>
+          <Text style={[styles.skillDescription, isMultiCol && styles.skillDescriptionCompact]}>{item.description}</Text>
+          <View style={[styles.skillFooter, isMultiCol && styles.skillFooterCompact]}>
             <View style={[styles.userInfo, isMultiCol && styles.userInfoCompact]}>
               <Image source={{ uri: resolveImageUrl(item.user.avatarUrl, DEFAULT_AVATAR) }} style={[styles.userAvatar, isMultiCol && styles.userAvatarCompact]} />
               <View style={styles.userDetails}>
-                <Text style={[styles.userName, isMultiCol && styles.userNameCompact]} numberOfLines={1}>
+                <Text style={[styles.userName, isMultiCol && styles.userNameCompact]}>
                   {item.user.username ? (item.user.username.startsWith('@') ? item.user.username : `@${item.user.username}`) : `@${item.user.name.toLowerCase().replace(/\s+/g, '')}`}
                 </Text>
-                <View style={styles.ratingRow}>
-                  <Star size={isMultiCol ? 11 : 12} fill={Colors.light.accent} color={Colors.light.accent} />
-                  <Text style={[styles.ratingText, isMultiCol && styles.ratingTextCompact]}>{ratingVal}</Text>
-                  <Text style={[styles.swapsText, isMultiCol && styles.swapsTextCompact]} numberOfLines={1}>• {exchangesText}</Text>
-                </View>
               </View>
+            </View>
+            <View style={[styles.ratingRow, isMultiCol && styles.ratingRowCompact]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <Star size={isMultiCol ? 11 : 12} fill={Colors.light.accent} color={Colors.light.accent} />
+                <Text style={[styles.ratingText, isMultiCol && styles.ratingTextCompact]}>{ratingVal}</Text>
+              </View>
+              <Text style={[styles.swapsText, isMultiCol && styles.swapsTextCompact]}>• {exchangesText}</Text>
             </View>
           </View>
         </View>
@@ -477,20 +481,24 @@ export default function ExploreScreen() {
       >
         {isMultiCol ? (
           <View style={[styles.personCardGridInner, isSmallScreen && styles.personCardGridInnerMobile]}>
-            <View style={styles.personHeaderGrid}>
-              <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={[styles.personAvatarCompact, isSmallScreen && styles.personAvatarMobile]} />
-              <View style={styles.personInfoCompact}>
-                <Text style={[styles.personNameCompact, isSmallScreen && styles.personNameMobile]} numberOfLines={1}>
-                  {item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}
-                </Text>
-                <View style={styles.personLocationRowCompact}>
-                  <MapPin size={isSmallScreen ? 9 : 10} color={Colors.light.textTertiary} />
-                  <Text style={[styles.personLocationCompact, isSmallScreen && styles.personLocationMobile]} numberOfLines={1}>{item.location}</Text>
+            <View style={[styles.personHeaderGrid, isSmallScreen && styles.personHeaderGridMobile]}>
+              <View style={[styles.personAvatarNameRow, isSmallScreen && styles.personAvatarNameRowMobile]}>
+                <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={[styles.personAvatarCompact, isSmallScreen && styles.personAvatarMobile]} />
+                <View style={[styles.personInfoCompact, isSmallScreen && styles.personInfoMobile]}>
+                  <Text style={[styles.personNameCompact, isSmallScreen && styles.personNameMobile]}>
+                    {item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}
+                  </Text>
                 </View>
               </View>
-              <View style={[styles.ratingPillCompact, isSmallScreen && styles.ratingPillMobile]}>
-                <Star size={isSmallScreen ? 9 : 10} fill={Colors.light.accent} color={Colors.light.accent} />
-                <Text style={[styles.ratingPillTextCompact, isSmallScreen && styles.ratingPillTextMobile]}>{ratingVal}</Text>
+              <View style={styles.personMetaRowMobile}>
+                <View style={styles.personLocationRowCompact}>
+                  <MapPin size={isSmallScreen ? 9 : 10} color={Colors.light.textTertiary} />
+                  <Text style={[styles.personLocationCompact, isSmallScreen && styles.personLocationMobile]}>{item.location}</Text>
+                </View>
+                <View style={[styles.ratingPillCompact, isSmallScreen && styles.ratingPillMobile]}>
+                  <Star size={isSmallScreen ? 9 : 10} fill={Colors.light.accent} color={Colors.light.accent} />
+                  <Text style={[styles.ratingPillTextCompact, isSmallScreen && styles.ratingPillTextMobile]}>{ratingVal}</Text>
+                </View>
               </View>
             </View>
             <View style={styles.personGridBody}>
@@ -498,11 +506,11 @@ export default function ExploreScreen() {
               <View style={styles.chipRowCompact}>
                 {wants.slice(0, maxChips).map((s) => (
                   <View key={s} style={[styles.wantChipCompact, isSmallScreen && styles.wantChipMobile]}>
-                    <Text style={[styles.wantChipTextCompact, isSmallScreen && styles.wantChipTextMobile]} numberOfLines={1} ellipsizeMode="tail">{s}</Text>
+                    <Text style={[styles.wantChipTextCompact, isSmallScreen && styles.wantChipTextMobile]}>{s}</Text>
                   </View>
                 ))}
               </View>
-              <Text style={[styles.personSwapsCompact, isSmallScreen && styles.personSwapsMobile]} numberOfLines={1}>{exchangesText}</Text>
+              <Text style={[styles.personSwapsCompact, isSmallScreen && styles.personSwapsMobile]}>{exchangesText}</Text>
             </View>
           </View>
         ) : (
@@ -511,7 +519,7 @@ export default function ExploreScreen() {
               <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatar} />
               <View style={styles.personInfoRow}>
                 <View style={styles.personNameRatingRow}>
-                  <Text style={styles.personName} numberOfLines={1}>
+                  <Text style={styles.personName}>
                     {item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}
                   </Text>
                   <View style={styles.ratingPill}>
@@ -521,7 +529,7 @@ export default function ExploreScreen() {
                 </View>
                 <View style={styles.personLocationRow}>
                   <MapPin size={12} color={Colors.light.textTertiary} />
-                  <Text style={styles.personLocation} numberOfLines={1}>{item.location}</Text>
+                  <Text style={styles.personLocation}>{item.location}</Text>
                 </View>
               </View>
             </View>
@@ -531,7 +539,7 @@ export default function ExploreScreen() {
               <View style={styles.chipRow}>
                 {wants.slice(0, maxChips).map((s) => (
                   <View key={s} style={styles.wantChip}>
-                    <Text style={styles.wantChipText} numberOfLines={1} ellipsizeMode="tail">{s}</Text>
+                    <Text style={styles.wantChipText}>{s}</Text>
                   </View>
                 ))}
               </View>
@@ -565,20 +573,24 @@ export default function ExploreScreen() {
       >
         {isMultiCol ? (
           <View style={[styles.personCardGridInner, isSmallScreen && styles.personCardGridInnerMobile]}>
-            <View style={styles.personHeaderGrid}>
-              <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={[styles.personAvatarCompact, isSmallScreen && styles.personAvatarMobile]} />
-              <View style={styles.personInfoCompact}>
-                <Text style={[styles.personNameCompact, isSmallScreen && styles.personNameMobile]} numberOfLines={1}>
-                  {item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}
-                </Text>
-                <View style={styles.personLocationRowCompact}>
-                  <MapPin size={isSmallScreen ? 9 : 10} color={Colors.light.textTertiary} />
-                  <Text style={[styles.personLocationCompact, isSmallScreen && styles.personLocationMobile]} numberOfLines={1}>{item.location}</Text>
+            <View style={[styles.personHeaderGrid, isSmallScreen && styles.personHeaderGridMobile]}>
+              <View style={[styles.personAvatarNameRow, isSmallScreen && styles.personAvatarNameRowMobile]}>
+                <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={[styles.personAvatarCompact, isSmallScreen && styles.personAvatarMobile]} />
+                <View style={[styles.personInfoCompact, isSmallScreen && styles.personInfoMobile]}>
+                  <Text style={[styles.personNameCompact, isSmallScreen && styles.personNameMobile]}>
+                    {item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}
+                  </Text>
                 </View>
               </View>
-              <View style={[styles.ratingPillCompact, isSmallScreen && styles.ratingPillMobile]}>
-                <Star size={isSmallScreen ? 9 : 10} fill={Colors.light.accent} color={Colors.light.accent} />
-                <Text style={[styles.ratingPillTextCompact, isSmallScreen && styles.ratingPillTextMobile]}>{ratingVal}</Text>
+              <View style={styles.personMetaRowMobile}>
+                <View style={styles.personLocationRowCompact}>
+                  <MapPin size={isSmallScreen ? 9 : 10} color={Colors.light.textTertiary} />
+                  <Text style={[styles.personLocationCompact, isSmallScreen && styles.personLocationMobile]}>{item.location}</Text>
+                </View>
+                <View style={[styles.ratingPillCompact, isSmallScreen && styles.ratingPillMobile]}>
+                  <Star size={isSmallScreen ? 9 : 10} fill={Colors.light.accent} color={Colors.light.accent} />
+                  <Text style={[styles.ratingPillTextCompact, isSmallScreen && styles.ratingPillTextMobile]}>{ratingVal}</Text>
+                </View>
               </View>
             </View>
 
@@ -587,12 +599,12 @@ export default function ExploreScreen() {
                 <View style={styles.swapHalfVertical}>
                   <Text style={[styles.swapHalfLabelCompact, isSmallScreen && styles.swapHalfLabelMobile]}>Teaches</Text>
                   <View style={styles.chipRowCompact}>
-                    {offers.slice(0, isSmallScreen ? 1 : 2).map((s, idx) => {
+                    {offers.slice(0, isSmallScreen ? 2 : 2).map((s, idx) => {
                       const title = typeof s === 'string' ? s : s.title || String(s);
                       const key = typeof s === 'string' ? s : (s.id || s._id || `teach-${idx}`);
                       return (
                         <View key={key} style={[styles.teachChipCompact, isSmallScreen && styles.teachChipMobile]}>
-                          <Text style={[styles.teachChipTextCompact, isSmallScreen && styles.teachChipTextMobile]} numberOfLines={1} ellipsizeMode="tail">{title}</Text>
+                          <Text style={[styles.teachChipTextCompact, isSmallScreen && styles.teachChipTextMobile]}>{title}</Text>
                         </View>
                       );
                     })}
@@ -601,18 +613,18 @@ export default function ExploreScreen() {
                 <View style={styles.swapHalfVertical}>
                   <Text style={[styles.swapHalfLabelCompact, isSmallScreen && styles.swapHalfLabelMobile]}>Learns</Text>
                   <View style={styles.chipRowCompact}>
-                    {wants.slice(0, isSmallScreen ? 1 : 2).map((s, idx) => {
+                    {wants.slice(0, isSmallScreen ? 2 : 2).map((s, idx) => {
                       const text = typeof s === 'string' ? s : String(s);
                       return (
                         <View key={`want-${idx}-${text}`} style={[styles.wantChipCompact, isSmallScreen && styles.wantChipMobile]}>
-                          <Text style={[styles.wantChipTextCompact, isSmallScreen && styles.wantChipTextMobile]} numberOfLines={1} ellipsizeMode="tail">{text}</Text>
+                          <Text style={[styles.wantChipTextCompact, isSmallScreen && styles.wantChipTextMobile]}>{text}</Text>
                         </View>
                       );
                     })}
                   </View>
                 </View>
               </View>
-              <Text style={[styles.personSwapsCompact, isSmallScreen && styles.personSwapsMobile]} numberOfLines={1}>{exchangesText}</Text>
+              <Text style={[styles.personSwapsCompact, isSmallScreen && styles.personSwapsMobile]}>{exchangesText}</Text>
             </View>
           </View>
         ) : (
@@ -621,7 +633,7 @@ export default function ExploreScreen() {
               <Image source={{ uri: resolveImageUrl(item.avatarUrl, DEFAULT_AVATAR) }} style={styles.personAvatar} />
               <View style={styles.personInfoRow}>
                 <View style={styles.personNameRatingRow}>
-                  <Text style={styles.personName} numberOfLines={1}>{item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
+                  <Text style={styles.personName}>{item.username ? (item.username.startsWith('@') ? item.username : `@${item.username}`) : `@${item.name.toLowerCase().replace(/\s+/g, '')}`}</Text>
                   <View style={styles.ratingPill}>
                     <Star size={11} fill={Colors.light.accent} color={Colors.light.accent} />
                     <Text style={styles.ratingPillText}>{ratingVal}</Text>
@@ -629,7 +641,7 @@ export default function ExploreScreen() {
                 </View>
                 <View style={styles.personLocationRow}>
                   <MapPin size={12} color={Colors.light.textTertiary} />
-                  <Text style={styles.personLocation} numberOfLines={1}>{item.location}</Text>
+                  <Text style={styles.personLocation}>{item.location}</Text>
                 </View>
               </View>
             </View>
@@ -643,7 +655,7 @@ export default function ExploreScreen() {
                     const key = typeof s === 'string' ? s : (s.id || s._id || `teach-${idx}`);
                     return (
                       <View key={key} style={styles.teachChip}>
-                        <Text style={styles.teachChipText} numberOfLines={1} ellipsizeMode="tail">{title}</Text>
+                        <Text style={styles.teachChipText}>{title}</Text>
                       </View>
                     );
                   })}
@@ -657,7 +669,7 @@ export default function ExploreScreen() {
                     const text = typeof s === 'string' ? s : String(s);
                     return (
                       <View key={`want-${idx}-${text}`} style={styles.wantChip}>
-                        <Text style={styles.wantChipText} numberOfLines={1} ellipsizeMode="tail">{text}</Text>
+                        <Text style={styles.wantChipText}>{text}</Text>
                       </View>
                     );
                   })}
@@ -674,11 +686,11 @@ export default function ExploreScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.searchSection, { paddingTop: Math.max(insets.top + 16, 20) }]}>
-        <View style={styles.searchBar} testID="search-bar">
-          <Search size={20} color={Colors.light.textSecondary} />
+      <View style={[styles.searchSection, isSmallScreen && styles.searchSectionMobile, { paddingTop: safeTopInset }]}>
+        <View style={[styles.searchBar, isSmallScreen && styles.searchBarMobile]} testID="search-bar">
+          <Search size={isSmallScreen ? 16 : 20} color={Colors.light.textSecondary} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, isSmallScreen && styles.searchInputMobile]}
             placeholder="Search skills or people..."
             placeholderTextColor={Colors.light.textTertiary}
             value={searchQuery}
@@ -688,46 +700,47 @@ export default function ExploreScreen() {
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')} accessibilityRole="button" testID="clear-search">
-              <X size={18} color={Colors.light.textSecondary} />
+              <X size={isSmallScreen ? 14 : 18} color={Colors.light.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity style={styles.filterButton} onPress={toggleFilters} accessibilityRole="button" testID="toggle-filters">
-          <SlidersHorizontal size={20} color={Colors.light.text} />
+        <TouchableOpacity style={[styles.filterButton, isSmallScreen && styles.filterButtonMobile]} onPress={toggleFilters} accessibilityRole="button" testID="toggle-filters">
+          <SlidersHorizontal size={isSmallScreen ? 16 : 20} color={Colors.light.text} />
         </TouchableOpacity>
       </View>
 
       {/* Role tabs */}
-      <View style={styles.roleTabsRow}>
+      <View style={[styles.roleTabsRow, isSmallScreen && styles.roleTabsRowMobile]}>
         {ROLE_TABS.map((tab) => {
           const isActive = activeTab === tab.key;
           const Icon = tab.icon;
           return (
             <TouchableOpacity
               key={tab.key}
-              style={[styles.roleTab, isActive && styles.roleTabActive]}
+              style={[styles.roleTab, isSmallScreen && styles.roleTabMobile, isActive && styles.roleTabActive]}
               onPress={() => setActiveTab(tab.key)}
               activeOpacity={0.7}
             >
-              <Icon size={16} color={isActive ? '#FFFFFF' : Colors.light.textSecondary} />
-              <Text style={[styles.roleTabText, isActive && styles.roleTabTextActive]}>{tab.label}</Text>
+              <Icon size={isSmallScreen ? 13 : 16} color={isActive ? '#FFFFFF' : Colors.light.textSecondary} />
+              <Text style={[styles.roleTabText, isSmallScreen && styles.roleTabTextMobile, isActive && styles.roleTabTextActive]}>{tab.label}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
 
       {/* Main Category Horizontal Bar */}
-      <View style={styles.exploreCategoriesBar}>
+      <View style={[styles.exploreCategoriesBar, isSmallScreen && styles.exploreCategoriesBarMobile]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.exploreCategoriesScroll}
+          contentContainerStyle={[styles.exploreCategoriesScroll, isSmallScreen && styles.exploreCategoriesScrollMobile]}
         >
           {['All', ...MAIN_CATEGORIES].map((category) => (
             <TouchableOpacity
               key={category}
               style={[
                 styles.exploreCategoryChip,
+                isSmallScreen && styles.exploreCategoryChipMobile,
                 selectedCategory === category && styles.exploreCategoryChipActive,
               ]}
               onPress={() => {
@@ -739,6 +752,7 @@ export default function ExploreScreen() {
               <Text
                 style={[
                   styles.exploreCategoryText,
+                  isSmallScreen && styles.exploreCategoryTextMobile,
                   selectedCategory === category && styles.exploreCategoryTextActive,
                 ]}
               >
@@ -752,11 +766,12 @@ export default function ExploreScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.exploreSubcategoriesScroll}
+            contentContainerStyle={[styles.exploreSubcategoriesScroll, isSmallScreen && styles.exploreSubcategoriesScrollMobile]}
           >
             <TouchableOpacity
               style={[
                 styles.exploreSubcategoryChip,
+                isSmallScreen && styles.exploreSubcategoryChipMobile,
                 selectedSubcategory === 'All' && styles.exploreSubcategoryChipActive,
               ]}
               onPress={() => setSelectedSubcategory('All')}
@@ -765,6 +780,7 @@ export default function ExploreScreen() {
               <Text
                 style={[
                   styles.exploreSubcategoryText,
+                  isSmallScreen && styles.exploreSubcategoryTextMobile,
                   selectedSubcategory === 'All' && styles.exploreSubcategoryTextActive,
                 ]}
               >
@@ -776,6 +792,7 @@ export default function ExploreScreen() {
                 key={sub}
                 style={[
                   styles.exploreSubcategoryChip,
+                  isSmallScreen && styles.exploreSubcategoryChipMobile,
                   selectedSubcategory === sub && styles.exploreSubcategoryChipActive,
                 ]}
                 onPress={() => setSelectedSubcategory(sub)}
@@ -784,6 +801,7 @@ export default function ExploreScreen() {
                 <Text
                   style={[
                     styles.exploreSubcategoryText,
+                    isSmallScreen && styles.exploreSubcategoryTextMobile,
                     selectedSubcategory === sub && styles.exploreSubcategoryTextActive,
                   ]}
                 >
@@ -797,13 +815,13 @@ export default function ExploreScreen() {
 
       {isFilterOpen && (
         <Pressable style={styles.backdrop} onPress={toggleFilters} testID="filters-backdrop">
-          <Animated.View style={[styles.filtersCard, { transform: [{ translateY }], opacity: backdropOpacity, marginTop: insets.top > 0 ? insets.top + 8 : 16 }]}
+          <Animated.View style={[styles.filtersCard, isSmallScreen && styles.filtersCardMobile, { transform: [{ translateY }], opacity: backdropOpacity, marginTop: insets.top > 0 ? insets.top + (isSmallScreen ? 4 : 8) : (isSmallScreen ? 8 : 16) }]}
             onStartShouldSetResponder={() => true}
           >
-            <View style={styles.filtersHeader}>
-              <Text style={styles.filtersTitle}>Filters</Text>
+            <View style={[styles.filtersHeader, isSmallScreen && styles.filtersHeaderMobile]}>
+              <Text style={[styles.filtersTitle, isSmallScreen && styles.filtersTitleMobile]}>Filters</Text>
               <TouchableOpacity onPress={toggleFilters} accessibilityRole="button" testID="close-filters">
-                <X size={22} color={Colors.light.text} />
+                <X size={isSmallScreen ? 18 : 22} color={Colors.light.text} />
               </TouchableOpacity>
             </View>
 
@@ -813,44 +831,44 @@ export default function ExploreScreen() {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              <View style={styles.filterGroup}>
-                <Text style={styles.groupLabel}>Category</Text>
-                <View style={styles.rowChips}>
+              <View style={[styles.filterGroup, isSmallScreen && styles.filterGroupMobile]}>
+                <Text style={[styles.groupLabel, isSmallScreen && styles.groupLabelMobile]}>Category</Text>
+                <View style={[styles.rowChips, isSmallScreen && styles.rowChipsMobile]}>
                   {['All', ...MAIN_CATEGORIES].map((cat) => (
                     <TouchableOpacity
                       key={cat}
-                      style={[styles.pill, selectedCategory === cat && styles.pillActive]}
+                      style={[styles.pill, isSmallScreen && styles.pillMobile, selectedCategory === cat && styles.pillActive]}
                       onPress={() => {
                         setSelectedCategory(cat);
                         setSelectedSubcategory('All');
                       }}
                       testID={`category-${cat}`}
                     >
-                      <Text style={[styles.pillText, selectedCategory === cat && styles.pillTextActive]}>{cat}</Text>
+                      <Text style={[styles.pillText, isSmallScreen && styles.pillTextMobile, selectedCategory === cat && styles.pillTextActive]}>{cat}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
 
               {selectedCategory !== 'All' && getSubcategoriesForCategory(selectedCategory).length > 0 && (
-                <View style={styles.filterGroup}>
-                  <Text style={styles.groupLabel}>Subcategory ({selectedCategory})</Text>
-                  <View style={styles.rowChips}>
+                <View style={[styles.filterGroup, isSmallScreen && styles.filterGroupMobile]}>
+                  <Text style={[styles.groupLabel, isSmallScreen && styles.groupLabelMobile]}>Subcategory ({selectedCategory})</Text>
+                  <View style={[styles.rowChips, isSmallScreen && styles.rowChipsMobile]}>
                     <TouchableOpacity
-                      style={[styles.pill, selectedSubcategory === 'All' && styles.pillActive]}
+                      style={[styles.pill, isSmallScreen && styles.pillMobile, selectedSubcategory === 'All' && styles.pillActive]}
                       onPress={() => setSelectedSubcategory('All')}
                     >
-                      <Text style={[styles.pillText, selectedSubcategory === 'All' && styles.pillTextActive]}>
+                      <Text style={[styles.pillText, isSmallScreen && styles.pillTextMobile, selectedSubcategory === 'All' && styles.pillTextActive]}>
                         All {selectedCategory}
                       </Text>
                     </TouchableOpacity>
                     {getSubcategoriesForCategory(selectedCategory).map((sub) => (
                       <TouchableOpacity
                         key={sub}
-                        style={[styles.pill, selectedSubcategory === sub && styles.pillActive]}
+                        style={[styles.pill, isSmallScreen && styles.pillMobile, selectedSubcategory === sub && styles.pillActive]}
                         onPress={() => setSelectedSubcategory(sub)}
                       >
-                        <Text style={[styles.pillText, selectedSubcategory === sub && styles.pillTextActive]}>
+                        <Text style={[styles.pillText, isSmallScreen && styles.pillTextMobile, selectedSubcategory === sub && styles.pillTextActive]}>
                           {sub}
                         </Text>
                       </TouchableOpacity>
@@ -860,34 +878,34 @@ export default function ExploreScreen() {
               )}
 
               {activeTab === 'teachers' && (
-                <View style={styles.filterGroup}>
-                  <Text style={styles.groupLabel}>Level</Text>
-                  <View style={styles.rowChips}>
+                <View style={[styles.filterGroup, isSmallScreen && styles.filterGroupMobile]}>
+                  <Text style={[styles.groupLabel, isSmallScreen && styles.groupLabelMobile]}>Level</Text>
+                  <View style={[styles.rowChips, isSmallScreen && styles.rowChipsMobile]}>
                     {LEVEL_OPTIONS.map((lvl) => (
                       <TouchableOpacity
                         key={lvl}
-                        style={[styles.pill, filters.level === lvl && styles.pillActive]}
+                        style={[styles.pill, isSmallScreen && styles.pillMobile, filters.level === lvl && styles.pillActive]}
                         onPress={() => setFilters((f) => ({ ...f, level: lvl }))}
                         testID={`level-${lvl}`}
                       >
-                        <Text style={[styles.pillText, filters.level === lvl && styles.pillTextActive]}>{lvl}</Text>
+                        <Text style={[styles.pillText, isSmallScreen && styles.pillTextMobile, filters.level === lvl && styles.pillTextActive]}>{lvl}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
                 </View>
               )}
 
-              <View style={styles.filterGroup}>
-                <Text style={styles.groupLabel}>Minimum rating</Text>
-                <View style={styles.rowChips}>
+              <View style={[styles.filterGroup, isSmallScreen && styles.filterGroupMobile]}>
+                <Text style={[styles.groupLabel, isSmallScreen && styles.groupLabelMobile]}>Minimum rating</Text>
+                <View style={[styles.rowChips, isSmallScreen && styles.rowChipsMobile]}>
                   {RATING_OPTIONS.map((r) => (
                     <TouchableOpacity
                       key={String(r.value)}
-                      style={[styles.pill, filters.minRating === r.value && styles.pillActive]}
+                      style={[styles.pill, isSmallScreen && styles.pillMobile, filters.minRating === r.value && styles.pillActive]}
                       onPress={() => setFilters((f) => ({ ...f, minRating: r.value }))}
                       testID={`rating-${r.value}`}
                     >
-                      <Text style={[styles.pillText, filters.minRating === r.value && styles.pillTextActive]}>
+                      <Text style={[styles.pillText, isSmallScreen && styles.pillTextMobile, filters.minRating === r.value && styles.pillTextActive]}>
                         {r.label}
                       </Text>
                     </TouchableOpacity>
@@ -895,37 +913,37 @@ export default function ExploreScreen() {
                 </View>
               </View>
 
-              <View style={styles.filterGroup}>
-                <Text style={styles.groupLabel}>Sort by</Text>
-                <View style={styles.rowChips}>
+              <View style={[styles.filterGroup, isSmallScreen && styles.filterGroupMobile]}>
+                <Text style={[styles.groupLabel, isSmallScreen && styles.groupLabelMobile]}>Sort by</Text>
+                <View style={[styles.rowChips, isSmallScreen && styles.rowChipsMobile]}>
                   {SORT_OPTIONS.map((s) => (
                     <TouchableOpacity
                       key={s}
-                      style={[styles.pill, filters.sortBy === s && styles.pillActive]}
+                      style={[styles.pill, isSmallScreen && styles.pillMobile, filters.sortBy === s && styles.pillActive]}
                       onPress={() => setFilters((f) => ({ ...f, sortBy: s }))}
                       testID={`sort-${s}`}
                     >
-                      <Text style={[styles.pillText, filters.sortBy === s && styles.pillTextActive]}>{s}</Text>
+                      <Text style={[styles.pillText, isSmallScreen && styles.pillTextMobile, filters.sortBy === s && styles.pillTextActive]}>{s}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
             </ScrollView>
 
-            <View style={styles.actionsRow}>
-              <TouchableOpacity style={styles.linkButton} onPress={clearAll} testID="clear-all">
-                <Text style={styles.linkButtonText}>Reset All</Text>
+            <View style={[styles.actionsRow, isSmallScreen && styles.actionsRowMobile]}>
+              <TouchableOpacity style={[styles.linkButton, isSmallScreen && styles.linkButtonMobile]} onPress={clearAll} testID="clear-all">
+                <Text style={[styles.linkButtonText, isSmallScreen && styles.linkButtonTextMobile]}>Reset All</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.applyButton} onPress={toggleFilters} testID="apply-filters">
-                <Text style={styles.applyButtonText}>Apply Filters</Text>
+              <TouchableOpacity style={[styles.applyButton, isSmallScreen && styles.applyButtonMobile]} onPress={toggleFilters} testID="apply-filters">
+                <Text style={[styles.applyButtonText, isSmallScreen && styles.applyButtonTextMobile]}>Apply Filters</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
         </Pressable>
       )}
 
-      <View style={[styles.resultsHeader, isSmallScreen && { paddingHorizontal: gridPadding }]}>
-        <Text style={styles.resultsText} testID="results-count">
+      <View style={[styles.resultsHeader, isSmallScreen && styles.resultsHeaderMobile, isSmallScreen && { paddingHorizontal: gridPadding }]}>
+        <Text style={[styles.resultsText, isSmallScreen && styles.resultsTextMobile]} testID="results-count">
           {resultsCount} {resultsCount === 1 ? 'result' : 'results'}
         </Text>
       </View>
@@ -938,10 +956,10 @@ export default function ExploreScreen() {
           data={filteredSkills}
           keyExtractor={(item) => item.id}
           renderItem={renderSkillCard}
-          contentContainerStyle={[styles.listContent, { paddingHorizontal: gridPadding }]}
+          contentContainerStyle={[styles.listContent, isSmallScreen && styles.listContentMobile, { paddingHorizontal: gridPadding }]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          ListEmptyComponent={<EmptyState text="No teachers match your filters." />}
+          ListEmptyComponent={<EmptyState text="No teachers match your filters." isSmallScreen={isSmallScreen} />}
         />
       )}
 
@@ -953,10 +971,10 @@ export default function ExploreScreen() {
           data={filteredLearners}
           keyExtractor={(item) => item.id}
           renderItem={renderLearnerCard}
-          contentContainerStyle={[styles.listContent, { paddingHorizontal: gridPadding }]}
+          contentContainerStyle={[styles.listContent, isSmallScreen && styles.listContentMobile, { paddingHorizontal: gridPadding }]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          ListEmptyComponent={<EmptyState text="No learners match your filters." />}
+          ListEmptyComponent={<EmptyState text="No learners match your filters." isSmallScreen={isSmallScreen} />}
         />
       )}
 
@@ -968,20 +986,20 @@ export default function ExploreScreen() {
           data={filteredSwappers}
           keyExtractor={(item) => item.id}
           renderItem={renderSwapperCard}
-          contentContainerStyle={[styles.listContent, { paddingHorizontal: gridPadding }]}
+          contentContainerStyle={[styles.listContent, isSmallScreen && styles.listContentMobile, { paddingHorizontal: gridPadding }]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          ListEmptyComponent={<EmptyState text="No swappers match your filters." />}
+          ListEmptyComponent={<EmptyState text="No swappers match your filters." isSmallScreen={isSmallScreen} />}
         />
       )}
     </View>
   );
 }
 
-function EmptyState({ text }: { text: string }) {
+function EmptyState({ text, isSmallScreen }: { text: string; isSmallScreen?: boolean }) {
   return (
-    <View style={styles.emptyWrap}>
-      <Text style={styles.emptyText}>{text}</Text>
+    <View style={[styles.emptyWrap, isSmallScreen && styles.emptyWrapMobile]}>
+      <Text style={[styles.emptyText, isSmallScreen && styles.emptyTextMobile]}>{text}</Text>
     </View>
   );
 }
@@ -1288,12 +1306,23 @@ const styles = StyleSheet.create({
   categoryLabelCompact: {
     fontSize: 10,
     letterSpacing: 0.5,
+    flexWrap: 'wrap',
+  },
+  skillHeaderCompact: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 4,
+    marginBottom: 6,
   },
   skillBadges: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     flexShrink: 0,
+  },
+  skillBadgesCompact: {
+    flexWrap: 'wrap',
+    gap: 4,
   },
   levelBadge: {
     backgroundColor: Colors.light.backgroundTertiary,
@@ -1346,9 +1375,10 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   skillTitleCompact: {
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 13.5,
+    lineHeight: 18,
     marginBottom: 4,
+    flexWrap: 'wrap',
   },
   skillDescription: {
     fontSize: 14,
@@ -1357,14 +1387,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   skillDescriptionCompact: {
-    fontSize: 12.5,
-    lineHeight: 17,
+    fontSize: 12,
+    lineHeight: 16,
     marginBottom: 8,
+    flexWrap: 'wrap',
   },
   skillFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  skillFooterCompact: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 'auto',
   },
   userInfo: {
     flexDirection: 'row',
@@ -1374,6 +1411,7 @@ const styles = StyleSheet.create({
   },
   userInfoCompact: {
     gap: 8,
+    width: '100%',
   },
   userAvatar: {
     width: 44,
@@ -1383,14 +1421,17 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.border,
   },
   userAvatarCompact: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 1.5,
   },
   userDetails: {
     flex: 1,
     gap: 2,
+  },
+  userDetailsCompact: {
+    flex: 1,
   },
   userName: {
     fontSize: 15,
@@ -1398,13 +1439,20 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   userNameCompact: {
-    fontSize: 13,
+    fontSize: 12,
+    flexWrap: 'wrap',
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     flexWrap: 'wrap' as const,
+  },
+  ratingRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap' as const,
+    gap: 4,
   },
   ratingText: {
     fontSize: 13,
@@ -1562,6 +1610,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  personHeaderGridMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 5,
+  },
+  personAvatarNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+  },
+  personAvatarNameRowMobile: {
+    gap: 6,
+  },
+  personMetaRowMobile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 4,
+  },
   personAvatarCompact: {
     width: 42,
     height: 42,
@@ -1573,21 +1642,28 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  personInfoMobile: {
+    flex: 1,
+    gap: 1,
+  },
   personNameCompact: {
     fontSize: 14,
     fontWeight: '700' as const,
     color: Colors.light.text,
+    flexWrap: 'wrap',
   },
   personLocationRowCompact: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
+    flexShrink: 1,
   },
   personLocationCompact: {
     fontSize: 11,
     color: Colors.light.textTertiary,
     fontWeight: '500' as const,
-    flex: 1,
+    flexShrink: 1,
+    flexWrap: 'wrap',
   },
   ratingPillCompact: {
     flexDirection: 'row',
@@ -1633,7 +1709,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600' as const,
     color: '#6366F1',
-    flexShrink: 1,
+    flexWrap: 'wrap',
   },
   teachChipCompact: {
     backgroundColor: 'rgba(16, 185, 129, 0.10)',
@@ -1648,7 +1724,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600' as const,
     color: '#10B981',
-    flexShrink: 1,
+    flexWrap: 'wrap',
   },
   swapSectionVertical: {
     gap: 8,
@@ -1669,6 +1745,7 @@ const styles = StyleSheet.create({
     color: Colors.light.textTertiary,
     fontWeight: '500' as const,
     marginTop: 2,
+    flexWrap: 'wrap',
   },
   emptyWrap: {
     paddingVertical: 60,
@@ -1684,6 +1761,8 @@ const styles = StyleSheet.create({
   },
   skillContentMobile: {
     padding: 10,
+    flex: 1,
+    justifyContent: 'space-between',
   },
   personCardMobile: {
     borderRadius: 14,
@@ -1693,15 +1772,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   personAvatarMobile: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   personNameMobile: {
-    fontSize: 12.5,
+    fontSize: 12,
+    flexWrap: 'wrap',
   },
   personLocationMobile: {
     fontSize: 10,
+    flexWrap: 'wrap',
   },
   ratingPillMobile: {
     paddingHorizontal: 4,
@@ -1721,6 +1802,7 @@ const styles = StyleSheet.create({
   },
   wantChipTextMobile: {
     fontSize: 9.5,
+    flexWrap: 'wrap',
   },
   teachChipMobile: {
     paddingHorizontal: 6,
@@ -1729,11 +1811,139 @@ const styles = StyleSheet.create({
   },
   teachChipTextMobile: {
     fontSize: 9.5,
+    flexWrap: 'wrap',
   },
   swapHalfLabelMobile: {
     fontSize: 9,
   },
   personSwapsMobile: {
     fontSize: 10,
+    flexWrap: 'wrap',
+  },
+  searchSectionMobile: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  searchBarMobile: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    gap: 6,
+  },
+  searchInputMobile: {
+    fontSize: 13,
+  },
+  filterButtonMobile: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+  },
+  roleTabsRowMobile: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  roleTabMobile: {
+    paddingVertical: 7,
+    borderRadius: 10,
+    gap: 4,
+  },
+  roleTabTextMobile: {
+    fontSize: 11.5,
+  },
+  exploreCategoriesBarMobile: {
+    paddingBottom: 6,
+  },
+  exploreCategoriesScrollMobile: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  exploreCategoryChipMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    marginRight: 6,
+  },
+  exploreCategoryTextMobile: {
+    fontSize: 11,
+  },
+  exploreSubcategoriesScrollMobile: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 2,
+  },
+  exploreSubcategoryChipMobile: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginRight: 5,
+  },
+  exploreSubcategoryTextMobile: {
+    fontSize: 10.5,
+  },
+  resultsHeaderMobile: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  resultsTextMobile: {
+    fontSize: 11.5,
+  },
+  listContentMobile: {
+    paddingBottom: 20,
+  },
+  filtersCardMobile: {
+    padding: 14,
+    borderRadius: 16,
+    marginHorizontal: 12,
+  },
+  filtersHeaderMobile: {
+    marginBottom: 10,
+  },
+  filtersTitleMobile: {
+    fontSize: 15,
+  },
+  filterGroupMobile: {
+    marginBottom: 12,
+  },
+  groupLabelMobile: {
+    fontSize: 11.5,
+    marginBottom: 6,
+  },
+  rowChipsMobile: {
+    gap: 6,
+  },
+  pillMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  pillTextMobile: {
+    fontSize: 11,
+  },
+  actionsRowMobile: {
+    marginTop: 8,
+    paddingTop: 10,
+    gap: 8,
+  },
+  linkButtonMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  linkButtonTextMobile: {
+    fontSize: 12,
+  },
+  applyButtonMobile: {
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  applyButtonTextMobile: {
+    fontSize: 13,
+  },
+  emptyWrapMobile: {
+    paddingVertical: 30,
+  },
+  emptyTextMobile: {
+    fontSize: 12,
   },
 });

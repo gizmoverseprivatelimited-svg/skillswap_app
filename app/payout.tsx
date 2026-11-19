@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, useWindowDimensions } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import { useSafeTopInset } from '@/lib/safeArea';
 import { ArrowLeft, Coins, Wallet, Building2, Smartphone, Globe, Check } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import Colors from '@/constants/colors';
@@ -21,6 +22,9 @@ const METHODS: { id: Method; label: string; icon: typeof Wallet; rate: string; d
 
 export default function PayoutScreen() {
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const safeTop = useSafeTopInset(isSmallScreen ? 8 : 14);
   const { currentUser } = useCurrentUser();
   const { getSummary, creditsToRupees, requestPayout, minPayoutCredits } = useEarnings();
   const { showAlert } = useAlert();
@@ -92,58 +96,58 @@ export default function PayoutScreen() {
   return (
     <View style={s.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <ArrowLeft size={22} color="#FFFFFF" />
+      <View style={[s.header, isSmallScreen && s.headerMobile, { paddingTop: safeTop }]}>
+        <TouchableOpacity onPress={() => router.back()} style={[s.backBtn, isSmallScreen && s.backBtnMobile]}>
+          <ArrowLeft size={isSmallScreen ? 18 : 22} color={Colors.light.text} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Redeem Credits</Text>
-        <View style={{ width: 44 }} />
+        <Text style={[s.headerTitle, isSmallScreen && s.headerTitleMobile]}>Redeem Credits</Text>
+        <View style={{ width: isSmallScreen ? 34 : 44 }} />
       </View>
 
       <ScrollView style={s.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-        <View style={s.balanceCard}>
-          <Coins size={24} color="#6366F1" />
+        <View style={[s.balanceCard, isSmallScreen && s.balanceCardMobile]}>
+          <Coins size={isSmallScreen ? 20 : 24} color="#6366F1" />
           <View style={{ flex: 1 }}>
-            <Text style={s.balanceLabel}>Available Balance</Text>
-            <Text style={s.balanceValue}>{summary.availablePoints.toLocaleString()} credits</Text>
-            <Text style={s.balanceCurrency}>≈ {formatPrice(creditsToRupees(summary.availablePoints, selectedMethod))}</Text>
+            <Text style={[s.balanceLabel, isSmallScreen && s.balanceLabelMobile]}>Available Balance</Text>
+            <Text style={[s.balanceValue, isSmallScreen && s.balanceValueMobile]}>{summary.availablePoints.toLocaleString()} credits</Text>
+            <Text style={[s.balanceCurrency, isSmallScreen && s.balanceCurrencyMobile]}>≈ {formatPrice(creditsToRupees(summary.availablePoints, selectedMethod))}</Text>
           </View>
         </View>
 
-        <Text style={s.label}>Select Payout Method</Text>
-        <View style={s.methodsList}>
+        <Text style={[s.label, isSmallScreen && s.labelMobile]}>Select Payout Method</Text>
+        <View style={[s.methodsList, isSmallScreen && s.methodsListMobile]}>
           {METHODS.map((m) => {
             const active = selectedMethod === m.id;
             return (
               <TouchableOpacity
                 key={m.id}
-                style={[s.methodCard, active && s.methodCardActive]}
+                style={[s.methodCard, isSmallScreen && s.methodCardMobile, active && s.methodCardActive]}
                 onPress={() => setSelectedMethod(m.id)}
                 activeOpacity={0.7}
               >
-                <View style={[s.methodIcon, { backgroundColor: active ? Colors.light.primaryLight : Colors.light.backgroundTertiary }]}>
-                  <m.icon size={20} color={active ? Colors.light.primary : Colors.light.textSecondary} />
+                <View style={[s.methodIcon, isSmallScreen && s.methodIconMobile, { backgroundColor: active ? Colors.light.primaryLight : Colors.light.backgroundTertiary }]}>
+                  <m.icon size={isSmallScreen ? 16 : 20} color={active ? Colors.light.primary : Colors.light.textSecondary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={[s.methodLabel, active && s.methodLabelActive]}>{m.label}</Text>
-                    <View style={{ backgroundColor: active ? Colors.light.primary : '#E2E8F0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: active ? '#FFFFFF' : '#475569' }}>{m.rate}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <Text style={[s.methodLabel, isSmallScreen && s.methodLabelMobile, active && s.methodLabelActive]}>{m.label}</Text>
+                    <View style={{ backgroundColor: active ? Colors.light.primary : '#E2E8F0', paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 5 }}>
+                      <Text style={{ fontSize: isSmallScreen ? 9.5 : 11, fontWeight: '700', color: active ? '#FFFFFF' : '#475569' }}>{m.rate}</Text>
                     </View>
                   </View>
-                  <Text style={s.methodDesc}>{m.desc} • <Text style={{ fontWeight: '600' }}>{m.notes}</Text></Text>
+                  <Text style={[s.methodDesc, isSmallScreen && s.methodDescMobile]}>{m.desc} • <Text style={{ fontWeight: '600' }}>{m.notes}</Text></Text>
                 </View>
-                {active && <Check size={20} color={Colors.light.primary} />}
+                {active && <Check size={isSmallScreen ? 16 : 20} color={Colors.light.primary} />}
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <Text style={s.label}>Credits to Redeem (Min. {minCredits} credits)</Text>
-        <View style={s.inputWrap}>
-          <Coins size={18} color={Colors.light.textSecondary} />
+        <Text style={[s.label, isSmallScreen && s.labelMobile]}>Credits to Redeem (Min. {minCredits} credits)</Text>
+        <View style={[s.inputWrap, isSmallScreen && s.inputWrapMobile]}>
+          <Coins size={isSmallScreen ? 15 : 18} color={Colors.light.textSecondary} />
           <TextInput
-            style={s.input}
+            style={[s.input, isSmallScreen && s.inputMobile]}
             value={pointsInput}
             onChangeText={setPointsInput}
             placeholder="Enter credit amount"
@@ -151,81 +155,81 @@ export default function PayoutScreen() {
             keyboardType="numeric"
           />
           <TouchableOpacity onPress={() => setPointsInput(String(summary.availablePoints))}>
-            <Text style={s.maxBtn}>MAX</Text>
+            <Text style={[s.maxBtn, isSmallScreen && s.maxBtnMobile]}>MAX</Text>
           </TouchableOpacity>
         </View>
         {requestedPoints > 0 && (
-          <View style={s.previewCard}>
-            <Text style={s.previewLabel}>You'll receive</Text>
-            <Text style={s.previewValue}>{formatPrice(creditsToRupees(requestedPoints, selectedMethod))}</Text>
+          <View style={[s.previewCard, isSmallScreen && s.previewCardMobile]}>
+            <Text style={[s.previewLabel, isSmallScreen && s.previewLabelMobile]}>You'll receive</Text>
+            <Text style={[s.previewValue, isSmallScreen && s.previewValueMobile]}>{formatPrice(creditsToRupees(requestedPoints, selectedMethod))}</Text>
           </View>
         )}
 
         {selectedMethod === 'upi' && (
           <>
-            <Text style={s.label}>UPI ID</Text>
-            <View style={s.inputWrap}>
-              <TextInput style={s.input} value={upiId} onChangeText={setUpiId} placeholder="yourname@upi" placeholderTextColor={Colors.light.textTertiary} autoCapitalize="none" />
+            <Text style={[s.label, isSmallScreen && s.labelMobile]}>UPI ID</Text>
+            <View style={[s.inputWrap, isSmallScreen && s.inputWrapMobile]}>
+              <TextInput style={[s.input, isSmallScreen && s.inputMobile]} value={upiId} onChangeText={setUpiId} placeholder="yourname@upi" placeholderTextColor={Colors.light.textTertiary} autoCapitalize="none" />
             </View>
           </>
         )}
 
         {selectedMethod === 'bank_transfer' && (
           <>
-            <Text style={s.label}>Account Holder Name</Text>
-            <View style={s.inputWrap}>
-              <TextInput style={s.input} value={accountName} onChangeText={setAccountName} placeholder="Full name" placeholderTextColor={Colors.light.textTertiary} />
+            <Text style={[s.label, isSmallScreen && s.labelMobile]}>Account Holder Name</Text>
+            <View style={[s.inputWrap, isSmallScreen && s.inputWrapMobile]}>
+              <TextInput style={[s.input, isSmallScreen && s.inputMobile]} value={accountName} onChangeText={setAccountName} placeholder="Full name" placeholderTextColor={Colors.light.textTertiary} />
             </View>
-            <Text style={s.label}>Account Number</Text>
-            <View style={s.inputWrap}>
-              <TextInput style={s.input} value={accountNumber} onChangeText={setAccountNumber} placeholder="Bank account number" placeholderTextColor={Colors.light.textTertiary} keyboardType="numeric" />
+            <Text style={[s.label, isSmallScreen && s.labelMobile]}>Account Number</Text>
+            <View style={[s.inputWrap, isSmallScreen && s.inputWrapMobile]}>
+              <TextInput style={[s.input, isSmallScreen && s.inputMobile]} value={accountNumber} onChangeText={setAccountNumber} placeholder="Bank account number" placeholderTextColor={Colors.light.textTertiary} keyboardType="numeric" />
             </View>
-            <Text style={s.label}>IFSC Code</Text>
-            <View style={s.inputWrap}>
-              <TextInput style={s.input} value={ifscCode} onChangeText={setIfscCode} placeholder="e.g. HDFC0001234" placeholderTextColor={Colors.light.textTertiary} autoCapitalize="characters" />
+            <Text style={[s.label, isSmallScreen && s.labelMobile]}>IFSC Code</Text>
+            <View style={[s.inputWrap, isSmallScreen && s.inputWrapMobile]}>
+              <TextInput style={[s.input, isSmallScreen && s.inputMobile]} value={ifscCode} onChangeText={setIfscCode} placeholder="e.g. HDFC0001234" placeholderTextColor={Colors.light.textTertiary} autoCapitalize="characters" />
             </View>
           </>
         )}
 
         {selectedMethod === 'paypal' && (
           <>
-            <Text style={s.label}>PayPal Email</Text>
-            <View style={s.inputWrap}>
-              <TextInput style={s.input} value={paypalEmail} onChangeText={setPaypalEmail} placeholder="you@email.com" placeholderTextColor={Colors.light.textTertiary} autoCapitalize="none" keyboardType="email-address" />
+            <Text style={[s.label, isSmallScreen && s.labelMobile]}>PayPal Email</Text>
+            <View style={[s.inputWrap, isSmallScreen && s.inputWrapMobile]}>
+              <TextInput style={[s.input, isSmallScreen && s.inputMobile]} value={paypalEmail} onChangeText={setPaypalEmail} placeholder="you@email.com" placeholderTextColor={Colors.light.textTertiary} autoCapitalize="none" keyboardType="email-address" />
             </View>
           </>
         )}
 
         <TouchableOpacity
-          style={[s.submitBtn, !isValid && { opacity: 0.5 }]}
+          style={[s.submitBtn, isSmallScreen && s.submitBtnMobile, !isValid && { opacity: 0.5 }]}
           onPress={handleSubmit}
           disabled={!isValid}
           activeOpacity={0.85}
         >
-          <Text style={s.submitBtnText}>Submit Payout Request</Text>
+          <Text style={[s.submitBtnText, isSmallScreen && s.submitBtnTextMobile]}>Submit Payout Request</Text>
         </TouchableOpacity>
 
-        <View style={s.noteCard}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.text, marginBottom: 8 }}>Payout Rates & Rules</Text>
-          <View style={{ gap: 6 }}>
+        <View style={[s.noteCard, isSmallScreen && s.noteCardMobile]}>
+          <Text style={{ fontSize: isSmallScreen ? 12.5 : 14, fontWeight: '700', color: Colors.light.text, marginBottom: 6 }}>Payout Rates & Rules</Text>
+          <View style={{ gap: isSmallScreen ? 4 : 6 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={s.noteText}>• Store Credit:</Text>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>₹1.00/credit (Instant, no fee)</Text>
+              <Text style={[s.noteText, isSmallScreen && s.noteTextMobile]}>• Store Credit:</Text>
+              <Text style={{ fontSize: isSmallScreen ? 10.5 : 12, fontWeight: '700', color: '#10B981' }}>₹1.00/credit (Instant, no fee)</Text>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={s.noteText}>• UPI Transfer:</Text>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: Colors.light.text }}>₹0.80/credit (3-5 business days)</Text>
+              <Text style={[s.noteText, isSmallScreen && s.noteTextMobile]}>• UPI Transfer:</Text>
+              <Text style={{ fontSize: isSmallScreen ? 10.5 : 12, fontWeight: '700', color: Colors.light.text }}>₹0.80/credit (3-5 business days)</Text>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={s.noteText}>• Bank Transfer:</Text>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: Colors.light.text }}>₹0.80/credit (3-5 business days)</Text>
+              <Text style={[s.noteText, isSmallScreen && s.noteTextMobile]}>• Bank Transfer:</Text>
+              <Text style={{ fontSize: isSmallScreen ? 10.5 : 12, fontWeight: '700', color: Colors.light.text }}>₹0.80/credit (3-5 business days)</Text>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={s.noteText}>• PayPal:</Text>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: Colors.light.text }}>₹0.75/credit (International fee)</Text>
+              <Text style={[s.noteText, isSmallScreen && s.noteTextMobile]}>• PayPal:</Text>
+              <Text style={{ fontSize: isSmallScreen ? 10.5 : 12, fontWeight: '700', color: Colors.light.text }}>₹0.75/credit (International fee)</Text>
             </View>
             <View style={{ height: 1, backgroundColor: Colors.light.borderLight, marginVertical: 4 }} />
-            <Text style={{ fontSize: 12, color: Colors.light.textSecondary, fontWeight: '600' }}>
+            <Text style={{ fontSize: isSmallScreen ? 10.5 : 12, color: Colors.light.textSecondary, fontWeight: '600' }}>
               • Minimum payout requirement: {minCredits} credits (₹{creditsToRupees(minCredits, selectedMethod).toFixed(2)} value)
             </Text>
           </View>
@@ -263,4 +267,27 @@ const s = StyleSheet.create({
   submitBtnText: { fontSize: 16, fontWeight: '700' as const, color: '#FFFFFF' },
   noteCard: { marginHorizontal: 20, marginTop: 16, backgroundColor: Colors.light.backgroundTertiary, borderRadius: 12, padding: 14 },
   noteText: { fontSize: 12, color: Colors.light.textSecondary, lineHeight: 20 },
+  headerMobile: { paddingHorizontal: 12, paddingVertical: 10 },
+  backBtnMobile: { width: 34, height: 34, borderRadius: 17 },
+  headerTitleMobile: { fontSize: 16 },
+  balanceCardMobile: { margin: 12, padding: 12, borderRadius: 14, gap: 10 },
+  balanceLabelMobile: { fontSize: 11, marginBottom: 2 },
+  balanceValueMobile: { fontSize: 18, marginBottom: 1 },
+  balanceCurrencyMobile: { fontSize: 11.5 },
+  labelMobile: { fontSize: 12.5, marginBottom: 6, marginTop: 4, paddingHorizontal: 12 },
+  methodsListMobile: { paddingHorizontal: 12, gap: 8, marginBottom: 8 },
+  methodCardMobile: { padding: 10, borderRadius: 10, gap: 8 },
+  methodIconMobile: { width: 34, height: 34, borderRadius: 10 },
+  methodLabelMobile: { fontSize: 13, marginBottom: 1 },
+  methodDescMobile: { fontSize: 10.5 },
+  inputWrapMobile: { marginHorizontal: 12, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, marginBottom: 8 },
+  inputMobile: { fontSize: 13 },
+  maxBtnMobile: { fontSize: 11.5 },
+  previewCardMobile: { marginHorizontal: 12, padding: 10, borderRadius: 10, marginBottom: 12 },
+  previewLabelMobile: { fontSize: 12 },
+  previewValueMobile: { fontSize: 16 },
+  submitBtnMobile: { marginHorizontal: 12, marginTop: 8, paddingVertical: 12, borderRadius: 12 },
+  submitBtnTextMobile: { fontSize: 13.5 },
+  noteCardMobile: { marginHorizontal: 12, marginTop: 12, padding: 10, borderRadius: 10 },
+  noteTextMobile: { fontSize: 10.5, lineHeight: 16 },
 });

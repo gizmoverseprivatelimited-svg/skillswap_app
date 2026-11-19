@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { BellRing, CalendarClock, Sparkles, Repeat, Video } from 'lucide-react-native';
 import Colors from '../constants/colors';
 import type { NotificationItem } from '../providers/notifications';
@@ -11,6 +11,8 @@ interface NotificationCardProps {
 }
 
 const NotificationCardComponent = ({ notification, onPress, testID }: NotificationCardProps) => {
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 600;
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(12)).current;
 
@@ -50,25 +52,25 @@ const NotificationCardComponent = ({ notification, onPress, testID }: Notificati
     >
       <Pressable
         onPress={() => onPress(notification)}
-        style={[styles.card, !notification.read ? [styles.cardUnread, { borderColor: accent }] : styles.cardRead]}
+        style={[styles.card, isSmallScreen && styles.cardMobile, !notification.read ? [styles.cardUnread, { borderColor: accent }] : styles.cardRead]}
         android_ripple={{ color: Colors.light.backgroundTertiary }}
         testID={testID}
       >
         <View
-          style={[styles.iconBadge, { backgroundColor: `${accent}20` }]}
+          style={[styles.iconBadge, isSmallScreen && styles.iconBadgeMobile, { backgroundColor: `${accent}20` }]}
           testID={testID ? `${testID}-icon` : undefined}
         >
-          <IconComponent size={20} color={accent} />
+          <IconComponent size={isSmallScreen ? 16 : 20} color={accent} />
         </View>
         <View style={styles.content}>
           <View style={styles.titleRow}>
-            <Text style={styles.title}>{notification.title}</Text>
-            {!notification.read && <View style={styles.unreadDot} testID={testID ? `${testID}-unread` : undefined} />}
+            <Text style={[styles.title, isSmallScreen && styles.titleMobile]}>{notification.title}</Text>
+            {!notification.read && <View style={[styles.unreadDot, isSmallScreen && styles.unreadDotMobile]} testID={testID ? `${testID}-unread` : undefined} />}
           </View>
-          <Text style={styles.body} numberOfLines={2}>
+          <Text style={[styles.body, isSmallScreen && styles.bodyMobile]}>
             {notification.body}
           </Text>
-          <Text style={styles.timestamp}>{formatTimestamp(notification.createdAt)}</Text>
+          <Text style={[styles.timestamp, isSmallScreen && styles.timestampMobile]}>{formatTimestamp(notification.createdAt)}</Text>
         </View>
       </Pressable>
     </Animated.View>
@@ -160,6 +162,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.light.textTertiary,
     fontWeight: '600' as const,
+  },
+  cardMobile: {
+    padding: 11,
+    borderRadius: 14,
+    gap: 10,
+  },
+  iconBadgeMobile: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+  },
+  titleMobile: {
+    fontSize: 13,
+    marginRight: 8,
+  },
+  unreadDotMobile: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  bodyMobile: {
+    fontSize: 11.5,
+    lineHeight: 16,
+  },
+  timestampMobile: {
+    fontSize: 10,
   },
 });
 

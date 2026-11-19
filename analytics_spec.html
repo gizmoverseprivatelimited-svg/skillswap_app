@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Leteski - Firebase Analytics Events Specification</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 14mm 14mm 14mm 14mm;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #1e293b;
+      background-color: #ffffff;
+      font-size: 11pt;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    .header-banner {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #312e81 100%);
+      color: #ffffff;
+      padding: 24px 28px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+      position: relative;
+    }
+    .header-pill {
+      display: inline-block;
+      background: rgba(99, 102, 241, 0.3);
+      border: 1px solid rgba(165, 180, 252, 0.4);
+      color: #e0e7ff;
+      padding: 4px 12px;
+      font-size: 8.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      border-radius: 20px;
+      margin-bottom: 10px;
+    }
+    .header-title {
+      font-size: 20pt;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+      color: #ffffff;
+    }
+    .header-subtitle {
+      font-size: 10pt;
+      color: #cbd5e1;
+      max-width: 85%;
+      margin-bottom: 16px;
+    }
+    .meta-badges {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .meta-badge {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 8.5pt;
+      color: #f1f5f9;
+      font-weight: 500;
+    }
+
+    .section-title {
+      font-size: 13.5pt;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 22px 0 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 2px solid #f1f5f9;
+      padding-bottom: 6px;
+    }
+    .section-icon {
+      font-size: 13pt;
+    }
+
+    /* Table styling */
+    .table-container {
+      margin-bottom: 24px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9.5pt;
+      background: #ffffff;
+    }
+    th {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 7.8pt;
+      letter-spacing: 0.6px;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    td {
+      padding: 11px 14px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:nth-child(even) td {
+      background: #fafafa;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 2.5px 8px;
+      border-radius: 5px;
+      font-size: 8pt;
+      font-weight: 600;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .badge-event {
+      background: #e0e7ff;
+      color: #3730a3;
+      border: 1px solid #c7d2fe;
+    }
+    .badge-type {
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 7.5pt;
+    }
+    .badge-purchase {
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+    .badge-swap {
+      background: #fffbe9;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+    .badge-screen {
+      background: #f0f9ff;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+    }
+    .badge-auth {
+      background: #fdf2f8;
+      color: #831843;
+      border: 1px solid #fbcfe8;
+    }
+
+    .param-list {
+      list-style: none;
+    }
+    .param-list li {
+      margin-bottom: 3px;
+    }
+    .param-name {
+      font-weight: 600;
+      color: #0f172a;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+    .param-type {
+      color: #64748b;
+      font-size: 8pt;
+    }
+
+    /* Event Card */
+    .event-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 14px;
+      page-break-inside: avoid;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .card-title {
+      font-size: 11.5pt;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-desc {
+      font-size: 9.5pt;
+      color: #475569;
+      margin-bottom: 10px;
+    }
+    .file-ref {
+      font-size: 8pt;
+      color: #6366f1;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      background: #f8fafc;
+      padding: 3px 8px;
+      border-radius: 5px;
+      border: 1px solid #e2e8f0;
+      display: inline-block;
+      margin-bottom: 10px;
+    }
+
+    /* Mini table inside cards */
+    .mini-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 10px 0;
+      font-size: 8.8pt;
+    }
+    .mini-table th {
+      background: #f1f5f9;
+      color: #334155;
+      padding: 5px 8px;
+      font-size: 7.2pt;
+    }
+    .mini-table td {
+      padding: 5px 8px;
+      border-bottom: 1px solid #f1f5f9;
+      background: #ffffff !important;
+    }
+
+    /* Code block */
+    .code-box {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 8.5pt;
+      line-height: 1.45;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .code-keyword { color: #c084fc; font-weight: 600; }
+    .code-function { color: #60a5fa; }
+    .code-string { color: #34d399; }
+    .code-comment { color: #64748b; font-style: italic; }
+    .code-prop { color: #f59e0b; }
+
+    .page-break {
+      page-break-before: always;
+    }
+
+    .footer {
+      margin-top: 30px;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      color: #94a3b8;
+      font-size: 8pt;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER BANNER -->
+  <div class="header-banner">
+    <div class="header-pill">Leteski App • Production Specification</div>
+    <div class="header-title">Firebase Analytics Events & Tracking</div>
+    <div class="header-subtitle">Official instrumentation reference for screen views, user auth, course interactions, skill swaps, and credit transactions.</div>
+    <div class="meta-badges">
+      <div class="meta-badge">SDK: @react-native-firebase/analytics@26.4.0</div>
+      <div class="meta-badge">Platform: Android &amp; iOS</div>
+      <div class="meta-badge">App ID: com.leteski_community</div>
+      <div class="meta-badge">Status: Fully Verified &amp; Active</div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: MASTER SUMMARY TABLE -->
+  <div class="section-title">
+    <span class="section-icon">📑</span> 1. Analytics Events &amp; Screen Tracking Table
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 22%;">Event Name</th>
+          <th style="width: 26%;">Trigger Point</th>
+          <th style="width: 30%;">Parameters &amp; Types</th>
+          <th style="width: 22%;">Target File</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-screen">screen_view</span></td>
+          <td>React Navigation / Expo Router screen transitions (via <code>routeNameRef</code>)</td>
+          <td>
+            <ul class="param-list">
+              <li><span class="param-name">screen_name</span> <span class="param-type">(string)</span></li>
+              <li><span class="param-name">screen_class</span> <span class="param-type">(string)</span></li>
+            </ul>
+          </td>
+          <td><code>app/_layout.tsx</code></td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-auth">sign_up</span></td>
+          <td>New account registration (Email, Google OAuth, OTP)</td>
+          <td>
+            <ul class="param-list">
+              <li><span class="param-name">method</span> <span class="param-type">(string)</span> <br><small>email | google | otp</small></li>
+            </ul>
+          </td>
+          <td><code>providers/auth.tsx</code></td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-auth">login</span></td>
+          <td>Existing user sign-in (Email, Google OAuth, OTP)</td>
+          <td>
+            <ul class="param-list">
+              <li><span class="param-name">method</span> <span class="param-type">(string)</span> <br><small>email | google | otp</small></li>
+            </ul>
+          </td>
+          <td><code>providers/auth.tsx</code></td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-event">course_view</span></td>
+          <td>User opens class/course detail screen</td>
+          <td>
+            <ul class="param-list">
+              <li><span class="param-name">course_id</span> <span class="param-type">(string)</span></li>
+              <li><span class="param-name">course_name</span> <span class="param-type">(string)</span></li>
+            </ul>
+          </td>
+          <td><code>app/class/[id].tsx</code></td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-purchase">course_purchase</span></td>
+          <td>User enrolls in / purchases class</td>
+          <td>
+            <ul class="param-list">
+              <li><span class="param-name">course_id</span> <span class="param-type">(string)</span></li>
+              <li><span class="param-name">value</span> <span class="param-type">(number - credits)</span></li>
+              <li><span class="param-name">currency</span> <span class="param-type">('INR')</span></li>
+            </ul>
+          </td>
+          <td><code>providers/classes.tsx</code></td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-swap">skill_swap_request</span></td>
+          <td>User sends a swap or session request</td>
+          <td>
+            <ul class="param-list">
+              <li><span class="param-name">skill_offered</span> <span class="param-type">(string)</span></li>
+              <li><span class="param-name">skill_wanted</span> <span class="param-type">(string)</span></li>
+            </ul>
+          </td>
+          <td><code>components/SkillSwapRequestModal.tsx</code></td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-type">sign_out</span></td>
+          <td>User logs out (Resets User ID)</td>
+          <td>
+            <span class="param-type">No parameters (Clears setUserId)</span>
+          </td>
+          <td><code>providers/auth.tsx</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SECTION 2: DETAILED EVENT SPECIFICATIONS -->
+  <div class="section-title">
+    <span class="section-icon">🔍</span> 2. Detailed Event Specifications &amp; Code
+  </div>
+
+  <!-- CARD 1: SCREEN VIEW -->
+  <div class="event-card">
+    <div class="card-top">
+      <div class="card-title">
+        <span class="badge badge-screen">1. Screen View</span>
+        <span>Automatic Navigation Tracking</span>
+      </div>
+      <span class="file-ref">app/_layout.tsx</span>
+    </div>
+    <div class="card-desc">Tracks screen navigation changes seamlessly using Expo Router paths, matching official React Native Firebase recommendations with a route name ref to avoid redundant events.</div>
+    <table class="mini-table">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Required</th>
+          <th>Description</th>
+          <th>Sample Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>screen_name</code></td>
+          <td>string</td>
+          <td>Yes</td>
+          <td>Current route pathname</td>
+          <td><code>"Home"</code>, <code>"(tabs)/home"</code>, <code>"class/102"</code></td>
+        </tr>
+        <tr>
+          <td><code>screen_class</code></td>
+          <td>string</td>
+          <td>Optional</td>
+          <td>Screen class or category</td>
+          <td><code>"Home"</code>, <code>"class/[id]"</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="code-box">
+<span class="code-comment">// Automatic Screen View in Root Layout Nav</span>
+<span class="code-keyword">const</span> routeNameRef = React.<span class="code-function">useRef</span>&lt;<span class="code-keyword">string</span> | <span class="code-keyword">null</span>&gt;(<span class="code-keyword">null</span>);
+<span class="code-function">useEffect</span>(() =&gt; {
+  <span class="code-keyword">const</span> currentRouteName = pathname || (segments.length &gt; 0 ? segments.<span class="code-function">join</span>(<span class="code-string">'/'</span>) : <span class="code-string">'Home'</span>);
+  <span class="code-keyword">if</span> (routeNameRef.current !== currentRouteName) {
+    routeNameRef.current = currentRouteName;
+    <span class="code-function">logScreenView</span>(currentRouteName);
+  }
+}, [pathname, segments]);
+    </div>
+  </div>
+
+  <!-- CARD 2: SIGN UP -->
+  <div class="event-card">
+    <div class="card-top">
+      <div class="card-title">
+        <span class="badge badge-auth">2. sign_up</span>
+        <span>User Registration</span>
+      </div>
+      <span class="file-ref">providers/auth.tsx</span>
+    </div>
+    <div class="card-desc">Logged immediately after a new user account is successfully provisioned via email, Google OAuth, or phone OTP.</div>
+    <table class="mini-table">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Required</th>
+          <th>Description</th>
+          <th>Sample Values</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>method</code></td>
+          <td>string</td>
+          <td>Yes</td>
+          <td>Registration provider used</td>
+          <td><code>"email"</code>, <code>"google"</code>, <code>"otp"</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="code-box">
+<span class="code-comment">// Logged in signUp / OAuth registration</span>
+<span class="code-keyword">await</span> <span class="code-function">analytics</span>().<span class="code-function">logSignUp</span>({ <span class="code-prop">method</span>: <span class="code-string">'email'</span> });
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- CARD 3: LOGIN -->
+  <div class="event-card">
+    <div class="card-top">
+      <div class="card-title">
+        <span class="badge badge-auth">3. login</span>
+        <span>User Authentication</span>
+      </div>
+      <span class="file-ref">providers/auth.tsx</span>
+    </div>
+    <div class="card-desc">Fired when an existing user authenticates into the application.</div>
+    <table class="mini-table">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Required</th>
+          <th>Description</th>
+          <th>Sample Values</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>method</code></td>
+          <td>string</td>
+          <td>Yes</td>
+          <td>Authentication mechanism</td>
+          <td><code>"email"</code>, <code>"google"</code>, <code>"otp"</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="code-box">
+<span class="code-comment">// Logged in signIn / signInWithOAuth / signInWithOtp</span>
+<span class="code-keyword">await</span> <span class="code-function">analytics</span>().<span class="code-function">logLogin</span>({ <span class="code-prop">method</span>: <span class="code-string">'google'</span> });
+    </div>
+  </div>
+
+  <!-- CARD 4: COURSE VIEW -->
+  <div class="event-card">
+    <div class="card-top">
+      <div class="card-title">
+        <span class="badge badge-event">4. course_view</span>
+        <span>Course / Class Page View</span>
+      </div>
+      <span class="file-ref">app/class/[id].tsx</span>
+    </div>
+    <div class="card-desc">Fires automatically when a user opens and views any class or course detail page.</div>
+    <table class="mini-table">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Required</th>
+          <th>Description</th>
+          <th>Sample Values</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>course_id</code></td>
+          <td>string</td>
+          <td>Yes</td>
+          <td>Unique identifier of the course</td>
+          <td><code>"cls-17290123"</code></td>
+        </tr>
+        <tr>
+          <td><code>course_name</code></td>
+          <td>string</td>
+          <td>Yes</td>
+          <td>Human-readable course title</td>
+          <td><code>"Photoshop Basics"</code>, <code>"UI/UX Design Masterclass"</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="code-box">
+<span class="code-comment">// Logged in ClassDetailScreen useEffect</span>
+<span class="code-keyword">await</span> <span class="code-function">analytics</span>().<span class="code-function">logEvent</span>(<span class="code-string">'course_view'</span>, {
+  <span class="code-prop">course_id</span>: cls.id,
+  <span class="code-prop">course_name</span>: cls.title,
+});
+    </div>
+  </div>
+
+  <!-- CARD 5: COURSE PURCHASE -->
+  <div class="event-card">
+    <div class="card-top">
+      <div class="card-title">
+        <span class="badge badge-purchase">5. course_purchase</span>
+        <span>Course Purchase &amp; Enrollment</span>
+      </div>
+      <span class="file-ref">providers/classes.tsx</span>
+    </div>
+    <div class="card-desc">Centralized in <code>enrollInClass</code> so all enrollment entry points (class screen, user profile, skill modal) reliably log revenue/credit metrics.</div>
+    <table class="mini-table">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Required</th>
+          <th>Description</th>
+          <th>Sample Values</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>course_id</code></td>
+          <td>string</td>
+          <td>Yes</td>
+          <td>Course identifier</td>
+          <td><code>"cls-17290123"</code></td>
+        </tr>
+        <tr>
+          <td><code>value</code></td>
+          <td>number</td>
+          <td>Yes</td>
+          <td>Cost or credits deducted</td>
+          <td><code>15</code>, <code>250</code>, <code>0</code> (free)</td>
+        </tr>
+        <tr>
+          <td><code>currency</code></td>
+          <td>string</td>
+          <td>Yes</td>
+          <td>Currency ISO code</td>
+          <td><code>"INR"</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="code-box">
+<span class="code-comment">// Logged in enrollInClass when enrollment is confirmed</span>
+<span class="code-keyword">await</span> <span class="code-function">analytics</span>().<span class="code-function">logEvent</span>(<span class="code-string">'course_purchase'</span>, {
+  <span class="code-prop">course_id</span>: cls.id,
+  <span class="code-prop">value</span>: cost,
+  <span class="code-prop">currency</span>: <span class="code-string">'INR'</span>,
+});
+    </div>
+  </div>
+
+  <!-- CARD 6: SKILL SWAP REQUEST -->
+  <div class="event-card">
+    <div class="card-top">
+      <div class="card-title">
+        <span class="badge badge-swap">6. skill_swap_request</span>
+        <span>Skill Swap Request Submitted</span>
+      </div>
+      <span class="file-ref">components/SkillSwapRequestModal.tsx</span>
+    </div>
+    <div class="card-desc">Fired when a user successfully sends a skill swap or learning session request to another user.</div>
+    <table class="mini-table">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Required</th>
+          <th>Description</th>
+          <th>Sample Values</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>skill_offered</code></td>
+          <td>string</td>
+          <td>Yes</td>
+          <td>Title of offered skill or 'Credits'</td>
+          <td><code>"Guitar Basics"</code>, <code>"Credits"</code></td>
+        </tr>
+        <tr>
+          <td><code>skill_wanted</code></td>
+          <td>string</td>
+          <td>Yes</td>
+          <td>Title of wanted skill or 'Credits'</td>
+          <td><code>"Web Development"</code>, <code>"Credits"</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="code-box">
+<span class="code-comment">// Logged after submitSwapRequest succeeds</span>
+<span class="code-keyword">await</span> <span class="code-function">analytics</span>().<span class="code-function">logEvent</span>(<span class="code-string">'skill_swap_request'</span>, {
+  <span class="code-prop">skill_offered</span>: offeredSkill,
+  <span class="code-prop">skill_wanted</span>: wantedSkill,
+});
+    </div>
+  </div>
+
+  <!-- SECTION 3: USER IDENTITY & INTEGRATION -->
+  <div class="section-title">
+    <span class="section-icon">👤</span> 3. User Identity &amp; Helper Cheatsheet
+  </div>
+
+  <div class="event-card">
+    <div class="card-title" style="margin-bottom: 8px;">
+      <span>User Identity Syncing</span>
+    </div>
+    <div class="card-desc">Automatically maintains user identification and attributes across sessions:</div>
+    <table class="mini-table">
+      <thead>
+        <tr>
+          <th>Method / Property</th>
+          <th>Parameter</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>setUserId(userId)</code></td>
+          <td><code>user.id</code> or <code>null</code></td>
+          <td>Associates all subsequent events with the authenticated user UID; clears on logout.</td>
+        </tr>
+        <tr>
+          <td><code>setUserProperty('user_role', role)</code></td>
+          <td><code>'member' | 'admin' | 'teacher'</code></td>
+          <td>Enables user segmentation in Firebase Analytics dashboards and audiences.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="code-box" style="margin-top: 10px;">
+<span class="code-comment">// Quick-start import from anywhere in the codebase:</span>
+<span class="code-keyword">import</span> analytics, {
+  logCourseView,
+  logCoursePurchase,
+  logSkillSwapRequest
+} <span class="code-keyword">from</span> <span class="code-string">'@/lib/analytics'</span>;
+
+<span class="code-comment">// 1. Direct logEvent format:</span>
+<span class="code-keyword">await</span> <span class="code-function">analytics</span>().<span class="code-function">logEvent</span>(<span class="code-string">'course_view'</span>, {
+  <span class="code-prop">course_id</span>: <span class="code-string">'c123'</span>,
+  <span class="code-prop">course_name</span>: <span class="code-string">'Photoshop Basics'</span>,
+});
+
+<span class="code-comment">// 2. Typed helper methods:</span>
+<span class="code-keyword">await</span> <span class="code-function">logCourseView</span>(<span class="code-string">'c123'</span>, <span class="code-string">'Photoshop Basics'</span>);
+<span class="code-keyword">await</span> <span class="code-function">logCoursePurchase</span>(<span class="code-string">'c123'</span>, 500, <span class="code-string">'INR'</span>);
+<span class="code-keyword">await</span> <span class="code-function">logSkillSwapRequest</span>(<span class="code-string">'Photoshop'</span>, <span class="code-string">'Video Editing'</span>);
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div>Leteski Community App • Built with React Native &amp; Expo</div>
+    <div>Confidential • Firebase Analytics Architecture v1.0.1</div>
+  </div>
+
+</body>
+</html>

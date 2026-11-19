@@ -7,6 +7,7 @@ import {
   View,
   Image,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
@@ -66,6 +67,8 @@ const buildSkillsLookup = (skills: SkillWithUser[]) => {
 
 export default function SwapHistoryScreen() {
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
   const { swaps, loading } = useSkillSwaps();
   const { currentUser, allUsers } = useCurrentUser();
   const [selectedFilter, setSelectedFilter] = useState<FilterKey>('all');
@@ -134,15 +137,15 @@ export default function SwapHistoryScreen() {
           colors={['#0F172A', '#1E293B']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.heroBanner}
+          style={[styles.heroBanner, isSmallScreen && styles.heroBannerMobile]}
         >
           <View style={styles.heroHeaderRow}>
-            <View style={styles.heroIconWrap}>
-              <History size={24} color="#6366F1" />
+            <View style={[styles.heroIconWrap, isSmallScreen && styles.heroIconWrapMobile]}>
+              <History size={isSmallScreen ? 18 : 24} color="#6366F1" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.heroTitle}>Exchange Activity Log</Text>
-              <Text style={styles.heroSubtitle}>Track and view all your skill exchange sessions</Text>
+              <Text style={[styles.heroTitle, isSmallScreen && styles.heroTitleMobile]}>Exchange Activity Log</Text>
+              <Text style={[styles.heroSubtitle, isSmallScreen && styles.heroSubtitleMobile]}>Track and view all your skill exchange sessions</Text>
             </View>
           </View>
         </LinearGradient>
@@ -152,7 +155,7 @@ export default function SwapHistoryScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.filterScroll}
-          contentContainerStyle={styles.filterContainer}
+          contentContainerStyle={[styles.filterContainer, isSmallScreen && styles.filterContainerMobile]}
         >
           {filterTabs.map((tab) => {
             const isActive = selectedFilter === tab.key;
@@ -161,11 +164,11 @@ export default function SwapHistoryScreen() {
               <TouchableOpacity
                 key={tab.key}
                 onPress={() => setSelectedFilter(tab.key)}
-                style={[styles.filterChip, isActive && styles.filterChipActive]}
+                style={[styles.filterChip, isSmallScreen && styles.filterChipMobile, isActive && styles.filterChipActive]}
                 activeOpacity={0.8}
                 testID={`history-filter-${tab.key}`}
               >
-                <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
+                <Text style={[styles.filterChipText, isSmallScreen && styles.filterChipTextMobile, isActive && styles.filterChipTextActive]}>
                   {tab.label} ({count})
                 </Text>
               </TouchableOpacity>
@@ -236,19 +239,19 @@ export default function SwapHistoryScreen() {
               })();
 
               return (
-                <View key={swap.id} style={styles.historyCard}>
+                <View key={swap.id} style={[styles.historyCard, isSmallScreen && styles.historyCardMobile]}>
                   {/* Top Bar: Partner & Status */}
                   <View style={styles.cardHeader}>
                     <View style={styles.partnerRow}>
                       <Image
                         source={{ uri: resolveImageUrl(partner?.avatarUrl) }}
-                        style={styles.avatar}
+                        style={[styles.avatar, isSmallScreen && styles.avatarMobile]}
                       />
                       <View style={styles.partnerDetails}>
-                        <Text style={styles.partnerName}>
+                        <Text style={[styles.partnerName, isSmallScreen && styles.partnerNameMobile]}>
                           {partner?.username ? (partner.username.startsWith('@') ? partner.username : `@${partner.username}`) : (partner?.name ? `@${partner.name.toLowerCase().replace(/\s+/g, '')}` : 'Skill Partner')}
                         </Text>
-                        <Text style={styles.swapDateText}>
+                        <Text style={[styles.swapDateText, isSmallScreen && styles.swapDateTextMobile]}>
                           Updated {new Date(swap.updatedAt || Date.now()).toLocaleDateString()}
                         </Text>
                       </View>
@@ -263,17 +266,17 @@ export default function SwapHistoryScreen() {
 
                   {/* Role Indicator Banner */}
                   <View style={[styles.roleRow, { backgroundColor: roleInfo.bg, borderColor: roleInfo.color }]}>
-                    <roleInfo.Icon size={14} color={roleInfo.color} />
+                    <roleInfo.Icon size={isSmallScreen ? 12 : 14} color={roleInfo.color} />
                     <Text style={[styles.roleText, { color: roleInfo.color }]}>
                       {roleInfo.myRole === 'Mutual Swap' ? 'Mutual Skill Exchange' : `You are the ${roleInfo.myRole}`}
                     </Text>
                   </View>
 
                   {/* Skills Exchange Info */}
-                  <View style={styles.skillsExchangeBox}>
+                  <View style={[styles.skillsExchangeBox, isSmallScreen && styles.skillsExchangeBoxMobile]}>
                     <View style={styles.skillCol}>
-                      <Text style={styles.skillColLabel}>{roleInfo.myLabel}</Text>
-                      <Text style={styles.skillColTitle} numberOfLines={1}>
+                      <Text style={[styles.skillColLabel, isSmallScreen && styles.skillColLabelMobile]}>{roleInfo.myLabel}</Text>
+                      <Text style={[styles.skillColTitle, isSmallScreen && styles.skillColTitleMobile]}>
                         {swapType === 'swap'
                           ? (offeredSkill?.title ?? 'Skill TBD')
                           : swapType === 'learn'
@@ -281,10 +284,10 @@ export default function SwapHistoryScreen() {
                             : (isRequester ? offeredSkill?.title : partnerSkill?.title) ?? 'Skill TBD'}
                       </Text>
                     </View>
-                    <ArrowRight size={16} color={roleInfo.color} />
+                    <ArrowRight size={isSmallScreen ? 14 : 16} color={roleInfo.color} />
                     <View style={styles.skillCol}>
-                      <Text style={styles.skillColLabel}>{roleInfo.partnerLabel}</Text>
-                      <Text style={styles.skillColTitle} numberOfLines={1}>
+                      <Text style={[styles.skillColLabel, isSmallScreen && styles.skillColLabelMobile]}>{roleInfo.partnerLabel}</Text>
+                      <Text style={[styles.skillColTitle, isSmallScreen && styles.skillColTitleMobile]}>
                         {swapType === 'swap'
                           ? (partnerSkill?.title ?? 'Skill TBD')
                           : swapType === 'learn'
@@ -299,14 +302,14 @@ export default function SwapHistoryScreen() {
                     <View style={styles.metaRow}>
                       {scheduledTime && (
                         <View style={styles.metaItem}>
-                          <Clock size={14} color={Colors.light.textSecondary} />
+                          <Clock size={isSmallScreen ? 12 : 14} color={Colors.light.textSecondary} />
                           <Text style={styles.metaText}>{scheduledTime}</Text>
                         </View>
                       )}
                       {swap.locationPreference && (
                         <View style={styles.metaItem}>
-                          <MapPin size={14} color={Colors.light.textSecondary} />
-                          <Text style={styles.metaText} numberOfLines={1}>{swap.locationPreference}</Text>
+                          <MapPin size={isSmallScreen ? 12 : 14} color={Colors.light.textSecondary} />
+                          <Text style={styles.metaText}>{swap.locationPreference}</Text>
                         </View>
                       )}
                     </View>
@@ -323,11 +326,11 @@ export default function SwapHistoryScreen() {
                       colors={['#6366F1', '#4F46E5']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
-                      style={styles.openThreadGradient}
+                      style={[styles.openThreadGradient, isSmallScreen && styles.openThreadGradientMobile]}
                     >
-                      <MessageCircle size={16} color="#FFFFFF" />
-                      <Text style={styles.openThreadText}>Open Swap Thread</Text>
-                      <ArrowRight size={16} color="#FFFFFF" />
+                      <MessageCircle size={isSmallScreen ? 14 : 16} color="#FFFFFF" />
+                      <Text style={[styles.openThreadText, isSmallScreen && styles.openThreadTextMobile]}>Open Swap Thread</Text>
+                      <ArrowRight size={isSmallScreen ? 14 : 16} color="#FFFFFF" />
                     </LinearGradient>
                   </TouchableOpacity>
                 </View>
@@ -552,5 +555,73 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700' as const,
     color: '#FFFFFF',
+  },
+  heroBannerMobile: {
+    padding: 12,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  heroIconWrapMobile: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+  },
+  heroTitleMobile: {
+    fontSize: 15,
+  },
+  heroSubtitleMobile: {
+    fontSize: 11.5,
+  },
+  filterContainerMobile: {
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  filterChipMobile: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  filterChipTextMobile: {
+    fontSize: 11.5,
+  },
+  scrollContentMobile: {
+    padding: 12,
+    paddingBottom: 30,
+    gap: 10,
+  },
+  historyCardMobile: {
+    borderRadius: 14,
+    padding: 12,
+    gap: 10,
+  },
+  avatarMobile: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  partnerNameMobile: {
+    fontSize: 13,
+  },
+  swapDateTextMobile: {
+    fontSize: 10.5,
+  },
+  skillsExchangeBoxMobile: {
+    padding: 10,
+    borderRadius: 10,
+    gap: 8,
+  },
+  skillColLabelMobile: {
+    fontSize: 10,
+  },
+  skillColTitleMobile: {
+    fontSize: 12,
+  },
+  openThreadGradientMobile: {
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  openThreadTextMobile: {
+    fontSize: 12,
   },
 });

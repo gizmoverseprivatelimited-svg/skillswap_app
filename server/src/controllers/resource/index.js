@@ -37,6 +37,49 @@ const router = express.Router();
 // });
 
 
+const DEMO_URL_MAP = {
+  'https://fstoppers.com/lighting/ultimate-guide-portrait-lighting-2024-654321': 'https://photographylife.com/portrait-photography-lighting',
+  'https://www.youtube.com/watch?v=OxFcbx6QyBc': 'https://react.dev/reference/react/hooks',
+  'https://drive.google.com/file/d/spanish-deck': 'https://www.fluentu.com/blog/spanish/spanish-conversation-practice/',
+  'https://notion.so/mobility-primer': 'https://www.healthline.com/health/fitness-exercise/morning-stretches',
+  'https://www.figma.com/community/file/123456789': 'https://ui.shadcn.com/',
+  'https://www.figma.com/community/file/1179782559585642674': 'https://ui.shadcn.com/',
+  'https://stackshare.io/fullstack-cheats': 'https://roadmap.sh/full-stack',
+};
+
+const sanitizeResourceUrl = (url, title = '') => {
+  if (!url) return 'https://roadmap.sh';
+  const trimmed = url.trim();
+  if (DEMO_URL_MAP[trimmed]) return DEMO_URL_MAP[trimmed];
+
+  const lower = trimmed.toLowerCase();
+  const lowerTitle = (title || '').toLowerCase();
+
+  if (lower.includes('portrait-lighting') || lower.includes('654321') || lowerTitle.includes('portrait lighting')) {
+    return 'https://photographylife.com/portrait-photography-lighting';
+  }
+  if (lower.includes('oxfcbx6qybc') || lowerTitle.includes('react hooks')) {
+    return 'https://react.dev/reference/react/hooks';
+  }
+  if (lower.includes('spanish-deck') || lowerTitle.includes('spanish')) {
+    return 'https://www.fluentu.com/blog/spanish/spanish-conversation-practice/';
+  }
+  if (lower.includes('mobility-primer') || lowerTitle.includes('mobility')) {
+    return 'https://www.healthline.com/health/fitness-exercise/morning-stretches';
+  }
+  if (lower.includes('123456789') || lowerTitle.includes('figma components') || lowerTitle.includes('starter vault')) {
+    return 'https://ui.shadcn.com/';
+  }
+  if (lower.includes('fullstack-cheats') || lowerTitle.includes('full-stack')) {
+    return 'https://roadmap.sh/full-stack';
+  }
+
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
+};
+
 /**
  * GET /resources
  * Fetch all resources (sorted by engagement)
@@ -47,10 +90,12 @@ router.get('/', async (req, res) => {
       .sort({ endorsements: -1, saves: -1, createdAt: -1 })
       .lean();
 
+    const sanitizedResources = resources.map(r => ({
+      ...r,
+      url: sanitizeResourceUrl(r.url, r.title)
+    }));
 
-      
-
-    res.json({ resources });
+    res.json({ resources: sanitizedResources });
   } catch (err) {
     console.error('[Resources] Fetch error', err);
     res.status(500).json({ message: 'Failed to fetch resources' });

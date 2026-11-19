@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, View, FlatList, TouchableOpacity, Image, ScrollView, TextInput } from 'react-native';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, Image, TextInput, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Users, Calendar, Coins, XCircle, ArrowLeft, Search, Sparkles, Repeat, CreditCard } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeTopInset } from '@/lib/safeArea';
 import Colors from '@/constants/colors';
-import { mockUsers } from '@/mocks/data';
 import { useClasses } from '@/providers/classes';
 import { useAdmin } from '@/providers/admin';
 import { useAlert } from '@/providers/alert';
@@ -15,7 +15,7 @@ import { resolveImageUrl } from '@/lib/resolveImageUrl';
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800';
 const DEFAULT_AVATAR = 'https://i.pravatar.cc/150?img=1';
 
-function AdminClassCardItem({ item, handleCancelClass }: { item: ClassWithTeacher; handleCancelClass: (cls: ClassWithTeacher) => void }) {
+function AdminClassCardItem({ item, handleCancelClass, s }: { item: ClassWithTeacher; handleCancelClass: (cls: ClassWithTeacher) => void; s: any }) {
   const [coverUrl, setCoverUrl] = useState(() => resolveImageUrl(item.coverImageUrl, DEFAULT_COVER) || DEFAULT_COVER);
   const [avatarUrl, setAvatarUrl] = useState(() => resolveImageUrl(item.teacher.avatarUrl, DEFAULT_AVATAR) || DEFAULT_AVATAR);
   const isRecurring = item.sessionType && item.sessionType !== 'single';
@@ -38,7 +38,7 @@ function AdminClassCardItem({ item, handleCancelClass }: { item: ClassWithTeache
             <Text style={s.statusText}>{item.status}</Text>
           </View>
         </View>
-        <Text style={s.title} numberOfLines={2}>{item.title}</Text>
+        <Text style={s.title}>{item.title}</Text>
         <View style={s.teacherRow}>
           <Image
             source={{ uri: avatarUrl }}
@@ -89,6 +89,10 @@ function AdminClassCardItem({ item, handleCancelClass }: { item: ClassWithTeache
 export default function AdminClassesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const safeTop = useSafeTopInset(isSmallScreen ? 8 : 14);
+  const s = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const { isAdminAuthenticated } = useAdmin();
   const { getClassesWithTeachers, cancelClass } = useClasses();
   const { showAlert } = useAlert();
@@ -125,8 +129,8 @@ export default function AdminClassesScreen() {
   }, [cancelClass, showAlert]);
 
   const renderItem = useCallback(({ item }: { item: ClassWithTeacher }) => (
-    <AdminClassCardItem item={item} handleCancelClass={handleCancelClass} />
-  ), [handleCancelClass]);
+    <AdminClassCardItem item={item} handleCancelClass={handleCancelClass} s={s} />
+  ), [handleCancelClass, s]);
 
   if (!isAdminAuthenticated) {
     return (
@@ -141,7 +145,7 @@ export default function AdminClassesScreen() {
 
   return (
     <View style={s.container}>
-      <View style={[s.header, { paddingTop: insets.top + 12 }]}>
+      <View style={[s.header, { paddingTop: safeTop }]}>
         <View style={s.headerTop}>
           <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
             <ArrowLeft size={22} color={Colors.light.text} />
@@ -177,37 +181,37 @@ export default function AdminClassesScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
-  header: { backgroundColor: Colors.light.background, borderBottomWidth: 1, borderBottomColor: Colors.light.borderLight, paddingHorizontal: 20, paddingBottom: 14 },
-  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.light.backgroundTertiary, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '800' as const, color: Colors.light.text },
-  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.light.backgroundTertiary, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: Colors.light.border },
-  searchInput: { flex: 1, fontSize: 15, color: Colors.light.text },
-  listContent: { padding: 20, paddingBottom: 40 },
-  card: { backgroundColor: Colors.light.card, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: Colors.light.borderLight, shadowColor: Colors.light.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
-  cover: { width: '100%', height: 150, backgroundColor: Colors.light.backgroundTertiary },
-  cardBody: { padding: 16 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  catBadge: { fontSize: 11, fontWeight: '700' as const, color: Colors.light.secondary, textTransform: 'uppercase' as const, letterSpacing: 1 },
-  statusPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: 'rgba(99,102,241,0.15)' },
+  header: { backgroundColor: Colors.light.background, borderBottomWidth: 1, borderBottomColor: Colors.light.borderLight, paddingHorizontal: isSmallScreen ? 14 : 20, paddingBottom: isSmallScreen ? 10 : 14 },
+  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: isSmallScreen ? 10 : 14 },
+  backBtn: { width: isSmallScreen ? 34 : 40, height: isSmallScreen ? 34 : 40, borderRadius: isSmallScreen ? 17 : 20, backgroundColor: Colors.light.backgroundTertiary, justifyContent: 'center', alignItems: 'center' },
+  headerTitle: { fontSize: isSmallScreen ? 17 : 20, fontWeight: '800' as const, color: Colors.light.text },
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.light.backgroundTertiary, borderRadius: 14, paddingHorizontal: isSmallScreen ? 12 : 16, paddingVertical: isSmallScreen ? 8 : 12, borderWidth: 1, borderColor: Colors.light.border },
+  searchInput: { flex: 1, fontSize: isSmallScreen ? 13 : 15, color: Colors.light.text },
+  listContent: { padding: isSmallScreen ? 12 : 20, paddingBottom: isSmallScreen ? 24 : 40 },
+  card: { backgroundColor: Colors.light.card, borderRadius: isSmallScreen ? 14 : 20, overflow: 'hidden', borderWidth: 1, borderColor: Colors.light.borderLight, shadowColor: Colors.light.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
+  cover: { width: '100%', height: isSmallScreen ? 120 : 150, backgroundColor: Colors.light.backgroundTertiary },
+  cardBody: { padding: isSmallScreen ? 12 : 16 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: isSmallScreen ? 6 : 10 },
+  catBadge: { fontSize: isSmallScreen ? 10 : 11, fontWeight: '700' as const, color: Colors.light.secondary, textTransform: 'uppercase' as const, letterSpacing: 1 },
+  statusPill: { paddingHorizontal: isSmallScreen ? 8 : 10, paddingVertical: isSmallScreen ? 3 : 5, borderRadius: 8, backgroundColor: 'rgba(99,102,241,0.15)' },
   statusCompleted: { backgroundColor: 'rgba(139,92,246,0.15)' },
   statusCancelled: { backgroundColor: 'rgba(239,68,68,0.15)' },
-  statusText: { fontSize: 11, fontWeight: '700' as const, color: Colors.light.textSecondary, textTransform: 'capitalize' as const },
-  title: { fontSize: 16, fontWeight: '700' as const, color: Colors.light.text, marginBottom: 10, lineHeight: 22 },
-  teacherRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  teacherAvatar: { width: 26, height: 26, borderRadius: 13, borderWidth: 1.5, borderColor: Colors.light.border },
-  teacherName: { fontSize: 13, fontWeight: '600' as const, color: Colors.light.textSecondary },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  statusText: { fontSize: isSmallScreen ? 10 : 11, fontWeight: '700' as const, color: Colors.light.textSecondary, textTransform: 'capitalize' as const },
+  title: { fontSize: isSmallScreen ? 14 : 16, fontWeight: '700' as const, color: Colors.light.text, marginBottom: isSmallScreen ? 6 : 10, lineHeight: isSmallScreen ? 19 : 22 },
+  teacherRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: isSmallScreen ? 6 : 10 },
+  teacherAvatar: { width: isSmallScreen ? 22 : 26, height: isSmallScreen ? 22 : 26, borderRadius: isSmallScreen ? 11 : 13, borderWidth: 1.5, borderColor: Colors.light.border },
+  teacherName: { fontSize: isSmallScreen ? 12 : 13, fontWeight: '600' as const, color: Colors.light.textSecondary },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: isSmallScreen ? 8 : 12, flexWrap: 'wrap' },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaText: { fontSize: 13, color: Colors.light.textTertiary, fontWeight: '500' as const },
-  cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 12, paddingVertical: 11, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' },
-  cancelBtnText: { fontSize: 13, fontWeight: '700' as const, color: Colors.light.error },
+  metaText: { fontSize: isSmallScreen ? 11.5 : 13, color: Colors.light.textTertiary, fontWeight: '500' as const },
+  cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 12, paddingVertical: isSmallScreen ? 8 : 11, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' },
+  cancelBtnText: { fontSize: isSmallScreen ? 12 : 13, fontWeight: '700' as const, color: Colors.light.error },
   denied: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
-  deniedText: { fontSize: 18, fontWeight: '600' as const, color: Colors.light.textSecondary },
-  deniedBtn: { backgroundColor: Colors.light.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14 },
-  deniedBtnText: { fontSize: 15, fontWeight: '700' as const, color: '#FFFFFF' },
+  deniedText: { fontSize: isSmallScreen ? 16 : 18, fontWeight: '600' as const, color: Colors.light.textSecondary },
+  deniedBtn: { backgroundColor: Colors.light.primary, paddingHorizontal: isSmallScreen ? 16 : 20, paddingVertical: isSmallScreen ? 10 : 12, borderRadius: 14 },
+  deniedBtnText: { fontSize: isSmallScreen ? 13.5 : 15, fontWeight: '700' as const, color: '#FFFFFF' },
   emptyWrap: { paddingVertical: 60, alignItems: 'center' },
-  emptyText: { fontSize: 15, color: Colors.light.textTertiary, fontWeight: '500' as const },
+  emptyText: { fontSize: isSmallScreen ? 13 : 15, color: Colors.light.textTertiary, fontWeight: '500' as const },
 });

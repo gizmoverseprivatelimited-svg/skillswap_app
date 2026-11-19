@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, Linking, Platform } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, Linking, Platform, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Calendar, Clock, Users, Coins, Star, Sparkles, CheckCircle2, XCircle, ArrowLeft, Video, Repeat, CreditCard, Crown, Megaphone, FileText, UploadCloud } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,6 +14,7 @@ import { useSkillSwaps } from '@/providers/skill-swaps';
 import { useSocket } from '@/providers/socket';
 import { useSafety } from '@/providers/safety';
 import url from '@/constants/backurl';
+import { logCourseView } from '@/lib/analytics';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { TextInput } from 'react-native-gesture-handler';
@@ -30,7 +31,7 @@ function StudentAvatarItem({ stu }: { stu: any }) {
         style={s.studentAvatar}
         onError={() => setAvatarUrl(DEFAULT_AVATAR)}
       />
-      <Text style={s.studentName} numberOfLines={1}>{stu.name.split(' ')[0]}</Text>
+      <Text style={s.studentName}>{stu.name.split(' ')[0]}</Text>
     </View>
   );
 }
@@ -39,6 +40,8 @@ export default function ClassDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
   const { getClassById, enrollInClass, cancelEnrollment, completeClass, cancelClass, isEnrolled, refreshClasses } = useClasses();
   const { currentUser, allUsers } = useCurrentUser();
   const { isBlocked, checkBlockStatus } = useSafety();
@@ -59,6 +62,13 @@ export default function ClassDetailScreen() {
   }, [refreshClasses]);
 
   const cls = useMemo(() => getClassById(id), [getClassById, id]);
+
+  // 📊 Track course view event in Firebase Analytics
+  useEffect(() => {
+    if (cls?.id && cls?.title) {
+      logCourseView(String(cls.id), cls.title);
+    }
+  }, [cls?.id, cls?.title]);
 
   useEffect(() => {
     let isMounted = true;
@@ -586,7 +596,7 @@ export default function ClassDetailScreen() {
 
   return (
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
-      <View style={[s.coverWrap, { height: 240 }]}>
+      <View style={[s.coverWrap, { height: isSmallScreen ? 180 : 240 }]}>
         <Image
           source={{ uri: coverUrl }}
           style={s.cover}
@@ -597,53 +607,53 @@ export default function ClassDetailScreen() {
           style={s.coverGradient}
         />
         <TouchableOpacity
-          style={[s.backBtn, { top: insets.top + 8 }]}
+          style={[s.backBtn, { top: insets.top + (isSmallScreen ? 4 : 8) }]}
           onPress={() => router.back()}
           activeOpacity={0.8}
         >
-          <ArrowLeft size={22} color="#FFFFFF" />
+          <ArrowLeft size={isSmallScreen ? 18 : 22} color="#FFFFFF" />
         </TouchableOpacity>
-        <View style={[s.statusBadge, isCompleted && s.statusCompleted, isCancelled && s.statusCancelled]}>
-          <Text style={s.statusText}>{isCompleted ? 'Completed' : isCancelled ? 'Cancelled' : 'Open'}</Text>
+        <View style={[s.statusBadge, isSmallScreen && s.statusBadgeMobile, isCompleted && s.statusCompleted, isCancelled && s.statusCancelled]}>
+          <Text style={[s.statusText, isSmallScreen && s.statusTextMobile]}>{isCompleted ? 'Completed' : isCancelled ? 'Cancelled' : 'Open'}</Text>
         </View>
       </View>
 
-      <View style={s.body}>
-        <Text style={s.catText}>{cls.category} · {cls.level}</Text>
-        <Text style={s.title}>{cls.title}</Text>
+      <View style={[s.body, isSmallScreen && s.bodyMobile]}>
+        <Text style={[s.catText, isSmallScreen && s.catTextMobile]}>{cls.category} · {cls.level}</Text>
+        <Text style={[s.title, isSmallScreen && s.titleMobile]}>{cls.title}</Text>
 
-        <View style={s.metaCard}>
+        <View style={[s.metaCard, isSmallScreen && s.metaCardMobile]}>
           <View style={s.metaItem}>
-            <Calendar size={18} color={Colors.light.primary} />
-            <Text style={s.metaLabel}>
+            <Calendar size={isSmallScreen ? 14 : 18} color={Colors.light.primary} />
+            <Text style={[s.metaLabel, isSmallScreen && s.metaLabelMobile]}>
               {cls.sessionType && cls.sessionType !== 'single'
                 ? `${new Date(cls.startISO).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })} — ${new Date(cls.endISO).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}`
                 : formatDateFn(cls.startISO)}
             </Text>
           </View>
-          <View style={s.metaDivider} />
+          <View style={[s.metaDivider, isSmallScreen && s.metaDividerMobile]} />
           <View style={s.metaItem}>
-            <Clock size={18} color={Colors.light.primary} />
-            <Text style={s.metaLabel}>{formatTimeRange()}</Text>
+            <Clock size={isSmallScreen ? 14 : 18} color={Colors.light.primary} />
+            <Text style={[s.metaLabel, isSmallScreen && s.metaLabelMobile]}>{formatTimeRange()}</Text>
           </View>
           {cls.sessionType && cls.sessionType !== 'single' && (
             <>
-              <View style={s.metaDivider} />
+              <View style={[s.metaDivider, isSmallScreen && s.metaDividerMobile]} />
               <View style={s.metaItem}>
-                <Repeat size={18} color={Colors.light.primary} />
-                <Text style={s.metaLabel}>{formatClassSchedule(cls.sessionType, cls.sessionCount, cls.scheduleDays)}</Text>
+                <Repeat size={isSmallScreen ? 14 : 18} color={Colors.light.primary} />
+                <Text style={[s.metaLabel, isSmallScreen && s.metaLabelMobile]}>{formatClassSchedule(cls.sessionType, cls.sessionCount, cls.scheduleDays)}</Text>
               </View>
             </>
           )}
         </View>
 
         {cls.billingCycle && (
-          <View style={s.billingCard}>
+          <View style={[s.billingCard, isSmallScreen && s.billingCardMobile]}>
             <View style={s.billingBadge}>
-              <CreditCard size={18} color={Colors.light.primary} />
-              <Text style={s.billingBadgeText}>{formatBillingCycle(cls.billingCycle)} Billing</Text>
+              <CreditCard size={isSmallScreen ? 15 : 18} color={Colors.light.primary} />
+              <Text style={[s.billingBadgeText, isSmallScreen && s.billingBadgeTextMobile]}>{formatBillingCycle(cls.billingCycle)} Billing</Text>
             </View>
-            <Text style={s.billingSub}>
+            <Text style={[s.billingSub, isSmallScreen && s.billingSubMobile]}>
               {cls.billingCycle === 'monthly'
                 ? 'Enrolling grants access to all sessions during the monthly billing cycle.'
                 : 'One-time payment covers full course access.'}
@@ -652,46 +662,46 @@ export default function ClassDetailScreen() {
         )}
 
         <TouchableOpacity
-          style={s.teacherCard}
+          style={[s.teacherCard, isSmallScreen && s.teacherCardMobile]}
           onPress={() => router.push(`/profile/${teacherId || cls.teacher.id}` as any)}
           activeOpacity={0.7}
         >
           <Image
             source={{ uri: teacherAvatarUrl }}
-            style={s.teacherAvatar}
+            style={[s.teacherAvatar, isSmallScreen && s.teacherAvatarMobile]}
             onError={() => setTeacherAvatarUrl(DEFAULT_AVATAR)}
           />
           <View style={s.teacherInfo}>
-            <Text style={s.teacherName}>{teacherUser?.name || cls.teacher.name}</Text>
+            <Text style={[s.teacherName, isSmallScreen && s.teacherNameMobile]}>{teacherUser?.name || cls.teacher.name}</Text>
             <View style={s.teacherMeta}>
-              <Star size={12} fill={Colors.light.accent} color={Colors.light.accent} />
-              <Text style={s.teacherRating}>{teacherRating}</Text>
-              <Text style={s.teacherReviews}> ({teacherTotalReviews})</Text>
-              <Text style={s.teacherSwaps}> · {teacherTotalSwaps} swap{teacherTotalSwaps === 1 ? '' : 's'}</Text>
+              <Star size={isSmallScreen ? 10 : 12} fill={Colors.light.accent} color={Colors.light.accent} />
+              <Text style={[s.teacherRating, isSmallScreen && s.teacherRatingMobile]}>{teacherRating}</Text>
+              <Text style={[s.teacherReviews, isSmallScreen && s.teacherReviewsMobile]}> ({teacherTotalReviews})</Text>
+              <Text style={[s.teacherSwaps, isSmallScreen && s.teacherSwapsMobile]}> · {teacherTotalSwaps} swap{teacherTotalSwaps === 1 ? '' : 's'}</Text>
             </View>
           </View>
           <View style={s.teacherAction}>
-            <Text style={s.teacherActionText}>View →</Text>
+            <Text style={[s.teacherActionText, isSmallScreen && s.teacherActionTextMobile]}>View →</Text>
           </View>
         </TouchableOpacity>
 
-        <Text style={s.sectionTitle}>About this class</Text>
-        <Text style={s.description}>{cls.description}</Text>
+        <Text style={[s.sectionTitle, isSmallScreen && s.sectionTitleMobile]}>About this class</Text>
+        <Text style={[s.description, isSmallScreen && s.descriptionMobile]}>{cls.description}</Text>
 
-        <View style={s.seatsCard}>
+        <View style={[s.seatsCard, isSmallScreen && s.seatsCardMobile]}>
           <View style={s.seatsHeader}>
-            <Users size={18} color={Colors.light.primary} />
-            <Text style={s.seatsTitle}>{cls.enrolledCount} of {cls.maxCapacity} enrolled</Text>
+            <Users size={isSmallScreen ? 15 : 18} color={Colors.light.primary} />
+            <Text style={[s.seatsTitle, isSmallScreen && s.seatsTitleMobile]}>{cls.enrolledCount} of {cls.maxCapacity} enrolled</Text>
           </View>
           <View style={s.seatsBar}>
             <View style={[s.seatsFill, { width: `${Math.round((cls.enrolledCount / cls.maxCapacity) * 100)}%` }]} />
           </View>
-          <Text style={s.seatsLeft}>{seatsLeft} seat{seatsLeft === 1 ? '' : 's'} left</Text>
+          <Text style={[s.seatsLeft, isSmallScreen && s.seatsLeftMobile]}>{seatsLeft} seat{seatsLeft === 1 ? '' : 's'} left</Text>
         </View>
 
         {enrolledStudents.length > 0 && (
           <View style={s.studentsSection}>
-            <Text style={s.sectionTitle}>Who's coming</Text>
+            <Text style={[s.sectionTitle, isSmallScreen && s.sectionTitleMobile]}>Who's coming</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.studentScroll}>
               {enrolledStudents.map(stu => (
                 <StudentAvatarItem key={stu.id} stu={stu} />
@@ -703,82 +713,82 @@ export default function ClassDetailScreen() {
         {/* Announcements Section */}
         {(enrolled || isTeacher) && (
           <>
-            <View style={s.cardSection}>
-              <View style={s.sectionHeader}>
-                <Megaphone size={20} color={Colors.light.primary} />
-                <Text style={s.sectionTitle}>Announcements</Text>
+            <View style={[s.cardSection, isSmallScreen && s.cardSectionMobile]}>
+              <View style={[s.sectionHeader, isSmallScreen && s.sectionHeaderMobile]}>
+                <Megaphone size={isSmallScreen ? 16 : 20} color={Colors.light.primary} />
+                <Text style={[s.sectionTitle, isSmallScreen && s.sectionTitleMobile]}>Announcements</Text>
               </View>
               {cls.announcements?.map((ann: any, idx: number) => (
-                <View key={idx} style={s.announcementItem}>
+                <View key={idx} style={[s.announcementItem, isSmallScreen && s.announcementItemMobile]}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Text style={[s.announcementText, { flex: 1 }]}>{ann.text}</Text>
+                    <Text style={[s.announcementText, isSmallScreen && s.announcementTextMobile, { flex: 1 }]}>{ann.text}</Text>
                     {isTeacher && (
                       <TouchableOpacity onPress={() => handleDeleteAnnouncement(ann._id)}>
-                        <Text style={{ color: 'red', fontSize: 12, marginLeft: 8 }}>Delete</Text>
+                        <Text style={{ color: 'red', fontSize: isSmallScreen ? 10.5 : 12, marginLeft: 8 }}>Delete</Text>
                       </TouchableOpacity>
                     )}
                   </View>
-                  <Text style={s.announcementDate}>{new Date(ann.createdAt).toLocaleDateString()} {new Date(ann.createdAt).toLocaleTimeString()}</Text>
+                  <Text style={[s.announcementDate, isSmallScreen && s.announcementDateMobile]}>{new Date(ann.createdAt).toLocaleDateString()} {new Date(ann.createdAt).toLocaleTimeString()}</Text>
                 </View>
               ))}
               {(!cls.announcements || cls.announcements.length === 0) && (
-                <Text style={s.emptyText}>No announcements yet.</Text>
+                <Text style={[s.emptyText, isSmallScreen && s.emptyTextMobile]}>No announcements yet.</Text>
               )}
               {isTeacher && (
-                <View style={s.inputContainer}>
+                <View style={[s.inputContainer, isSmallScreen && s.inputContainerMobile]}>
                   <TextInput
-                    style={s.textInput}
+                    style={[s.textInput, isSmallScreen && s.textInputMobile]}
                     placeholder="Write an announcement..."
                     placeholderTextColor={Colors.light.textTertiary}
                     value={announcementText}
                     onChangeText={setAnnouncementText}
                     multiline
                   />
-                  <TouchableOpacity style={s.actionBtn} onPress={handleAddAnnouncement} disabled={submitting}>
-                    <Text style={s.actionBtnText}>Post</Text>
+                  <TouchableOpacity style={[s.actionBtn, isSmallScreen && s.actionBtnMobile]} onPress={handleAddAnnouncement} disabled={submitting}>
+                    <Text style={[s.actionBtnText, isSmallScreen && s.actionBtnTextMobile]}>Post</Text>
                   </TouchableOpacity>
                 </View>
               )}
             </View>
 
             {/* Assignments Section */}
-            <View style={s.cardSection}>
-              <View style={s.sectionHeader}>
-                <FileText size={20} color={Colors.light.primary} />
-                <Text style={s.sectionTitle}>Assignments</Text>
+            <View style={[s.cardSection, isSmallScreen && s.cardSectionMobile]}>
+              <View style={[s.sectionHeader, isSmallScreen && s.sectionHeaderMobile]}>
+                <FileText size={isSmallScreen ? 16 : 20} color={Colors.light.primary} />
+                <Text style={[s.sectionTitle, isSmallScreen && s.sectionTitleMobile]}>Assignments</Text>
               </View>
               {cls.assignments?.map((ass: any, idx: number) => (
-                <View key={idx} style={s.assignmentItem}>
-                  <Text style={s.assignmentTitle}>{ass.title}</Text>
-                  {ass.description ? <Text style={s.assignmentDesc}>{ass.description}</Text> : null}
+                <View key={idx} style={[s.assignmentItem, isSmallScreen && s.assignmentItemMobile]}>
+                  <Text style={[s.assignmentTitle, isSmallScreen && s.assignmentTitleMobile]}>{ass.title}</Text>
+                  {ass.description ? <Text style={[s.assignmentDesc, isSmallScreen && s.assignmentDescMobile]}>{ass.description}</Text> : null}
                   <TouchableOpacity onPress={() => handleDownloadFile(ass.fileUrl)}>
-                    <Text style={s.downloadLink}>Download Attachment</Text>
+                    <Text style={[s.downloadLink, isSmallScreen && s.downloadLinkMobile]}>Download Attachment</Text>
                   </TouchableOpacity>
 
                   {isTeacher ? (
-                    <View style={s.submissionsContainer}>
-                      <Text style={s.submissionsTitle}>Submissions:</Text>
+                    <View style={[s.submissionsContainer, isSmallScreen && s.submissionsContainerMobile]}>
+                      <Text style={[s.submissionsTitle, isSmallScreen && s.submissionsTitleMobile]}>Submissions:</Text>
                       {ass.submissions?.length > 0 ? ass.submissions.map((sub: any, sIdx: number) => {
                         const student = allUsers.find(u => String(u.id || (u as any)._id) === String(sub.studentId));
                         return (
-                          <View key={sIdx} style={s.submissionItem}>
-                            <Text style={s.submissionStudent}>{student?.name || 'Unknown'}</Text>
-                            <Text style={s.submissionDate}>{new Date(sub.submittedAt).toLocaleString()}</Text>
+                          <View key={sIdx} style={[s.submissionItem, isSmallScreen && s.submissionItemMobile]}>
+                            <Text style={[s.submissionStudent, isSmallScreen && s.submissionStudentMobile]}>{student?.name || 'Unknown'}</Text>
+                            <Text style={[s.submissionDate, isSmallScreen && s.submissionDateMobile]}>{new Date(sub.submittedAt).toLocaleString()}</Text>
                             <TouchableOpacity onPress={() => handleDownloadFile(sub.fileUrl)}>
-                              <Text style={s.downloadLink}>View File</Text>
+                              <Text style={[s.downloadLink, isSmallScreen && s.downloadLinkMobile]}>View File</Text>
                             </TouchableOpacity>
                           </View>
                         );
-                      }) : <Text style={s.emptyText}>No submissions yet.</Text>}
+                      }) : <Text style={[s.emptyText, isSmallScreen && s.emptyTextMobile]}>No submissions yet.</Text>}
                     </View>
                   ) : (enrolled ? (
-                    <View style={s.studentSubmitContainer}>
+                    <View style={[s.studentSubmitContainer, isSmallScreen && s.studentSubmitContainerMobile]}>
                       {ass.submissions?.some((sub: any) => String(sub.studentId) === String(currentUser?.id)) ? (
-                        <Text style={s.submittedText}>✓ Submitted</Text>
+                        <Text style={[s.submittedText, isSmallScreen && s.submittedTextMobile]}>✓ Submitted</Text>
                       ) : (
-                        <TouchableOpacity style={s.uploadBtn} onPress={() => handleSubmitAssignment(ass._id || ass.id)} disabled={submitting}>
-                          <UploadCloud size={16} color="#FFFFFF" />
-                          <Text style={s.uploadBtnText}>Upload Submission</Text>
+                        <TouchableOpacity style={[s.uploadBtn, isSmallScreen && s.uploadBtnMobile]} onPress={() => handleSubmitAssignment(ass._id || ass.id)} disabled={submitting}>
+                          <UploadCloud size={isSmallScreen ? 13 : 16} color="#FFFFFF" />
+                          <Text style={[s.uploadBtnText, isSmallScreen && s.uploadBtnTextMobile]}>Upload Submission</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -786,27 +796,27 @@ export default function ClassDetailScreen() {
                 </View>
               ))}
               {(!cls.assignments || cls.assignments.length === 0) && (
-                <Text style={s.emptyText}>No assignments yet.</Text>
+                <Text style={[s.emptyText, isSmallScreen && s.emptyTextMobile]}>No assignments yet.</Text>
               )}
               {isTeacher && (
-                <View style={s.inputContainer}>
+                <View style={[s.inputContainer, isSmallScreen && s.inputContainerMobile]}>
                   <TextInput
-                    style={s.textInput}
+                    style={[s.textInput, isSmallScreen && s.textInputMobile]}
                     placeholder="Assignment Title"
                     placeholderTextColor={Colors.light.textTertiary}
                     value={assignmentTitle}
                     onChangeText={setAssignmentTitle}
                   />
                   <TextInput
-                    style={s.textInput}
+                    style={[s.textInput, isSmallScreen && s.textInputMobile]}
                     placeholder="Description (Optional)"
                     placeholderTextColor={Colors.light.textTertiary}
                     value={assignmentDesc}
                     onChangeText={setAssignmentDesc}
                     multiline
                   />
-                  <TouchableOpacity style={s.actionBtn} onPress={handleAddAssignment} disabled={submitting}>
-                    <Text style={s.actionBtnText}>Attach File & Post</Text>
+                  <TouchableOpacity style={[s.actionBtn, isSmallScreen && s.actionBtnMobile]} onPress={handleAddAssignment} disabled={submitting}>
+                    <Text style={[s.actionBtnText, isSmallScreen && s.actionBtnTextMobile]}>Attach File & Post</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -816,47 +826,47 @@ export default function ClassDetailScreen() {
 
         {/* Recordings Section */}
         {(isTeacher || enrolled) && cls.recordings && cls.recordings.length > 0 && (
-          <View style={s.cardSection}>
-            <View style={s.sectionHeader}>
-              <Video size={20} color={Colors.light.primary} />
-              <Text style={s.sectionTitle}>Class Recordings</Text>
+          <View style={[s.cardSection, isSmallScreen && s.cardSectionMobile]}>
+            <View style={[s.sectionHeader, isSmallScreen && s.sectionHeaderMobile]}>
+              <Video size={isSmallScreen ? 16 : 20} color={Colors.light.primary} />
+              <Text style={[s.sectionTitle, isSmallScreen && s.sectionTitleMobile]}>Class Recordings</Text>
             </View>
             {cls.recordings.map((rec: any, idx: number) => (
-              <TouchableOpacity key={idx} style={s.assignmentItem} onPress={() => Linking.openURL(rec.url)}>
-                <Text style={s.assignmentTitle}>Recording {idx + 1}</Text>
-                <Text style={s.assignmentDesc}>{new Date(rec.recordedAt).toLocaleString()}</Text>
-                <Text style={s.downloadLink}>Watch Recording</Text>
+              <TouchableOpacity key={idx} style={[s.assignmentItem, isSmallScreen && s.assignmentItemMobile]} onPress={() => Linking.openURL(rec.url)}>
+                <Text style={[s.assignmentTitle, isSmallScreen && s.assignmentTitleMobile]}>Recording {idx + 1}</Text>
+                <Text style={[s.assignmentDesc, isSmallScreen && s.assignmentDescMobile]}>{new Date(rec.recordedAt).toLocaleString()}</Text>
+                <Text style={[s.downloadLink, isSmallScreen && s.downloadLinkMobile]}>Watch Recording</Text>
               </TouchableOpacity>
             ))}
           </View>
         )}
 
         {/* Pricing + Action */}
-        <View style={s.pricingCard}>
-          <View style={s.priceRow}>
+        <View style={[s.pricingCard, isSmallScreen && s.pricingCardMobile]}>
+          <View style={[s.priceRow, isSmallScreen && s.priceRowMobile]}>
             {isFree ? (
-              <View style={s.freeTag}>
-                <Sparkles size={18} color="#10B981" />
-                <Text style={s.freePriceText}>Free Class</Text>
+              <View style={[s.freeTag, isSmallScreen && s.freeTagMobile]}>
+                <Sparkles size={isSmallScreen ? 14 : 18} color="#10B981" />
+                <Text style={[s.freePriceText, isSmallScreen && s.freePriceTextMobile]}>Free Class</Text>
               </View>
             ) : (
               <View style={{ flex: 1 }}>
-                <View style={s.priceTag}>
-                  <Coins size={20} color="#F59E0B" />
-                  <Text style={s.priceText}>
+                <View style={[s.priceTag, isSmallScreen && s.priceTagMobile]}>
+                  <Coins size={isSmallScreen ? 15 : 20} color="#F59E0B" />
+                  <Text style={[s.priceText, isSmallScreen && s.priceTextMobile]}>
                     {formatCredits(!isTeacher ? getClassEnrollmentCost(cls.seatPriceCredits, currentUser) : cls.seatPriceCredits)}
                   </Text>
                   {!isTeacher && getClassDiscountPercent(currentUser) > 0 && (
-                    <Text style={{ fontSize: 13, textDecorationLine: 'line-through', color: '#94A3B8', marginLeft: 6 }}>
+                    <Text style={[{ fontSize: 13, textDecorationLine: 'line-through', color: '#94A3B8', marginLeft: 6 }, isSmallScreen && { fontSize: 11, marginLeft: 4 }]}>
                       {cls.seatPriceCredits}
                     </Text>
                   )}
-                  <Text style={s.pricePerText}>per seat · {cls.billingCycle === 'monthly' ? 'monthly' : 'one-time'}</Text>
+                  <Text style={[s.pricePerText, isSmallScreen && s.pricePerTextMobile]}>per seat · {cls.billingCycle === 'monthly' ? 'monthly' : 'one-time'}</Text>
                 </View>
                 {!isTeacher && getClassDiscountPercent(currentUser) > 0 && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 }}>
-                    <Crown size={13} color="#6366F1" />
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: '#6366F1' }}>
+                  <View style={[{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 }, isSmallScreen && { marginTop: 3, gap: 3 }]}>
+                    <Crown size={isSmallScreen ? 11 : 13} color="#6366F1" />
+                    <Text style={[{ fontSize: 12, fontWeight: '600', color: '#6366F1' }, isSmallScreen && { fontSize: 10.5 }]}>
                       {getClassDiscountPercent(currentUser)}% Premium Member Discount Applied!
                     </Text>
                   </View>
@@ -870,86 +880,86 @@ export default function ClassDetailScreen() {
               {classOpen && (
                 <>
                   {!cls.hasStarted && !cls.isLive && isBeforeScheduledStart ? (
-                    <TouchableOpacity style={s.scheduledWaitingBtn} onPress={handleStartClass} activeOpacity={0.8}>
-                      <Clock size={18} color="#6366F1" />
-                      <Text style={s.scheduledWaitingBtnText}>
+                    <TouchableOpacity style={[s.scheduledWaitingBtn, isSmallScreen && s.scheduledWaitingBtnMobile]} onPress={handleStartClass} activeOpacity={0.8}>
+                      <Clock size={isSmallScreen ? 14 : 18} color="#6366F1" />
+                      <Text style={[s.scheduledWaitingBtnText, isSmallScreen && s.scheduledWaitingBtnTextMobile]}>
                         Scheduled for {new Date(cls.startISO).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })} at {new Date(cls.startISO).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                       </Text>
                     </TouchableOpacity>
                   ) : (
-                    <TouchableOpacity style={[s.startClassBtn, cls.isLive && { backgroundColor: '#10B981' }]} onPress={handleStartClass} activeOpacity={0.8}>
-                      <Video size={20} color="#FFFFFF" />
-                      <Text style={s.startClassBtnText}>{cls.isLive ? 'Rejoin Class Call' : 'Start Class Call'}</Text>
+                    <TouchableOpacity style={[s.startClassBtn, isSmallScreen && s.startClassBtnMobile, cls.isLive && { backgroundColor: '#10B981' }]} onPress={handleStartClass} activeOpacity={0.8}>
+                      <Video size={isSmallScreen ? 16 : 20} color="#FFFFFF" />
+                      <Text style={[s.startClassBtnText, isSmallScreen && s.startClassBtnTextMobile]}>{cls.isLive ? 'Rejoin Class Call' : 'Start Class Call'}</Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity style={s.completeBtn} onPress={handleCompleteClass} activeOpacity={0.8}>
-                    <CheckCircle2 size={20} color="#FFFFFF" />
-                    <Text style={s.completeBtnText}>Mark Complete</Text>
+                  <TouchableOpacity style={[s.completeBtn, isSmallScreen && s.completeBtnMobile]} onPress={handleCompleteClass} activeOpacity={0.8}>
+                    <CheckCircle2 size={isSmallScreen ? 16 : 20} color="#FFFFFF" />
+                    <Text style={[s.completeBtnText, isSmallScreen && s.completeBtnTextMobile]}>Mark Complete</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={s.cancelClassBtn} onPress={handleCancelClass} activeOpacity={0.8}>
-                    <XCircle size={18} color={Colors.light.error} />
-                    <Text style={s.cancelClassBtnText}>Cancel Class</Text>
+                  <TouchableOpacity style={[s.cancelClassBtn, isSmallScreen && s.cancelClassBtnMobile]} onPress={handleCancelClass} activeOpacity={0.8}>
+                    <XCircle size={isSmallScreen ? 15 : 18} color={Colors.light.error} />
+                    <Text style={[s.cancelClassBtnText, isSmallScreen && s.cancelClassBtnTextMobile]}>Cancel Class</Text>
                   </TouchableOpacity>
                 </>
               )}
-              {isCompleted && <Text style={s.completedNote}>This class has been completed.</Text>}
-              {isCancelled && <Text style={s.cancelledNote}>This class was cancelled.</Text>}
+              {isCompleted && <Text style={[s.completedNote, isSmallScreen && s.completedNoteMobile]}>This class has been completed.</Text>}
+              {isCancelled && <Text style={[s.cancelledNote, isSmallScreen && s.cancelledNoteMobile]}>This class was cancelled.</Text>}
             </View>
           ) : (
             <View>
               {enrolled && classOpen ? (
                 <>
                   {Boolean(cls.isLive) ? (
-                    <TouchableOpacity style={[s.startClassBtn, { backgroundColor: '#10B981' }]} onPress={() => router.push(`/call/${cls.id}?mode=video` as any)} activeOpacity={0.8}>
-                      <Video size={20} color="#FFFFFF" />
-                      <Text style={s.startClassBtnText}>Join Class Call (Live Now)</Text>
+                    <TouchableOpacity style={[s.startClassBtn, isSmallScreen && s.startClassBtnMobile, { backgroundColor: '#10B981' }]} onPress={() => router.push(`/call/${cls.id}?mode=video` as any)} activeOpacity={0.8}>
+                      <Video size={isSmallScreen ? 16 : 20} color="#FFFFFF" />
+                      <Text style={[s.startClassBtnText, isSmallScreen && s.startClassBtnTextMobile]}>Join Class Call (Live Now)</Text>
                     </TouchableOpacity>
                   ) : Boolean(cls.hasStarted || cls.startedAt) ? (
-                    <View style={s.waitingTeacherPill}>
-                      <Clock size={16} color="#6366F1" />
-                      <Text style={s.waitingTeacherText}>Class in session — Teacher will start call shortly</Text>
+                    <View style={[s.waitingTeacherPill, isSmallScreen && s.waitingTeacherPillMobile]}>
+                      <Clock size={isSmallScreen ? 13 : 16} color="#6366F1" />
+                      <Text style={[s.waitingTeacherText, isSmallScreen && s.waitingTeacherTextMobile]}>Class in session — Teacher will start call shortly</Text>
                     </View>
                   ) : (
-                    <View style={s.waitingTeacherPill}>
-                      <Clock size={16} color="#6366F1" />
-                      <Text style={s.waitingTeacherText}>Class not live yet — Teacher has not joined</Text>
+                    <View style={[s.waitingTeacherPill, isSmallScreen && s.waitingTeacherPillMobile]}>
+                      <Clock size={isSmallScreen ? 13 : 16} color="#6366F1" />
+                      <Text style={[s.waitingTeacherText, isSmallScreen && s.waitingTeacherTextMobile]}>Class not live yet — Teacher has not joined</Text>
                     </View>
                   )}
                   {Boolean(cls.hasStarted || cls.startedAt || cls.isLive) ? (
-                    <View style={s.enrolledLockedPill}>
-                      <CheckCircle2 size={18} color="#FFFFFF" />
-                      <Text style={s.enrolledLockedText}>Enrolled — Class in progress</Text>
+                    <View style={[s.enrolledLockedPill, isSmallScreen && s.enrolledLockedPillMobile]}>
+                      <CheckCircle2 size={isSmallScreen ? 15 : 18} color="#FFFFFF" />
+                      <Text style={[s.enrolledLockedText, isSmallScreen && s.enrolledLockedTextMobile]}>Enrolled — Class in progress</Text>
                     </View>
                   ) : (
-                    <TouchableOpacity style={s.enrolledBtn} onPress={handleCancelEnrollment} activeOpacity={0.8}>
-                      <CheckCircle2 size={18} color="#FFFFFF" />
-                      <Text style={s.enrolledBtnText}>Enrolled — Tap to cancel</Text>
+                    <TouchableOpacity style={[s.enrolledBtn, isSmallScreen && s.enrolledBtnMobile]} onPress={handleCancelEnrollment} activeOpacity={0.8}>
+                      <CheckCircle2 size={isSmallScreen ? 16 : 18} color="#FFFFFF" />
+                      <Text style={[s.enrolledBtnText, isSmallScreen && s.enrolledBtnTextMobile]}>Enrolled — Tap to cancel</Text>
                     </TouchableOpacity>
                   )}
                 </>
               ) : !enrolled && classOpen && !isFull ? (
-                <TouchableOpacity style={s.enrollBtn} onPress={handleEnroll} activeOpacity={0.8}>
-                  <Text style={s.enrollBtnText}>
+                <TouchableOpacity style={[s.enrollBtn, isSmallScreen && s.enrollBtnMobile]} onPress={handleEnroll} activeOpacity={0.8}>
+                  <Text style={[s.enrollBtnText, isSmallScreen && s.enrollBtnTextMobile]}>
                     {isFree ? 'Enroll Free' : `Enroll for ${getClassEnrollmentCost(cls.seatPriceCredits, currentUser)} credits ${cls.billingCycle === 'monthly' ? '/month' : ''}`}
                   </Text>
                 </TouchableOpacity>
               ) : !enrolled && classOpen && isFull ? (
-                <View style={s.fullBtn}>
-                  <Text style={s.fullBtnText}>Class Full</Text>
+                <View style={[s.fullBtn, isSmallScreen && s.fullBtnMobile]}>
+                  <Text style={[s.fullBtnText, isSmallScreen && s.fullBtnTextMobile]}>Class Full</Text>
                 </View>
               ) : isCompleted ? (
-                <View style={s.endedBtn}>
-                  <CheckCircle2 size={18} color={Colors.light.textTertiary} />
-                  <Text style={s.endedBtnText}>Class completed</Text>
+                <View style={[s.endedBtn, isSmallScreen && s.endedBtnMobile]}>
+                  <CheckCircle2 size={isSmallScreen ? 15 : 18} color={Colors.light.textTertiary} />
+                  <Text style={[s.endedBtnText, isSmallScreen && s.endedBtnTextMobile]}>Class completed</Text>
                 </View>
               ) : (
-                <View style={s.endedBtn}>
-                  <XCircle size={18} color={Colors.light.textTertiary} />
-                  <Text style={s.endedBtnText}>Class cancelled</Text>
+                <View style={[s.endedBtn, isSmallScreen && s.endedBtnMobile]}>
+                  <XCircle size={isSmallScreen ? 15 : 18} color={Colors.light.textTertiary} />
+                  <Text style={[s.endedBtnText, isSmallScreen && s.endedBtnTextMobile]}>Class cancelled</Text>
                 </View>
               )}
               {!enrolled && classOpen && !isFree && !isFull && (
-                <Text style={s.balanceNote}>Your balance: {currentUser?.credits ?? 0} credits</Text>
+                <Text style={[s.balanceNote, isSmallScreen && s.balanceNoteMobile]}>Your balance: {currentUser?.credits ?? 0} credits</Text>
               )}
             </View>
           )}
@@ -1062,4 +1072,307 @@ const s = StyleSheet.create({
   uploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.light.primary, paddingVertical: 10, borderRadius: 12 },
   uploadBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
   submittedText: { color: '#10B981', fontSize: 15, fontWeight: '600' },
+  statusBadgeMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    top: 50,
+  },
+  statusTextMobile: {
+    fontSize: 10.5,
+  },
+  bodyMobile: {
+    padding: 14,
+    paddingTop: 12,
+  },
+  catTextMobile: {
+    fontSize: 10.5,
+    marginBottom: 4,
+  },
+  titleMobile: {
+    fontSize: 18,
+    lineHeight: 24,
+    marginBottom: 10,
+  },
+  metaCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  metaLabelMobile: {
+    fontSize: 11.5,
+  },
+  metaDividerMobile: {
+    marginVertical: 8,
+  },
+  billingCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  billingBadgeTextMobile: {
+    fontSize: 12,
+  },
+  billingSubMobile: {
+    fontSize: 10.5,
+    lineHeight: 15,
+  },
+  teacherCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 14,
+    gap: 10,
+  },
+  teacherAvatarMobile: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
+  teacherNameMobile: {
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  teacherRatingMobile: {
+    fontSize: 11,
+  },
+  teacherReviewsMobile: {
+    fontSize: 11,
+  },
+  teacherSwapsMobile: {
+    fontSize: 11,
+  },
+  teacherActionTextMobile: {
+    fontSize: 11.5,
+  },
+  sectionTitleMobile: {
+    fontSize: 15,
+    marginBottom: 6,
+  },
+  descriptionMobile: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  seatsCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 14,
+  },
+  seatsTitleMobile: {
+    fontSize: 12.5,
+  },
+  seatsLeftMobile: {
+    fontSize: 11,
+  },
+  pricingCardMobile: {
+    padding: 12,
+    borderRadius: 14,
+  },
+  enrollBtnMobile: {
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  enrollBtnTextMobile: {
+    fontSize: 12.5,
+  },
+  enrolledBtnMobile: {
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  enrolledBtnTextMobile: {
+    fontSize: 12,
+  },
+  startClassBtnMobile: {
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  startClassBtnTextMobile: {
+    fontSize: 12.5,
+  },
+  completeBtnMobile: {
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  completeBtnTextMobile: {
+    fontSize: 12.5,
+  },
+  cancelClassBtnMobile: {
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  cancelClassBtnTextMobile: {
+    fontSize: 11.5,
+  },
+  cardSectionMobile: {
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  sectionHeaderMobile: {
+    gap: 6,
+    marginBottom: 8,
+  },
+  announcementItemMobile: {
+    padding: 8,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  announcementTextMobile: {
+    fontSize: 12.5,
+    lineHeight: 17,
+    marginBottom: 2,
+  },
+  announcementDateMobile: {
+    fontSize: 10.5,
+  },
+  emptyTextMobile: {
+    fontSize: 11.5,
+    marginBottom: 6,
+  },
+  inputContainerMobile: {
+    marginTop: 8,
+    gap: 6,
+  },
+  textInputMobile: {
+    padding: 8,
+    fontSize: 12.5,
+    borderRadius: 10,
+    minHeight: 36,
+  },
+  actionBtnMobile: {
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  actionBtnTextMobile: {
+    fontSize: 12.5,
+  },
+  assignmentItemMobile: {
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  assignmentTitleMobile: {
+    fontSize: 13.5,
+    marginBottom: 2,
+  },
+  assignmentDescMobile: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    marginBottom: 4,
+  },
+  downloadLinkMobile: {
+    fontSize: 11.5,
+    marginBottom: 6,
+  },
+  submissionsContainerMobile: {
+    marginTop: 8,
+    paddingTop: 8,
+  },
+  submissionsTitleMobile: {
+    fontSize: 11.5,
+    marginBottom: 4,
+  },
+  submissionItemMobile: {
+    padding: 6,
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  submissionStudentMobile: {
+    fontSize: 11.5,
+  },
+  submissionDateMobile: {
+    fontSize: 10,
+  },
+  studentSubmitContainerMobile: {
+    marginTop: 8,
+  },
+  uploadBtnMobile: {
+    paddingVertical: 7,
+    borderRadius: 9,
+    gap: 6,
+  },
+  uploadBtnTextMobile: {
+    fontSize: 11.5,
+  },
+  submittedTextMobile: {
+    fontSize: 12,
+  },
+  priceRowMobile: {
+    marginBottom: 10,
+  },
+  priceTagMobile: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 4,
+  },
+  priceTextMobile: {
+    fontSize: 16,
+  },
+  pricePerTextMobile: {
+    fontSize: 11,
+  },
+  freeTagMobile: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 5,
+  },
+  freePriceTextMobile: {
+    fontSize: 14,
+  },
+  waitingTeacherPillMobile: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    marginBottom: 6,
+    gap: 6,
+  },
+  waitingTeacherTextMobile: {
+    fontSize: 11.5,
+    lineHeight: 16,
+  },
+  enrolledLockedPillMobile: {
+    borderRadius: 12,
+    paddingVertical: 10,
+    gap: 6,
+  },
+  enrolledLockedTextMobile: {
+    fontSize: 12.5,
+  },
+  scheduledWaitingBtnMobile: {
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  scheduledWaitingBtnTextMobile: {
+    fontSize: 11.5,
+  },
+  fullBtnMobile: {
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  fullBtnTextMobile: {
+    fontSize: 12.5,
+  },
+  endedBtnMobile: {
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+  },
+  endedBtnTextMobile: {
+    fontSize: 12,
+  },
+  balanceNoteMobile: {
+    fontSize: 11,
+    marginTop: 6,
+  },
+  completedNoteMobile: {
+    fontSize: 11.5,
+    paddingVertical: 6,
+  },
+  cancelledNoteMobile: {
+    fontSize: 11.5,
+    paddingVertical: 6,
+  },
 });

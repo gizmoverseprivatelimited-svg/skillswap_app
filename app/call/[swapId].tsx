@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, ActivityIndicator, Platform, PermissionsAndroid } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, ActivityIndicator, Platform, PermissionsAndroid, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Video } from 'lucide-react-native';
@@ -22,6 +22,9 @@ export default function UnifiedCallScreen() {
   }>();
   const targetId = (swapId || classId || id || '') as string;
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const { currentUser, allUsers, isLoading: isUserLoading } = useCurrentUser();
   const { user: authUser } = useAuth();
   const { getSwapById, swaps, allSwaps } = useSkillSwaps();
@@ -178,7 +181,7 @@ export default function UnifiedCallScreen() {
                 return;
               }
             }
-          } catch (e) {}
+          } catch {}
 
           try {
             const swapRes = await fetch(`${url}/swaps/${targetId}/100ms-room?userId=${encodeURIComponent(currentUserId)}`);
@@ -193,7 +196,7 @@ export default function UnifiedCallScreen() {
                 return;
               }
             }
-          } catch (e) {}
+          } catch {}
         }
 
         if (!isCancelled) {
@@ -380,7 +383,7 @@ export default function UnifiedCallScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   fullScreen: {
     flex: 1,
     backgroundColor: '#000000',
@@ -391,23 +394,23 @@ const styles = StyleSheet.create({
   },
   gradientFill: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingHorizontal: isSmallScreen ? 16 : 24,
+    paddingTop: isSmallScreen ? 44 : 60,
     justifyContent: 'space-between',
-    paddingBottom: 40,
+    paddingBottom: isSmallScreen ? 24 : 40,
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    paddingVertical: isSmallScreen ? 6 : 8,
+    paddingHorizontal: isSmallScreen ? 10 : 12,
+    borderRadius: isSmallScreen ? 10 : 12,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignSelf: 'flex-start',
   },
   backButtonText: {
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13 : 15,
     fontWeight: '600',
     color: '#FFFFFF',
   },
@@ -415,12 +418,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: isSmallScreen ? 16 : 20,
   },
   iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: isSmallScreen ? 64 : 80,
+    height: isSmallScreen ? 64 : 80,
+    borderRadius: isSmallScreen ? 32 : 40,
     backgroundColor: 'rgba(99, 102, 241, 0.15)',
     borderWidth: 1.5,
     borderColor: 'rgba(99, 102, 241, 0.3)',
@@ -428,42 +431,42 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loadingTitle: {
-    fontSize: 20,
+    fontSize: isSmallScreen ? 16 : 20,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginTop: 18,
+    marginTop: isSmallScreen ? 14 : 18,
     textAlign: 'center',
   },
   loadingSubtext: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12 : 14,
     color: '#94A3B8',
-    marginTop: 8,
+    marginTop: isSmallScreen ? 6 : 8,
     textAlign: 'center',
     maxWidth: 280,
   },
   errorTitle: {
-    fontSize: 22,
+    fontSize: isSmallScreen ? 18 : 22,
     fontWeight: '700',
     color: '#F87171',
     marginBottom: 8,
     textAlign: 'center',
   },
   errorMessage: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12.5 : 14,
     color: '#CBD5E1',
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
+    lineHeight: isSmallScreen ? 18 : 20,
+    marginBottom: isSmallScreen ? 18 : 24,
   },
   retryButton: {
     backgroundColor: '#6366F1',
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderRadius: 12,
+    paddingVertical: isSmallScreen ? 10 : 12,
+    paddingHorizontal: isSmallScreen ? 22 : 28,
+    borderRadius: isSmallScreen ? 10 : 12,
   },
   retryButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13.5 : 15,
     fontWeight: '600',
   },
 });

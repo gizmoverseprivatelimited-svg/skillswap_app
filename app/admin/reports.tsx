@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,6 +9,7 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { Stack, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -66,6 +67,9 @@ const timeAgo = (iso: string): string => {
 
 export default function AdminReportsScreen() {
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const { isAdminAuthenticated } = useAdmin();
   const { reports, resolveReport, pendingReportsCount, fetchReports } = useSafety();
   const { showAlert } = useAlert();
@@ -327,7 +331,7 @@ export default function AdminReportsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
@@ -336,18 +340,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
+    padding: isSmallScreen ? 12 : 16,
+    paddingBottom: isSmallScreen ? 24 : 40,
   },
   filterRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
+    gap: isSmallScreen ? 6 : 8,
+    marginBottom: isSmallScreen ? 12 : 16,
     flexWrap: 'wrap',
   },
   filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: isSmallScreen ? 10 : 14,
+    paddingVertical: isSmallScreen ? 5 : 8,
     borderRadius: 20,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -358,7 +362,7 @@ const styles = StyleSheet.create({
     borderColor: '#0F172A',
   },
   filterChipText: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     fontWeight: '600' as const,
     color: '#64748B',
   },
@@ -371,25 +375,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: isSmallScreen ? 16 : 18,
     fontWeight: '700' as const,
     color: '#0F172A',
     marginTop: 16,
   },
   emptyDesc: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12.5 : 14,
     color: '#64748B',
     marginTop: 8,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: isSmallScreen ? 17 : 20,
   },
   reportList: {
-    gap: 14,
+    gap: isSmallScreen ? 10 : 14,
   },
   reportCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: isSmallScreen ? 12 : 16,
+    padding: isSmallScreen ? 12 : 16,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
@@ -400,25 +404,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: isSmallScreen ? 8 : 12,
   },
   reporterInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: isSmallScreen ? 8 : 10,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: isSmallScreen ? 30 : 36,
+    height: isSmallScreen ? 30 : 36,
+    borderRadius: isSmallScreen ? 15 : 18,
   },
   reporterName: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 13 : 14,
     fontWeight: '700' as const,
     color: '#0F172A',
   },
   reportTime: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     color: '#94A3B8',
     marginTop: 2,
   },

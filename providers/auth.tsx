@@ -8,6 +8,7 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import firebaseAuth from '@react-native-firebase/auth';
 
 import { useSocket } from '@/providers/socket';
+import { logLogin, logSignUp, logEvent, setUserId } from '@/lib/analytics';
 
 const TOKEN_KEY = '@skillswap/auth_token';
 const USER_KEY = '@skillswap/auth_user';
@@ -185,6 +186,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
     console.log(result);
 
     await saveToken(result.token, result.user);
+    logLogin('email');
   }, [saveToken]);
 
 
@@ -210,6 +212,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
     console.log(result);
 
     await saveToken(result.token, result.user);
+    logSignUp('email');
     return result;
   }, [saveToken]);
 
@@ -235,10 +238,12 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
       console.log(result);
 
       if (result.isNewUser) {
+        logSignUp('otp');
         return result;
       }
 
       await saveToken(result.token, result.user);
+      logLogin('otp');
 
       console.log('[Auth] OTP sign in successful');
       return result;
@@ -261,11 +266,18 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
     }
 
     await saveToken(result.token, result.user);
+    if (result.isNewUser) {
+      logSignUp(String(provider || 'google'));
+    } else {
+      logLogin(String(provider || 'google'));
+    }
   }, [saveToken]);
 
 
   const signOut = useCallback(async () => {
     console.log('[Auth] Signing out');
+    logEvent('sign_out');
+    setUserId(null);
 
     // Sign out from Firebase Auth
     try {

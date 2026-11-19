@@ -4,6 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useMemo } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet, ActivityIndicator, View, Platform, PermissionsAndroid } from "react-native";
+import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "../providers/auth";
 import { CurrentUserProvider, useCurrentUser } from "../providers/current-user";
@@ -16,6 +17,7 @@ import { OnboardingProvider, useOnboarding } from "../providers/onboarding";
 import { InAppNotificationBanner } from "../components/InAppNotificationBanner";
 import { AdminProvider } from "@/providers/admin";
 import url from '@/constants/backurl';
+import { logScreenView, setUserId, setUserProperty } from "@/lib/analytics";
 
 
 
@@ -31,6 +33,30 @@ function RootLayoutNav() {
   const pathname = usePathname();
 
   const user = currentUser || authUser;
+
+  // 📊 Automatic Firebase Analytics Screen Tracking (https://rnfirebase.io/analytics/screen-tracking)
+  const routeNameRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    const currentRouteName = pathname || (segments.length > 0 ? segments.join('/') : 'Home');
+    if (routeNameRef.current !== currentRouteName) {
+      routeNameRef.current = currentRouteName;
+      logScreenView(currentRouteName);
+    }
+  }, [pathname, segments]);
+
+  // 👤 Set Firebase Analytics User Identity & Properties
+  useEffect(() => {
+    if (user && (user.id || (user as any)._id)) {
+      const uid = String(user.id || (user as any)._id);
+      setUserId(uid);
+      if (user.role) {
+        setUserProperty('user_role', String(user.role));
+      }
+    } else if (!isAuthenticated) {
+      setUserId(null);
+    }
+  }, [user, isAuthenticated]);
+
   const isRestricted = useMemo(() => {
     if (!user) return false;
     if (user.banStatus === 'banned') return true;
@@ -361,38 +387,40 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AlertProvider>
-        <SocketProvider>
-          <AuthProvider>
-            <OnboardingProvider>
-              <SafetyProvider>
-                <CurrentUserProvider>
-                  <EarningsProvider>
-                    <SkillSwapsProvider>
-                      <AdminProvider>
-                        <NotificationsProvider>
-                          <ClassesProvider>
-                            <ResourcesProvider>
-                              <ErrorBoundary>
-                                <GestureHandlerRootView style={styles.container}>
-                                  <RootLayoutNav />
-                                  <InAppNotificationBanner />
-                                </GestureHandlerRootView>
-                              </ErrorBoundary>
-                            </ResourcesProvider>
-                          </ClassesProvider>
-                        </NotificationsProvider>
-                      </AdminProvider>
-                    </SkillSwapsProvider>
-                  </EarningsProvider>
-                </CurrentUserProvider>
-              </SafetyProvider>
-            </OnboardingProvider>
-          </AuthProvider>
-        </SocketProvider>
-      </AlertProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <QueryClientProvider client={queryClient}>
+        <AlertProvider>
+          <SocketProvider>
+            <AuthProvider>
+              <OnboardingProvider>
+                <SafetyProvider>
+                  <CurrentUserProvider>
+                    <EarningsProvider>
+                      <SkillSwapsProvider>
+                        <AdminProvider>
+                          <NotificationsProvider>
+                            <ClassesProvider>
+                              <ResourcesProvider>
+                                <ErrorBoundary>
+                                  <GestureHandlerRootView style={styles.container}>
+                                    <RootLayoutNav />
+                                    <InAppNotificationBanner />
+                                  </GestureHandlerRootView>
+                                </ErrorBoundary>
+                              </ResourcesProvider>
+                            </ClassesProvider>
+                          </NotificationsProvider>
+                        </AdminProvider>
+                      </SkillSwapsProvider>
+                    </EarningsProvider>
+                  </CurrentUserProvider>
+                </SafetyProvider>
+              </OnboardingProvider>
+            </AuthProvider>
+          </SocketProvider>
+        </AlertProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }
 

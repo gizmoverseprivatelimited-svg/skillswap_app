@@ -11,6 +11,7 @@ import {
   Alert,
   Linking,
   PermissionsAndroid,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
@@ -63,6 +64,8 @@ export default function EditProfileScreen() {
   const router = useRouter();
   const { currentUser, loadUser } = useCurrentUser();
   const { showAlert } = useAlert();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
 
   const [name, setName] = useState<string>(currentUser?.name || "");
   const [bio, setBio] = useState<string>(currentUser?.bio || "");
@@ -728,33 +731,33 @@ export default function EditProfileScreen() {
       <View style={styles.container}>
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, isSmallScreen && styles.scrollContentMobile]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.avatarSection}>
+          <View style={[styles.avatarSection, isSmallScreen && styles.avatarSectionMobile]}>
             <View style={styles.avatarContainer}>
               {avatarUrl ? (
                 <Image
                   source={{ uri: resolveImageUrl(avatarUrl) }}
-                  style={styles.avatar}
+                  style={[styles.avatar, isSmallScreen && styles.avatarMobile]}
                 />
               ) : (
-                <View style={[styles.avatar, { backgroundColor: Colors.light.backgroundTertiary }]} />
+                <View style={[styles.avatar, isSmallScreen && styles.avatarMobile, { backgroundColor: Colors.light.backgroundTertiary }]} />
               )}
               <TouchableOpacity
-                style={styles.changeAvatarButton}
+                style={[styles.changeAvatarButton, isSmallScreen && styles.changeAvatarButtonMobile]}
                 onPress={handleChangeAvatar}
               >
-                <Camera size={20} color="#FFFFFF" />
+                <Camera size={isSmallScreen ? 15 : 20} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.avatarHint}>Tap to change photo</Text>
+            <Text style={[styles.avatarHint, isSmallScreen && styles.avatarHintMobile]}>Tap to change photo</Text>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.label}>Name</Text>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+            <Text style={[styles.label, isSmallScreen && styles.labelMobile]}>Name</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, isSmallScreen && styles.inputMobile]}
               value={name}
               onChangeText={setName}
               placeholder="Enter your name"
@@ -762,17 +765,17 @@ export default function EditProfileScreen() {
             />
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.label}>Location</Text>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+            <Text style={[styles.label, isSmallScreen && styles.labelMobile]}>Location</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, isSmallScreen && styles.inputMobile]}
               value={location}
               onChangeText={setLocation}
               placeholder="Enter your location"
               placeholderTextColor={Colors.light.textTertiary}
             />
             <TouchableOpacity
-              style={[styles.getLocationButton, isLocating && styles.getLocationButtonDisabled]}
+              style={[styles.getLocationButton, isSmallScreen && styles.getLocationButtonMobile, isLocating && styles.getLocationButtonDisabled]}
               onPress={handleGetLocation}
               disabled={isLocating}
             >
@@ -780,17 +783,17 @@ export default function EditProfileScreen() {
                 <ActivityIndicator size="small" color="#FF6B9D" />
               ) : (
                 <>
-                  <MapPin size={16} color="#FF6B9D" style={{ marginRight: 6 }} />
-                  <Text style={styles.getLocationButtonText}>Use Current Location</Text>
+                  <MapPin size={isSmallScreen ? 13 : 16} color="#FF6B9D" style={{ marginRight: 6 }} />
+                  <Text style={[styles.getLocationButtonText, isSmallScreen && styles.getLocationButtonTextMobile]}>Use Current Location</Text>
                 </>
               )}
             </TouchableOpacity>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.label}>Bio</Text>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+            <Text style={[styles.label, isSmallScreen && styles.labelMobile]}>Bio</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, isSmallScreen && styles.inputMobile, isSmallScreen && styles.textAreaMobile]}
               value={bio}
               onChangeText={setBio}
               placeholder="Tell others about yourself"
@@ -801,24 +804,24 @@ export default function EditProfileScreen() {
             />
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.label}>Skills I Want to Learn</Text>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
+            <Text style={[styles.label, isSmallScreen && styles.labelMobile]}>Skills I Want to Learn</Text>
             <View style={styles.skillsWantedList}>
               {skillsWanted.map((skill, index) => (
-                <View key={index} style={styles.skillChip}>
-                  <Text style={styles.skillChipText}>{skill}</Text>
+                <View key={index} style={[styles.skillChip, isSmallScreen && styles.skillChipMobile]}>
+                  <Text style={[styles.skillChipText, isSmallScreen && styles.skillChipTextMobile]}>{skill}</Text>
                   <TouchableOpacity
                     onPress={() => handleRemoveSkillWanted(index)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <X size={16} color={Colors.light.textSecondary} />
+                    <X size={isSmallScreen ? 13 : 16} color={Colors.light.textSecondary} />
                   </TouchableOpacity>
                 </View>
               ))}
             </View>
             <View style={styles.addSkillRow}>
               <TextInput
-                style={styles.addSkillInput}
+                style={[styles.addSkillInput, isSmallScreen && styles.addSkillInputMobile]}
                 value={newSkillWanted}
                 onChangeText={setNewSkillWanted}
                 placeholder="Add a skill"
@@ -827,41 +830,41 @@ export default function EditProfileScreen() {
                 returnKeyType="done"
               />
               <TouchableOpacity
-                style={styles.addSkillButton}
+                style={[styles.addSkillButton, isSmallScreen && styles.addSkillButtonMobile]}
                 onPress={handleAddSkillWanted}
               >
-                <Plus size={20} color={Colors.light.primary} />
+                <Plus size={isSmallScreen ? 16 : 20} color={Colors.light.primary} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* TEACHER CREDENTIALS & DETAILS SECTION */}
-          <View style={styles.section}>
+          <View style={[styles.section, isSmallScreen && styles.sectionMobile]}>
             <View style={styles.sectionHeaderWrap}>
-              <GraduationCap size={20} color="#10B981" />
-              <Text style={styles.sectionHeaderTitle}>Teacher Credentials & Details</Text>
+              <GraduationCap size={isSmallScreen ? 16 : 20} color="#10B981" />
+              <Text style={[styles.sectionHeaderTitle, isSmallScreen && styles.sectionHeaderTitleMobile]}>Teacher Credentials & Details</Text>
             </View>
-            <Text style={styles.sectionHeaderSubtitle}>
+            <Text style={[styles.sectionHeaderSubtitle, isSmallScreen && styles.sectionHeaderSubtitleMobile]}>
               Add and update your teaching qualifications, languages, certifications, and experience.
             </Text>
 
             {/* LANGUAGES */}
             <View style={styles.subSection}>
               <View style={styles.subSectionTitleRow}>
-                <Languages size={16} color="#10B981" />
-                <Text style={styles.subSectionLabel}>Languages you speak / teach in</Text>
+                <Languages size={isSmallScreen ? 13 : 16} color="#10B981" />
+                <Text style={[styles.subSectionLabel, isSmallScreen && styles.subSectionLabelMobile]}>Languages you speak / teach in</Text>
               </View>
-              <Text style={styles.subSectionHint}>Select all languages that apply.</Text>
+              <Text style={[styles.subSectionHint, isSmallScreen && styles.subSectionHintMobile]}>Select all languages that apply.</Text>
               <View style={styles.chipWrap}>
                 {languageOptions.map((lang) => {
                   const selected = languages.includes(lang);
                   return (
                     <TouchableOpacity
                       key={lang}
-                      style={[styles.chip, selected && styles.chipSelected]}
+                      style={[styles.chip, isSmallScreen && styles.chipMobile, selected && styles.chipSelected]}
                       onPress={() => toggleLanguage(lang)}
                     >
-                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{lang}</Text>
+                      <Text style={[styles.chipText, isSmallScreen && styles.chipTextMobile, selected && styles.chipTextSelected]}>{lang}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -870,17 +873,17 @@ export default function EditProfileScreen() {
                   .map((lang) => (
                     <TouchableOpacity
                       key={lang}
-                      style={[styles.chip, styles.chipSelected]}
+                      style={[styles.chip, isSmallScreen && styles.chipMobile, styles.chipSelected]}
                       onPress={() => toggleLanguage(lang)}
                     >
-                      <Text style={[styles.chipText, styles.chipTextSelected]}>{lang}</Text>
-                      <X size={14} color="#fff" style={{ marginLeft: 4 }} />
+                      <Text style={[styles.chipText, isSmallScreen && styles.chipTextMobile, styles.chipTextSelected]}>{lang}</Text>
+                      <X size={isSmallScreen ? 12 : 14} color="#fff" style={{ marginLeft: 4 }} />
                     </TouchableOpacity>
                   ))}
               </View>
               <View style={styles.addRow}>
                 <TextInput
-                  style={styles.addRowInput}
+                  style={[styles.addRowInput, isSmallScreen && styles.addRowInputMobile]}
                   placeholder="Add another language"
                   placeholderTextColor={Colors.light.textTertiary}
                   value={customLanguage}
@@ -888,8 +891,8 @@ export default function EditProfileScreen() {
                   onSubmitEditing={addCustomLanguage}
                   returnKeyType="done"
                 />
-                <TouchableOpacity style={styles.addRowButton} onPress={addCustomLanguage}>
-                  <Plus size={18} color="#fff" />
+                <TouchableOpacity style={[styles.addRowButton, isSmallScreen && styles.addRowButtonMobile]} onPress={addCustomLanguage}>
+                  <Plus size={isSmallScreen ? 15 : 18} color="#fff" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -897,20 +900,20 @@ export default function EditProfileScreen() {
             {/* QUALIFICATIONS */}
             <View style={styles.subSection}>
               <View style={styles.subSectionTitleRow}>
-                <Award size={16} color="#10B981" />
-                <Text style={styles.subSectionLabel}>Qualifications</Text>
+                <Award size={isSmallScreen ? 13 : 16} color="#10B981" />
+                <Text style={[styles.subSectionLabel, isSmallScreen && styles.subSectionLabelMobile]}>Qualifications</Text>
               </View>
-              <Text style={styles.subSectionHint}>Select all formal qualifications that apply.</Text>
+              <Text style={[styles.subSectionHint, isSmallScreen && styles.subSectionHintMobile]}>Select all formal qualifications that apply.</Text>
               <View style={styles.chipWrap}>
                 {qualificationOptions.map((q) => {
                   const selected = qualifications.includes(q);
                   return (
                     <TouchableOpacity
                       key={q}
-                      style={[styles.chip, selected && styles.chipSelected]}
+                      style={[styles.chip, isSmallScreen && styles.chipMobile, selected && styles.chipSelected]}
                       onPress={() => toggleQualification(q)}
                     >
-                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{q}</Text>
+                      <Text style={[styles.chipText, isSmallScreen && styles.chipTextMobile, selected && styles.chipTextSelected]}>{q}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -920,18 +923,18 @@ export default function EditProfileScreen() {
             {/* CERTIFIED TOGGLE & CERTIFICATES */}
             <View style={styles.subSection}>
               <TouchableOpacity
-                style={[styles.certifiedToggle, isCertified && styles.certifiedToggleActive]}
+                style={[styles.certifiedToggle, isSmallScreen && styles.certifiedToggleMobile, isCertified && styles.certifiedToggleActive]}
                 onPress={() => setIsCertified(!isCertified)}
                 activeOpacity={0.75}
               >
-                <View style={[styles.certifiedToggleIcon, isCertified && styles.certifiedToggleIconActive]}>
-                  <BadgeCheck size={22} color={isCertified ? '#fff' : '#10B981'} />
+                <View style={[styles.certifiedToggleIcon, isSmallScreen && styles.certifiedToggleIconMobile, isCertified && styles.certifiedToggleIconActive]}>
+                  <BadgeCheck size={isSmallScreen ? 18 : 22} color={isCertified ? '#fff' : '#10B981'} />
                 </View>
                 <View style={styles.certifiedToggleContent}>
-                  <Text style={[styles.certifiedToggleTitle, isCertified && styles.certifiedToggleTitleActive]}>
+                  <Text style={[styles.certifiedToggleTitle, isSmallScreen && styles.certifiedToggleTitleMobile, isCertified && styles.certifiedToggleTitleActive]}>
                     I am certified or professionally qualified
                   </Text>
-                  <Text style={styles.certifiedToggleSubtitle}>
+                  <Text style={[styles.certifiedToggleSubtitle, isSmallScreen && styles.certifiedToggleSubtitleMobile]}>
                     Add your certificates and upload proof documents for verification
                   </Text>
                 </View>
@@ -940,27 +943,27 @@ export default function EditProfileScreen() {
               {isCertified && (
                 <View style={styles.certSection}>
                   {certifications.map((cert) => (
-                    <View key={cert.id} style={styles.certCard}>
+                    <View key={cert.id} style={[styles.certCard, isSmallScreen && styles.certCardMobile]}>
                       <View style={styles.certCardHeader}>
                         <View style={styles.certCardTitleWrap}>
-                          <Award size={16} color="#10B981" />
-                          <Text style={styles.certCardTitle} numberOfLines={1}>{cert.title}</Text>
+                          <Award size={isSmallScreen ? 13 : 16} color="#10B981" />
+                          <Text style={[styles.certCardTitle, isSmallScreen && styles.certCardTitleMobile]}>{cert.title}</Text>
                         </View>
                         <TouchableOpacity
                           onPress={() => removeCertification(cert.id)}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
-                          <X size={16} color={Colors.light.textSecondary} />
+                          <X size={isSmallScreen ? 13 : 16} color={Colors.light.textSecondary} />
                         </TouchableOpacity>
                       </View>
                       <TouchableOpacity
-                        style={[styles.uploadButton, cert.documentUri && styles.uploadButtonDone]}
+                        style={[styles.uploadButton, isSmallScreen && styles.uploadButtonMobile, cert.documentUri && styles.uploadButtonDone]}
                         onPress={() => pickCertificate(cert.id)}
                       >
                         {cert.documentUri
-                          ? <FileCheck2 size={16} color="#065F46" />
-                          : <Upload size={16} color="#059669" />}
-                        <Text style={[styles.uploadButtonText, cert.documentUri && styles.uploadButtonTextDone]}>
+                          ? <FileCheck2 size={isSmallScreen ? 13 : 16} color="#065F46" />
+                          : <Upload size={isSmallScreen ? 13 : 16} color="#059669" />}
+                        <Text style={[styles.uploadButtonText, isSmallScreen && styles.uploadButtonTextMobile, cert.documentUri && styles.uploadButtonTextDone]}>
                           {cert.documentUri ? 'Document uploaded ✓' : 'Upload certificate document'}
                         </Text>
                       </TouchableOpacity>
@@ -968,7 +971,7 @@ export default function EditProfileScreen() {
                   ))}
                   <View style={styles.addRow}>
                     <TextInput
-                      style={styles.addRowInput}
+                      style={[styles.addRowInput, isSmallScreen && styles.addRowInputMobile]}
                       placeholder="e.g. CTET, AWS Certified, Grade 8 Piano"
                       placeholderTextColor={Colors.light.textTertiary}
                       value={certTitle}
@@ -976,8 +979,8 @@ export default function EditProfileScreen() {
                       onSubmitEditing={addCertification}
                       returnKeyType="done"
                     />
-                    <TouchableOpacity style={styles.addRowButton} onPress={addCertification}>
-                      <Plus size={18} color="#fff" />
+                    <TouchableOpacity style={[styles.addRowButton, isSmallScreen && styles.addRowButtonMobile]} onPress={addCertification}>
+                      <Plus size={isSmallScreen ? 15 : 18} color="#fff" />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -987,8 +990,8 @@ export default function EditProfileScreen() {
             {/* YEARS OF TEACHING EXPERIENCE */}
             <View style={styles.subSection}>
               <View style={styles.subSectionTitleRow}>
-                <Clock size={16} color="#10B981" />
-                <Text style={styles.subSectionLabel}>Years of teaching experience</Text>
+                <Clock size={isSmallScreen ? 13 : 16} color="#10B981" />
+                <Text style={[styles.subSectionLabel, isSmallScreen && styles.subSectionLabelMobile]}>Years of teaching experience</Text>
               </View>
               <View style={styles.chipWrap}>
                 {experienceOptions.map((opt) => {
@@ -996,10 +999,10 @@ export default function EditProfileScreen() {
                   return (
                     <TouchableOpacity
                       key={opt}
-                      style={[styles.chip, selected && styles.chipSelected]}
+                      style={[styles.chip, isSmallScreen && styles.chipMobile, selected && styles.chipSelected]}
                       onPress={() => setYearsTeaching(opt)}
                     >
-                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{opt}</Text>
+                      <Text style={[styles.chipText, isSmallScreen && styles.chipTextMobile, selected && styles.chipTextSelected]}>{opt}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -1009,18 +1012,18 @@ export default function EditProfileScreen() {
             {/* PRIVATE TUITION TOGGLE */}
             <View style={styles.subSection}>
               <TouchableOpacity
-                style={[styles.certifiedToggle, privateTuition && styles.certifiedToggleActive]}
+                style={[styles.certifiedToggle, isSmallScreen && styles.certifiedToggleMobile, privateTuition && styles.certifiedToggleActive]}
                 onPress={() => setPrivateTuition(!privateTuition)}
                 activeOpacity={0.75}
               >
-                <View style={[styles.certifiedToggleIcon, privateTuition && styles.certifiedToggleIconActive]}>
-                  <GraduationCap size={22} color={privateTuition ? '#fff' : '#10B981'} />
+                <View style={[styles.certifiedToggleIcon, isSmallScreen && styles.certifiedToggleIconMobile, privateTuition && styles.certifiedToggleIconActive]}>
+                  <GraduationCap size={isSmallScreen ? 18 : 22} color={privateTuition ? '#fff' : '#10B981'} />
                 </View>
                 <View style={styles.certifiedToggleContent}>
-                  <Text style={[styles.certifiedToggleTitle, privateTuition && styles.certifiedToggleTitleActive]}>
+                  <Text style={[styles.certifiedToggleTitle, isSmallScreen && styles.certifiedToggleTitleMobile, privateTuition && styles.certifiedToggleTitleActive]}>
                     I have given private tuitions or coaching
                   </Text>
-                  <Text style={styles.certifiedToggleSubtitle}>
+                  <Text style={[styles.certifiedToggleSubtitle, isSmallScreen && styles.certifiedToggleSubtitleMobile]}>
                     Home tuitions, coaching centres, or online 1-on-1 teaching
                   </Text>
                 </View>
@@ -1030,19 +1033,19 @@ export default function EditProfileScreen() {
             {/* CAREER HISTORY */}
             <View style={styles.subSection}>
               <View style={styles.subSectionTitleRow}>
-                <Briefcase size={16} color="#10B981" />
-                <Text style={styles.subSectionLabel}>Past Career & Jobs Experience</Text>
+                <Briefcase size={isSmallScreen ? 13 : 16} color="#10B981" />
+                <Text style={[styles.subSectionLabel, isSmallScreen && styles.subSectionLabelMobile]}>Past Career & Jobs Experience</Text>
               </View>
-              <Text style={styles.subSectionHint}>Past roles and positions that make you a great teacher.</Text>
+              <Text style={[styles.subSectionHint, isSmallScreen && styles.subSectionHintMobile]}>Past roles and positions that make you a great teacher.</Text>
               
               {careerHistory.map((entry) => (
-                <View key={entry.id} style={styles.careerCard}>
-                  <View style={styles.careerIconWrap}>
-                    <Briefcase size={16} color="#10B981" />
+                <View key={entry.id} style={[styles.careerCard, isSmallScreen && styles.careerCardMobile]}>
+                  <View style={[styles.careerIconWrap, isSmallScreen && styles.careerIconWrapMobile]}>
+                    <Briefcase size={isSmallScreen ? 13 : 16} color="#10B981" />
                   </View>
                   <View style={styles.careerContent}>
-                    <Text style={styles.careerRole}>{entry.role}</Text>
-                    <Text style={styles.careerMeta}>
+                    <Text style={[styles.careerRole, isSmallScreen && styles.careerRoleMobile]}>{entry.role}</Text>
+                    <Text style={[styles.careerMeta, isSmallScreen && styles.careerMetaMobile]}>
                       {[entry.organization, entry.years].filter(Boolean).join(' · ') || '—'}
                     </Text>
                   </View>
@@ -1050,36 +1053,36 @@ export default function EditProfileScreen() {
                     onPress={() => removeCareerEntry(entry.id)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <X size={16} color={Colors.light.textSecondary} />
+                    <X size={isSmallScreen ? 13 : 16} color={Colors.light.textSecondary} />
                   </TouchableOpacity>
                 </View>
               ))}
 
-              <View style={styles.careerForm}>
+              <View style={[styles.careerForm, isSmallScreen && styles.careerFormMobile]}>
                 <TextInput
-                  style={styles.careerInput}
+                  style={[styles.careerInput, isSmallScreen && styles.careerInputMobile]}
                   placeholder="Role (e.g. Software Engineer, School Teacher)"
                   placeholderTextColor={Colors.light.textTertiary}
                   value={careerRole}
                   onChangeText={setCareerRole}
                 />
                 <TextInput
-                  style={styles.careerInput}
+                  style={[styles.careerInput, isSmallScreen && styles.careerInputMobile]}
                   placeholder="Organization (e.g. TCS, Kendriya Vidyalaya)"
                   placeholderTextColor={Colors.light.textTertiary}
                   value={careerOrg}
                   onChangeText={setCareerOrg}
                 />
                 <TextInput
-                  style={styles.careerInput}
+                  style={[styles.careerInput, isSmallScreen && styles.careerInputMobile]}
                   placeholder="Years (e.g. 2018–2022 or 3 years)"
                   placeholderTextColor={Colors.light.textTertiary}
                   value={careerYears}
                   onChangeText={setCareerYears}
                 />
-                <TouchableOpacity style={styles.addCareerButton} onPress={addCareerEntry}>
-                  <Plus size={18} color="#fff" />
-                  <Text style={styles.addCareerButtonText}>Add experience</Text>
+                <TouchableOpacity style={[styles.addCareerButton, isSmallScreen && styles.addCareerButtonMobile]} onPress={addCareerEntry}>
+                  <Plus size={isSmallScreen ? 15 : 18} color="#fff" />
+                  <Text style={[styles.addCareerButtonText, isSmallScreen && styles.addCareerButtonTextMobile]}>Add experience</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1089,10 +1092,10 @@ export default function EditProfileScreen() {
           {teachSkills.length > 0 && (
             <View style={styles.section}>
               <View style={styles.pricingSectionHeader}>
-                <TrendingUp size={18} color="#10B981" />
-                <Text style={styles.pricingSectionTitle}>My Teaching Prices & Promotion</Text>
+                <TrendingUp size={isSmallScreen ? 15 : 18} color="#10B981" />
+                <Text style={[styles.pricingSectionTitle, isSmallScreen && styles.pricingSectionTitleMobile]}>My Teaching Prices & Promotion</Text>
               </View>
-              <Text style={styles.pricingSectionHint}>
+              <Text style={[styles.pricingSectionHint, isSmallScreen && styles.pricingSectionHintMobile]}>
                 Set your class prices and promote your skills to attract more learners.
               </Text>
 
@@ -1101,18 +1104,18 @@ export default function EditProfileScreen() {
                 const p = skillPricing[skillKey];
                 if (!p) return null;
                 return (
-                  <View key={`pricing-${skillKey}-${index}`} style={styles.skillPricingCard}>
-                    <Text style={styles.skillPricingTitle}>{skill.title}</Text>
+                  <View key={`pricing-${skillKey}-${index}`} style={[styles.skillPricingCard, isSmallScreen && styles.skillPricingCardMobile]}>
+                    <Text style={[styles.skillPricingTitle, isSmallScreen && styles.skillPricingTitleMobile]}>{skill.title}</Text>
 
                     {/* Pricing model selector */}
                     <View style={styles.pricingModelRow}>
                       {(['free', 'per_session', 'monthly'] as PricingModel[]).map((m) => (
                         <TouchableOpacity
                           key={m}
-                          style={[styles.pricingModelChip, p.model === m && styles.pricingModelChipSelected]}
+                          style={[styles.pricingModelChip, isSmallScreen && styles.pricingModelChipMobile, p.model === m && styles.pricingModelChipSelected]}
                           onPress={() => updateSkillPricing(skillKey, 'model', m)}
                         >
-                          <Text style={[styles.pricingModelChipText, p.model === m && styles.pricingModelChipTextSelected]}>
+                          <Text style={[styles.pricingModelChipText, isSmallScreen && styles.pricingModelChipTextMobile, p.model === m && styles.pricingModelChipTextSelected]}>
                             {m === 'free' ? 'Free' : m === 'per_session' ? 'Per Session' : 'Monthly'}
                           </Text>
                         </TouchableOpacity>
@@ -1121,10 +1124,10 @@ export default function EditProfileScreen() {
 
                     {/* Price input */}
                     {p.model !== 'free' && (
-                      <View style={styles.priceInputRow}>
-                        <Text style={styles.priceInputPrefix}>₹</Text>
+                      <View style={[styles.priceInputRow, isSmallScreen && styles.priceInputRowMobile]}>
+                        <Text style={[styles.priceInputPrefix, isSmallScreen && styles.priceInputPrefixMobile]}>₹</Text>
                         <TextInput
-                          style={styles.priceInputField}
+                          style={[styles.priceInputField, isSmallScreen && styles.priceInputFieldMobile]}
                           value={p.price}
                           onChangeText={(v) => updateSkillPricing(skillKey, 'price', v)}
                           placeholder={p.model === 'per_session' ? '500' : '2000'}
@@ -1145,8 +1148,8 @@ export default function EditProfileScreen() {
                       activeOpacity={0.7}
                     >
                       <View style={styles.promoteLeft}>
-                        <Sparkles size={16} color="#F59E0B" />
-                        <Text style={styles.promoteLabel}>Promote this skill</Text>
+                        <Sparkles size={isSmallScreen ? 14 : 16} color="#F59E0B" />
+                        <Text style={[styles.promoteLabel, isSmallScreen && styles.promoteLabelMobile]}>Promote this skill</Text>
                       </View>
                       <View style={[styles.toggleSwitch, p.promoted && styles.toggleSwitchOn]}>
                         <View style={[styles.toggleKnob, p.promoted && styles.toggleKnobOn]} />
@@ -1156,7 +1159,7 @@ export default function EditProfileScreen() {
                     {/* Promo tagline */}
                     {p.promoted && (
                       <TextInput
-                        style={[styles.input, styles.promoInput]}
+                        style={[styles.input, styles.promoInput, isSmallScreen && styles.inputMobile]}
                         value={p.tagline}
                         onChangeText={(v) => updateSkillPricing(skillKey, 'tagline', v)}
                         placeholder="e.g. 20% off first session! Free trial week!"
@@ -1170,27 +1173,27 @@ export default function EditProfileScreen() {
             </View>
           )}
 
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
+          <View style={[styles.infoBox, isSmallScreen && styles.infoBoxMobile]}>
+            <Text style={[styles.infoText, isSmallScreen && styles.infoTextMobile]}>
               Note: To edit your skills offered, please manage them individually from your profile.
             </Text>
           </View>
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, isSmallScreen && styles.footerMobile]}>
           <TouchableOpacity
-            style={styles.cancelButton}
+            style={[styles.cancelButton, isSmallScreen && styles.cancelButtonMobile]}
             onPress={() => router.back()}
             disabled={isSaving}
           >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
+            <Text style={[styles.cancelButtonText, isSmallScreen && styles.cancelButtonTextMobile]}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+            style={[styles.saveButton, isSmallScreen && styles.saveButtonMobile, isSaving && styles.saveButtonDisabled]}
             onPress={handleSave}
             disabled={isSaving}
           >
-            <Text style={styles.saveButtonText}>
+            <Text style={[styles.saveButtonText, isSmallScreen && styles.saveButtonTextMobile]}>
               {isSaving ? 'Saving...' : 'Save Changes'}
             </Text>
           </TouchableOpacity>
@@ -1774,5 +1777,231 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700' as const,
     color: '#FFFFFF',
+  },
+  scrollContentMobile: {
+    padding: 12,
+    paddingBottom: 80,
+  },
+  avatarSectionMobile: {
+    marginBottom: 20,
+  },
+  avatarMobile: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+  },
+  changeAvatarButtonMobile: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  avatarHintMobile: {
+    fontSize: 11,
+  },
+  sectionMobile: {
+    marginBottom: 16,
+  },
+  labelMobile: {
+    fontSize: 13,
+    marginBottom: 6,
+  },
+  inputMobile: {
+    padding: 10,
+    fontSize: 13,
+    borderRadius: 8,
+  },
+  textAreaMobile: {
+    minHeight: 80,
+    paddingTop: 10,
+  },
+  skillChipMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    gap: 6,
+  },
+  skillChipTextMobile: {
+    fontSize: 12,
+  },
+  addSkillInputMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13,
+    borderRadius: 8,
+  },
+  addSkillButtonMobile: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+  },
+  getLocationButtonMobile: {
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  getLocationButtonTextMobile: {
+    fontSize: 12.5,
+  },
+  sectionHeaderTitleMobile: {
+    fontSize: 15,
+  },
+  sectionHeaderSubtitleMobile: {
+    fontSize: 11.5,
+    marginBottom: 10,
+  },
+  subSectionLabelMobile: {
+    fontSize: 13,
+  },
+  subSectionHintMobile: {
+    fontSize: 11,
+  },
+  chipMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  chipTextMobile: {
+    fontSize: 11.5,
+  },
+  addRowInputMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    fontSize: 12,
+    borderRadius: 8,
+  },
+  addRowButtonMobile: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  certifiedToggleMobile: {
+    padding: 10,
+    gap: 8,
+    borderRadius: 10,
+  },
+  certifiedToggleIconMobile: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  certifiedToggleTitleMobile: {
+    fontSize: 12.5,
+  },
+  certifiedToggleSubtitleMobile: {
+    fontSize: 10.5,
+    lineHeight: 14,
+  },
+  certCardMobile: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  certCardTitleMobile: {
+    fontSize: 12,
+    flexWrap: 'wrap' as const,
+  },
+  uploadButtonMobile: {
+    paddingVertical: 6,
+    paddingHorizontal: 9,
+    borderRadius: 6,
+  },
+  uploadButtonTextMobile: {
+    fontSize: 11,
+  },
+  careerCardMobile: {
+    padding: 8,
+    borderRadius: 8,
+    gap: 8,
+  },
+  careerIconWrapMobile: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+  },
+  careerRoleMobile: {
+    fontSize: 12,
+  },
+  careerMetaMobile: {
+    fontSize: 10.5,
+  },
+  careerFormMobile: {
+    padding: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  careerInputMobile: {
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    fontSize: 11.5,
+    borderRadius: 6,
+  },
+  addCareerButtonMobile: {
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  addCareerButtonTextMobile: {
+    fontSize: 11.5,
+  },
+  pricingSectionTitleMobile: {
+    fontSize: 14,
+  },
+  pricingSectionHintMobile: {
+    fontSize: 11.5,
+    marginBottom: 10,
+  },
+  skillPricingCardMobile: {
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  skillPricingTitleMobile: {
+    fontSize: 13,
+    marginBottom: 10,
+  },
+  pricingModelChipMobile: {
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  pricingModelChipTextMobile: {
+    fontSize: 10.5,
+  },
+  priceInputRowMobile: {
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  priceInputPrefixMobile: {
+    fontSize: 14,
+  },
+  priceInputFieldMobile: {
+    fontSize: 14,
+    paddingVertical: 9,
+  },
+  promoteLabelMobile: {
+    fontSize: 12,
+  },
+  infoBoxMobile: {
+    padding: 10,
+    borderRadius: 8,
+  },
+  infoTextMobile: {
+    fontSize: 11.5,
+    lineHeight: 16,
+  },
+  footerMobile: {
+    padding: 12,
+    gap: 8,
+  },
+  cancelButtonMobile: {
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  cancelButtonTextMobile: {
+    fontSize: 13,
+  },
+  saveButtonMobile: {
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  saveButtonTextMobile: {
+    fontSize: 13,
   },
 });

@@ -1,6 +1,7 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, useWindowDimensions } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeTopInset } from '@/lib/safeArea';
 import {
   ArrowLeft,
   Wallet,
@@ -43,6 +44,10 @@ type Filter = 'all' | 'pending' | 'completed';
 export default function AdminPayoutsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const safeTop = useSafeTopInset(isSmallScreen ? 8 : 14);
+  const s = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const { isAdminAuthenticated } = useAdmin();
   const { payouts, approvePayout, rejectPayout, markPayoutCompleted, pendingPayoutsCount, totalPayoutsAmount } = useEarnings();
   const { showAlert } = useAlert();
@@ -118,7 +123,7 @@ export default function AdminPayoutsScreen() {
   return (
     <View style={s.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={[s.header, { paddingTop: insets.top + 8 }]}>
+      <View style={[s.header, { paddingTop: safeTop }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <ArrowLeft size={20} color="#FFFFFF" />
         </TouchableOpacity>
@@ -339,39 +344,39 @@ export default function AdminPayoutsScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0F172A' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16 },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: '700' as const, color: '#FFFFFF' },
-  statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingBottom: 16 },
-  statCard: { flex: 1, backgroundColor: '#1E293B', borderRadius: 14, padding: 12, alignItems: 'center', gap: 4 },
-  statValue: { fontSize: 18, fontWeight: '800' as const, color: '#FFFFFF' },
-  statLabel: { fontSize: 11, color: '#94A3B8', fontWeight: '500' as const },
-  filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingBottom: 16 },
-  filterTab: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: '#1E293B', alignItems: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: isSmallScreen ? 14 : 20, paddingBottom: isSmallScreen ? 10 : 16 },
+  backBtn: { width: isSmallScreen ? 34 : 40, height: isSmallScreen ? 34 : 40, borderRadius: isSmallScreen ? 17 : 20, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: isSmallScreen ? 17 : 20, fontWeight: '700' as const, color: '#FFFFFF' },
+  statsRow: { flexDirection: 'row', gap: isSmallScreen ? 6 : 10, paddingHorizontal: isSmallScreen ? 14 : 20, paddingBottom: isSmallScreen ? 10 : 16 },
+  statCard: { flex: 1, backgroundColor: '#1E293B', borderRadius: isSmallScreen ? 10 : 14, padding: isSmallScreen ? 8 : 12, alignItems: 'center', gap: 4 },
+  statValue: { fontSize: isSmallScreen ? 15 : 18, fontWeight: '800' as const, color: '#FFFFFF' },
+  statLabel: { fontSize: isSmallScreen ? 10 : 11, color: '#94A3B8', fontWeight: '500' as const },
+  filterRow: { flexDirection: 'row', gap: isSmallScreen ? 6 : 8, paddingHorizontal: isSmallScreen ? 14 : 20, paddingBottom: isSmallScreen ? 10 : 16 },
+  filterTab: { flex: 1, paddingVertical: isSmallScreen ? 7 : 10, borderRadius: 10, backgroundColor: '#1E293B', alignItems: 'center' },
   filterTabActive: { backgroundColor: '#6366F1' },
-  filterText: { fontSize: 13, fontWeight: '600' as const, color: '#94A3B8' },
+  filterText: { fontSize: isSmallScreen ? 11.5 : 13, fontWeight: '600' as const, color: '#94A3B8' },
   filterTextActive: { color: '#FFFFFF' },
-  scroll: { flex: 1, backgroundColor: '#F8FAFC', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  scroll: { flex: 1, backgroundColor: '#F8FAFC', borderTopLeftRadius: isSmallScreen ? 18 : 24, borderTopRightRadius: isSmallScreen ? 18 : 24 },
   emptyWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 80, gap: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700' as const, color: '#0F172A' },
-  emptyDesc: { fontSize: 14, color: '#64748B', textAlign: 'center' },
-  payoutList: { padding: 20, gap: 12 },
-  payoutCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-  avatar: { width: 44, height: 44, borderRadius: 22 },
+  emptyTitle: { fontSize: isSmallScreen ? 16 : 18, fontWeight: '700' as const, color: '#0F172A' },
+  emptyDesc: { fontSize: isSmallScreen ? 12.5 : 14, color: '#64748B', textAlign: 'center' },
+  payoutList: { padding: isSmallScreen ? 12 : 20, gap: isSmallScreen ? 8 : 12 },
+  payoutCard: { flexDirection: 'row', alignItems: 'center', gap: isSmallScreen ? 8 : 12, backgroundColor: '#FFFFFF', borderRadius: isSmallScreen ? 12 : 16, padding: isSmallScreen ? 10 : 14, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  avatar: { width: isSmallScreen ? 36 : 44, height: isSmallScreen ? 36 : 44, borderRadius: isSmallScreen ? 18 : 22 },
   payoutHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  payoutUser: { fontSize: 15, fontWeight: '700' as const, color: '#0F172A', flex: 1 },
+  payoutUser: { fontSize: isSmallScreen ? 13.5 : 15, fontWeight: '700' as const, color: '#0F172A', flex: 1 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  statusText: { fontSize: 11, fontWeight: '700' as const },
-  payoutMethod: { fontSize: 13, color: '#64748B', marginBottom: 2 },
-  payoutAmount: { fontSize: 15, fontWeight: '700' as const, color: '#0F172A', marginBottom: 2 },
+  statusText: { fontSize: isSmallScreen ? 10 : 11, fontWeight: '700' as const },
+  payoutMethod: { fontSize: isSmallScreen ? 11.5 : 13, color: '#64748B', marginBottom: 2 },
+  payoutAmount: { fontSize: isSmallScreen ? 13.5 : 15, fontWeight: '700' as const, color: '#0F172A', marginBottom: 2 },
   payoutDate: { fontSize: 11, color: '#94A3B8' },
   actionRow: { flexDirection: 'row', gap: 8 },
-  approveBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#10B981', alignItems: 'center', justifyContent: 'center' },
-  rejectBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center' },
-  completeBtn: { backgroundColor: '#6366F1', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
-  completeBtnText: { fontSize: 13, fontWeight: '700' as const, color: '#FFFFFF' },
+  approveBtn: { width: isSmallScreen ? 32 : 36, height: isSmallScreen ? 32 : 36, borderRadius: 10, backgroundColor: '#10B981', alignItems: 'center', justifyContent: 'center' },
+  rejectBtn: { width: isSmallScreen ? 32 : 36, height: isSmallScreen ? 32 : 36, borderRadius: 10, backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center' },
+  completeBtn: { backgroundColor: '#6366F1', paddingHorizontal: isSmallScreen ? 10 : 14, paddingVertical: isSmallScreen ? 8 : 10, borderRadius: 10 },
+  completeBtnText: { fontSize: isSmallScreen ? 11.5 : 13, fontWeight: '700' as const, color: '#FFFFFF' },
 
   // Modal Styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 },

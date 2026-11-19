@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,11 +8,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeTopInset } from '@/lib/safeArea';
 import {
   Shield,
   Lock,
@@ -27,6 +28,10 @@ import { useAdmin } from '@/providers/admin';
 export default function AdminLoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const safeTop = useSafeTopInset(isSmallScreen ? 12 : 20);
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   const { adminLogin, isAdminAuthenticated } = useAdmin();
 
   // If already authenticated as admin, redirect to admin dashboard
@@ -54,7 +59,7 @@ export default function AdminLoginScreen() {
     try {
       await adminLogin(email, password);
       router.replace('/admin' as any);
-    } catch (err) {
+    } catch {
       setError('Invalid admin credentials. Please try again.');
     } finally {
       setIsLoading(false);
@@ -86,7 +91,7 @@ export default function AdminLoginScreen() {
         <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingTop: insets.top + 12 },
+            { paddingTop: safeTop },
           ]}
           keyboardShouldPersistTaps="handled"
         >
@@ -202,7 +207,7 @@ export default function AdminLoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0F172A',
@@ -211,76 +216,76 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingHorizontal: isSmallScreen ? 16 : 24,
+    paddingBottom: isSmallScreen ? 24 : 40,
   },
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingVertical: 8,
+    paddingVertical: isSmallScreen ? 6 : 8,
     alignSelf: 'flex-start',
   },
   backText: {
     color: '#94A3B8',
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13.5 : 15,
     fontWeight: '500' as const,
   },
   hero: {
     alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 32,
+    marginTop: isSmallScreen ? 16 : 24,
+    marginBottom: isSmallScreen ? 20 : 32,
   },
   shieldWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
+    width: isSmallScreen ? 60 : 80,
+    height: isSmallScreen ? 60 : 80,
+    borderRadius: isSmallScreen ? 18 : 24,
     backgroundColor: '#1E293B',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: isSmallScreen ? 14 : 20,
     borderWidth: 1,
     borderColor: '#334155',
   },
   title: {
-    fontSize: 28,
+    fontSize: isSmallScreen ? 20 : 28,
     fontWeight: '800' as const,
     color: '#F8FAFC',
     letterSpacing: -0.5,
-    marginBottom: 8,
+    marginBottom: isSmallScreen ? 4 : 8,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12 : 14,
     color: '#94A3B8',
     textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 20,
+    lineHeight: isSmallScreen ? 17 : 20,
+    paddingHorizontal: isSmallScreen ? 10 : 20,
   },
   formCard: {
     backgroundColor: '#1E293B',
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: isSmallScreen ? 16 : 20,
+    padding: isSmallScreen ? 16 : 24,
     borderWidth: 1,
     borderColor: '#334155',
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: isSmallScreen ? 14 : 20,
   },
   inputLabel: {
-    fontSize: 13,
+    fontSize: isSmallScreen ? 12 : 13,
     fontWeight: '600' as const,
     color: '#CBD5E1',
-    marginBottom: 10,
+    marginBottom: isSmallScreen ? 6 : 10,
   },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#0F172A',
-    borderRadius: 14,
+    borderRadius: isSmallScreen ? 12 : 14,
     borderWidth: 1,
     borderColor: '#334155',
-    paddingHorizontal: 14,
-    height: 54,
+    paddingHorizontal: isSmallScreen ? 10 : 14,
+    height: isSmallScreen ? 46 : 54,
   },
   inputIcon: {
     marginRight: 10,
@@ -288,7 +293,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     color: '#F8FAFC',
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13.5 : 15,
     fontWeight: '500' as const,
   },
   eyeBtn: {
@@ -296,16 +301,16 @@ const styles = StyleSheet.create({
   },
   errorBanner: {
     backgroundColor: 'rgba(239, 68, 68, 0.12)',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 16,
+    borderRadius: isSmallScreen ? 10 : 12,
+    paddingHorizontal: isSmallScreen ? 10 : 14,
+    paddingVertical: isSmallScreen ? 8 : 12,
+    marginBottom: isSmallScreen ? 12 : 16,
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   errorText: {
     color: '#FCA5A5',
-    fontSize: 13,
+    fontSize: isSmallScreen ? 12 : 13,
     fontWeight: '500' as const,
   },
   loginBtn: {
@@ -314,8 +319,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     backgroundColor: '#6366F1',
-    paddingVertical: 16,
-    borderRadius: 14,
+    paddingVertical: isSmallScreen ? 12 : 16,
+    borderRadius: isSmallScreen ? 12 : 14,
     shadowColor: '#6366F1',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -326,17 +331,17 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   loginBtnText: {
-    fontSize: 16,
+    fontSize: isSmallScreen ? 14 : 16,
     fontWeight: '700' as const,
     color: '#FFFFFF',
   },
   demoBtn: {
-    marginTop: 16,
+    marginTop: isSmallScreen ? 12 : 16,
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: isSmallScreen ? 8 : 10,
   },
   demoText: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     color: '#64748B',
     fontWeight: '500' as const,
     textAlign: 'center',
@@ -346,10 +351,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    marginTop: 28,
+    marginTop: isSmallScreen ? 20 : 28,
   },
   footerText: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     color: '#475569',
     fontWeight: '500' as const,
   },

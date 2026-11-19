@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Shield, CheckCircle, Clock, XCircle } from 'lucide-react-native';
 import type { VerificationStatus } from '@/types';
 import Colors from '@/constants/colors';
@@ -23,6 +23,9 @@ export function VerificationCard({
   trustPoints,
   hideActionWhenVerified,
 }: VerificationCardProps) {
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmall = windowWidth < 600;
+  const styles = useMemo(() => createStyles(isSmall), [isSmall]);
   const getStatusConfig = () => {
     switch (status) {
       case 'verified':
@@ -107,11 +110,11 @@ export function VerificationCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmall: boolean) => StyleSheet.create({
   card: {
     backgroundColor: Colors.light.card,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: isSmall ? 12 : 16,
+    padding: isSmall ? 12 : 16,
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
     shadowColor: Colors.light.shadow,
@@ -127,13 +130,13 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 12,
-    gap: 12,
+    marginBottom: isSmall ? 8 : 12,
+    gap: isSmall ? 10 : 12,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: isSmall ? 38 : 48,
+    height: isSmall ? 38 : 48,
+    borderRadius: isSmall ? 19 : 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -141,27 +144,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 16,
+    fontSize: isSmall ? 13.5 : 16,
     fontWeight: '700' as const,
     color: Colors.light.text,
-    marginBottom: 4,
+    marginBottom: isSmall ? 2 : 4,
   },
   description: {
-    fontSize: 13,
+    fontSize: isSmall ? 11.5 : 13,
     color: Colors.light.textSecondary,
-    lineHeight: 18,
+    lineHeight: isSmall ? 16 : 18,
   },
   trustBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: Colors.light.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: isSmall ? 6 : 8,
+    paddingVertical: isSmall ? 3 : 4,
+    borderRadius: isSmall ? 6 : 8,
   },
   trustText: {
-    fontSize: 12,
+    fontSize: isSmall ? 10.5 : 12,
     fontWeight: '700' as const,
     color: Colors.light.primary,
   },
@@ -176,11 +179,11 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   statusText: {
-    fontSize: 14,
+    fontSize: isSmall ? 12 : 14,
     fontWeight: '600' as const,
   },
   actionText: {
-    fontSize: 14,
+    fontSize: isSmall ? 12 : 14,
     fontWeight: '600' as const,
     color: Colors.light.primary,
   },

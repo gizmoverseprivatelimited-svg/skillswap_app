@@ -462,7 +462,7 @@ export default function CallScreen({
           <View style={styles.topBarLeft}>
             <View style={[styles.roomBadge, { maxWidth: isVerySmallScreen ? 110 : isSmallScreen ? 140 : 260 }]}>
               <Circle size={isSmallScreen ? 7 : 8} color="#34D399" fill="#34D399" />
-              <Text style={styles.roomTitle} numberOfLines={1}>{roomTitle}</Text>
+              <Text style={styles.roomTitle}>{roomTitle}</Text>
             </View>
             <View style={styles.durationPill}>
               <Text style={styles.durationText}>
@@ -706,7 +706,7 @@ function SpotlightView({
             <View style={styles.spotlightExchangePill}>
               <ArrowLeftRight size={12} color="#DDD6FE" />
               <Text style={styles.spotlightExchangeLabel}>EXCHANGE PARTNER</Text>
-              <Text style={styles.spotlightNameText} numberOfLines={1}>
+              <Text style={styles.spotlightNameText}>
                 {targetRemote.name}{targetRemote.skillTaught ? ` • ${targetRemote.skillTaught}` : ''}
               </Text>
             </View>
@@ -714,7 +714,7 @@ function SpotlightView({
             <View style={styles.spotlightTeacherPill}>
               <Crown size={12} color="#FDE047" />
               <Text style={styles.spotlightTeacherLabel}>{targetRemote.roleLabel ? targetRemote.roleLabel.toUpperCase() : 'TEACHER'}</Text>
-              <Text style={styles.spotlightNameText} numberOfLines={1}>
+              <Text style={styles.spotlightNameText}>
                 {targetRemote.name}{targetRemote.skillTaught ? ` • ${targetRemote.skillTaught}` : ''}
               </Text>
             </View>
@@ -722,7 +722,7 @@ function SpotlightView({
             <View style={styles.spotlightStudentPill}>
               <GraduationCap size={12} color="#93C5FD" />
               <Text style={styles.spotlightStudentLabel}>{targetRemote.roleLabel ? targetRemote.roleLabel.toUpperCase() : 'STUDENT'}</Text>
-              <Text style={styles.spotlightNameText} numberOfLines={1}>
+              <Text style={styles.spotlightNameText}>
                 {targetRemote.name}{targetRemote.skillTaught ? ` • ${targetRemote.skillTaught}` : ''}
               </Text>
             </View>
@@ -943,7 +943,7 @@ function ParticipantTile({ participant, mode, isLarge, isSmall, sdkId }: Partici
 
           {!isSmall && (
             <View style={styles.cameraOffNoticeBox}>
-              <Text style={styles.cameraOffNoticeName} numberOfLines={1}>{participant.isLocal ? 'You' : participant.name}</Text>
+              <Text style={styles.cameraOffNoticeName}>{participant.isLocal ? 'You' : participant.name}</Text>
               <View style={styles.cameraOffBadge}>
                 <VideoOff size={11} color="#CBD5E1" />
                 <Text style={styles.cameraOffNoticeText}>
@@ -983,7 +983,7 @@ function ParticipantTile({ participant, mode, isLarge, isSmall, sdkId }: Partici
             </View>
           )}
           {participant.isHandRaised && <Hand size={11} color="#F59E0B" />}
-          <Text style={styles.tileName} numberOfLines={1}>
+          <Text style={styles.tileName}>
             {participant.isLocal ? `${participant.name || 'You'} (You)` : participant.name}
           </Text>
           {participant.roleLabel === 'Exchange Partner' ? (
@@ -1008,7 +1008,7 @@ function ParticipantTile({ participant, mode, isLarge, isSmall, sdkId }: Partici
       {/* Small tile badge */}
       {isSmall && (
         <View style={styles.smallTileNameWrap}>
-          <Text style={styles.smallTileName} numberOfLines={1}>
+          <Text style={styles.smallTileName}>
             {participant.isLocal ? 'You' : participant.name}
           </Text>
           {participant.role === 'teacher' || participant.role === 'host' ? (

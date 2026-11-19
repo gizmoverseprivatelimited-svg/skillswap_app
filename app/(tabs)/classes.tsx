@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { Search, X, Calendar, Clock, Users, Coins, Sparkles, Video, CheckCircle2, Layers, RotateCcw } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeTopInset } from '@/lib/safeArea';
 import Colors from '@/constants/colors';
 import { categories as defaultCategories } from '@/mocks/data';
 import { useClasses } from '@/providers/classes';
@@ -19,7 +20,7 @@ import url from '@/constants/backurl';
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800';
 const DEFAULT_AVATAR = 'https://i.pravatar.cc/150?img=1';
 
-function ClassCardItem({ item, router, isEnrolledUser, cardWidth, numColumns }: { item: ClassWithTeacher; router: any; isEnrolledUser: boolean; cardWidth?: any; numColumns?: number }) {
+function ClassCardItem({ item, router, isEnrolledUser, cardWidth, numColumns, isSmallScreen }: { item: ClassWithTeacher; router: any; isEnrolledUser: boolean; cardWidth?: any; numColumns?: number; isSmallScreen?: boolean }) {
   const seatsLeft = item.maxCapacity - item.enrolledCount;
   const fillPct = Math.round((item.enrolledCount / item.maxCapacity) * 100);
   const isFree = item.seatPriceCredits === 0;
@@ -43,7 +44,7 @@ function ClassCardItem({ item, router, isEnrolledUser, cardWidth, numColumns }: 
   };
 
   return (
-    <View style={[s.card, isCancelled ? s.cardCancelled : null, Boolean(numColumns && numColumns > 1) ? { flex: 1, maxWidth: cardWidth } : null]}>
+    <View style={[s.card, isCancelled ? s.cardCancelled : null, isSmallScreen && s.cardMobile, Boolean(numColumns && numColumns > 1) ? { flex: 1, maxWidth: cardWidth } : null]}>
       <TouchableOpacity
         onPress={() => router.push(`/class/${item.id}` as any)}
         activeOpacity={0.85}
@@ -53,7 +54,13 @@ function ClassCardItem({ item, router, isEnrolledUser, cardWidth, numColumns }: 
             source={{ uri: coverUrl }}
             style={[
               s.cover,
-              (numColumns ?? 1) >= 4 ? { height: 135 } : (numColumns ?? 1) >= 3 ? { height: 150 } : (numColumns ?? 1) >= 2 ? { height: 165 } : { height: 185 }
+              isSmallScreen
+                ? { height: 125 }
+                : (numColumns ?? 1) >= 4
+                  ? { height: 135 }
+                  : (numColumns ?? 1) >= 3
+                    ? { height: 150 }
+                    : { height: 165 }
             ]}
             onError={() => setCoverUrl(DEFAULT_COVER)}
           />
@@ -63,13 +70,13 @@ function ClassCardItem({ item, router, isEnrolledUser, cardWidth, numColumns }: 
             </View>
           )}
         </View>
-        <View style={s.cardBody}>
-          <View style={s.cardHeader}>
-            <View style={s.catBadgeWrap}>
-              <Text style={s.catBadge} numberOfLines={1} ellipsizeMode="tail">{item.category}</Text>
+        <View style={[s.cardBody, isSmallScreen && s.cardBodyMobile]}>
+          <View style={[s.cardHeader, isSmallScreen && s.cardHeaderMobile]}>
+            <View style={[s.catBadgeWrap, isSmallScreen && s.catBadgeWrapMobile]}>
+              <Text style={[s.catBadge, isSmallScreen && s.catBadgeMobile]}>{item.category}</Text>
             </View>
-            <View style={s.rightBadges}>
-              <View style={s.levelPill}><Text style={s.levelText} numberOfLines={1}>{item.level}</Text></View>
+            <View style={[s.rightBadges, isSmallScreen && s.rightBadgesMobile]}>
+              <View style={[s.levelPill, isSmallScreen && s.levelPillMobile]}><Text style={[s.levelText, isSmallScreen && s.levelTextMobile]}>{item.level}</Text></View>
               {isCancelled ? (
                 <View style={s.statusCancelledPill}><Text style={s.statusCancelledText}>Cancelled</Text></View>
               ) : isCompleted ? (
@@ -82,12 +89,12 @@ function ClassCardItem({ item, router, isEnrolledUser, cardWidth, numColumns }: 
             </View>
           </View>
 
-          <Text style={s.title} numberOfLines={2}>{item.title}</Text>
+          <Text style={[s.title, isSmallScreen && s.titleMobile]}>{item.title}</Text>
 
-          <View style={s.metaRow}>
+          <View style={[s.metaRow, isSmallScreen && s.metaRowMobile]}>
             <View style={s.metaChunk}>
               <Calendar size={12} color={Colors.light.textTertiary} />
-              <Text style={s.metaText} numberOfLines={1}>
+              <Text style={[s.metaText, isSmallScreen && s.metaTextMobile]}>
                 {isRecurring
                   ? `${formatShortDate(item.startISO)} — ${formatShortDate(item.endISO)}`
                   : formatDate(item.startISO)}
@@ -95,36 +102,36 @@ function ClassCardItem({ item, router, isEnrolledUser, cardWidth, numColumns }: 
             </View>
             <View style={s.metaChunk}>
               <Clock size={12} color={Colors.light.textTertiary} />
-              <Text style={s.metaText} numberOfLines={1}>{formatTime(item.startISO)}</Text>
+              <Text style={[s.metaText, isSmallScreen && s.metaTextMobile]}>{formatTime(item.startISO)}</Text>
             </View>
           </View>
 
           {isRecurring && (
             <View style={s.scheduleRow}>
               <RotateCcw size={11} color={Colors.light.primary} />
-              <Text style={s.scheduleText} numberOfLines={1} ellipsizeMode="tail">
+              <Text style={[s.scheduleText, isSmallScreen && s.scheduleTextMobile]}>
                 {formatClassSchedule(item.sessionType, item.sessionCount, item.scheduleDays)}
               </Text>
             </View>
           )}
 
-          <View style={s.teacherRow}>
+          <View style={[s.teacherRow, isSmallScreen && s.teacherRowMobile]}>
             <Image
               source={{ uri: avatarUrl }}
               style={s.teacherAvatar}
               onError={() => setAvatarUrl(DEFAULT_AVATAR)}
             />
-            <Text style={s.teacherName} numberOfLines={1} ellipsizeMode="tail">{item.teacher.name}</Text>
+            <Text style={[s.teacherName, isSmallScreen && s.teacherNameMobile]}>{item.teacher.name}</Text>
           </View>
 
           {!isCancelled && (
             <>
-              <View style={s.seatRow}>
+              <View style={[s.seatRow, isSmallScreen && s.seatRowMobile]}>
                 <View style={s.seatInfo}>
                   <Users size={12} color={Colors.light.primary} />
-                  <Text style={s.seatText} numberOfLines={1}>{item.enrolledCount}/{item.maxCapacity} enrolled</Text>
+                  <Text style={[s.seatText, isSmallScreen && s.seatTextMobile]}>{item.enrolledCount}/{item.maxCapacity} enrolled</Text>
                 </View>
-                <Text style={s.seatsLeft} numberOfLines={1}>{seatsLeft} seat{seatsLeft === 1 ? '' : 's'} left</Text>
+                <Text style={[s.seatsLeft, isSmallScreen && s.seatsLeftMobile]}>{seatsLeft} seat{seatsLeft === 1 ? '' : 's'} left</Text>
               </View>
               <View style={s.progressBar}>
                 <View style={[s.progressFill, { width: `${fillPct}%` }]} />
@@ -132,8 +139,8 @@ function ClassCardItem({ item, router, isEnrolledUser, cardWidth, numColumns }: 
             </>
           )}
 
-          <View style={s.priceRow}>
-            <View style={s.priceGroup}>
+          <View style={[s.priceRow, isSmallScreen && s.priceRowMobile]}>
+            <View style={[s.priceGroup, isSmallScreen && s.priceGroupMobile]}>
               {isCancelled ? (
                 <View style={s.cancelledPriceTag}>
                   <Text style={s.cancelledPriceText}>Closed</Text>
@@ -145,7 +152,7 @@ function ClassCardItem({ item, router, isEnrolledUser, cardWidth, numColumns }: 
               )}
               {Boolean(item.billingCycle) && !isCancelled && !isFree && (
                 <View style={s.billingPill}>
-                  <Text style={s.billingPillText} numberOfLines={1}>{formatBillingCycle(item.billingCycle)}</Text>
+                  <Text style={[s.billingPillText, isSmallScreen && s.billingPillTextMobile]}>{formatBillingCycle(item.billingCycle)}</Text>
                 </View>
               )}
             </View>
@@ -172,20 +179,24 @@ export default function ClassesScreen() {
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
 
+  const isSmallScreen = windowWidth < 600;
+  const safeTopInset = useSafeTopInset(isSmallScreen ? 14 : 20);
+
   const numColumns = useMemo(() => {
     if (windowWidth >= 1150) return 4;
     if (windowWidth >= 820) return 3;
-    if (windowWidth >= 560) return 2;
-    return 1;
+    return 2; // Always 2 cards in a row on mobile devices
   }, [windowWidth]);
 
+  const gridPadding = isSmallScreen ? (windowWidth < 360 ? 12 : 16) : 20;
+  const gridGap = isSmallScreen ? (windowWidth < 360 ? 8 : 12) : 16;
+
   const cardWidth = useMemo(() => {
-    if (numColumns === 1) return '100%';
-    const totalPadding = 40;
-    const totalGap = (numColumns - 1) * 16;
+    const totalPadding = gridPadding * 2;
+    const totalGap = (numColumns - 1) * gridGap;
     const availableWidth = Math.min(windowWidth, 1280) - totalPadding - totalGap;
-    return Math.max(200, Math.floor(availableWidth / numColumns));
-  }, [windowWidth, numColumns]);
+    return Math.floor(availableWidth / numColumns);
+  }, [windowWidth, numColumns, gridPadding, gridGap]);
 
   const { getClassesWithTeachers, isEnrolled } = useClasses();
   const { currentUser } = useCurrentUser();
@@ -269,27 +280,28 @@ export default function ClassesScreen() {
         isEnrolledUser={enrolledUser} 
         cardWidth={cardWidth} 
         numColumns={numColumns} 
+        isSmallScreen={isSmallScreen}
       />
     );
-  }, [router, currentUser?.id, isEnrolled, cardWidth, numColumns]);
+  }, [router, currentUser?.id, isEnrolled, cardWidth, numColumns, isSmallScreen]);
 
   return (
     <View style={s.container}>
       <LinearGradient
         colors={[Colors.light.primary, Colors.light.primaryLight]}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={[s.header, { paddingTop: insets.top + 16 }]}
+        style={[s.header, isSmallScreen && s.headerMobile, { paddingTop: safeTopInset }]}
       >
-        <View style={s.headerTop}>
+        <View style={[s.headerTop, isSmallScreen && s.headerTopMobile]}>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Group Classes</Text>
-            <Text style={s.headerSub}>Learn together with expert teachers</Text>
+            <Text style={[s.headerTitle, isSmallScreen && s.headerTitleMobile]}>Group Classes</Text>
+            <Text style={[s.headerSub, isSmallScreen && s.headerSubMobile]}>Learn together with expert teachers</Text>
           </View>
         </View>
-        <View style={s.searchBar}>
-          <Search size={18} color="#FFFFFF" opacity={0.8} />
+        <View style={[s.searchBar, isSmallScreen && s.searchBarMobile]}>
+          <Search size={isSmallScreen ? 15 : 18} color="#FFFFFF" opacity={0.8} />
           <TextInput
-            style={s.searchInput}
+            style={[s.searchInput, isSmallScreen && s.searchInputMobile]}
             placeholder="Search classes..."
             placeholderTextColor="rgba(255,255,255,0.6)"
             value={search}
@@ -298,30 +310,30 @@ export default function ClassesScreen() {
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')}>
-              <X size={16} color="#FFFFFF" opacity={0.7} />
+              <X size={isSmallScreen ? 14 : 16} color="#FFFFFF" opacity={0.7} />
             </TouchableOpacity>
           )}
         </View>
       </LinearGradient>
 
       {/* Premium Filter Section */}
-      <View style={s.filterSection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catScroll} contentContainerStyle={s.catContainer}>
+      <View style={[s.filterSection, isSmallScreen && s.filterSectionMobile]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.catScroll, isSmallScreen && s.catScrollMobile]} contentContainerStyle={[s.catContainer, isSmallScreen && s.catContainerMobile]}>
           {categoriesList.map(cat => (
             <TouchableOpacity
               key={cat}
-              style={[s.catPill, selectedCat === cat && s.catPillActive]}
+              style={[s.catPill, isSmallScreen && s.catPillMobile, selectedCat === cat && s.catPillActive]}
               onPress={() => setSelectedCat(cat)}
               activeOpacity={0.7}
             >
-              <Text style={[s.catPillText, selectedCat === cat && s.catPillTextActive]}>{cat}</Text>
+              <Text style={[s.catPillText, isSmallScreen && s.catPillTextMobile, selectedCat === cat && s.catPillTextActive]}>{cat}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.segmentScroll} contentContainerStyle={s.segmentedControl}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.segmentScroll, isSmallScreen && s.segmentScrollMobile]} contentContainerStyle={[s.segmentedControl, isSmallScreen && s.segmentedControlMobile]}>
           <TouchableOpacity
-            style={[s.segmentTab, statusFilter === 'upcoming' && s.segmentTabActive]}
+            style={[s.segmentTab, isSmallScreen && s.segmentTabMobile, statusFilter === 'upcoming' && s.segmentTabActive]}
             onPress={() => setStatusFilter('upcoming')}
             activeOpacity={0.85}
           >
@@ -329,27 +341,27 @@ export default function ClassesScreen() {
               <LinearGradient
                 colors={['#6366F1', '#4F46E5']}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={s.segmentGradient}
+                style={[s.segmentGradient, isSmallScreen && s.segmentGradientMobile]}
               >
-                <Sparkles size={13} color="#FFFFFF" />
-                <Text style={s.segmentTextActive}>Upcoming</Text>
-                <View style={s.activeBadge}>
-                  <Text style={s.activeBadgeText}>{statusCounts.upcoming}</Text>
+                <Sparkles size={isSmallScreen ? 11 : 13} color="#FFFFFF" />
+                <Text style={[s.segmentTextActive, isSmallScreen && s.segmentTextActiveMobile]}>Upcoming</Text>
+                <View style={[s.activeBadge, isSmallScreen && s.activeBadgeMobile]}>
+                  <Text style={[s.activeBadgeText, isSmallScreen && s.activeBadgeTextMobile]}>{statusCounts.upcoming}</Text>
                 </View>
               </LinearGradient>
             ) : (
-              <View style={s.segmentTabInner}>
-                <Sparkles size={13} color={Colors.light.textTertiary} />
-                <Text style={s.segmentText}>Upcoming</Text>
-                <View style={s.inactiveBadge}>
-                  <Text style={s.inactiveBadgeText}>{statusCounts.upcoming}</Text>
+              <View style={[s.segmentTabInner, isSmallScreen && s.segmentTabInnerMobile]}>
+                <Sparkles size={isSmallScreen ? 11 : 13} color={Colors.light.textTertiary} />
+                <Text style={[s.segmentText, isSmallScreen && s.segmentTextMobile]}>Upcoming</Text>
+                <View style={[s.inactiveBadge, isSmallScreen && s.inactiveBadgeMobile]}>
+                  <Text style={[s.inactiveBadgeText, isSmallScreen && s.inactiveBadgeTextMobile]}>{statusCounts.upcoming}</Text>
                 </View>
               </View>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[s.segmentTab, statusFilter === 'completed' && s.segmentTabActive]}
+            style={[s.segmentTab, isSmallScreen && s.segmentTabMobile, statusFilter === 'completed' && s.segmentTabActive]}
             onPress={() => setStatusFilter('completed')}
             activeOpacity={0.85}
           >
@@ -357,27 +369,27 @@ export default function ClassesScreen() {
               <LinearGradient
                 colors={['#10B981', '#059669']}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={s.segmentGradient}
+                style={[s.segmentGradient, isSmallScreen && s.segmentGradientMobile]}
               >
-                <CheckCircle2 size={13} color="#FFFFFF" />
-                <Text style={s.segmentTextActive}>Completed</Text>
-                <View style={s.activeBadge}>
-                  <Text style={s.activeBadgeText}>{statusCounts.completed}</Text>
+                <CheckCircle2 size={isSmallScreen ? 11 : 13} color="#FFFFFF" />
+                <Text style={[s.segmentTextActive, isSmallScreen && s.segmentTextActiveMobile]}>Completed</Text>
+                <View style={[s.activeBadge, isSmallScreen && s.activeBadgeMobile]}>
+                  <Text style={[s.activeBadgeText, isSmallScreen && s.activeBadgeTextMobile]}>{statusCounts.completed}</Text>
                 </View>
               </LinearGradient>
             ) : (
-              <View style={s.segmentTabInner}>
-                <CheckCircle2 size={13} color={Colors.light.textTertiary} />
-                <Text style={s.segmentText}>Completed</Text>
-                <View style={s.inactiveBadge}>
-                  <Text style={s.inactiveBadgeText}>{statusCounts.completed}</Text>
+              <View style={[s.segmentTabInner, isSmallScreen && s.segmentTabInnerMobile]}>
+                <CheckCircle2 size={isSmallScreen ? 11 : 13} color={Colors.light.textTertiary} />
+                <Text style={[s.segmentText, isSmallScreen && s.segmentTextMobile]}>Completed</Text>
+                <View style={[s.inactiveBadge, isSmallScreen && s.inactiveBadgeMobile]}>
+                  <Text style={[s.inactiveBadgeText, isSmallScreen && s.inactiveBadgeTextMobile]}>{statusCounts.completed}</Text>
                 </View>
               </View>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[s.segmentTab, statusFilter === 'all' && s.segmentTabActive]}
+            style={[s.segmentTab, isSmallScreen && s.segmentTabMobile, statusFilter === 'all' && s.segmentTabActive]}
             onPress={() => setStatusFilter('all')}
             activeOpacity={0.85}
           >
@@ -385,20 +397,20 @@ export default function ClassesScreen() {
               <LinearGradient
                 colors={['#8B5CF6', '#7C3AED']}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={s.segmentGradient}
+                style={[s.segmentGradient, isSmallScreen && s.segmentGradientMobile]}
               >
-                <Layers size={13} color="#FFFFFF" />
-                <Text style={s.segmentTextActive}>All</Text>
-                <View style={s.activeBadge}>
-                  <Text style={s.activeBadgeText}>{statusCounts.all}</Text>
+                <Layers size={isSmallScreen ? 11 : 13} color="#FFFFFF" />
+                <Text style={[s.segmentTextActive, isSmallScreen && s.segmentTextActiveMobile]}>All</Text>
+                <View style={[s.activeBadge, isSmallScreen && s.activeBadgeMobile]}>
+                  <Text style={[s.activeBadgeText, isSmallScreen && s.activeBadgeTextMobile]}>{statusCounts.all}</Text>
                 </View>
               </LinearGradient>
             ) : (
-              <View style={s.segmentTabInner}>
-                <Layers size={13} color={Colors.light.textTertiary} />
-                <Text style={s.segmentText}>All</Text>
-                <View style={s.inactiveBadge}>
-                  <Text style={s.inactiveBadgeText}>{statusCounts.all}</Text>
+              <View style={[s.segmentTabInner, isSmallScreen && s.segmentTabInnerMobile]}>
+                <Layers size={isSmallScreen ? 11 : 13} color={Colors.light.textTertiary} />
+                <Text style={[s.segmentText, isSmallScreen && s.segmentTextMobile]}>All</Text>
+                <View style={[s.inactiveBadge, isSmallScreen && s.inactiveBadgeMobile]}>
+                  <Text style={[s.inactiveBadgeText, isSmallScreen && s.inactiveBadgeTextMobile]}>{statusCounts.all}</Text>
                 </View>
               </View>
             )}
@@ -406,30 +418,29 @@ export default function ClassesScreen() {
         </ScrollView>
       </View>
 
-      <View style={s.resultsHeader}>
-        <Text style={s.resultsText}>
+      <View style={[s.resultsHeader, isSmallScreen && s.resultsHeaderMobile]}>
+        <Text style={[s.resultsText, isSmallScreen && s.resultsTextMobile]}>
           {filteredClasses.length} {statusFilter === 'upcoming' ? 'upcoming' : statusFilter === 'completed' ? 'completed' : 'total'} class{filteredClasses.length === 1 ? '' : 'es'}
         </Text>
         <TouchableOpacity onPress={() => router.push('/class/my' as any)}>
-          <Text style={s.myClassesLink}>My Classes →</Text>
+          <Text style={[s.myClassesLink, isSmallScreen && s.myClassesLinkMobile]}>My Classes →</Text>
         </TouchableOpacity>
       </View>
 
       <FlatList
         key={`classes-list-${numColumns}`}
         numColumns={numColumns}
-        columnWrapperStyle={numColumns > 1 ? { gap: 16, marginBottom: 16 } : undefined}
+        columnWrapperStyle={numColumns > 1 ? { gap: gridGap, marginBottom: gridGap } : undefined}
         style={{ flex: 1 }}
         data={filteredClasses}
         keyExtractor={item => item.id}
         renderItem={renderClassCard}
-        ItemSeparatorComponent={numColumns === 1 ? () => <View style={{ height: 16 }} /> : undefined}
-        contentContainerStyle={s.listContent}
+        contentContainerStyle={[s.listContent, isSmallScreen && s.listContentMobile, { paddingHorizontal: gridPadding }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.light.primary} />}
         ListEmptyComponent={
-          <View style={s.emptyWrap}>
-            <Text style={s.emptyText}>
+          <View style={[s.emptyWrap, isSmallScreen && s.emptyWrapMobile]}>
+            <Text style={[s.emptyText, isSmallScreen && s.emptyTextMobile]}>
               No {statusFilter === 'upcoming' ? 'upcoming' : statusFilter === 'completed' ? 'completed' : ''} classes match your filters.
             </Text>
           </View>
@@ -589,6 +600,17 @@ const s = StyleSheet.create({
   myClassesLink: { fontSize: 14, fontWeight: '700' as const, color: Colors.light.primary },
   listContent: { paddingHorizontal: 20, paddingBottom: 100, maxWidth: 1280, width: '100%', alignSelf: 'center' },
   card: { backgroundColor: Colors.light.card, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: Colors.light.borderLight, shadowColor: Colors.light.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4, width: '100%' },
+  cardMobile: {
+    borderRadius: 14,
+  },
+  cardBodyMobile: {
+    padding: 10,
+  },
+  titleMobile: {
+    fontSize: 13.5,
+    lineHeight: 18,
+    marginBottom: 6,
+  },
   cardCancelled: { opacity: 0.85, borderColor: 'rgba(239,68,68,0.3)' },
   coverWrap: { position: 'relative' },
   cover: { width: '100%', height: 180, backgroundColor: Colors.light.backgroundTertiary },
@@ -636,6 +658,51 @@ const s = StyleSheet.create({
   billingPillText: { fontSize: 10, fontWeight: '600' as const, color: Colors.light.secondary },
   joinCardBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#10B981', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, flexShrink: 0 },
   joinCardBtnText: { fontSize: 11, fontWeight: '700' as const, color: '#FFFFFF' },
+  cardHeaderMobile: { flexDirection: 'column', alignItems: 'flex-start', gap: 4, marginBottom: 6 },
+  catBadgeWrapMobile: { width: '100%' },
+  catBadgeMobile: { fontSize: 9.5, letterSpacing: 0.5, flexWrap: 'wrap' },
+  rightBadgesMobile: { flexWrap: 'wrap', gap: 4 },
+  levelPillMobile: { paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5 },
+  levelTextMobile: { fontSize: 9 },
+  metaRowMobile: { flexDirection: 'column', alignItems: 'flex-start', gap: 4, marginBottom: 6 },
+  metaTextMobile: { fontSize: 10, flexWrap: 'wrap' },
+  scheduleTextMobile: { fontSize: 10, flexWrap: 'wrap' },
+  teacherRowMobile: { gap: 6, marginBottom: 8 },
+  teacherNameMobile: { fontSize: 11, flexWrap: 'wrap' },
+  seatRowMobile: { flexDirection: 'column', alignItems: 'flex-start', gap: 2, marginBottom: 4 },
+  seatTextMobile: { fontSize: 10, flexWrap: 'wrap' },
+  seatsLeftMobile: { fontSize: 10, flexWrap: 'wrap' },
+  priceRowMobile: { flexWrap: 'wrap', gap: 4 },
+  priceGroupMobile: { flexWrap: 'wrap', gap: 4 },
+  billingPillTextMobile: { fontSize: 9, flexWrap: 'wrap' },
   emptyWrap: { paddingVertical: 60, alignItems: 'center' },
+  emptyWrapMobile: { paddingVertical: 30 },
   emptyText: { fontSize: 15, color: Colors.light.textTertiary, fontWeight: '500' as const },
+  emptyTextMobile: { fontSize: 12 },
+  headerMobile: { paddingHorizontal: 16, paddingBottom: 10 },
+  headerTopMobile: { marginBottom: 8 },
+  headerTitleMobile: { fontSize: 18 },
+  headerSubMobile: { fontSize: 11.5, marginTop: 2 },
+  searchBarMobile: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 12, gap: 6 },
+  searchInputMobile: { fontSize: 13 },
+  filterSectionMobile: { paddingTop: 6, paddingBottom: 2 },
+  catScrollMobile: { flexGrow: 0 },
+  catContainerMobile: { paddingHorizontal: 12, paddingVertical: 6, gap: 6 },
+  catPillMobile: { paddingHorizontal: 10, paddingVertical: 4.5, borderRadius: 10 },
+  catPillTextMobile: { fontSize: 11 },
+  segmentScrollMobile: { marginTop: 3, marginBottom: 4 },
+  segmentedControlMobile: { paddingHorizontal: 12, gap: 6 },
+  segmentTabMobile: { borderRadius: 10 },
+  segmentGradientMobile: { paddingVertical: 5, paddingHorizontal: 9, gap: 4, borderRadius: 9 },
+  segmentTabInnerMobile: { paddingVertical: 5, paddingHorizontal: 9, gap: 4 },
+  segmentTextMobile: { fontSize: 10.5 },
+  segmentTextActiveMobile: { fontSize: 10.5 },
+  activeBadgeMobile: { paddingHorizontal: 4, paddingVertical: 1.5, borderRadius: 8 },
+  activeBadgeTextMobile: { fontSize: 9 },
+  inactiveBadgeMobile: { paddingHorizontal: 4, paddingVertical: 1.5, borderRadius: 8 },
+  inactiveBadgeTextMobile: { fontSize: 9 },
+  resultsHeaderMobile: { paddingHorizontal: 16, paddingVertical: 8 },
+  resultsTextMobile: { fontSize: 11.5 },
+  myClassesLinkMobile: { fontSize: 11.5 },
+  listContentMobile: { paddingBottom: 24 },
 });

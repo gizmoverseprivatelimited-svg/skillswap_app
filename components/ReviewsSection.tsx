@@ -9,6 +9,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -45,6 +46,8 @@ const reviewReasons = [
 ];
 
 const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSectionProps) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
   const { currentUser } = useCurrentUser();
   const { showAlert } = useAlert();
   const { socket } = useSocket();
@@ -424,59 +427,59 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
   ]);
 
   return (
-    <View style={styles.sectionContainer} testID="reviews-section">
+    <View style={[styles.sectionContainer, isSmallScreen && styles.sectionContainerMobile]} testID="reviews-section">
       <LinearGradient
         colors={["#0F172A", "#111827"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.gradientContainer}
+        style={[styles.gradientContainer, isSmallScreen && styles.gradientContainerMobile]}
       >
-        <View style={styles.headerRow}>
-          <View style={styles.headerTextGroup}>
-            <Text style={styles.sectionTitle}>{headline ?? "Reviews"}</Text>
-            <Text style={styles.sectionSubtitle}>
+        <View style={[styles.headerRow, isSmallScreen && styles.headerRowMobile]}>
+          <View style={[styles.headerTextGroup, isSmallScreen && styles.headerTextGroupMobile]}>
+            <Text style={[styles.sectionTitle, isSmallScreen && styles.sectionTitleMobile]}>{headline ?? "Reviews"}</Text>
+            <Text style={[styles.sectionSubtitle, isSmallScreen && styles.sectionSubtitleMobile]}>
               {totalReviews === 0 ? "Be the first to share your experience" : `${totalReviews} review${totalReviews === 1 ? "" : "s"} from the community`}
             </Text>
           </View>
           {canWriteReview && (
             <Pressable
-              style={styles.addButton}
+              style={[styles.addButton, isSmallScreen && styles.addButtonMobile]}
               onPress={handleOpenComposer}
               disabled={isSubmittingReview}
               testID="open-review-composer"
             >
-              <PlusCircle size={18} color={Colors.light.primary} />
-              <Text style={styles.addButtonText}>Write review</Text>
+              <PlusCircle size={isSmallScreen ? 14 : 18} color={Colors.light.primary} />
+              <Text style={[styles.addButtonText, isSmallScreen && styles.addButtonTextMobile]}>Write review</Text>
             </Pressable>
           )}
         </View>
 
-        <View style={styles.summaryCard}>
-          <View style={styles.averageColumn}>
-            <View style={styles.averageBadge}>
-              <Star size={20} color={Colors.light.accent} fill={Colors.light.accent} />
-              <Text style={styles.averageValue}>{averageLabel}</Text>
+        <View style={[styles.summaryCard, isSmallScreen && styles.summaryCardMobile]}>
+          <View style={[styles.averageColumn, isSmallScreen && styles.averageColumnMobile]}>
+            <View style={[styles.averageBadge, isSmallScreen && styles.averageBadgeMobile]}>
+              <Star size={isSmallScreen ? 14 : 20} color={Colors.light.accent} fill={Colors.light.accent} />
+              <Text style={[styles.averageValue, isSmallScreen && styles.averageValueMobile]}>{averageLabel}</Text>
             </View>
-            <Text style={styles.averageHint}>Average score</Text>
+            <Text style={[styles.averageHint, isSmallScreen && styles.averageHintMobile]}>Average score</Text>
           </View>
-          <View style={styles.progressColumn}>
-            <View style={styles.progressBar}>
+          <View style={[styles.progressColumn, isSmallScreen && styles.progressColumnMobile]}>
+            <View style={[styles.progressBar, isSmallScreen && styles.progressBarMobile]}>
               <Animated.View
                 style={[styles.progressFill, { width: progressWidthAnimated }]}
               />
             </View>
-            <View style={styles.distributionList}>
+            <View style={[styles.distributionList, isSmallScreen && styles.distributionListMobile]}>
               {distributionEntries.map((entry) => (
-                <View key={entry.level} style={styles.distributionRow}>
-                  <View style={styles.distributionLabelRow}>
-                    <Text style={styles.distributionLevel}>{entry.level}</Text>
-                    <Star size={12} color={Colors.light.accent} fill={Colors.light.accent} />
+                <View key={entry.level} style={[styles.distributionRow, isSmallScreen && styles.distributionRowMobile]}>
+                  <View style={[styles.distributionLabelRow, isSmallScreen && styles.distributionLabelRowMobile]}>
+                    <Text style={[styles.distributionLevel, isSmallScreen && styles.distributionLevelMobile]}>{entry.level}</Text>
+                    <Star size={isSmallScreen ? 10 : 12} color={Colors.light.accent} fill={Colors.light.accent} />
                   </View>
-                  <View style={styles.distributionMeter}>
+                  <View style={[styles.distributionMeter, isSmallScreen && styles.distributionMeterMobile]}>
                     <View style={[styles.distributionMeterFill, { flex: entry.ratio }]} />
                     <View style={[styles.distributionMeterSpacer, { flex: 1 - entry.ratio }]} />
                   </View>
-                  <Text style={styles.distributionCount}>{entry.count}</Text>
+                  <Text style={[styles.distributionCount, isSmallScreen && styles.distributionCountMobile]}>{entry.count}</Text>
                 </View>
               ))}
             </View>
@@ -484,39 +487,39 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
         </View>
 
         {fetchError && (
-          <View style={styles.errorCard}>
-            <AlertTriangle size={18} color={Colors.light.accent} />
-            <Text style={styles.errorText}>{fetchError}</Text>
+          <View style={[styles.errorCard, isSmallScreen && styles.errorCardMobile]}>
+            <AlertTriangle size={isSmallScreen ? 14 : 18} color={Colors.light.accent} />
+            <Text style={[styles.errorText, isSmallScreen && styles.errorTextMobile]}>{fetchError}</Text>
             <Pressable
               onPress={fetchReviews}
-              style={styles.retryButton}
+              style={[styles.retryButton, isSmallScreen && styles.retryButtonMobile]}
               testID="retry-reviews"
             >
-              <Text style={styles.retryText}>Retry</Text>
+              <Text style={[styles.retryText, isSmallScreen && styles.retryTextMobile]}>Retry</Text>
             </Pressable>
           </View>
         )}
 
 
         {isLoading && (
-          <View style={styles.loadingContainer}>
+          <View style={[styles.loadingContainer, isSmallScreen && styles.loadingContainerMobile]}>
             {[1, 2].map((placeholder) => (
-              <View key={placeholder} style={styles.placeholderCard}>
-                <View style={styles.placeholderHeader}>
-                  <View style={styles.placeholderAvatar} />
-                  <View style={styles.placeholderText} />
+              <View key={placeholder} style={[styles.placeholderCard, isSmallScreen && styles.placeholderCardMobile]}>
+                <View style={[styles.placeholderHeader, isSmallScreen && styles.placeholderHeaderMobile]}>
+                  <View style={[styles.placeholderAvatar, isSmallScreen && styles.placeholderAvatarMobile]} />
+                  <View style={[styles.placeholderText, isSmallScreen && styles.placeholderTextMobile]} />
                 </View>
-                <View style={styles.placeholderBody} />
+                <View style={[styles.placeholderBody, isSmallScreen && styles.placeholderBodyMobile]} />
               </View>
             ))}
           </View>
         )}
 
         {!isLoading && reviews.length === 0 && (
-          <View style={styles.emptyState}>
-            <MessageCircle size={22} color={Colors.light.textSecondary} />
-            <Text style={styles.emptyTitle}>No stories yet</Text>
-            <Text style={styles.emptySubtitle}>Wrap up your swap with a quick rating to help others choose confidently.</Text>
+          <View style={[styles.emptyState, isSmallScreen && styles.emptyStateMobile]}>
+            <MessageCircle size={isSmallScreen ? 18 : 22} color={Colors.light.textSecondary} />
+            <Text style={[styles.emptyTitle, isSmallScreen && styles.emptyTitleMobile]}>No stories yet</Text>
+            <Text style={[styles.emptySubtitle, isSmallScreen && styles.emptySubtitleMobile]}>Wrap up your swap with a quick rating to help others choose confidently.</Text>
           </View>
         )}
 
@@ -524,51 +527,51 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.reviewsScroll}
+            contentContainerStyle={[styles.reviewsScroll, isSmallScreen && styles.reviewsScrollMobile]}
           >
             {reviews.map((review,i) => {
               // console.log(review);
               const isFlagged = Boolean(review.flaggedAt);
   
               return (
-                <View key={i} style={styles.reviewCard} testID={`review-card-${review.id}`}>
-                  <View style={styles.reviewHeader}>
-                    <View style={styles.reviewerRow}>
-                      <View style={styles.avatarCircle}>
-                        <Text style={styles.avatarInitials}>{(review.reviewer?.username || review.reviewer?.name || 'US').slice(0, 2).toUpperCase()}</Text>
+                <View key={i} style={[styles.reviewCard, isSmallScreen && styles.reviewCardMobile]} testID={`review-card-${review.id}`}>
+                  <View style={[styles.reviewHeader, isSmallScreen && styles.reviewHeaderMobile]}>
+                    <View style={[styles.reviewerRow, isSmallScreen && styles.reviewerRowMobile]}>
+                      <View style={[styles.avatarCircle, isSmallScreen && styles.avatarCircleMobile]}>
+                        <Text style={[styles.avatarInitials, isSmallScreen && styles.avatarInitialsMobile]}>{(review.reviewer?.username || review.reviewer?.name || 'US').slice(0, 2).toUpperCase()}</Text>
                       </View>
-                      <View style={styles.reviewerInfo}>
-                        <Text style={styles.reviewerName}>{review.reviewer?.username ? (review.reviewer.username.startsWith('@') ? review.reviewer.username : `@${review.reviewer.username}`) : `@${(review.reviewer?.name || 'user').toLowerCase().replace(/\s+/g, '')}`}</Text>
-                        <Text style={styles.reviewDate}>{new Date(review.createdAt).toLocaleDateString()}</Text>
+                      <View style={[styles.reviewerInfo, isSmallScreen && styles.reviewerInfoMobile]}>
+                        <Text style={[styles.reviewerName, isSmallScreen && styles.reviewerNameMobile]}>{review.reviewer?.username ? (review.reviewer.username.startsWith('@') ? review.reviewer.username : `@${review.reviewer.username}`) : `@${(review.reviewer?.name || 'user').toLowerCase().replace(/\s+/g, '')}`}</Text>
+                        <Text style={[styles.reviewDate, isSmallScreen && styles.reviewDateMobile]}>{new Date(review.createdAt).toLocaleDateString()}</Text>
                       </View>
                     </View>
-                    <View style={styles.ratingPill}>
-                      <Star size={14} color={Colors.light.accent} fill={Colors.light.accent} />
-                      <Text style={styles.ratingPillText}>{review.rating.toFixed(1)}</Text>
+                    <View style={[styles.ratingPill, isSmallScreen && styles.ratingPillMobile]}>
+                      <Star size={isSmallScreen ? 11 : 14} color={Colors.light.accent} fill={Colors.light.accent} />
+                      <Text style={[styles.ratingPillText, isSmallScreen && styles.ratingPillTextMobile]}>{review.rating.toFixed(1)}</Text>
                     </View>
                   </View>
-                  <Text style={styles.reviewBody}>{review.comment}</Text>
-                  <View style={styles.reviewFooter}>
+                  <Text style={[styles.reviewBody, isSmallScreen && styles.reviewBodyMobile]}>{review.comment}</Text>
+                  <View style={[styles.reviewFooter, isSmallScreen && styles.reviewFooterMobile]}>
                     {review.skillId && (
-                      <View style={styles.skillTag}>
-                        <Text style={styles.skillTagText}>Skill #{review?.skillId?.slice(-6,)}</Text>
+                      <View style={[styles.skillTag, isSmallScreen && styles.skillTagMobile]}>
+                        <Text style={[styles.skillTagText, isSmallScreen && styles.skillTagTextMobile]}>Skill #{review?.skillId?.slice(-6,)}</Text>
                       </View>
                     )}
                     <View style={styles.reviewFooterSpacer} />
                     {isFlagged ? (
-                      <View style={styles.flaggedBadge}>
-                        <AlertTriangle size={14} color={Colors.light.warning} />
-                        <Text style={styles.flaggedText}>Flagged</Text>
+                      <View style={[styles.flaggedBadge, isSmallScreen && styles.flaggedBadgeMobile]}>
+                        <AlertTriangle size={isSmallScreen ? 11 : 14} color={Colors.light.warning} />
+                        <Text style={[styles.flaggedText, isSmallScreen && styles.flaggedTextMobile]}>Flagged</Text>
                       </View>
                     ) : (
                       canWriteReview && (
                         <Pressable
                           onPress={() => handleOpenReport(review)}
-                          style={styles.reportButton}
+                          style={[styles.reportButton, isSmallScreen && styles.reportButtonMobile]}
                           testID={`report-review-${review.id}`}
                         >
-                          <Flag size={14} color={Colors.light.textSecondary} />
-                          <Text style={styles.reportButtonText}>Report</Text>
+                          <Flag size={isSmallScreen ? 11 : 14} color={Colors.light.textSecondary} />
+                          <Text style={[styles.reportButtonText, isSmallScreen && styles.reportButtonTextMobile]}>Report</Text>
                         </Pressable>
                       )
                     )}
@@ -587,24 +590,24 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
         onRequestClose={handleCloseComposer}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalContainer}>
+          <View style={[styles.modalContainer, isSmallScreen && styles.modalContainerMobile]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Share your experience</Text>
+              <Text style={[styles.modalTitle, isSmallScreen && styles.modalTitleMobile]}>Share your experience</Text>
               <Pressable onPress={handleCloseComposer} testID="close-review-composer">
-                <X size={18} color={Colors.light.textSecondary} />
+                <X size={isSmallScreen ? 15 : 18} color={Colors.light.textSecondary} />
               </Pressable>
             </View>
-            <Text style={styles.modalSubtitle}>How would you rate this session?</Text>
-            <View style={styles.ratingSelector}>
+            <Text style={[styles.modalSubtitle, isSmallScreen && styles.modalSubtitleMobile]}>How would you rate this session?</Text>
+            <View style={[styles.ratingSelector, isSmallScreen && styles.ratingSelectorMobile]}>
               {ratingLevels.map((level) => (
                 <Pressable
                   key={level}
-                  style={[styles.ratingStarWrapper, selectedRating >= level && styles.ratingStarActive]}
+                  style={[styles.ratingStarWrapper, isSmallScreen && styles.ratingStarWrapperMobile, selectedRating >= level && styles.ratingStarActive]}
                   onPress={() => setSelectedRating(level)}
                   testID={`composer-rating-${level}`}
                 >
                   <Star
-                    size={24}
+                    size={isSmallScreen ? 18 : 24}
                     color={selectedRating >= level ? Colors.light.accent : Colors.light.textSecondary}
                     fill={selectedRating >= level ? Colors.light.accent : "transparent"}
                   />
@@ -612,25 +615,25 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
               ))}
             </View>
             <TextInput
-              style={styles.reviewInput}
+              style={[styles.reviewInput, isSmallScreen && styles.reviewInputMobile]}
               placeholder="Tell others what stood out, what was learned, and how the swap felt"
               placeholderTextColor={Colors.light.textTertiary}
               multiline
               value={reviewText}
               onChangeText={setReviewText}
               textAlignVertical="top"
-              numberOfLines={6}
+              numberOfLines={isSmallScreen ? 4 : 6}
               testID="review-text-input"
             />
-            {composerError && <Text style={styles.modalError}>{composerError}</Text>}
+            {composerError && <Text style={[styles.modalError, isSmallScreen && styles.modalErrorMobile]}>{composerError}</Text>}
             <Pressable
-              style={[styles.submitButton, isSubmittingReview && styles.submitButtonDisabled]}
+              style={[styles.submitButton, isSmallScreen && styles.submitButtonMobile, isSubmittingReview && styles.submitButtonDisabled]}
               onPress={handleSubmitReview}
               disabled={isSubmittingReview}
               testID="submit-review"
             >
-              <Send size={18} color="#FFFFFF" />
-              <Text style={styles.submitButtonText}>{isSubmittingReview ? "Sending" : "Submit review"}</Text>
+              <Send size={isSmallScreen ? 14 : 18} color="#FFFFFF" />
+              <Text style={[styles.submitButtonText, isSmallScreen && styles.submitButtonTextMobile]}>{isSubmittingReview ? "Sending" : "Submit review"}</Text>
             </Pressable>
           </View>
         </View>
@@ -643,43 +646,43 @@ const ReviewsSectionComponent = ({ revieweeId, skillId, headline }: ReviewsSecti
         onRequestClose={handleCloseReport}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.reportContainer}>
+          <View style={[styles.reportContainer, isSmallScreen && styles.reportContainerMobile]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Report review</Text>
+              <Text style={[styles.modalTitle, isSmallScreen && styles.modalTitleMobile]}>Report review</Text>
               <Pressable onPress={handleCloseReport} testID="close-report-modal">
-                <X size={18} color={Colors.light.textSecondary} />
+                <X size={isSmallScreen ? 15 : 18} color={Colors.light.textSecondary} />
               </Pressable>
             </View>
-            <Text style={styles.modalSubtitle}>Why does this review break our guidelines?</Text>
-            <View style={styles.reasonsList}>
+            <Text style={[styles.modalSubtitle, isSmallScreen && styles.modalSubtitleMobile]}>Why does this review break our guidelines?</Text>
+            <View style={[styles.reasonsList, isSmallScreen && styles.reasonsListMobile]}>
               {reviewReasons.map((reason) => {
                 const isActive = reportReason === reason;
                 return (
                   <Pressable
                     key={reason}
-                    style={[styles.reasonChip, isActive && styles.reasonChipActive]}
+                    style={[styles.reasonChip, isSmallScreen && styles.reasonChipMobile, isActive && styles.reasonChipActive]}
                     onPress={() => setReportReason(reason)}
                     testID={`report-reason-${reason}`}
                   >
                     {isActive ? (
-                      <CheckCircle2 size={18} color={Colors.light.primary} />
+                      <CheckCircle2 size={isSmallScreen ? 14 : 18} color={Colors.light.primary} />
                     ) : (
-                      <Flag size={18} color={Colors.light.textSecondary} />
+                      <Flag size={isSmallScreen ? 14 : 18} color={Colors.light.textSecondary} />
                     )}
-                    <Text style={[styles.reasonText, isActive && styles.reasonTextActive]}>{reason}</Text>
+                    <Text style={[styles.reasonText, isSmallScreen && styles.reasonTextMobile, isActive && styles.reasonTextActive]}>{reason}</Text>
                   </Pressable>
                 );
               })}
             </View>
-            {reportError && <Text style={styles.modalError}>{reportError}</Text>}
+            {reportError && <Text style={[styles.modalError, isSmallScreen && styles.modalErrorMobile]}>{reportError}</Text>}
             <Pressable
-              style={[styles.submitButton, isSubmittingReport && styles.submitButtonDisabled]}
+              style={[styles.submitButton, isSmallScreen && styles.submitButtonMobile, isSubmittingReport && styles.submitButtonDisabled]}
               onPress={handleSubmitReport}
               disabled={isSubmittingReport}
               testID="submit-report"
             >
-              <AlertTriangle size={18} color="#FFFFFF" />
-              <Text style={styles.submitButtonText}>{isSubmittingReport ? "Sending" : "Send report"}</Text>
+              <AlertTriangle size={isSmallScreen ? 14 : 18} color="#FFFFFF" />
+              <Text style={[styles.submitButtonText, isSmallScreen && styles.submitButtonTextMobile]}>{isSubmittingReport ? "Sending" : "Send report"}</Text>
             </Pressable>
           </View>
         </View>
@@ -1131,6 +1134,267 @@ const styles = StyleSheet.create({
   reasonTextActive: {
     color: Colors.light.primary,
     fontWeight: "600",
+  },
+  sectionContainerMobile: {
+    marginTop: 14,
+  },
+  gradientContainerMobile: {
+    borderRadius: 16,
+    padding: 12,
+    gap: 12,
+  },
+  headerRowMobile: {
+    gap: 8,
+  },
+  headerTextGroupMobile: {
+    gap: 2,
+  },
+  sectionTitleMobile: {
+    fontSize: 16,
+  },
+  sectionSubtitleMobile: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  addButtonMobile: {
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 5,
+  },
+  addButtonTextMobile: {
+    fontSize: 11.5,
+  },
+  summaryCardMobile: {
+    padding: 10,
+    borderRadius: 14,
+    gap: 10,
+  },
+  averageColumnMobile: {
+    width: 82,
+    gap: 4,
+  },
+  averageBadgeMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 5,
+  },
+  averageValueMobile: {
+    fontSize: 18,
+  },
+  averageHintMobile: {
+    fontSize: 10.5,
+  },
+  progressColumnMobile: {
+    gap: 8,
+  },
+  progressBarMobile: {
+    height: 6,
+    borderRadius: 6,
+  },
+  distributionListMobile: {
+    gap: 5,
+  },
+  distributionRowMobile: {
+    gap: 6,
+  },
+  distributionLabelRowMobile: {
+    gap: 2,
+    width: 36,
+  },
+  distributionLevelMobile: {
+    fontSize: 11,
+  },
+  distributionMeterMobile: {
+    height: 5,
+    borderRadius: 3,
+  },
+  distributionCountMobile: {
+    fontSize: 10.5,
+    width: 20,
+  },
+  errorCardMobile: {
+    padding: 8,
+    borderRadius: 12,
+    gap: 6,
+  },
+  errorTextMobile: {
+    fontSize: 11,
+  },
+  retryButtonMobile: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  retryTextMobile: {
+    fontSize: 10.5,
+  },
+  loadingContainerMobile: {
+    gap: 8,
+  },
+  placeholderCardMobile: {
+    padding: 10,
+    borderRadius: 12,
+    gap: 8,
+  },
+  placeholderHeaderMobile: {
+    gap: 8,
+  },
+  placeholderAvatarMobile: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  placeholderTextMobile: {
+    height: 10,
+  },
+  placeholderBodyMobile: {
+    height: 32,
+    borderRadius: 8,
+  },
+  emptyStateMobile: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    gap: 4,
+  },
+  emptyTitleMobile: {
+    fontSize: 14,
+  },
+  emptySubtitleMobile: {
+    fontSize: 11,
+    lineHeight: 15,
+    paddingHorizontal: 12,
+  },
+  reviewsScrollMobile: {
+    gap: 8,
+    paddingTop: 2,
+    paddingBottom: 2,
+  },
+  reviewCardMobile: {
+    width: 240,
+    borderRadius: 14,
+    padding: 10,
+    marginRight: 8,
+    gap: 8,
+  },
+  reviewHeaderMobile: {
+    gap: 8,
+  },
+  reviewerRowMobile: {
+    gap: 8,
+  },
+  avatarCircleMobile: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+  },
+  avatarInitialsMobile: {
+    fontSize: 11,
+  },
+  reviewerInfoMobile: {
+    gap: 1,
+  },
+  reviewerNameMobile: {
+    fontSize: 12,
+  },
+  reviewDateMobile: {
+    fontSize: 9.5,
+  },
+  ratingPillMobile: {
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  ratingPillTextMobile: {
+    fontSize: 11.5,
+  },
+  reviewBodyMobile: {
+    fontSize: 11.5,
+    lineHeight: 16,
+  },
+  reviewFooterMobile: {
+    gap: 8,
+  },
+  skillTagMobile: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  skillTagTextMobile: {
+    fontSize: 10,
+  },
+  flaggedBadgeMobile: {
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  flaggedTextMobile: {
+    fontSize: 10,
+  },
+  reportButtonMobile: {
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  reportButtonTextMobile: {
+    fontSize: 10,
+  },
+  modalContainerMobile: {
+    borderRadius: 16,
+    padding: 14,
+    gap: 10,
+  },
+  modalTitleMobile: {
+    fontSize: 14,
+  },
+  modalSubtitleMobile: {
+    fontSize: 11,
+  },
+  ratingSelectorMobile: {
+    gap: 8,
+  },
+  ratingStarWrapperMobile: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+  },
+  reviewInputMobile: {
+    minHeight: 76,
+    borderRadius: 12,
+    padding: 10,
+    fontSize: 12,
+  },
+  modalErrorMobile: {
+    fontSize: 11,
+  },
+  submitButtonMobile: {
+    paddingVertical: 9,
+    borderRadius: 12,
+    gap: 6,
+  },
+  submitButtonTextMobile: {
+    fontSize: 12.5,
+  },
+  reportContainerMobile: {
+    borderRadius: 16,
+    padding: 14,
+    gap: 10,
+  },
+  reasonsListMobile: {
+    gap: 8,
+  },
+  reasonChipMobile: {
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  reasonTextMobile: {
+    fontSize: 11.5,
   },
 });
 

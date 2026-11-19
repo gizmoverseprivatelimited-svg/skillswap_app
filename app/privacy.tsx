@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import { useMemo } from 'react';
+import { StyleSheet, Text, View, ScrollView, useWindowDimensions } from 'react-native';
 import { Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Shield, Eye, Lock, Database, Share2, Bell } from 'lucide-react-native';
@@ -71,6 +72,9 @@ const SECTIONS: PolicySection[] = [
 ];
 
 export default function PrivacyScreen() {
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 600;
+  const styles = useMemo(() => createStyles(isSmallScreen), [isSmallScreen]);
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Privacy Policy' }} />
@@ -123,7 +127,7 @@ export default function PrivacyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isSmallScreen: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.backgroundSecondary,
@@ -136,37 +140,37 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingTop: 40,
-    paddingBottom: 32,
-    paddingHorizontal: 24,
+    paddingTop: isSmallScreen ? 24 : 40,
+    paddingBottom: isSmallScreen ? 20 : 32,
+    paddingHorizontal: isSmallScreen ? 16 : 24,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: isSmallScreen ? 20 : 26,
     fontWeight: '800' as const,
     color: '#FFFFFF',
-    marginTop: 16,
+    marginTop: isSmallScreen ? 10 : 16,
     marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12 : 14,
     color: 'rgba(255,255,255,0.75)',
   },
   content: {
-    marginTop: -20,
+    marginTop: isSmallScreen ? -14 : -20,
     backgroundColor: Colors.light.backgroundSecondary,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 24,
-    paddingHorizontal: 20,
+    borderTopLeftRadius: isSmallScreen ? 16 : 24,
+    borderTopRightRadius: isSmallScreen ? 16 : 24,
+    paddingTop: isSmallScreen ? 16 : 24,
+    paddingHorizontal: isSmallScreen ? 12 : 20,
   },
   introCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: Colors.light.primaryLight + '18',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 24,
-    gap: 12,
+    padding: isSmallScreen ? 12 : 16,
+    borderRadius: isSmallScreen ? 12 : 16,
+    marginBottom: isSmallScreen ? 14 : 24,
+    gap: isSmallScreen ? 8 : 12,
     borderWidth: 1,
     borderColor: Colors.light.primaryLight + '30',
   },
@@ -174,16 +178,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   introText: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: isSmallScreen ? 12 : 14,
+    lineHeight: isSmallScreen ? 17 : 22,
     color: Colors.light.text,
     fontWeight: '500' as const,
   },
   sectionCard: {
     backgroundColor: Colors.light.card,
-    padding: 18,
-    borderRadius: 16,
-    marginBottom: 12,
+    padding: isSmallScreen ? 12 : 18,
+    borderRadius: isSmallScreen ? 12 : 16,
+    marginBottom: isSmallScreen ? 8 : 12,
     borderWidth: 1,
     borderColor: Colors.light.borderLight,
     shadowColor: Colors.light.shadow,
@@ -195,32 +199,32 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
+    gap: isSmallScreen ? 8 : 10,
+    marginBottom: isSmallScreen ? 8 : 12,
   },
   sectionIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: isSmallScreen ? 28 : 34,
+    height: isSmallScreen ? 28 : 34,
+    borderRadius: isSmallScreen ? 8 : 10,
     backgroundColor: Colors.light.backgroundTertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: isSmallScreen ? 13.5 : 16,
     fontWeight: '700' as const,
     color: Colors.light.text,
     flex: 1,
   },
   sectionBody: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: isSmallScreen ? 11.5 : 14,
+    lineHeight: isSmallScreen ? 17 : 22,
     color: Colors.light.textSecondary,
   },
   companyInfoCard: {
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 16,
+    marginTop: isSmallScreen ? 14 : 20,
+    padding: isSmallScreen ? 12 : 16,
+    borderRadius: isSmallScreen ? 12 : 16,
     backgroundColor: Colors.light.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -229,12 +233,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   companyNameText: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12.5 : 14,
     fontWeight: '700' as const,
     color: Colors.light.text,
   },
   companyProductText: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     color: Colors.light.textSecondary,
     textAlign: 'center',
   },

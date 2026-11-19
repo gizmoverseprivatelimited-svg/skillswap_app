@@ -12,6 +12,7 @@ import { useCurrentUser } from '../providers/current-user';
 import { useSafety } from '../providers/safety';
 import { useSkillSwaps } from '../providers/skill-swaps';
 import { getSwapRequestCost, getSessionCreditCost, getPlatformFee, formatCredits } from '../lib/payments';
+import { logSkillSwapRequest } from '../lib/analytics';
 
 interface SkillSwapRequestModalProps {
   visible: boolean;
@@ -397,6 +398,12 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
         };
 
         const createdSwap = await submitSwapRequest(payload);
+
+        // 📊 Track skill swap request in Firebase Analytics
+        const offeredSkill = swapType === 'learn' ? 'Credits' : (activeMySkill?.title || 'Skill');
+        const wantedSkill = swapType === 'teach' ? 'Credits' : (activePartnerSkill?.title || skill.title || 'Skill');
+        logSkillSwapRequest(offeredSkill, wantedSkill);
+
         onClose();
         router.push(`/swaps/${createdSwap.id}` as never);
       } catch (swapError: any) {
@@ -405,7 +412,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
       }
     };
     void submit();
-  }, [canAdvance, isDetailsStep, introMessage, isSubmitting, mergedLocation, onClose, router, selectedRequesterSkillId, selectedRecipientSkillId, selectedTimes, skill.id, skill.user.id, step, totalSteps, swapType, payNowCost, sessionCost, totalRequiredCredits, hasEnoughCredits, currentUser?.credits, submitSwapRequest]);
+  }, [canAdvance, isDetailsStep, introMessage, isSubmitting, mergedLocation, onClose, router, selectedRequesterSkillId, selectedRecipientSkillId, selectedTimes, skill.id, skill.title, skill.user, step, totalSteps, swapType, payNowCost, sessionCost, totalRequiredCredits, hasEnoughCredits, currentUser, isBlocked, submitSwapRequest, activeMySkill, activePartnerSkill]);
 
   const partnerName = useMemo(() => {
     const target = latestPartner || skill.user;
@@ -561,7 +568,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                                     <Sparkles size={16} color={isActive ? '#0B1220' : '#3B82F6'} />
                                     <Text style={[styles.skillCardLevel, isActive && styles.skillCardLevelActive]}>{offeredSkill.level}</Text>
                                   </View>
-                                  <Text style={[styles.skillCardTitle, isActive && styles.skillCardTitleActive]} numberOfLines={2}>
+                                  <Text style={[styles.skillCardTitle, isActive && styles.skillCardTitleActive]}>
                                     {offeredSkill.title}
                                   </Text>
                                 </LinearGradient>
@@ -604,7 +611,7 @@ export default function SkillSwapRequestModal({ visible, skill, onClose }: Skill
                                   <BookOpen size={16} color={isActive ? '#0B1220' : '#10B981'} />
                                   <Text style={[styles.skillCardLevel, isActive && styles.skillCardLevelActive]}>{pSkill.level}</Text>
                                 </View>
-                                <Text style={[styles.skillCardTitle, isActive && styles.skillCardTitleActive]} numberOfLines={2}>
+                                <Text style={[styles.skillCardTitle, isActive && styles.skillCardTitleActive]}>
                                   {pSkill.title}
                                 </Text>
                               </LinearGradient>
