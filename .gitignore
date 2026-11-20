@@ -51,4 +51,6 @@ expo/
 scratch/
 node_modules/
 *.zip
-*.txt
+*.txt
+!public/robots.txt
+

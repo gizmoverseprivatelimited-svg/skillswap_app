@@ -1,0 +1,20 @@
+# robots.txt for leteski.com
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /contact
+Allow: /privacy
+Allow: /terms
+Allow: /help
+Allow: /login
+
+# Disallow private user flows & admin
+Disallow: /admin/
+Disallow: /call/
+Disallow: /earnings/
+Disallow: /swaps/
+Disallow: /banned
+Disallow: /reset-password
+
+# Sitemap location
+Sitemap: https://leteski.com/sitemap.xml
