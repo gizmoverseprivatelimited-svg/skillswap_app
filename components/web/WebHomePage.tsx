@@ -44,6 +44,7 @@ import {
   Instagram,
   Facebook,
   Youtube,
+  Linkedin,
   Laptop,
   Briefcase,
   Smile,
@@ -53,6 +54,13 @@ import Colors from '@/constants/colors';
 import { useAuth } from '@/providers/auth';
 
 const APP_LOGO = require('@/assets/images/icon.png');
+
+const SOCIAL_LINKS = {
+  facebook: 'https://www.facebook.com/profile.php?id=61596870262574',
+  instagram: 'https://www.instagram.com/leteski_/',
+  linkedin: 'https://www.linkedin.com/company/144158051/',
+  youtube: 'https://www.youtube.com/@Leteski',
+};
 
 // -------------------------------------------------------------
 // DATA DEFINITIONS (Based on Sheet Specifications)
@@ -795,12 +803,12 @@ export default function WebHomePage() {
               </View>
               <View>
                 <Text style={styles.socialBrandTitle}>Featured on Instagram</Text>
-                <Text style={styles.socialBrandSubtitle}>@leteski_official • Daily Tips & Member Stories</Text>
+                <Text style={styles.socialBrandSubtitle}>@leteski_ • Daily Tips & Member Stories</Text>
               </View>
             </View>
             <TouchableOpacity
               style={styles.socialFollowBtnIg}
-              onPress={() => Linking.openURL('https://instagram.com')}
+              onPress={() => Linking.openURL(SOCIAL_LINKS.instagram)}
             >
               <Instagram size={14} color="#FFFFFF" />
               <Text style={styles.socialFollowBtnText}>Follow on Instagram</Text>
@@ -849,7 +857,7 @@ export default function WebHomePage() {
             </View>
             <TouchableOpacity
               style={styles.socialFollowBtnFb}
-              onPress={() => Linking.openURL('https://facebook.com')}
+              onPress={() => Linking.openURL(SOCIAL_LINKS.facebook)}
             >
               <Facebook size={14} color="#FFFFFF" />
               <Text style={styles.socialFollowBtnText}>Join Community</Text>
@@ -902,7 +910,7 @@ export default function WebHomePage() {
             </View>
             <TouchableOpacity
               style={styles.socialFollowBtnYt}
-              onPress={() => Linking.openURL('https://youtube.com')}
+              onPress={() => Linking.openURL(SOCIAL_LINKS.youtube)}
             >
               <Youtube size={14} color="#FFFFFF" />
               <Text style={styles.socialFollowBtnText}>Subscribe Channel</Text>
@@ -1013,23 +1021,29 @@ export default function WebHomePage() {
                 Leteski is a premier peer-to-peer skill exchange platform where passionate learners and creators connect to teach what they love and learn what they desire through collaborative barter and shared growth.
               </Text>
 
-              {/* Social Media Icons (Sheet Item 1: Social Media Icons: FB, Insta, YouTube) */}
+              {/* Social Media Icons (Sheet Item 1: Social Media Icons: FB, Insta, YouTube, LinkedIn) */}
               <View style={styles.footerSocialRow}>
                 <TouchableOpacity
                   style={styles.footerSocialBtn}
-                  onPress={() => Linking.openURL('https://facebook.com')}
+                  onPress={() => Linking.openURL(SOCIAL_LINKS.facebook)}
                 >
                   <Facebook size={18} color="#FFFFFF" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.footerSocialBtn}
-                  onPress={() => Linking.openURL('https://instagram.com')}
+                  onPress={() => Linking.openURL(SOCIAL_LINKS.instagram)}
                 >
                   <Instagram size={18} color="#FFFFFF" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.footerSocialBtn}
-                  onPress={() => Linking.openURL('https://youtube.com')}
+                  onPress={() => Linking.openURL(SOCIAL_LINKS.linkedin)}
+                >
+                  <Linkedin size={18} color="#FFFFFF" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.footerSocialBtn}
+                  onPress={() => Linking.openURL(SOCIAL_LINKS.youtube)}
                 >
                   <Youtube size={18} color="#FFFFFF" />
                 </TouchableOpacity>
