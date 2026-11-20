@@ -52,6 +52,8 @@ import {
 import Colors from '@/constants/colors';
 import { useAuth } from '@/providers/auth';
 
+const APP_LOGO = require('@/assets/images/icon.png');
+
 // -------------------------------------------------------------
 // DATA DEFINITIONS (Based on Sheet Specifications)
 // -------------------------------------------------------------
@@ -390,8 +392,8 @@ export default function WebHomePage() {
             onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
             activeOpacity={0.8}
           >
-            <View style={styles.logoBadge}>
-              <Zap size={20} color="#FFFFFF" />
+            <View style={styles.logoImageWrapper}>
+              <Image source={APP_LOGO} style={styles.logoImage} resizeMode="contain" />
             </View>
             <View>
               <Text style={styles.logoText}>
@@ -998,8 +1000,8 @@ export default function WebHomePage() {
             <View style={styles.footerMainCol}>
               {/* Logo */}
               <View style={styles.footerLogoRow}>
-                <View style={styles.logoBadge}>
-                  <Zap size={18} color="#FFFFFF" />
+                <View style={styles.footerLogoImageWrapper}>
+                  <Image source={APP_LOGO} style={styles.footerLogoImage} resizeMode="contain" />
                 </View>
                 <Text style={styles.footerLogoText}>
                   Leteski<Text style={styles.logoHighlight}>.com</Text>
@@ -1186,7 +1188,41 @@ const styles = StyleSheet.create({
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
+  },
+  logoImageWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#EEF2FF',
+  },
+  logoImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+  },
+  footerLogoImageWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  footerLogoImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
   },
   logoBadge: {
     width: 36,
