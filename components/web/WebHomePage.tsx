@@ -218,7 +218,7 @@ const INSTAGRAM_POSTS = [
   {
     id: 'ig-1',
     image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600',
-    caption: '“I taught Sara Python backend in exchange for 4 weeks of Figma UI/UX coaching. No money changed hands, just pure growth!” 💡🚀',
+    caption: '“I taught Sara Python backend in exchange for 4 weeks of Figma UI/UX coaching. Incredible experience and pure growth!” 💡🚀',
     author: '@marcus_builds',
     likes: 1240,
     comments: 89,
@@ -227,7 +227,7 @@ const INSTAGRAM_POSTS = [
   {
     id: 'ig-2',
     image: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=600',
-    caption: 'Top 5 high-income skills you can start swapping on Leteski today without spending a single rupee. Which one are you learning? 📚✨',
+    caption: 'Top 5 high-income skills you can master and swap on Leteski today. Which one are you learning? 📚✨',
     author: '@leteski_official',
     likes: 2180,
     comments: 142,
@@ -252,7 +252,7 @@ const FACEBOOK_POSTS = [
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
     time: '2 hours ago',
     title: '🎉 Sunday Virtual Peer Hackathon & Skill Swap Circle Announced!',
-    body: 'We are gathering over 500+ developers, designers, and language learners this Sunday for our interactive swap breakout rooms. RSVP is free for all members.',
+    body: 'We are gathering over 500+ developers, designers, and language learners this Sunday for our interactive swap breakout rooms. RSVP is open for all members.',
     likes: 342,
     comments: 78,
     shares: 24,
@@ -554,19 +554,19 @@ export default function WebHomePage() {
 
           <Text style={styles.heroTitle}>
             Trade Your Expertise.{'\n'}
-            <Text style={styles.heroTitleGradient}>Master Any Skill Free.</Text>
+            <Text style={styles.heroTitleGradient}>Master Any Skill Together.</Text>
           </Text>
 
           <Text style={styles.heroSubtitle}>
-            Leteski is the premier barter platform where passionate learners connect to swap skills.
-            Teach what you love — coding, design, languages, or business — in exchange for what you want to learn.
-            No tuition. No subscriptions. Real 1-on-1 peer sessions.
+            Leteski is the premier skill exchange platform where passionate learners and tutors connect.
+            Teach what you love — coding, design, languages, or business — and learn what you need through
+            interactive 1-on-1 sessions, expert courses, and collaborative exchanges.
           </Text>
 
           {/* Quick Hero Actions */}
           <View style={styles.heroActionGroup}>
             <TouchableOpacity style={styles.heroPrimaryBtn} onPress={handleLoginPress} activeOpacity={0.85}>
-              <Text style={styles.heroPrimaryBtnText}>Start Swapping Free</Text>
+              <Text style={styles.heroPrimaryBtnText}>Start Swapping Now</Text>
               <ArrowRight size={18} color="#FFFFFF" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.heroSecondaryBtn} onPress={scrollToCategories} activeOpacity={0.85}>
@@ -941,7 +941,7 @@ export default function WebHomePage() {
         {/* HOW IT WORKS SECTION */}
         {/* ------------------------------------------------------------- */}
         <View style={styles.howItWorksSection}>
-          <Text style={styles.howItWorksPre}>Zero Money. Zero Hassle.</Text>
+          <Text style={styles.howItWorksPre}>Simple. Seamless. Collaborative.</Text>
           <Text style={styles.howItWorksTitle}>How Leteski Barter Works in 3 Steps</Text>
           <View style={styles.howStepsRow}>
             <View style={styles.howStepCard}>
@@ -987,7 +987,7 @@ export default function WebHomePage() {
           </View>
 
           <TouchableOpacity style={styles.ctaBannerBtn} onPress={handleLoginPress} activeOpacity={0.85}>
-            <Text style={styles.ctaBannerBtnText}>Join Free & Post Your First Skill</Text>
+            <Text style={styles.ctaBannerBtnText}>Get Started & Post Your First Skill</Text>
             <ArrowRight size={18} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
@@ -1083,7 +1083,7 @@ export default function WebHomePage() {
                 <Text style={styles.footerNavLinkTextHighlight}>Sign In to Leteski</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleSignUpPress} style={styles.footerNavLink}>
-                <Text style={styles.footerNavLinkText}>Create Free Account</Text>
+                <Text style={styles.footerNavLinkText}>Create Account</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleExploreSkillsPress} style={styles.footerNavLink}>
                 <Text style={styles.footerNavLinkText}>Explore Community</Text>
