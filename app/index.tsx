@@ -2,54 +2,58 @@ import { Redirect, useSegments, usePathname } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import { useOnboarding } from '@/providers/onboarding';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import WebHomePage from '@/components/web/WebHomePage';
 
 export default function Index() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { hasCompletedOnboarding, isChecking } = useOnboarding();
-  const segments = useSegments();
   const pathname = usePathname();
 
   const isLoading = authLoading || isChecking;
 
-  if (isLoading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+  // -------------------------------------------------------------
+  // MOBILE APP BEHAVIOR (Android & iOS)
+  // This page is strictly NOT shown on the mobile app. The app flow remains identical.
+  // -------------------------------------------------------------
+  if (Platform.OS !== 'web') {
+    if (isLoading) {
+      return (
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color="#6366F1" />
+        </View>
+      );
+    }
+
+    if (!isAuthenticated) {
+      return <Redirect href="/login" />;
+    }
+
+    if (!hasCompletedOnboarding) {
+      return <Redirect href="/onboarding" />;
+    }
+
+    return <Redirect href="/(tabs)/home" />;
   }
 
-  // If we are deep-linked or directly loading a subpath (e.g. /admin), index should not redirect
-  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
+  // -------------------------------------------------------------
+  // WEBSITE BEHAVIOR (leteski.com / root '/' on web)
+  // Renders the dedicated homepage for web visitors
+  // -------------------------------------------------------------
+  if (typeof window !== 'undefined' && window.location) {
     let webPath = window.location.pathname;
     if (window.location.hash && window.location.hash.startsWith('#/')) {
       webPath = window.location.hash.substring(1);
     }
-    if (webPath !== '/' && webPath !== '/index') {
-      console.log('[DEBUG Index] bypassing redirect on web because of path:', webPath);
+    if (webPath !== '/' && webPath !== '/index' && webPath !== '') {
       return null;
     }
   }
 
-  if (pathname !== '/' && pathname !== '/index') {
-    console.log('[DEBUG Index] bypassing redirect because of pathname:', pathname);
+  if (pathname !== '/' && pathname !== '/index' && pathname !== '') {
     return null;
   }
 
-  console.log('[DEBUG Index] evaluating index redirects:', { isAuthenticated, hasCompletedOnboarding });
-
-  if (!isAuthenticated) {
-    console.log('[DEBUG Index] Redirecting to /login');
-    return <Redirect href="/login" />;
-  }
-
-  if (!hasCompletedOnboarding) {
-    console.log('[DEBUG Index] Redirecting to /onboarding');
-    return <Redirect href="/onboarding" />;
-  }
-
-  console.log('[DEBUG Index] Redirecting to /home');
-  return <Redirect href="/home" />;
+  return <WebHomePage />;
 }
 
 const styles = StyleSheet.create({
@@ -57,5 +61,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
   },
 });

@@ -25,6 +25,7 @@
   "exclude": [
     "expo/**/*",
     "server/**/*",
+    "scratch/**/*",
     "node_modules"
   ]
 }

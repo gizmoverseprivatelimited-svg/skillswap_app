@@ -1574,6 +1574,11 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 8,
   },
+  emptyWantsText: {
+    fontSize: 13,
+    color: '#94A3B8',
+    fontStyle: 'italic',
+  },
   emptyWantsTextMobile: {
     fontSize: 11.5,
   },

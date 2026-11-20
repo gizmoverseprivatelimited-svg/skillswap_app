@@ -49,8 +49,8 @@ function RootLayoutNav() {
     if (user && (user.id || (user as any)._id)) {
       const uid = String(user.id || (user as any)._id);
       setUserId(uid);
-      if (user.role) {
-        setUserProperty('user_role', String(user.role));
+      if ((user as any).role) {
+        setUserProperty('user_role', String((user as any).role));
       }
     } else if (!isAuthenticated) {
       setUserId(null);
@@ -82,8 +82,9 @@ function RootLayoutNav() {
     const isBannedRoute = segment0 === 'banned' || currentPath === '/banned' || currentPath.startsWith('/banned');
     const isLogin = segment0 === 'login' || currentPath === '/login' || currentPath.startsWith('/login');
     const isOnboarding = segment0 === 'onboarding' || currentPath === '/onboarding' || currentPath.startsWith('/onboarding');
+    const isRootWeb = Platform.OS === 'web' && (segment0 === '' || currentPath === '/' || currentPath === '/index' || currentPath === '');
     const publicRoutes = ['login', 'terms', 'privacy', 'about', 'contact', 'help', 'admin', 'banned', 'reset-password'];
-    const isPublic = publicRoutes.includes(segment0) || isLogin || currentPath.startsWith('/admin');
+    const isPublic = publicRoutes.includes(segment0) || isLogin || currentPath.startsWith('/admin') || isRootWeb;
 
     const isDemo = authUser?.isDemo === true || authUser?.email === 'guest@skillswap.com' || user?.isDemo === true || user?.id === '1';
 
@@ -118,6 +119,7 @@ function RootLayoutNav() {
 
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="banned" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="reset-password" options={{ headerShown: false }} />
