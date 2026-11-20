@@ -689,9 +689,9 @@ export default function WebHomePage() {
               <View style={[styles.featureIconBadge, { backgroundColor: '#ECFDF5' }]}>
                 <TrendingUp size={22} color="#059669" />
               </View>
-              <Text style={styles.featureTitle}>Real Earnings (Keep 80%)</Text>
+              <Text style={styles.featureTitle}>Real Earnings</Text>
               <Text style={styles.featureDesc}>
-                Teachers keep 80% of what their classes bill, with a transparent earnings dashboard and fast, reliable payout requests.
+                Earn real money as you teach classes and mentor learners, with a transparent earnings dashboard, clear tracking, and fast payout requests.
               </Text>
             </View>
 
