@@ -557,18 +557,16 @@ export default function WebHomePage() {
         <View style={styles.heroSection}>
           <View style={styles.heroBadge}>
             <Sparkles size={14} color="#6366F1" />
-            <Text style={styles.heroBadgeText}>Peer-to-Peer Knowledge Marketplace</Text>
+            <Text style={styles.heroBadgeText}>Trade Skills, Not Money • leteski</Text>
           </View>
 
           <Text style={styles.heroTitle}>
-            Trade Your Expertise.{'\n'}
-            <Text style={styles.heroTitleGradient}>Master Any Skill Together.</Text>
+            Teach What You Know.{'\n'}
+            <Text style={styles.heroTitleGradient}>Learn What You Love.</Text>
           </Text>
 
           <Text style={styles.heroSubtitle}>
-            Leteski is the premier skill exchange platform where passionate learners and tutors connect.
-            Teach what you love — coding, design, languages, or business — and learn what you need through
-            interactive 1-on-1 sessions, expert courses, and collaborative exchanges.
+            leteski is a skill-exchange platform where people teach what they know and learn what they don't — trading skills with each other, joining live group classes, and earning real money while they teach. Powered by a simple credit economy.
           </Text>
 
           {/* Quick Hero Actions */}
@@ -617,6 +615,104 @@ export default function WebHomePage() {
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>100%</Text>
               <Text style={styles.statLabel}>Peer-Powered</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ------------------------------------------------------------- */}
+        {/* WHAT YOU CAN DO ON LETESKI (Full Description & Features) */}
+        {/* ------------------------------------------------------------- */}
+        <View style={styles.featuresSectionContainer}>
+          <View style={styles.sectionHeaderCenter}>
+            <View style={styles.sectionBadgeIndigo}>
+              <Sparkles size={14} color="#6366F1" />
+              <Text style={styles.sectionBadgeIndigoText}>Peer-to-Peer Learning Marketplace</Text>
+            </View>
+            <Text style={styles.sectionTitle}>What You Can Do on leteski</Text>
+            <Text style={styles.sectionSubtitleCenter}>
+              leteski is a peer-to-peer learning marketplace where everyone is both a teacher and a learner. Instead of paying heavy course fees, you trade: offer a skill you're good at — photography, coding, Spanish, yoga — and learn a skill you want, from a real person, in a live session.
+            </Text>
+          </View>
+
+          <View style={styles.featuresGrid}>
+            <View style={styles.featureCard}>
+              <View style={[styles.featureIconBadge, { backgroundColor: '#EEF2FF' }]}>
+                <Users size={22} color="#6366F1" />
+              </View>
+              <Text style={styles.featureTitle}>1-on-1 Skill Swaps</Text>
+              <Text style={styles.featureDesc}>
+                Get matched with compatible partners by shared interests, categories, and what you each want to learn. Chat, agree on a time, and jump into an in-app call.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <View style={[styles.featureIconBadge, { backgroundColor: '#FDF2F8' }]}>
+                <Video size={22} color="#EC4899" />
+              </View>
+              <Text style={styles.featureTitle}>Group Classes</Text>
+              <Text style={styles.featureDesc}>
+                Teach or join live classes with multiple students: single sessions, or recurring daily/weekly courses. Class recordings, assignments, and quizzes keep learners engaged.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <View style={[styles.featureIconBadge, { backgroundColor: '#FFFBEB' }]}>
+                <MessageCircle size={22} color="#F59E0B" />
+              </View>
+              <Text style={styles.featureTitle}>Community Wall</Text>
+              <Text style={styles.featureDesc}>
+                Post wins, ask questions, comment, and discover inspiring teachers through the live interactive social feed.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <View style={[styles.featureIconBadge, { backgroundColor: '#ECFDF5' }]}>
+                <BookOpen size={22} color="#10B981" />
+              </View>
+              <Text style={styles.featureTitle}>Resource Library</Text>
+              <Text style={styles.featureDesc}>
+                Share and discover articles, videos, and documents curated by the community, with endorsements and trending tags.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <View style={[styles.featureIconBadge, { backgroundColor: '#F5F3FF' }]}>
+                <Zap size={22} color="#8B5CF6" />
+              </View>
+              <Text style={styles.featureTitle}>Credit Economy (1 Credit = ₹1)</Text>
+              <Text style={styles.featureDesc}>
+                One simple currency: 1 Credit = ₹1. Earn credits by teaching and by completing swaps; spend them to unlock classes and premium sessions.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <View style={[styles.featureIconBadge, { backgroundColor: '#ECFDF5' }]}>
+                <TrendingUp size={22} color="#059669" />
+              </View>
+              <Text style={styles.featureTitle}>Real Earnings (Keep 80%)</Text>
+              <Text style={styles.featureDesc}>
+                Teachers keep 80% of what their classes bill, with a transparent earnings dashboard and fast, reliable payout requests.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <View style={[styles.featureIconBadge, { backgroundColor: '#EFF6FF' }]}>
+                <Shield size={22} color="#2563EB" />
+              </View>
+              <Text style={styles.featureTitle}>Trust & Safety</Text>
+              <Text style={styles.featureDesc}>
+                Profile verification, reviews and ratings, five-star rewards, report/block tools, and a full admin moderation console.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <View style={[styles.featureIconBadge, { backgroundColor: '#FEF3C7' }]}>
+                <Sparkles size={22} color="#D97706" />
+              </View>
+              <Text style={styles.featureTitle}>Built for Momentum</Text>
+              <Text style={styles.featureDesc}>
+                Notifications, streaks of matched recommendations, certificates, practice tests, and an AI assistant that helps you find your next swap.
+              </Text>
             </View>
           </View>
         </View>
@@ -998,6 +1094,8 @@ export default function WebHomePage() {
             <Text style={styles.ctaBannerBtnText}>Get Started & Post Your First Skill</Text>
             <ArrowRight size={18} color="#FFFFFF" />
           </TouchableOpacity>
+
+          <Text style={styles.howItWorksClosingTagline}>leteski — teach what you know. Learn what you love.</Text>
         </View>
 
         {/* ------------------------------------------------------------- */}
@@ -1018,7 +1116,7 @@ export default function WebHomePage() {
 
               {/* What we do in 25 to 40 Words (Sheet Item 1: "What we do in 25 to 40 Words") */}
               <Text style={styles.footerWhatWeDo}>
-                Leteski is a premier peer-to-peer skill exchange platform where passionate learners and creators connect to teach what they love and learn what they desire through collaborative barter and shared growth.
+                leteski is a skill-exchange platform where people teach what they know and learn what they don't — trading skills with each other and earning real money while they teach.
               </Text>
 
               {/* Social Media Icons (Sheet Item 1: Social Media Icons: FB, Insta, YouTube, LinkedIn) */}
@@ -1648,6 +1746,82 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#A5B4FC',
+  },
+  sectionBadgeIndigo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginBottom: 12,
+  },
+  sectionBadgeIndigoText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4F46E5',
+  },
+  sectionSubtitleCenter: {
+    fontSize: 16,
+    color: '#64748B',
+    marginTop: 8,
+    textAlign: 'center',
+    maxWidth: 760,
+    lineHeight: 25,
+  },
+  featuresSectionContainer: {
+    maxWidth: 1240,
+    width: '100%',
+    marginHorizontal: 'auto',
+    paddingHorizontal: 20,
+    paddingTop: 48,
+    paddingBottom: 24,
+  },
+  featuresGrid: {
+    display: 'grid' as any,
+    gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))',
+    gap: 20,
+    marginTop: 32,
+  },
+  featureCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+  },
+  featureIconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  featureTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 8,
+  },
+  featureDesc: {
+    fontSize: 13,
+    color: '#64748B',
+    lineHeight: 20,
+  },
+  howItWorksClosingTagline: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#6366F1',
+    marginTop: 20,
+    letterSpacing: 0.5,
   },
   sectionTitle: {
     fontSize: 32,
