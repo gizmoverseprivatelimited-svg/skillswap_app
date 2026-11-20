@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
   Platform,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -52,6 +53,8 @@ import {
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useAuth } from '@/providers/auth';
+import { getSkillsWithUsers } from '@/mocks/data';
+import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
 const APP_LOGO = require('@/assets/images/icon.png');
 
@@ -61,6 +64,22 @@ const SOCIAL_LINKS = {
   linkedin: 'https://www.linkedin.com/company/144158051/',
   youtube: 'https://www.youtube.com/@Leteski',
 };
+
+const DEMO_USER_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+
+function CardAvatar({ uri, style }: { uri: string; style: any }) {
+  const [imageError, setImageError] = useState(false);
+  const isValidUrl = uri && (uri.startsWith('http://') || uri.startsWith('https://') || uri.startsWith('data:'));
+  const effectiveUri = !imageError && isValidUrl ? uri : DEMO_USER_AVATAR;
+
+  return (
+    <Image
+      source={{ uri: effectiveUri }}
+      style={style}
+      onError={() => setImageError(true)}
+    />
+  );
+}
 
 // -------------------------------------------------------------
 // DATA DEFINITIONS (Based on Sheet Specifications)
@@ -221,91 +240,6 @@ const MAIN_CATEGORIES = [
   },
 ];
 
-// Instagram Showcase Posts
-const INSTAGRAM_POSTS = [
-  {
-    id: 'ig-1',
-    image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600',
-    caption: '“I taught Sara Python backend in exchange for 4 weeks of Figma UI/UX coaching. Incredible experience and pure growth!” 💡🚀',
-    author: '@marcus_builds',
-    likes: 1240,
-    comments: 89,
-    tag: 'Success Story',
-  },
-  {
-    id: 'ig-2',
-    image: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=600',
-    caption: 'Top 5 high-income skills you can master and swap on Leteski today. Which one are you learning? 📚✨',
-    author: '@leteski_official',
-    likes: 2180,
-    comments: 142,
-    tag: 'Guide',
-  },
-  {
-    id: 'ig-3',
-    image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600',
-    caption: 'From beginner to certified developer: Inside our live 1-on-1 peer exchange sessions! Tap link in bio to start your journey. 💻🔥',
-    author: '@leteski_community',
-    likes: 1850,
-    comments: 97,
-    tag: 'Community',
-  },
-];
-
-// Facebook Community Posts
-const FACEBOOK_POSTS = [
-  {
-    id: 'fb-1',
-    author: 'Leteski Community Group (Official)',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-    time: '2 hours ago',
-    title: '🎉 Sunday Virtual Peer Hackathon & Skill Swap Circle Announced!',
-    body: 'We are gathering over 500+ developers, designers, and language learners this Sunday for our interactive swap breakout rooms. RSVP is open for all members.',
-    likes: 342,
-    comments: 78,
-    shares: 24,
-  },
-  {
-    id: 'fb-2',
-    author: 'Anita Roy • Member Spotlight',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-    time: 'Yesterday at 4:30 PM',
-    title: 'How I passed my French DELF exam using Leteski barter sessions!',
-    body: 'Big shoutout to Henri from Lyon! We did 30-minute English/French exchanges every Tuesday. Today I received my B2 certification score!',
-    likes: 512,
-    comments: 114,
-    shares: 39,
-  },
-];
-
-// YouTube Videos Showcase
-const YOUTUBE_VIDEOS = [
-  {
-    id: 'yt-1',
-    title: 'How Skill Swapping Works on Leteski — The Complete 2026 Walkthrough',
-    duration: '8:45',
-    views: '48K views',
-    thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600',
-    category: 'Tutorial',
-  },
-  {
-    id: 'yt-2',
-    title: 'Top 7 Skills to Barter Online in 2026 (No Experience Needed)',
-    duration: '12:20',
-    views: '92K views',
-    thumbnail: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600',
-    category: 'Skill Guide',
-  },
-  {
-    id: 'yt-3',
-    title: 'Full-Stack Developer Mentorship: Real 1-on-1 Swap Session Recorded',
-    duration: '15:10',
-    views: '64K views',
-    thumbnail: 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=600',
-    category: 'Live Session',
-  },
-];
-
 // -------------------------------------------------------------
 // COMPONENT
 // -------------------------------------------------------------
@@ -322,6 +256,74 @@ export default function WebHomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('All');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [realPosts, setRealPosts] = useState<SkillPost[]>(LATEST_POSTS);
+  const [isLoadingPosts, setIsLoadingPosts] = useState<boolean>(true);
+  const [categoriesY, setCategoriesY] = useState<number>(0);
+
+  // Fetch real skills from backend API
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const skills = await getSkillsWithUsers();
+        if (skills && Array.isArray(skills) && skills.length > 0 && isMounted) {
+          const mapped: SkillPost[] = skills.map((s, idx) => {
+            const author = s.user || ({} as any);
+            const authorName = author.name || 'Community Member';
+            const authorRole =
+              author.teacherProfile?.qualifications?.[0] ||
+              author.bio?.slice(0, 45) ||
+              s.category ||
+              'Skill Tutor';
+            const avatar =
+              resolveImageUrl(author.avatarUrl, `https://i.pravatar.cc/150?img=${(idx % 30) + 1}`) ||
+              `https://i.pravatar.cc/150?img=${(idx % 30) + 1}`;
+            const offering = s.title || 'Skill Coaching';
+            const offeringCategory = s.category || 'Tech';
+            const wants =
+              Array.isArray(author.skillsWanted) && author.skillsWanted.length > 0
+                ? author.skillsWanted.join(', ')
+                : 'Open to skill exchanges';
+            const wantsCategory = s.subCategory || s.subcategory || 'Exchange';
+            const level = s.level || 'All Levels';
+            const rating = Number(author.rating) || 4.9;
+            const reviewsCount = Number(author.totalSwaps) || (idx * 3 + 14);
+            const tag = s.promoted
+              ? 'Featured'
+              : author.isVerified
+              ? 'Verified'
+              : idx % 2 === 0
+              ? 'Trending'
+              : 'Popular';
+
+            return {
+              id: String(s.id || s._id || `skill-${idx}`),
+              authorName,
+              authorRole,
+              avatar,
+              offering,
+              offeringCategory,
+              wants,
+              wantsCategory,
+              level,
+              rating,
+              reviewsCount,
+              timeAgo: 'Live Now',
+              tag,
+            };
+          });
+          setRealPosts(mapped);
+        }
+      } catch (err) {
+        console.warn('[WebHomePage] Failed fetching live skills from backend:', err);
+      } finally {
+        if (isMounted) setIsLoadingPosts(false);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const scrollRef = useRef<ScrollView>(null);
   const categoriesRef = useRef<View>(null);
@@ -340,37 +342,65 @@ export default function WebHomePage() {
 
   const handleExploreSkillsPress = () => {
     if (isAuthenticated) {
-      router.push('/(tabs)/explore' as any);
+      router.push('/(tabs)/home' as any);
+    } else {
+      router.push('/login');
+    }
+  };
+
+  const handleExploreMorePress = () => {
+    if (isAuthenticated) {
+      router.push('/(tabs)/home' as any);
+    } else {
+      router.push('/login');
+    }
+  };
+
+  const handleSwapCardPress = (skillId: string) => {
+    if (isAuthenticated) {
+      router.push(`/skill/${skillId}` as any);
     } else {
       router.push('/login');
     }
   };
 
   const scrollToCategories = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({ y: 700, animated: true });
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const elem = document.getElementById('core-categories');
+      if (elem) {
+        elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+    }
+    if (scrollRef.current && categoriesY > 0) {
+      scrollRef.current.scrollTo({ y: Math.max(0, categoriesY - 70), animated: true });
     }
   };
 
   // Filter latest posts based on search and category
   const filteredPosts = useMemo(() => {
-    return LATEST_POSTS.filter((post) => {
-      const matchesCategory =
-        selectedCategoryFilter === 'All' ||
-        post.offeringCategory.toLowerCase() === selectedCategoryFilter.toLowerCase() ||
-        post.wantsCategory.toLowerCase() === selectedCategoryFilter.toLowerCase();
+    return realPosts.filter((post) => {
+      if (selectedCategoryFilter !== 'All') {
+        const cat = selectedCategoryFilter.toLowerCase();
+        const offCat = post.offeringCategory.toLowerCase();
+        const wantCat = post.wantsCategory.toLowerCase();
+        if (!offCat.includes(cat) && !wantCat.includes(cat)) {
+          return false;
+        }
+      }
 
       const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !q ||
+      if (!q) return true;
+
+      return (
         post.offering.toLowerCase().includes(q) ||
         post.wants.toLowerCase().includes(q) ||
         post.authorName.toLowerCase().includes(q) ||
-        post.authorRole.toLowerCase().includes(q);
-
-      return matchesCategory && matchesSearch;
+        post.authorRole.toLowerCase().includes(q) ||
+        post.offeringCategory.toLowerCase().includes(q)
+      );
     });
-  }, [searchQuery, selectedCategoryFilter]);
+  }, [realPosts, searchQuery, selectedCategoryFilter]);
 
   return (
     <View style={styles.pageContainer}>
@@ -576,20 +606,6 @@ export default function WebHomePage() {
             </TouchableOpacity>
           </View>
 
-          {/* Quick Search Tag Pills */}
-          <View style={styles.heroTagRow}>
-            <Text style={styles.heroTagLabel}>Popular Swaps:</Text>
-            {['React 19', 'Figma UX', 'Spoken English', 'Python AI', 'Video Editing'].map((tag) => (
-              <TouchableOpacity
-                key={tag}
-                style={styles.heroTagPill}
-                onPress={() => setSearchQuery(tag)}
-              >
-                <Text style={styles.heroTagPillText}>#{tag}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
           {/* Statistics Bar */}
           <View style={styles.statsBar}>
             <View style={styles.statItem}>
@@ -752,12 +768,17 @@ export default function WebHomePage() {
             </View>
           </View>
 
-          {/* Cards Grid */}
+          {/* Cards Grid (8 cards at a time) */}
           <View style={styles.cardsGrid}>
-            {filteredPosts.map((post) => (
-              <View key={post.id} style={styles.postCard}>
+            {filteredPosts.slice(0, 8).map((post) => (
+              <TouchableOpacity
+                key={post.id}
+                style={styles.postCard}
+                onPress={() => handleSwapCardPress(post.id)}
+                activeOpacity={0.92}
+              >
                 <View style={styles.postHeader}>
-                  <Image source={{ uri: post.avatar }} style={styles.postAvatar} />
+                  <CardAvatar uri={post.avatar} style={styles.postAvatar} />
                   <View style={styles.postAuthorInfo}>
                     <View style={styles.postAuthorTop}>
                       <Text style={styles.postAuthorName}>{post.authorName}</Text>
@@ -805,20 +826,44 @@ export default function WebHomePage() {
                       {post.rating} <Text style={styles.postReviewsText}>({post.reviewsCount})</Text>
                     </Text>
                   </View>
-                  <TouchableOpacity style={styles.postSwapBtn} onPress={handleLoginPress} activeOpacity={0.85}>
+                  <TouchableOpacity
+                    style={styles.postSwapBtn}
+                    onPress={() => handleSwapCardPress(post.id)}
+                    activeOpacity={0.85}
+                  >
                     <Text style={styles.postSwapBtnText}>Request Swap</Text>
                     <ArrowRight size={13} color="#4F46E5" />
                   </TouchableOpacity>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
+          </View>
+
+          {/* Explore More Button */}
+          <View style={styles.exploreMoreWrapper}>
+            <TouchableOpacity
+              style={styles.exploreMoreBtn}
+              onPress={handleExploreMorePress}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.exploreMoreBtnText}>Explore More</Text>
+              <ArrowRight size={16} color="#4F46E5" />
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* ------------------------------------------------------------- */}
         {/* 3 MAIN CATEGORIES & SUB-CATEGORIES (Sheet Item 3 & 4) */}
         {/* ------------------------------------------------------------- */}
-        <View style={styles.sectionContainerDark}>
+        <View
+          nativeID="core-categories"
+          id="core-categories"
+          onLayout={(e) => {
+            const y = e.nativeEvent.layout.y;
+            if (y > 0) setCategoriesY(y);
+          }}
+          style={styles.sectionContainerDark}
+        >
           <View style={styles.sectionHeaderCenter}>
             <View style={styles.sectionBadgePurple}>
               <Layers size={14} color="#818CF8" />
@@ -879,161 +924,6 @@ export default function WebHomePage() {
               </View>
             );
           })}
-        </View>
-
-        {/* ------------------------------------------------------------- */}
-        {/* SOCIAL MEDIA FEEDS (Sheet Item 3: Instagram, FB, YouTube) */}
-        {/* ------------------------------------------------------------- */}
-
-        {/* 1. INSTAGRAM POST SECTION */}
-        <View style={styles.sectionContainer}>
-          <View style={styles.socialHeader}>
-            <View style={styles.socialBrandGroup}>
-              <View style={styles.instagramIconBadge}>
-                <Instagram size={20} color="#FFFFFF" />
-              </View>
-              <View>
-                <Text style={styles.socialBrandTitle}>Featured on Instagram</Text>
-                <Text style={styles.socialBrandSubtitle}>@leteski_ • Daily Tips & Member Stories</Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              style={styles.socialFollowBtnIg}
-              onPress={() => Linking.openURL(SOCIAL_LINKS.instagram)}
-            >
-              <Instagram size={14} color="#FFFFFF" />
-              <Text style={styles.socialFollowBtnText}>Follow on Instagram</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.cardsGridThree}>
-            {INSTAGRAM_POSTS.map((item) => (
-              <View key={item.id} style={styles.igCard}>
-                <Image source={{ uri: item.image }} style={styles.igImage} />
-                <View style={styles.igBadge}>
-                  <Text style={styles.igBadgeText}>{item.tag}</Text>
-                </View>
-                <View style={styles.igContent}>
-                  <Text style={styles.igAuthor}>{item.author}</Text>
-                  <Text style={styles.igCaption} numberOfLines={3}>
-                    {item.caption}
-                  </Text>
-                  <View style={styles.igMetrics}>
-                    <View style={styles.igMetricItem}>
-                      <Heart size={14} color="#EF4444" fill="#EF4444" />
-                      <Text style={styles.igMetricText}>{item.likes}</Text>
-                    </View>
-                    <View style={styles.igMetricItem}>
-                      <MessageCircle size={14} color="#64748B" />
-                      <Text style={styles.igMetricText}>{item.comments}</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* 2. FACEBOOK POST SECTION */}
-        <View style={styles.sectionContainerGray}>
-          <View style={styles.socialHeader}>
-            <View style={styles.socialBrandGroup}>
-              <View style={styles.facebookIconBadge}>
-                <Facebook size={20} color="#FFFFFF" />
-              </View>
-              <View>
-                <Text style={styles.socialBrandTitle}>Leteski Facebook Community Hub</Text>
-                <Text style={styles.socialBrandSubtitle}>Active discussions, study groups, and weekly meetups</Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              style={styles.socialFollowBtnFb}
-              onPress={() => Linking.openURL(SOCIAL_LINKS.facebook)}
-            >
-              <Facebook size={14} color="#FFFFFF" />
-              <Text style={styles.socialFollowBtnText}>Join Community</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.cardsGridTwo}>
-            {FACEBOOK_POSTS.map((fb) => (
-              <View key={fb.id} style={styles.fbCard}>
-                <View style={styles.fbCardHeader}>
-                  <Image source={{ uri: fb.avatar }} style={styles.fbAvatar} />
-                  <View style={styles.fbAuthorGroup}>
-                    <Text style={styles.fbAuthorName}>{fb.author}</Text>
-                    <Text style={styles.fbTime}>{fb.time}</Text>
-                  </View>
-                  <Facebook size={18} color="#1877F2" />
-                </View>
-                <Text style={styles.fbTitle}>{fb.title}</Text>
-                <Text style={styles.fbBody}>{fb.body}</Text>
-                <View style={styles.fbCardFooter}>
-                  <View style={styles.fbStatRow}>
-                    <ThumbsUp size={14} color="#1877F2" />
-                    <Text style={styles.fbStatText}>{fb.likes} Likes</Text>
-                  </View>
-                  <View style={styles.fbStatRow}>
-                    <MessageCircle size={14} color="#64748B" />
-                    <Text style={styles.fbStatText}>{fb.comments} Comments</Text>
-                  </View>
-                  <View style={styles.fbStatRow}>
-                    <Share2 size={14} color="#64748B" />
-                    <Text style={styles.fbStatText}>{fb.shares} Shares</Text>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* 3. YOUTUBE POST SECTION */}
-        <View style={styles.sectionContainer}>
-          <View style={styles.socialHeader}>
-            <View style={styles.socialBrandGroup}>
-              <View style={styles.youtubeIconBadge}>
-                <Youtube size={22} color="#FFFFFF" />
-              </View>
-              <View>
-                <Text style={styles.socialBrandTitle}>YouTube Masterclasses & Tutorials</Text>
-                <Text style={styles.socialBrandSubtitle}>Watch how-to guides, teacher spotlights & recorded sessions</Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              style={styles.socialFollowBtnYt}
-              onPress={() => Linking.openURL(SOCIAL_LINKS.youtube)}
-            >
-              <Youtube size={14} color="#FFFFFF" />
-              <Text style={styles.socialFollowBtnText}>Subscribe Channel</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.cardsGridThree}>
-            {YOUTUBE_VIDEOS.map((yt) => (
-              <View key={yt.id} style={styles.ytCard}>
-                <View style={styles.ytThumbnailWrapper}>
-                  <Image source={{ uri: yt.thumbnail }} style={styles.ytThumbnail} />
-                  <View style={styles.ytPlayOverlay}>
-                    <View style={styles.ytPlayCircle}>
-                      <Play size={18} color="#FFFFFF" fill="#FFFFFF" />
-                    </View>
-                  </View>
-                  <View style={styles.ytDurationBadge}>
-                    <Text style={styles.ytDurationText}>{yt.duration}</Text>
-                  </View>
-                  <View style={styles.ytCategoryBadge}>
-                    <Text style={styles.ytCategoryText}>{yt.category}</Text>
-                  </View>
-                </View>
-                <View style={styles.ytContent}>
-                  <Text style={styles.ytTitle} numberOfLines={2}>
-                    {yt.title}
-                  </Text>
-                  <Text style={styles.ytViews}>{yt.views} • Full HD</Text>
-                </View>
-              </View>
-            ))}
-          </View>
         </View>
 
         {/* ------------------------------------------------------------- */}
@@ -1552,7 +1442,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexWrap: 'wrap',
     gap: 16,
-    marginBottom: 26,
+    marginBottom: 40,
   },
   heroPrimaryBtn: {
     flexDirection: 'row',
@@ -1671,6 +1561,11 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 20,
     paddingVertical: 56,
+    ...Platform.select({
+      web: {
+        scrollMarginTop: 80,
+      } as any,
+    }),
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1795,6 +1690,31 @@ const styles = StyleSheet.create({
     color: '#6366F1',
     marginTop: 20,
     letterSpacing: 0.5,
+  },
+  exploreMoreWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 36,
+  },
+  exploreMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#6366F1',
+    paddingVertical: 13,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+  },
+  exploreMoreBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#4F46E5',
   },
   sectionTitle: {
     fontSize: 32,
