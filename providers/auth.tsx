@@ -59,11 +59,14 @@ interface AuthContextValue {
 }
 
 const sendDebugLog = (msg: string, data: any) => {
-  fetch(`${url}/debug-log`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: msg, data }),
-  }).catch(() => { });
+  if (__DEV__) {
+    // Only send debug logs in local development, avoid flooding production server & PM2
+    fetch(`${url}/debug-log`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg }),
+    }).catch(() => { });
+  }
 };
 
 export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() => {

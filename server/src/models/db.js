@@ -91,6 +91,37 @@ function mongoConnection() {
                         console.log(`[Migration] Seeded teacher credentials for ${found.name}`);
                     }
                 }
+
+                // Cleanup any accidental localhost / 127.0.0.1 in avatarUrl or documentUri
+                try {
+                    const usersWithLocalhost = await User.find({
+                        $or: [
+                            { avatarUrl: { $regex: /localhost|127\.0\.0\.1/ } },
+                            { 'teacherProfile.certifications.documentUri': { $regex: /localhost|127\.0\.0\.1/ } },
+                        ]
+                    });
+                    for (const u of usersWithLocalhost) {
+                        let changed = false;
+                        if (u.avatarUrl && /localhost|127\.0\.0\.1/.test(u.avatarUrl)) {
+                            u.avatarUrl = u.avatarUrl.replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?/, '/');
+                            changed = true;
+                        }
+                        if (u.teacherProfile && Array.isArray(u.teacherProfile.certifications)) {
+                            u.teacherProfile.certifications.forEach(cert => {
+                                if (cert.documentUri && /localhost|127\.0\.0\.1/.test(cert.documentUri)) {
+                                    cert.documentUri = cert.documentUri.replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?/, '/');
+                                    changed = true;
+                                }
+                            });
+                        }
+                        if (changed) {
+                            await u.save();
+                            console.log(`[Migration] Cleaned localhost URLs for user: ${u._id}`);
+                        }
+                    }
+                } catch (cleanErr) {
+                    console.warn('[Migration] Error cleaning localhost URLs:', cleanErr.message);
+                }
             } catch (err) {
                 console.error('[Migration] Failed running username or teacher migration:', err);
             }

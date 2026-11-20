@@ -58,7 +58,9 @@ app.get('/', (req, res) => {
 })
 
 app.post('/debug-log', (req, res) => {
-    console.log('[CLIENT DEBUG]', req.body);
+    if (process.env.NODE_ENV === 'development') {
+        console.log('[CLIENT DEBUG]', req.body?.message || '');
+    }
     res.json({ ok: true });
 })
 

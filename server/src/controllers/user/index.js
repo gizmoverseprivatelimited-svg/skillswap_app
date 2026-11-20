@@ -806,6 +806,7 @@ router.patch('/:userId/certifications/:certId/reject', async (req, res) => {
 async function isBlockedBetween(userAId, userBId) {
     if (!userAId || !userBId) return false;
     if (String(userAId) === String(userBId)) return false;
+    if (!mongoose.Types.ObjectId.isValid(userAId) || !mongoose.Types.ObjectId.isValid(userBId)) return false;
 
     try {
         const [userA, userB] = await Promise.all([
@@ -879,6 +880,10 @@ router.post('/:userId/block', async (req, res) => {
             return res.status(400).json({ message: 'Cannot block yourself' });
         }
 
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ message: 'Invalid userId' });
+        }
+
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
@@ -941,6 +946,10 @@ router.post('/:userId/unblock', async (req, res) => {
             return res.status(400).json({ message: 'userId and targetUserId are required' });
         }
 
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ message: 'Invalid userId' });
+        }
+
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
@@ -977,6 +986,16 @@ router.get('/:userId/block-status/:targetUserId', async (req, res) => {
         const { userId, targetUserId } = req.params;
         if (!userId || !targetUserId) {
             return res.status(400).json({ message: 'userId and targetUserId are required' });
+        }
+
+        // If either ID is not a valid MongoDB ObjectId (e.g. demo/mock user "1"), return default unblocked state
+        if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(targetUserId)) {
+            return res.json({
+                success: true,
+                isBlockedByMe: false,
+                hasBlockedMe: false,
+                isBlocked: false,
+            });
         }
 
         const [userA, userB] = await Promise.all([

@@ -16,9 +16,12 @@ export function resolveImageUrl(
     return fallback || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
   }
 
-  const cleanPath = path.trim().replace(/\\/g, '/');
+  let cleanPath = path.trim().replace(/\\/g, '/');
 
-  // Already a full URL, data URI, blob, or file URI
+  // Strip accidental localhost / 127.0.0.1 saved in DB URLs so mobile clients don't hang/timeout
+  cleanPath = cleanPath.replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?/, '/');
+
+  // Already a full external URL, data URI, blob, or file URI
   if (
     cleanPath.startsWith('http://') ||
     cleanPath.startsWith('https://') ||
