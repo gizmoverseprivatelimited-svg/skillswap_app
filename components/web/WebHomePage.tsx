@@ -411,49 +411,39 @@ export default function WebHomePage() {
             </View>
           </TouchableOpacity>
 
-          {/* 3 Most Active Categories (Desktop & Tablet) */}
+          {/* Platform Pages Navigation Links (About Us, Contact Us, Privacy Policy, Terms of Service, Help & Support) */}
           {!isMobile && (
-            <View style={styles.navCategories}>
+            <View style={styles.navLinks}>
               <TouchableOpacity
-                style={styles.navCategoryItem}
-                onPress={() => scrollRef.current?.scrollTo({ y: 1350, animated: true })}
+                style={styles.navLinkItem}
+                onPress={() => router.push('/about')}
               >
-                <Code size={16} color="#6366F1" />
-                <Text style={styles.navCategoryText}>Tech & Coding</Text>
+                <Text style={styles.navLinkText}>About Us</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.navCategoryItem}
-                onPress={() => scrollRef.current?.scrollTo({ y: 1850, animated: true })}
+                style={styles.navLinkItem}
+                onPress={() => router.push('/contact')}
               >
-                <Palette size={16} color="#EC4899" />
-                <Text style={styles.navCategoryText}>Design & Creative</Text>
+                <Text style={styles.navLinkText}>Contact Us</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.navCategoryItem}
-                onPress={() => scrollRef.current?.scrollTo({ y: 2350, animated: true })}
+                style={styles.navLinkItem}
+                onPress={() => router.push('/privacy')}
               >
-                <Globe size={16} color="#10B981" />
-                <Text style={styles.navCategoryText}>Languages & Growth</Text>
+                <Text style={styles.navLinkText}>Privacy Policy</Text>
               </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Search Bar in Header */}
-          {!isMobile && (
-            <View style={styles.headerSearchBar}>
-              <Search size={16} color="#94A3B8" />
-              <TextInput
-                style={styles.headerSearchInput}
-                placeholder="Search skills, tutors..."
-                placeholderTextColor="#94A3B8"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <X size={14} color="#94A3B8" />
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={styles.navLinkItem}
+                onPress={() => router.push('/terms')}
+              >
+                <Text style={styles.navLinkText}>Terms of Service</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.navLinkItem}
+                onPress={() => router.push('/help')}
+              >
+                <Text style={styles.navLinkText}>Help & Support</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -494,46 +484,51 @@ export default function WebHomePage() {
         {/* Mobile Dropdown Menu */}
         {isMobile && mobileMenuOpen && (
           <View style={styles.mobileNavDropdown}>
-            <View style={styles.mobileSearchBar}>
-              <Search size={16} color="#94A3B8" />
-              <TextInput
-                style={styles.mobileSearchInput}
-                placeholder="Search skills, topics, coaches..."
-                placeholderTextColor="#94A3B8"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-            </View>
-            <Text style={styles.mobileNavHeader}>Most Active Categories</Text>
+            <Text style={styles.mobileNavHeader}>Platform Pages</Text>
             <TouchableOpacity
               style={styles.mobileNavItem}
               onPress={() => {
                 setMobileMenuOpen(false);
-                scrollRef.current?.scrollTo({ y: 1200, animated: true });
+                router.push('/about');
               }}
             >
-              <Code size={18} color="#6366F1" />
-              <Text style={styles.mobileNavText}>Technology & Coding</Text>
+              <Text style={styles.mobileNavText}>About Us</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.mobileNavItem}
               onPress={() => {
                 setMobileMenuOpen(false);
-                scrollRef.current?.scrollTo({ y: 1700, animated: true });
+                router.push('/contact');
               }}
             >
-              <Palette size={18} color="#EC4899" />
-              <Text style={styles.mobileNavText}>Design & Creative Arts</Text>
+              <Text style={styles.mobileNavText}>Contact Us</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.mobileNavItem}
               onPress={() => {
                 setMobileMenuOpen(false);
-                scrollRef.current?.scrollTo({ y: 2200, animated: true });
+                router.push('/privacy');
               }}
             >
-              <Globe size={18} color="#10B981" />
-              <Text style={styles.mobileNavText}>Languages & Business</Text>
+              <Text style={styles.mobileNavText}>Privacy Policy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.mobileNavItem}
+              onPress={() => {
+                setMobileMenuOpen(false);
+                router.push('/terms');
+              }}
+            >
+              <Text style={styles.mobileNavText}>Terms of Service</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.mobileNavItem}
+              onPress={() => {
+                setMobileMenuOpen(false);
+                router.push('/help');
+              }}
+            >
+              <Text style={styles.mobileNavText}>Help & Support</Text>
             </TouchableOpacity>
             <View style={styles.mobileAuthRow}>
               <TouchableOpacity style={styles.mobileLoginBtn} onPress={handleLoginPress}>
@@ -1363,41 +1358,19 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     letterSpacing: 1,
   },
-  navCategories: {
+  navLinks: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 20,
+    gap: 24,
   },
-  navCategoryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  navLinkItem: {
     paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    paddingHorizontal: 4,
   },
-  navCategoryText: {
+  navLinkText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#334155',
-  },
-  headerSearchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    width: 220,
-  },
-  headerSearchInput: {
-    flex: 1,
-    fontSize: 13,
-    color: '#0F172A',
-    outlineStyle: 'none' as any,
   },
   headerAuth: {
     flexDirection: 'row',
