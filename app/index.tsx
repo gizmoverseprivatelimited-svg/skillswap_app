@@ -40,20 +40,6 @@ export default function Index() {
   // WEBSITE BEHAVIOR (leteski.com / root '/' on web)
   // Renders the dedicated homepage for web visitors
   // -------------------------------------------------------------
-  if (typeof window !== 'undefined' && window.location) {
-    let webPath = window.location.pathname;
-    if (window.location.hash && window.location.hash.startsWith('#/')) {
-      webPath = window.location.hash.substring(1);
-    }
-    if (webPath !== '/' && webPath !== '/index' && webPath !== '') {
-      return null;
-    }
-  }
-
-  if (pathname !== '/' && pathname !== '/index' && pathname !== '') {
-    return null;
-  }
-
   return (
     <>
       <Head>
