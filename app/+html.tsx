@@ -50,9 +50,6 @@ export default function Root({ children }: PropsWithChildren) {
                 content-visibility: auto;
                 contain-intrinsic-size: 1px 700px;
               }
-              img {
-                content-visibility: auto;
-              }
             `,
           }}
         />

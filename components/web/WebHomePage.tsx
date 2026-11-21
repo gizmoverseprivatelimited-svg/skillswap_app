@@ -323,23 +323,49 @@ export default function WebHomePage() {
   const [categoriesY, setCategoriesY] = useState<number>(0);
   const [isHydrated, setIsHydrated] = useState<boolean>(Platform.OS !== 'web' || typeof window === 'undefined');
 
-  // Progressive Two-Phase Mount: Mount below-the-fold elements after frame 0
-  // to ensure Total Blocking Time (TBT) stays < 100ms and Speed Index stays < 3s.
+  // Progressive Two-Phase Mount: Mount below-the-fold elements when idle or on user interaction
+  // to ensure Total Blocking Time (TBT) stays < 100ms and Speed Index stays < 2.5s.
   useEffect(() => {
-    if (Platform.OS === 'web') {
-      const frame = requestAnimationFrame(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const trigger = () => {
         setIsHydrated(true);
-      });
-      return () => cancelAnimationFrame(frame);
+        window.removeEventListener('scroll', trigger);
+        window.removeEventListener('pointerdown', trigger);
+        window.removeEventListener('keydown', trigger);
+      };
+
+      window.addEventListener('scroll', trigger, { passive: true, once: true });
+      window.addEventListener('pointerdown', trigger, { passive: true, once: true });
+      window.addEventListener('keydown', trigger, { passive: true, once: true });
+
+      let idleId: any;
+      let timerId: any;
+      if ('requestIdleCallback' in window) {
+        idleId = (window as any).requestIdleCallback(
+          () => setIsHydrated(true),
+          { timeout: 1500 }
+        );
+      } else {
+        timerId = setTimeout(() => setIsHydrated(true), 1200);
+      }
+
+      return () => {
+        window.removeEventListener('scroll', trigger);
+        window.removeEventListener('pointerdown', trigger);
+        window.removeEventListener('keydown', trigger);
+        if (idleId && 'cancelIdleCallback' in window) {
+          (window as any).cancelIdleCallback(idleId);
+        }
+        if (timerId) clearTimeout(timerId);
+      };
     }
   }, []);
 
   // Fetch real skills from backend API
   useEffect(() => {
+    if (!isHydrated) return;
     let isMounted = true;
-    // 🚀 Performance Optimization (TBT < 200ms):
-    // Defer backend skills fetch slightly so initial layout, First Contentful Paint,
-    // and main thread hydration finish unblocked.
+    // Defer backend skills fetch so main thread hydration finishes completely unblocked
     const timer = setTimeout(() => {
       (async () => {
         try {
@@ -713,10 +739,12 @@ export default function WebHomePage() {
           </View>
         </View>
 
-        {/* ------------------------------------------------------------- */}
-        {/* WHAT YOU CAN DO ON LETESKI (Full Description & Features) */}
-        {/* ------------------------------------------------------------- */}
-        <View style={styles.featuresSectionContainer}>
+        {isHydrated && (
+          <>
+            {/* ------------------------------------------------------------- */}
+            {/* WHAT YOU CAN DO ON LETESKI (Full Description & Features) */}
+            {/* ------------------------------------------------------------- */}
+            <View style={styles.featuresSectionContainer}>
           <View style={styles.sectionHeaderCenter}>
             <View style={styles.sectionBadgeIndigo}>
               <Sparkles size={14} color="#6366F1" />
@@ -811,11 +839,9 @@ export default function WebHomePage() {
           </View>
         </View>
 
-        {isHydrated && (
-          <>
-            {/* ------------------------------------------------------------- */}
-            {/* LATEST POST SECTION (Sheet Item 3: Latest Post Section) */}
-            {/* ------------------------------------------------------------- */}
+        {/* ------------------------------------------------------------- */}
+        {/* LATEST POST SECTION (Sheet Item 3: Latest Post Section) */}
+        {/* ------------------------------------------------------------- */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <View>
