@@ -163,6 +163,66 @@ const LATEST_POSTS: SkillPost[] = [
     timeAgo: '5h ago',
     tag: 'Featured',
   },
+  {
+    id: 'post-5',
+    authorName: 'Rahul Verma',
+    authorRole: 'Fullstack JavaScript Developer',
+    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150',
+    offering: 'Node.js, Express & MongoDB REST API Development',
+    offeringCategory: 'Tech',
+    wants: 'French Pronunciation & Everyday Dialogue',
+    wantsCategory: 'Languages',
+    level: 'Intermediate',
+    rating: 4.92,
+    reviewsCount: 22,
+    timeAgo: '6h ago',
+    tag: 'Trending',
+  },
+  {
+    id: 'post-6',
+    authorName: 'Emma Watson',
+    authorRole: 'Brand & Identity Specialist',
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
+    offering: 'Logo Design, Typography & Brand Guidelines',
+    offeringCategory: 'Design',
+    wants: 'Python Data Analysis with Pandas',
+    wantsCategory: 'Tech',
+    level: 'Advanced',
+    rating: 4.97,
+    reviewsCount: 35,
+    timeAgo: '7h ago',
+    tag: 'Featured',
+  },
+  {
+    id: 'post-7',
+    authorName: 'Carlos Ramirez',
+    authorRole: 'Native Spanish Instructor',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
+    offering: 'Conversational Spanish for Business & Travel',
+    offeringCategory: 'Languages',
+    wants: 'Flutter & Cross-Platform Mobile Apps',
+    wantsCategory: 'Tech',
+    level: 'All Levels',
+    rating: 4.88,
+    reviewsCount: 40,
+    timeAgo: '8h ago',
+    tag: 'Verified',
+  },
+  {
+    id: 'post-8',
+    authorName: 'Sneha Patel',
+    authorRole: 'UX Researcher & Interaction Designer',
+    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150',
+    offering: 'User Interviews, Usability Testing & Wireframes',
+    offeringCategory: 'Design',
+    wants: 'Public Speaking & Presentation Skills',
+    wantsCategory: 'Business',
+    level: 'Intermediate',
+    rating: 4.96,
+    reviewsCount: 26,
+    timeAgo: '9h ago',
+    tag: 'Popular',
+  },
 ];
 
 // 3 Main Categories + 2 Sub-Categories each
@@ -325,7 +385,7 @@ export default function WebHomePage() {
           if (isMounted) setIsLoadingPosts(false);
         }
       })();
-    }, 150);
+    }, 1200);
 
     return () => {
       isMounted = false;
@@ -587,18 +647,18 @@ export default function WebHomePage() {
         showsVerticalScrollIndicator={false}
       >
         {/* HERO SECTION */}
-        <View style={styles.heroSection}>
+        <View style={[styles.heroSection, isMobile && styles.heroSectionMobile]}>
           <View style={styles.heroBadge}>
             <Sparkles size={14} color="#6366F1" />
             <Text style={styles.heroBadgeText}>Trade Skills, Not Money • leteski</Text>
           </View>
 
-          <Text style={styles.heroTitle}>
+          <Text style={[styles.heroTitle, isMobile && styles.heroTitleMobile]}>
             Teach What You Know.{'\n'}
             <Text style={styles.heroTitleGradient}>Learn What You Love.</Text>
           </Text>
 
-          <Text style={styles.heroSubtitle}>
+          <Text style={[styles.heroSubtitle, isMobile && styles.heroSubtitleMobile]}>
             leteski is a skill-exchange platform where people teach what they know and learn what they don't — trading skills with each other, joining live group classes, and earning real money while they teach. Powered by a simple credit economy.
           </Text>
 
@@ -1454,6 +1514,20 @@ const styles = StyleSheet.create({
     lineHeight: 27,
     maxWidth: 780,
     marginBottom: 32,
+  },
+  heroSectionMobile: {
+    paddingTop: 28,
+    paddingBottom: 24,
+  },
+  heroTitleMobile: {
+    fontSize: 32,
+    lineHeight: 38,
+    marginBottom: 14,
+  },
+  heroSubtitleMobile: {
+    fontSize: 15,
+    lineHeight: 23,
+    marginBottom: 24,
   },
   heroActionGroup: {
     flexDirection: 'row',

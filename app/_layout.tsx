@@ -110,11 +110,26 @@ function RootLayoutNav() {
   }, [isAuthenticated, isRestricted, authLoading, isChecking, hasCompletedOnboarding, segments, rootNavigationState?.key, pathname, router, authUser, user]);
 
   if (authLoading && !isAuthenticated) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366F1" />
-      </View>
-    );
+    if (Platform.OS === 'web') {
+      const currentPath = pathname || (typeof window !== 'undefined' ? window.location.pathname : '') || '';
+      const segment0: any = segments[0] || '';
+      const isRootWeb = segment0 === '' || currentPath === '/' || currentPath === '/index' || currentPath === '';
+      const publicRoutes = ['login', 'terms', 'privacy', 'about', 'contact', 'help', 'admin', 'banned', 'reset-password'];
+      const isPublic = isRootWeb || publicRoutes.includes(segment0);
+      if (!isPublic) {
+        return (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#6366F1" />
+          </View>
+        );
+      }
+    } else {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6366F1" />
+        </View>
+      );
+    }
   }
 
   return (
