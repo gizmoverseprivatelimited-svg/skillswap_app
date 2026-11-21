@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { SkillSwapRequest, SkillSwapStatus, SwapMessage, SwapTimeProposal, SwapType } from '../types';
@@ -351,6 +352,15 @@ export const [SkillSwapsProvider, useSkillSwaps] = createContextHook<SkillSwapsC
   }, [currentUser?.id]);
 
   useEffect(() => {
+    // Web performance: Skip heavy all-swaps fetch on web landing page for anonymous visitors
+    if (Platform.OS === 'web') {
+      const token = typeof window !== 'undefined' && window.localStorage ? window.localStorage.getItem('@skillswap/auth_token') : null;
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+    }
+
     fetchAllSwaps(allSwaps.length > 0);
 
     if (!currentUser?.id || currentUser.id.length < 4) {

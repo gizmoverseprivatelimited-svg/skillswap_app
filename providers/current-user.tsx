@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import createContextHook from '@nkzw/create-context-hook';
 import { mockUsers, getUsers } from '../mocks/data';
 import type { MatchRecommendation, User, Skill, OnboardingRole, SkillCategory, SkillLevel } from '../types';
@@ -137,6 +138,15 @@ export const [CurrentUserProvider, useCurrentUser] = createContextHook<CurrentUs
     }
 
     try {
+      if (Platform.OS === 'web') {
+        const token = typeof window !== 'undefined' && window.localStorage ? window.localStorage.getItem('@skillswap/auth_token') : null;
+        if (!token) {
+          setCurrentUser(null);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const userPromise = (currentId && currentId !== '1')
         ? fetch(`${url}/users/${currentId}`).then(r => (r.ok ? r.json() : null)).catch(() => null)
         : Promise.resolve(null);

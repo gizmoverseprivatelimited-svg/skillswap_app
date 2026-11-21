@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { Platform } from 'react-native';
 import createContextHook from '@nkzw/create-context-hook';
 import url from '@/constants/backurl';
 import type {
@@ -93,6 +94,10 @@ export const [EarningsProvider, useEarnings] = createContextHook<EarningsContext
   }, []);
 
   const fetchAdminPayouts = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+      if (!pathname.startsWith('/admin') && !pathname.startsWith('admin')) return;
+    }
     try {
       const res = await fetch(`${url}/earnings/admin/payouts`);
       if (res.ok) {

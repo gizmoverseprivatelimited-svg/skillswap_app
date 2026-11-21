@@ -166,6 +166,7 @@
 
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import createContextHook from '@nkzw/create-context-hook';
 import url from '@/constants/backurl';
 import type { ResourceMeta, ResourceType, SkillCategory, SkillLevel } from '@/types';
@@ -243,6 +244,10 @@ export const [ResourcesProvider, useResources] =
     }, []);
 
     useEffect(() => {
+      if (Platform.OS === 'web') {
+        const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+        if (pathname === '/' || pathname === '') return;
+      }
       fetchResources();
     }, [fetchResources]);
 

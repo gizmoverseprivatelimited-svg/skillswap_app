@@ -56,7 +56,7 @@ import { useAuth } from '@/providers/auth';
 import { getSkillsWithUsers } from '@/mocks/data';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
-const APP_LOGO = require('@/assets/images/icon.png');
+const APP_LOGO = require('@/assets/images/logo-web.png');
 
 const SOCIAL_LINKS = {
   facebook: 'https://www.facebook.com/profile.php?id=61596870262574',
@@ -69,7 +69,8 @@ const DEMO_USER_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf
 
 function CardAvatar({ uri, style }: { uri: string; style: any }) {
   const [imageError, setImageError] = useState(false);
-  const isValidUrl = uri && (uri.startsWith('http://') || uri.startsWith('https://') || uri.startsWith('data:'));
+  const isBrokenBackendAvatar = typeof uri === 'string' && (uri.includes('avatars/') || uri.includes('/uploads/') || uri.includes('api.leteski.com'));
+  const isValidUrl = uri && !isBrokenBackendAvatar && (uri.startsWith('http://') || uri.startsWith('https://') || uri.startsWith('data:'));
   const effectiveUri = !imageError && isValidUrl ? uri : DEMO_USER_AVATAR;
 
   return (
@@ -240,14 +241,14 @@ const MAIN_CATEGORIES = [
         title: 'Web & Mobile Engineering',
         skills: ['React & Next.js', 'React Native & Expo', 'Node.js & Express', 'TypeScript'],
         count: '1,420+ Teachers',
-        image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400&q=75&auto=format',
+        image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?fit=crop&w=370&h=140&q=75&auto=format',
       },
       {
         id: 'ai-data',
         title: 'AI, Data Science & Python',
         skills: ['Python Basics & OOP', 'LLMs & Prompt Eng.', 'Data Analysis & SQL', 'Machine Learning'],
         count: '980+ Teachers',
-        image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400&q=75&auto=format',
+        image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?fit=crop&w=370&h=140&q=75&auto=format',
       },
     ],
   },
@@ -264,14 +265,14 @@ const MAIN_CATEGORIES = [
         title: 'UI/UX & Product Design',
         skills: ['Figma Masterclass', 'Wireframing & Research', 'Design Systems', 'Design Thinking'],
         count: '1,150+ Teachers',
-        image: 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=400&q=75&auto=format',
+        image: 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?fit=crop&w=370&h=140&q=75&auto=format',
       },
       {
         id: 'video-photo',
         title: 'Photography & Video Editing',
         skills: ['Premiere Pro & DaVinci', 'Motion Graphics', 'Color Grading', 'Sound Design'],
         count: '820+ Teachers',
-        image: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=400&q=75&auto=format',
+        image: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?fit=crop&w=370&h=140&q=75&auto=format',
       },
     ],
   },
@@ -288,14 +289,14 @@ const MAIN_CATEGORIES = [
         title: 'Spoken English & Foreign Languages',
         skills: ['English Accent Reduction', 'Conversational Spanish', 'French for Travelers', 'German & Japanese'],
         count: '1,650+ Teachers',
-        image: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=400&q=75&auto=format',
+        image: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?fit=crop&w=370&h=140&q=75&auto=format',
       },
       {
         id: 'business',
         title: 'Business, Leadership & Speaking',
         skills: ['Pitching & Public Speaking', 'Startup Strategy', 'Growth Marketing', 'Negotiation Skills'],
         count: '760+ Teachers',
-        image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&q=75&auto=format',
+        image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?fit=crop&w=370&h=140&q=75&auto=format',
       },
     ],
   },
@@ -352,9 +353,11 @@ export default function WebHomePage() {
                 author.bio?.slice(0, 45) ||
                 s.category ||
                 'Skill Tutor';
-              const avatar =
-                resolveImageUrl(author.avatarUrl, `https://i.pravatar.cc/150?img=${(idx % 30) + 1}`) ||
-                `https://i.pravatar.cc/150?img=${(idx % 30) + 1}`;
+              const rawAvatar = author.avatarUrl;
+              const isBrokenBackendAvatar = typeof rawAvatar === 'string' && (rawAvatar.includes('avatars/') || rawAvatar.includes('/uploads/') || rawAvatar.includes('api.leteski.com'));
+              const avatar = (!rawAvatar || isBrokenBackendAvatar)
+                ? `https://i.pravatar.cc/150?img=${(idx % 30) + 1}`
+                : (resolveImageUrl(rawAvatar, `https://i.pravatar.cc/150?img=${(idx % 30) + 1}`) || `https://i.pravatar.cc/150?img=${(idx % 30) + 1}`);
               const offering = s.title || 'Skill Coaching';
               const offeringCategory = s.category || 'Tech';
               const wants =
@@ -1250,15 +1253,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   announcementLink: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    backgroundColor: '#FDE047',
     borderRadius: 6,
   },
   announcementLinkText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#FDE047',
+    fontWeight: '800',
+    color: '#0F172A',
   },
 
   // Header styles
@@ -1335,7 +1338,7 @@ const styles = StyleSheet.create({
   logoTagline: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#1E293B',
     letterSpacing: 1,
   },
   navLinks: {
@@ -1557,11 +1560,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#6366F1',
+    backgroundColor: '#3730A3',
     paddingVertical: 15,
     paddingHorizontal: 28,
     borderRadius: 12,
-    shadowColor: '#6366F1',
+    shadowColor: '#3730A3',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
@@ -2131,6 +2134,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 140,
     backgroundColor: '#334155',
+    resizeMode: 'cover',
   },
   subCategoryContent: {
     padding: 18,

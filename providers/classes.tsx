@@ -85,6 +85,11 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
 
   // Fetch classes and enrollments from backend API
   const fetchClassesFromBackend = useCallback(async () => {
+    // Web performance: Do not fetch heavy class catalog on public landing page for unauthenticated visitors
+    if (Platform.OS === 'web') {
+      const token = typeof window !== 'undefined' && window.localStorage ? window.localStorage.getItem('@skillswap/auth_token') : null;
+      if (!token) return;
+    }
     try {
       const [resClasses, resEnrollments] = await Promise.all([
         fetch(`${url}/classes`),
@@ -138,6 +143,10 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
 
   // Periodic polling fallback to guarantee real-time sync across all clients
   useEffect(() => {
+    if (Platform.OS === 'web') {
+      const token = typeof window !== 'undefined' && window.localStorage ? window.localStorage.getItem('@skillswap/auth_token') : null;
+      if (!token) return;
+    }
     const interval = setInterval(() => {
       fetchClassesFromBackend();
     }, 4000);

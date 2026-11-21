@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import createContextHook from '@nkzw/create-context-hook';
 import { getUsers, mockUsers } from '../mocks/data';
 import type { User, Review, SkillSwapRequest, UserVerifications, VerificationStatus } from '../types';
@@ -702,6 +703,19 @@ export const [AdminProvider, useAdmin] = createContextHook<AdminContextValue>(()
   }, []);
 
   useEffect(() => {
+    // Web performance: Do not load heavy admin payloads on public consumer web pages
+    if (Platform.OS === 'web') {
+      const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+      const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('admin');
+      const hasAdminSession = typeof window !== 'undefined' && window.localStorage
+        ? window.localStorage.getItem(ADMIN_SESSION_KEY)
+        : null;
+      if (!isAdminRoute && !hasAdminSession) {
+        setIsLoading(false);
+        return;
+      }
+    }
+
     async function loadData() {
       setIsLoading(true);
       try {
