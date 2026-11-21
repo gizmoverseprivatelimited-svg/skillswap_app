@@ -65,7 +65,7 @@ const SOCIAL_LINKS = {
   youtube: 'https://www.youtube.com/@Leteski',
 };
 
-const DEMO_USER_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+const DEMO_USER_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?fit=crop&w=150&h=150&q=80&auto=format';
 
 function CardAvatar({ uri, style }: { uri: string; style: any }) {
   const [imageError, setImageError] = useState(false);
@@ -77,6 +77,7 @@ function CardAvatar({ uri, style }: { uri: string; style: any }) {
     <Image
       source={{ uri: effectiveUri }}
       style={style}
+      resizeMode="cover"
       onError={() => setImageError(true)}
       {...(Platform.OS === 'web' ? { loading: 'lazy', decoding: 'async' } : {})}
     />
@@ -108,7 +109,7 @@ const LATEST_POSTS: SkillPost[] = [
     id: 'post-1',
     authorName: 'Alex Morgan',
     authorRole: 'Senior Frontend Engineer',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?fit=crop&w=150&h=150&q=80&auto=format',
     offering: 'Modern React 19 & Next.js Fullstack Architecture',
     offeringCategory: 'Tech',
     wants: 'Conversational Spanish & Accent Practice',
@@ -123,7 +124,7 @@ const LATEST_POSTS: SkillPost[] = [
     id: 'post-2',
     authorName: 'Sara Chen',
     authorRole: 'Product Designer at FinTech',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150',
+    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?fit=crop&w=150&h=150&q=80&auto=format',
     offering: 'Figma Design Systems & Mobile UI/UX Prototyping',
     offeringCategory: 'Design',
     wants: 'Python Automation & Web Scraping',
@@ -138,7 +139,7 @@ const LATEST_POSTS: SkillPost[] = [
     id: 'post-3',
     authorName: 'David Ross',
     authorRole: 'Voice Coach & ESL Specialist',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?fit=crop&w=150&h=150&q=80&auto=format',
     offering: 'Spoken English Fluency, Accent & Public Speaking',
     offeringCategory: 'Languages',
     wants: 'SEO & Organic Growth Hacking',
@@ -153,7 +154,7 @@ const LATEST_POSTS: SkillPost[] = [
     id: 'post-4',
     authorName: 'Priya Sharma',
     authorRole: 'Creative Director',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
+    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?fit=crop&w=150&h=150&q=80&auto=format',
     offering: 'Cinematic Video Editing & DaVinci Resolve Color Grading',
     offeringCategory: 'Design',
     wants: 'TypeScript & React Native Basics',
@@ -168,7 +169,7 @@ const LATEST_POSTS: SkillPost[] = [
     id: 'post-5',
     authorName: 'Rahul Verma',
     authorRole: 'Fullstack JavaScript Developer',
-    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150',
+    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?fit=crop&w=150&h=150&q=80&auto=format',
     offering: 'Node.js, Express & MongoDB REST API Development',
     offeringCategory: 'Tech',
     wants: 'French Pronunciation & Everyday Dialogue',
@@ -183,7 +184,7 @@ const LATEST_POSTS: SkillPost[] = [
     id: 'post-6',
     authorName: 'Emma Watson',
     authorRole: 'Brand & Identity Specialist',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?fit=crop&w=150&h=150&q=80&auto=format',
     offering: 'Logo Design, Typography & Brand Guidelines',
     offeringCategory: 'Design',
     wants: 'Python Data Analysis with Pandas',
@@ -198,7 +199,7 @@ const LATEST_POSTS: SkillPost[] = [
     id: 'post-7',
     authorName: 'Carlos Ramirez',
     authorRole: 'Native Spanish Instructor',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?fit=crop&w=150&h=150&q=80&auto=format',
     offering: 'Conversational Spanish for Business & Travel',
     offeringCategory: 'Languages',
     wants: 'Flutter & Cross-Platform Mobile Apps',
@@ -213,7 +214,7 @@ const LATEST_POSTS: SkillPost[] = [
     id: 'post-8',
     authorName: 'Sneha Patel',
     authorRole: 'UX Researcher & Interaction Designer',
-    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150',
+    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?fit=crop&w=150&h=150&q=80&auto=format',
     offering: 'User Interviews, Usability Testing & Wireframes',
     offeringCategory: 'Design',
     wants: 'Public Speaking & Presentation Skills',
@@ -1969,6 +1970,7 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     backgroundColor: '#E2E8F0',
+    resizeMode: 'cover',
   },
   postAuthorInfo: {
     flex: 1,
