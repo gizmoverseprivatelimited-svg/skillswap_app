@@ -1,4 +1,5 @@
 import { Redirect, useSegments, usePathname } from 'expo-router';
+import Head from 'expo-router/head';
 import { useAuth } from '@/providers/auth';
 import { useOnboarding } from '@/providers/onboarding';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
@@ -53,7 +54,18 @@ export default function Index() {
     return null;
   }
 
-  return <WebHomePage />;
+  return (
+    <>
+      <Head>
+        <title>Leteski — Peer-to-Peer Skill Exchange &amp; Learning Marketplace</title>
+        <meta
+          name="description"
+          content="leteski is a skill-exchange platform where people teach what they know and learn what they don't — trading skills with each other, joining live group classes, and earning real money while they teach."
+        />
+      </Head>
+      <WebHomePage />
+    </>
+  );
 }
 
 const styles = StyleSheet.create({

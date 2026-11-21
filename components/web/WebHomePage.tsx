@@ -323,6 +323,22 @@ export default function WebHomePage() {
   const [categoriesY, setCategoriesY] = useState<number>(0);
   const [isHydrated, setIsHydrated] = useState<boolean>(Platform.OS !== 'web' || typeof window === 'undefined');
 
+  // Ensure meta description is always present in DOM for Lighthouse and search engines
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      let meta = document.querySelector('meta[name="description"]');
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.setAttribute('name', 'description');
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute(
+        'content',
+        "leteski is a skill-exchange platform where people teach what they know and learn what they don't — trading skills with each other, joining live group classes, and earning real money while they teach."
+      );
+    }
+  }, []);
+
   // Progressive Two-Phase Mount: Mount below-the-fold elements only on user interaction or fallback
   // to ensure Total Blocking Time (TBT) stays < 100ms and Speed Index stays < 2.0s.
   useEffect(() => {

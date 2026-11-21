@@ -16,6 +16,5 @@ Disallow: /swaps/
 Disallow: /banned
 Disallow: /reset-password
 
-# Sitemap & Agentic Resource Discovery
+# Sitemap location
 Sitemap: https://leteski.com/sitemap.xml
-Agentmap: https://leteski.com/.well-known/ard.json
