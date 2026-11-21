@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import url from '@/constants/backurl';
@@ -106,6 +107,11 @@ export const [SafetyProvider, useSafety] = createContextHook<SafetyContextValue>
   }, [currentUserId, fetchBlockedUsers]);
 
   const fetchReports = useCallback(async () => {
+    // Web performance: Only fetch admin moderation reports on admin pages
+    if (Platform.OS === 'web') {
+      const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+      if (!pathname.startsWith('/admin') && !pathname.startsWith('admin')) return;
+    }
     try {
       const res = await fetch(`${url}/reports`);
       if (res.ok) {
@@ -120,6 +126,10 @@ export const [SafetyProvider, useSafety] = createContextHook<SafetyContextValue>
   }, []);
 
   useEffect(() => {
+    if (Platform.OS === 'web') {
+      const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+      if (!pathname.startsWith('/admin') && !pathname.startsWith('admin')) return;
+    }
     fetchReports();
   }, [fetchReports]);
 
