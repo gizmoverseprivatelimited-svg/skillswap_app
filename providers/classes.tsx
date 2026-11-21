@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { mockUsers, mockClasses, mockEnrollments } from '../mocks/data';
@@ -107,6 +108,11 @@ export const [ClassesProvider, useClasses] = createContextHook<ClassesContextVal
   }, []);
 
   useEffect(() => {
+    // Web performance: Skip class fetch on landing page for unauthenticated visitors
+    if (Platform.OS === 'web') {
+      const token = typeof window !== 'undefined' && window.localStorage ? window.localStorage.getItem('@skillswap/auth_token') : null;
+      if (!token) return;
+    }
     fetchClassesFromBackend();
   }, [fetchClassesFromBackend]);
 

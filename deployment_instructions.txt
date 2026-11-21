@@ -33,7 +33,7 @@ SECTION 2: FRONTEND UPDATE (/var/www/skillswap-frontend)
 Option A: If building from source repository on server
 ------------------------------------------------------
 1. Navigate to frontend source directory:
-     cd /path/to/your/frontend-repo
+     cd ~/skillswap-frontend
 
 2. Pull latest code from GitHub:
      git pull origin main

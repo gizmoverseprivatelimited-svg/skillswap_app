@@ -320,6 +320,18 @@ export default function WebHomePage() {
   const [realPosts, setRealPosts] = useState<SkillPost[]>(LATEST_POSTS);
   const [isLoadingPosts, setIsLoadingPosts] = useState<boolean>(true);
   const [categoriesY, setCategoriesY] = useState<number>(0);
+  const [isHydrated, setIsHydrated] = useState<boolean>(Platform.OS !== 'web' || typeof window === 'undefined');
+
+  // Progressive Two-Phase Mount: Mount below-the-fold elements after frame 0
+  // to ensure Total Blocking Time (TBT) stays < 100ms and Speed Index stays < 3s.
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const frame = requestAnimationFrame(() => {
+        setIsHydrated(true);
+      });
+      return () => cancelAnimationFrame(frame);
+    }
+  }, []);
 
   // Fetch real skills from backend API
   useEffect(() => {
@@ -796,9 +808,11 @@ export default function WebHomePage() {
           </View>
         </View>
 
-        {/* ------------------------------------------------------------- */}
-        {/* LATEST POST SECTION (Sheet Item 3: Latest Post Section) */}
-        {/* ------------------------------------------------------------- */}
+        {isHydrated && (
+          <>
+            {/* ------------------------------------------------------------- */}
+            {/* LATEST POST SECTION (Sheet Item 3: Latest Post Section) */}
+            {/* ------------------------------------------------------------- */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <View>
@@ -1180,6 +1194,8 @@ export default function WebHomePage() {
             </View>
           </View>
         </footer>
+          </>
+        )}
       </ScrollView>
     </View>
   );
