@@ -77,6 +77,7 @@ function CardAvatar({ uri, style }: { uri: string; style: any }) {
       source={{ uri: effectiveUri }}
       style={style}
       onError={() => setImageError(true)}
+      {...(Platform.OS === 'web' ? { loading: 'lazy', decoding: 'async' } : {})}
     />
   );
 }
@@ -179,14 +180,14 @@ const MAIN_CATEGORIES = [
         title: 'Web & Mobile Engineering',
         skills: ['React & Next.js', 'React Native & Expo', 'Node.js & Express', 'TypeScript'],
         count: '1,420+ Teachers',
-        image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=500',
+        image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400&q=75&auto=format',
       },
       {
         id: 'ai-data',
         title: 'AI, Data Science & Python',
         skills: ['Python Basics & OOP', 'LLMs & Prompt Eng.', 'Data Analysis & SQL', 'Machine Learning'],
         count: '980+ Teachers',
-        image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=500',
+        image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400&q=75&auto=format',
       },
     ],
   },
@@ -203,14 +204,14 @@ const MAIN_CATEGORIES = [
         title: 'UI/UX & Product Design',
         skills: ['Figma Masterclass', 'Wireframing & Research', 'Design Systems', 'Design Thinking'],
         count: '1,150+ Teachers',
-        image: 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=500',
+        image: 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=400&q=75&auto=format',
       },
       {
         id: 'video-photo',
         title: 'Photography & Video Editing',
         skills: ['Premiere Pro & DaVinci', 'Motion Graphics', 'Color Grading', 'Sound Design'],
         count: '820+ Teachers',
-        image: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=500',
+        image: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=400&q=75&auto=format',
       },
     ],
   },
@@ -227,14 +228,14 @@ const MAIN_CATEGORIES = [
         title: 'Spoken English & Foreign Languages',
         skills: ['English Accent Reduction', 'Conversational Spanish', 'French for Travelers', 'German & Japanese'],
         count: '1,650+ Teachers',
-        image: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=500',
+        image: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=400&q=75&auto=format',
       },
       {
         id: 'business',
         title: 'Business, Leadership & Speaking',
         skills: ['Pitching & Public Speaking', 'Startup Strategy', 'Growth Marketing', 'Negotiation Skills'],
         count: '760+ Teachers',
-        image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=500',
+        image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&q=75&auto=format',
       },
     ],
   },
@@ -263,65 +264,72 @@ export default function WebHomePage() {
   // Fetch real skills from backend API
   useEffect(() => {
     let isMounted = true;
-    (async () => {
-      try {
-        const skills = await getSkillsWithUsers();
-        if (skills && Array.isArray(skills) && skills.length > 0 && isMounted) {
-          const mapped: SkillPost[] = skills.map((s, idx) => {
-            const author = s.user || ({} as any);
-            const authorName = author.name || 'Community Member';
-            const authorRole =
-              author.teacherProfile?.qualifications?.[0] ||
-              author.bio?.slice(0, 45) ||
-              s.category ||
-              'Skill Tutor';
-            const avatar =
-              resolveImageUrl(author.avatarUrl, `https://i.pravatar.cc/150?img=${(idx % 30) + 1}`) ||
-              `https://i.pravatar.cc/150?img=${(idx % 30) + 1}`;
-            const offering = s.title || 'Skill Coaching';
-            const offeringCategory = s.category || 'Tech';
-            const wants =
-              Array.isArray(author.skillsWanted) && author.skillsWanted.length > 0
-                ? author.skillsWanted.join(', ')
-                : 'Open to skill exchanges';
-            const wantsCategory = s.subCategory || s.subcategory || 'Exchange';
-            const level = s.level || 'All Levels';
-            const rating = Number(author.rating) || 4.9;
-            const reviewsCount = Number(author.totalSwaps) || (idx * 3 + 14);
-            const tag = s.promoted
-              ? 'Featured'
-              : author.isVerified
-              ? 'Verified'
-              : idx % 2 === 0
-              ? 'Trending'
-              : 'Popular';
+    // 🚀 Performance Optimization (TBT < 200ms):
+    // Defer backend skills fetch slightly so initial layout, First Contentful Paint,
+    // and main thread hydration finish unblocked.
+    const timer = setTimeout(() => {
+      (async () => {
+        try {
+          const skills = await getSkillsWithUsers();
+          if (skills && Array.isArray(skills) && skills.length > 0 && isMounted) {
+            const mapped: SkillPost[] = skills.map((s, idx) => {
+              const author = s.user || ({} as any);
+              const authorName = author.name || 'Community Member';
+              const authorRole =
+                author.teacherProfile?.qualifications?.[0] ||
+                author.bio?.slice(0, 45) ||
+                s.category ||
+                'Skill Tutor';
+              const avatar =
+                resolveImageUrl(author.avatarUrl, `https://i.pravatar.cc/150?img=${(idx % 30) + 1}`) ||
+                `https://i.pravatar.cc/150?img=${(idx % 30) + 1}`;
+              const offering = s.title || 'Skill Coaching';
+              const offeringCategory = s.category || 'Tech';
+              const wants =
+                Array.isArray(author.skillsWanted) && author.skillsWanted.length > 0
+                  ? author.skillsWanted.join(', ')
+                  : 'Open to skill exchanges';
+              const wantsCategory = s.subCategory || s.subcategory || 'Exchange';
+              const level = s.level || 'All Levels';
+              const rating = Number(author.rating) || 4.9;
+              const reviewsCount = Number(author.totalSwaps) || (idx * 3 + 14);
+              const tag = s.promoted
+                ? 'Featured'
+                : author.isVerified
+                ? 'Verified'
+                : idx % 2 === 0
+                ? 'Trending'
+                : 'Popular';
 
-            return {
-              id: String(s.id || s._id || `skill-${idx}`),
-              authorName,
-              authorRole,
-              avatar,
-              offering,
-              offeringCategory,
-              wants,
-              wantsCategory,
-              level,
-              rating,
-              reviewsCount,
-              timeAgo: 'Live Now',
-              tag,
-            };
-          });
-          setRealPosts(mapped);
+              return {
+                id: String(s.id || s._id || `skill-${idx}`),
+                authorName,
+                authorRole,
+                avatar,
+                offering,
+                offeringCategory,
+                wants,
+                wantsCategory,
+                level,
+                rating,
+                reviewsCount,
+                timeAgo: 'Live Now',
+                tag,
+              };
+            });
+            setRealPosts(mapped);
+          }
+        } catch (err) {
+          console.warn('[WebHomePage] Failed fetching live skills from backend:', err);
+        } finally {
+          if (isMounted) setIsLoadingPosts(false);
         }
-      } catch (err) {
-        console.warn('[WebHomePage] Failed fetching live skills from backend:', err);
-      } finally {
-        if (isMounted) setIsLoadingPosts(false);
-      }
-    })();
+      })();
+    }, 150);
+
     return () => {
       isMounted = false;
+      clearTimeout(timer);
     };
   }, []);
 
@@ -895,7 +903,11 @@ export default function WebHomePage() {
                 <View style={styles.subCategoryGrid}>
                   {mainCat.subCategories.map((sub) => (
                     <View key={sub.id} style={styles.subCategoryCard}>
-                      <Image source={{ uri: sub.image }} style={styles.subCategoryImage} />
+                      <Image
+                        source={{ uri: sub.image }}
+                        style={styles.subCategoryImage}
+                        {...(Platform.OS === 'web' ? { loading: 'lazy', decoding: 'async' } : {})}
+                      />
                       <View style={styles.subCategoryContent}>
                         <View style={styles.subCategoryTop}>
                           <Text style={styles.subCategoryTitle}>{sub.title}</Text>
@@ -1131,6 +1143,8 @@ const footerHtmlStyle: React.CSSProperties = {
   backgroundColor: '#0F172A',
   width: '100%',
   marginTop: 60,
+  contentVisibility: 'auto' as any,
+  containIntrinsicSize: '1px 500px' as any,
 };
 
 const styles = StyleSheet.create({
@@ -1424,6 +1438,11 @@ const styles = StyleSheet.create({
     lineHeight: 56,
     letterSpacing: -1,
     marginBottom: 20,
+    ...Platform.select({
+      web: {
+        textRendering: 'optimizeSpeed',
+      } as any,
+    }),
   },
   heroTitleGradient: {
     color: '#4F46E5',
@@ -1564,6 +1583,8 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: {
         scrollMarginTop: 80,
+        contentVisibility: 'auto',
+        containIntrinsicSize: '1px 800px',
       } as any,
     }),
   },
@@ -2379,6 +2400,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 60,
     alignItems: 'center',
+    ...Platform.select({
+      web: {
+        contentVisibility: 'auto',
+        containIntrinsicSize: '1px 500px',
+      } as any,
+    }),
   },
   howItWorksPre: {
     fontSize: 13,

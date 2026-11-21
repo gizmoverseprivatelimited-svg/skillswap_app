@@ -142,6 +142,11 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
     if (normalizedUser) {
       setUser(normalizedUser);
     }
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      try {
+        window.dispatchEvent(new Event('leteski:auth-change'));
+      } catch {}
+    }
   }, []);
 
   const clearToken = useCallback(async () => {
@@ -152,6 +157,11 @@ export const [AuthProvider, useAuth] = createContextHook<AuthContextValue>(() =>
     await AsyncStorage.removeItem('@skillswap/guest_skills_offered');
     setToken(null);
     setUser(null);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      try {
+        window.dispatchEvent(new Event('leteski:auth-change'));
+      } catch {}
+    }
   }, []);
 
   const refreshAuth = useCallback(async () => {
