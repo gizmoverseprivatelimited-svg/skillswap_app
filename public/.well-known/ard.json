@@ -1,0 +1,22 @@
+{
+  "specVersion": "0.91",
+  "host": {
+    "displayName": "Leteski Skill Exchange",
+    "identifier": "leteski.com",
+    "documentationUrl": "https://leteski.com/about"
+  },
+  "entries": [
+    {
+      "identifier": "urn:air:leteski.com:api:skills",
+      "displayName": "Leteski Skill Discovery & Exchange",
+      "type": "application/json",
+      "url": "https://api.leteski.com/skills/with-users",
+      "description": "Public catalog of available peer skills, teaching profiles, and learning exchange opportunities.",
+      "representativeQueries": [
+        "Find React programming teachers on Leteski",
+        "Learn conversational Spanish via peer skill swap",
+        "Find live group classes for photography and video editing"
+      ]
+    }
+  ]
+}

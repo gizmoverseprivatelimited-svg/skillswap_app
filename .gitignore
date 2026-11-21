@@ -53,4 +53,5 @@ node_modules/
 *.zip
 *.txt
 !public/robots.txt
+!public/llms.txt
 

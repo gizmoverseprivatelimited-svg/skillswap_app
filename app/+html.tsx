@@ -25,6 +25,10 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="preconnect" href="https://i.pravatar.cc" />
         <link rel="dns-prefetch" href="https://i.pravatar.cc" />
 
+        {/* Agentic Resource Discovery & LLM Discoverability */}
+        <link rel="ard" href="/.well-known/ard.json" />
+        <link rel="alternate" type="text/markdown" href="/llms.txt" />
+
         <ScrollViewStyleReset />
 
         <style

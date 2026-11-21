@@ -1,0 +1,17 @@
+# Leteski
+
+> Leteski is a peer-to-peer skill exchange platform and live learning marketplace where people teach what they know and learn what they don't — exchanging skills, attending live group classes, and building community.
+
+## Core Features & Navigation
+- [Home](https://leteski.com/): Peer-to-peer skill exchange marketplace homepage.
+- [Explore Skills](https://leteski.com/explore): Search and browse community mentors, topics, and skill swaps.
+- [Live Classes](https://leteski.com/classes): Interactive group courses, single workshops, and recurring classes.
+- [Resource Library](https://leteski.com/resources): Curated articles, video tutorials, guides, and learning documents.
+- [Skill Swaps](https://leteski.com/swaps): 1-on-1 swap management, scheduling, video calls, and barter history.
+
+## Information & Policies
+- [About Us](https://leteski.com/about): Our mission, platform model, and peer-to-peer learning philosophy.
+- [Terms of Service](https://leteski.com/terms): Guidelines, credit economy rules, and terms of service.
+- [Privacy Policy](https://leteski.com/privacy): User privacy, security practices, and data protection policy.
+- [Help & Support](https://leteski.com/help): FAQ, support contact, and dispute resolution.
+- [Contact Us](https://leteski.com/contact): Reach out to the Leteski team for inquiries and assistance.
