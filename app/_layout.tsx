@@ -378,6 +378,8 @@ import { EarningsProvider } from "../providers/earnings";
 import { AlertProvider } from "../providers/alert";
 import { SocketProvider } from "../providers/socket";
 
+const RootContainer = (Platform.OS === 'web' ? View : GestureHandlerRootView) as any;
+
 export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS !== 'web') {
@@ -419,10 +421,10 @@ export default function RootLayout() {
                             <ClassesProvider>
                               <ResourcesProvider>
                                 <ErrorBoundary>
-                                  <GestureHandlerRootView style={styles.container}>
+                                  <RootContainer style={styles.container}>
                                     <RootLayoutNav />
                                     <InAppNotificationBanner />
-                                  </GestureHandlerRootView>
+                                  </RootContainer>
                                 </ErrorBoundary>
                               </ResourcesProvider>
                             </ClassesProvider>

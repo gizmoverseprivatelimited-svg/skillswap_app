@@ -79,7 +79,10 @@
       [
         "expo-router",
         {
-          "origin": "https://rork.com/"
+          "origin": "https://leteski.com/",
+          "asyncRoutes": {
+            "web": true
+          }
         }
       ],
       "expo-apple-authentication",
